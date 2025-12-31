@@ -1,0 +1,179 @@
+{ config, pkgs, lib, ... }:
+
+{
+  # ===========================================================================
+  # LOCALIZATION & CONSOLE
+  # ===========================================================================
+  time.timeZone = "Europe/Berlin";
+  i18n.defaultLocale = "de_DE.UTF-8";
+  
+  # ===========================================================================
+  # BOOT ESSENTIALS
+  # ===========================================================================
+  boot = {
+    consoleLogLevel = 0; 
+    initrd.verbose = false;
+    initrd.systemd.enable = true;
+    
+    plymouth = {
+      enable = true;
+      theme = "bgrt";
+    };
+
+    kernelParams = [
+      "quiet"
+      "splash"
+      "vt.global_cursor_default=0"
+      "systemd.show_status=false"
+      "udev.log_level=3"
+      "loglevel=3"
+      "systemd.log_level=warning"
+    ];
+
+    kernel.sysctl = {
+      # Aggressive Swap Usage (ZRAM Optimization)
+      "vm.swappiness" = 100;
+      "vm.watermark_boost_factor" = 0;
+      "vm.vfs_cache_pressure" = 100;
+      "vm.page-cluster" = 0;
+
+      # Network & Responsiveness
+      "net.core.default_qdisc" = "fq";
+      "net.ipv4.tcp_congestion_control" = "bbr";
+      "net.core.netdev_max_backlog" = 5000;
+      
+      # Application Compatibility
+      "vm.max_map_count" = 1048576;
+      "vm.dirty_bytes" = 268435456;
+      "vm.dirty_background_bytes" = 134217728;
+    };
+    
+    kernelModules = [ "tcp_bbr" ];
+
+    # --- Secure Boot (Lanzaboote) ---
+    loader.systemd-boot.enable = lib.mkForce false;
+    loader.efi.canTouchEfiVariables = true;
+    
+    lanzaboote = {
+      enable = true;
+      pkiBundle = "/var/lib/sbctl";
+    };
+  };
+
+  # ===========================================================================
+  # MEMORY MANAGEMENT (ZRAM)
+  # ===========================================================================
+  # [ADDED] Essential for vm.swappiness = 100
+  zramSwap = {
+    enable = true;
+    algorithm = "lz4";
+    memoryPercent = 50;
+    priority = 10;
+  };
+
+  # ===========================================================================
+  # HARDWARE & CONNECTIVITY
+  # ===========================================================================
+  hardware.enableRedistributableFirmware = true;
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+    settings.General.Experimental = true;
+  };
+
+  networking = {
+    networkmanager = {
+      enable = true;
+      wifi.backend = "iwd";
+      wifi.powersave = true;
+      dns = "systemd-resolved";
+    };
+    firewall = {
+      checkReversePath = "loose";
+      trustedInterfaces = [ "tailscale0" ];
+    };
+  };
+
+  services.resolved = {
+    enable = true;
+    fallbackDns = [ "1.1.1.1" "1.0.0.1" ];
+  };
+
+  services.tailscale = {
+    enable = true;
+    useRoutingFeatures = "client";
+  };
+
+  # ===========================================================================
+  # TOOLS & SERVICES
+  # ===========================================================================
+  programs.fish.enable = true;
+  programs.adb.enable = true;
+
+  security.rtkit.enable = true;
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+    jack.enable = true;
+  };
+
+  services.libinput.enable = true;
+  services.logind.settings.Login = {
+    HandleLidSwitch = "suspend";
+    HandleLidSwitchExternalPower = "ignore";
+    HandleLidSwitchDocked = "ignore";
+  };
+
+  # ===========================================================================
+  # NIX, USERS & DEBLOAT
+  # ===========================================================================
+  
+  # Documentation Debloat
+  documentation.enable = false;
+  documentation.nixos.enable = false;
+  documentation.man.enable = false;
+  documentation.info.enable = false;
+  documentation.doc.enable = false;
+
+  nix = {
+    settings = {
+      experimental-features = [ "nix-command" "flakes" ];
+      auto-optimise-store = true;
+      max-jobs = "auto";
+      cores = 0;
+      trusted-users = [ "root" "dk" ];
+    };
+    gc = {
+      automatic = true;
+      dates = "weekly";
+      options = "--delete-older-than 7d";
+    };
+  };
+
+  systemd.services.nix-daemon.serviceConfig = {
+    Slice = "background.slice";
+    Nice = 10;
+    CPUWeight = 50;
+    IOWeight = 50;
+    IOSchedulingClass = "best-effort";
+  };
+
+  nixpkgs.config.allowUnfree = true;
+  services.fstrim.enable = true;
+  services.fwupd.enable = true;
+  systemd.coredump.enable = false;
+
+  users.users.dk = {
+    isNormalUser = true;
+    description = "David";
+    group = "dk";
+    extraGroups = [ 
+      "networkmanager" "wheel" "video" "audio" 
+      "input" "adbusers" "render" "libvirtd" 
+    ];
+  };
+  users.groups.dk = {};
+  security.sudo.wheelNeedsPassword = true;
+}
