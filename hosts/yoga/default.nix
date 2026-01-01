@@ -30,6 +30,7 @@ in
     ../../modules/features/kernel.nix
     ../../modules/features/kmscon.nix
     ../../modules/features/power-tlp.nix
+    ../../modules/features/network-optimization.nix
     ../../modules/features/virtualization.nix
     ../../modules/features/zram.nix
   ];
@@ -97,6 +98,8 @@ in
         USB_EXCLUDE_AUDIO = 1;
       };
     };
+
+    network-optimization.enable = true;
     
     virtualization = {
       enable = true;

@@ -1,7 +1,9 @@
-{ config, lib, pkgs, palette, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   cfg = config.features.kmscon;
+  # Direkter Import statt globaler Dependency injection
+  palette = import ../../lib/palette.nix;
   p = palette.colors;
   toRgb = hex: palette.hexToRgb hex;
 in

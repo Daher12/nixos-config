@@ -19,6 +19,7 @@
     ../../modules/features/fonts.nix
     ../../modules/features/kernel.nix
     ../../modules/features/power-tlp.nix
+    ../../modules/features/network-optimization.nix
     ../../modules/features/virtualization.nix
     ../../modules/features/zram.nix
   ];
@@ -79,6 +80,8 @@
         USB_EXCLUDE_BTUSB = 0;
       };
     };
+
+    network-optimization.enable = true;
     
     virtualization = {
       enable = false;
