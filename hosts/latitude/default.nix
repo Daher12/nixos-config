@@ -8,6 +8,7 @@
     ../../modules/core/locale.nix
     ../../modules/core/networking.nix
     ../../modules/core/nix.nix
+    ../../modules/core/secureboot.nix
     ../../modules/core/users.nix
     
     ../../modules/hardware/intel-gpu.nix
@@ -20,6 +21,7 @@
     ../../modules/features/kernel.nix
     ../../modules/features/power-tlp.nix
     ../../modules/features/network-optimization.nix
+    ../../modules/features/vpn.nix
     ../../modules/features/virtualization.nix
     ../../modules/features/zram.nix
   ];
@@ -27,16 +29,12 @@
   system.stateVersion = "25.05";
   networking.hostName = "e7450-nixos";
 
-  # Lanzaboote (Secure Boot)
-  boot.lanzaboote = {
-    enable = true;
-    pkiBundle = "/var/lib/sbctl";
-  };
 
   # Core Configuration
   core.boot.silent = true;
   core.locale.timeZone = "Europe/Berlin";
   core.nix.gc.automatic = true;
+  core.secureboot.enable = true;
 
   # Hardware
   hardware.intel-gpu.enable = true;
@@ -82,6 +80,11 @@
     };
 
     network-optimization.enable = true;
+    
+    vpn.tailscale = { 
+      enable = true;
+      routingFeatures = "client";
+    };
     
     virtualization = {
       enable = false;
@@ -145,13 +148,6 @@
       cycle = 30;
     };
   };
-
-  # Tailscale
-  services.tailscale = {
-    enable = true;
-    useRoutingFeatures = "client";
-  };
-  networking.firewall.trustedInterfaces = [ "tailscale0" ];
 
   # Log compression
   services.journald.extraConfig = ''

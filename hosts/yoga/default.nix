@@ -19,6 +19,7 @@ in
     ../../modules/core/locale.nix
     ../../modules/core/networking.nix
     ../../modules/core/nix.nix
+    ../../modules/core/secureboot.nix
     ../../modules/core/users.nix
     
     ../../modules/hardware/amd-gpu.nix
@@ -31,6 +32,7 @@ in
     ../../modules/features/kmscon.nix
     ../../modules/features/power-tlp.nix
     ../../modules/features/network-optimization.nix
+    ../../modules/features/vpn.nix
     ../../modules/features/virtualization.nix
     ../../modules/features/zram.nix
   ];
@@ -38,16 +40,11 @@ in
   system.stateVersion = "25.11";
   networking.hostName = "yoga";
 
-  # Lanzaboote (Secure Boot)
-  boot.lanzaboote = {
-    enable = true;
-    pkiBundle = "/var/lib/sbctl";
-  };
-
   # Core Configuration
   core.boot.silent = true;
   core.locale.timeZone = "Europe/Berlin";
   core.nix.gc.automatic = true;
+  core.secureboot.enable = true
 
   # Hardware
   hardware.amd-gpu.enable = true;
@@ -100,6 +97,11 @@ in
     };
 
     network-optimization.enable = true;
+    
+    vpn.tailscale = {
+      enable = true;
+      routingFeatures = "client";
+    };
     
     virtualization = {
       enable = true;
@@ -190,16 +192,6 @@ in
   services.system76-scheduler.enable = true;
   
   services.journald.extraConfig = "SystemMaxUse=200M";
-
-  # Tailscale
-  services.tailscale = {
-    enable = true;
-    useRoutingFeatures = "client";
-  };
-  networking.firewall.trustedInterfaces = [ "tailscale0" ];
-
-  # Thermald
-  services.thermald.enable = true;
 
   # System packages
   environment.systemPackages = with pkgs; [
