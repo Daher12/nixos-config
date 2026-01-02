@@ -1,3 +1,4 @@
+# modules/core/users.nix
 { config, lib, ... }:
 
 let
@@ -51,14 +52,14 @@ in
       pulse.enable = true;
       jack.enable = true;
       
-      extraConfig.pipewire."92-low-latency" = {
-        context.properties = {
-          default.clock.rate = 48000;
-          default.clock.quantum = 1024;
-          default.clock.min-quantum = 512;
-          default.clock.max-quantum = 2048;
-        };
-      };
+#      extraConfig.pipewire."92-low-latency" = {
+#        context.properties = {
+#          default.clock.rate = 48000;
+#          default.clock.quantum = 1024;
+#          default.clock.min-quantum = 512;
+#          default.clock.max-quantum = 2048;
+#        };
+#      };
     };
 
     services.libinput.enable = true;
@@ -80,11 +81,6 @@ in
     documentation.info.enable = false;
     documentation.doc.enable = false;
 
-    services.fstrim = {
-      enable = true;
-      interval = "weekly";
-    };
-    
     services.fwupd.enable = true;
     systemd.coredump.enable = false;
 

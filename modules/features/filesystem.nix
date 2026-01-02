@@ -1,3 +1,4 @@
+# modules/features/filesystem.nix
 { config, lib, pkgs, ... }:
 
 let
@@ -19,6 +20,12 @@ in
         "/home" = [ "noatime" "compress=zstd:1" ];
       };
       description = "Mount options per filesystem";
+    };
+
+    enableFstrim = lib.mkOption {
+      type = lib.types.bool;
+      default = cfg.type != "btrfs";
+      description = "Enable periodic TRIM (conflicts with discard=async)";
     };
 
     btrfs = {
@@ -61,6 +68,13 @@ in
         }) cfg.mountOptions
       );
     }
+
+    (lib.mkIf cfg.enableFstrim {
+      services.fstrim = {
+        enable = true;
+        interval = "weekly";
+      };
+    })
 
     (lib.mkIf (cfg.type == "btrfs" && cfg.btrfs.autoScrub) {
       services.btrfs.autoScrub = {

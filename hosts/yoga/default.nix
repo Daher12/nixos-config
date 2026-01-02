@@ -1,3 +1,4 @@
+# hosts/yoga/default.nix
 { config, pkgs, inputs, lib, ... }:
 
 let
@@ -26,7 +27,6 @@ in
   system.stateVersion = "25.11";
   networking.hostName = "yoga";
 
-  # Core Configuration
   core.locale.timeZone = "Europe/Berlin";
   
   features.desktop-gnome.autoLoginUser = "dk";
@@ -34,18 +34,24 @@ in
   hardware.amd-gpu.enable = true;
   
   features = {
-    filesystem.type = "btrfs";
+    filesystem = {
+      type = "btrfs";
+      enableFstrim = false;
+      btrfs = {
+        autoScrub = true;
+        scrubFilesystems = [ "/" ];
+        autoBalance = true;
+      };
+    };
     kernel.variant = "zen";
     kmscon.enable = true;
     virtualization.enable = true;
     zram.memoryPercent = 100;
   };
 
-  # Host-specific configurations
   boot.kernelModules = [ "ryzen_smu" ];
   boot.extraModulePackages = [ config.boot.kernelPackages.ryzen-smu ];
 
-  # Btrfs-specific
   fileSystems = {
     "/".options = btrfsOpts;
     "/home".options = btrfsOpts;
@@ -57,39 +63,12 @@ in
     "h /var/lib/libvirt/images - - - - +C"
   ];
 
-  services.btrfs.autoScrub = {
-    enable = true;
-    fileSystems = [ "/" ];
-    interval = "monthly";
-  };
-
-  systemd.services.btrfs-balance = {
-    description = "Run monthly Btrfs balance";
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.btrfs-progs}/bin/btrfs balance start -dusage=10 -musage=10 /";
-    };
-  };
-
-  systemd.timers.btrfs-balance = {
-    description = "Run monthly Btrfs balance";
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnCalendar = "monthly";
-      Persistent = true;
-      RandomizedDelaySec = "1h";
-      Unit = "btrfs-balance.service";
-    };
-  };
-
-  # AMD-specific kernel params
   features.kernel.extraParams = [
     "amd_pstate=active"
     "amdgpu.ppfeaturemask=0xffffffff"
     "amdgpu.dcdebugmask=0x10"
   ];
 
-  # TLP overrides
   features.power-tlp.settings = {
     TLP_DEFAULT_MODE = "BAT";
     TLP_PERSISTENT_DEFAULT = 1;
