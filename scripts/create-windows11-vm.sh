@@ -1,59 +1,80 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Windows 11 VM Creation for Single Integrated GPU
-# Optimized for iTunes + Office workloads
+# Windows 11 VM Creation for NixOS (Optimized)
+# Requires: 'virtualization' module enabled with OVMFFull and virtio-win packages
 
 VM_NAME="windows11"
 VM_MAC="52:54:00:00:00:01"
 VM_CPUS="4"
-VM_MEMORY="8192"  # 8GB minimum for Windows 11
+VM_MEMORY="8192"  # 8GB minimum for smooth Win11 + Office
 DISK_SIZE="80"    # 80GB
-DISK_PATH="$HOME/.local/share/libvirt/images/${VM_NAME}.qcow2"
+
+# PATHS
+# Use the system libvirt directory to inherit the '+C' (No_COW) attribute 
+# defined in your default.nix. This prevents massive fragmentation on Btrfs.
+DISK_PATH="/var/lib/libvirt/images/${VM_NAME}.qcow2"
+
+# Windows 11 ISO (User must provide this)
 ISO_PATH="$HOME/Downloads/Win11.iso"
-VIRTIO_ISO="$HOME/Downloads/virtio-win.iso"
+
+# VirtIO Drivers (Provided by NixOS package 'virtio-win')
+# This path exists because we added 'virtio-win' to systemPackages
+VIRTIO_ISO="/run/current-system/sw/share/virtio-win/virtio-win.iso"
 
 echo "Windows 11 VM Configuration"
 echo "============================"
-echo "Name: $VM_NAME"
-echo "CPUs: $VM_CPUS"
+echo "Name:   $VM_NAME"
+echo "CPUs:   $VM_CPUS"
 echo "Memory: ${VM_MEMORY}MB"
-echo "Disk: ${DISK_SIZE}GB"
+echo "Disk:   $DISK_PATH (${DISK_SIZE}GB)"
+echo "Driver: $VIRTIO_ISO"
 echo ""
 
-# Verify prerequisites
+# 1. Verify ISOs
 if [ ! -f "$ISO_PATH" ]; then
-    echo "❌ Windows 11 ISO not found: $ISO_PATH"
-    echo "Download from: https://www.microsoft.com/software-download/windows11"
+    echo "❌ Windows 11 ISO not found at: $ISO_PATH"
+    echo "Please download it from Microsoft and place it in ~/Downloads/"
     exit 1
 fi
 
 if [ ! -f "$VIRTIO_ISO" ]; then
-    echo "⚠ VirtIO drivers ISO not found"
-    echo "Run: get-virtio-win"
-    read -p "Continue anyway? (y/N) " -n 1 -r
-    echo
-    [[ ! $REPLY =~ ^[Yy]$ ]] && exit 1
+    echo "⚠  VirtIO ISO not found in system packages."
+    echo "   Checking fallback..."
+    VIRTIO_ISO="$HOME/Downloads/virtio-win.iso"
+    if [ ! -f "$VIRTIO_ISO" ]; then
+        echo "❌ No driver ISO found. Ensure 'virtio-win' is in your system packages."
+        exit 1
+    fi
 fi
 
-# Create disk image
-mkdir -p "$(dirname "$DISK_PATH")"
+# 2. Create Disk Image (Requires Sudo for /var/lib/libvirt/images)
 if [ ! -f "$DISK_PATH" ]; then
-    echo "Creating disk image..."
-    qemu-img create -f qcow2 -o preallocation=metadata "$DISK_PATH" "${DISK_SIZE}G"
+    echo "Creating disk image (requires sudo for /var/lib/libvirt)..."
+    # preallocation=metadata is excellent for qcow2 on btrfs (fast creation, less frag)
+    sudo qemu-img create -f qcow2 -o preallocation=metadata "$DISK_PATH" "${DISK_SIZE}G"
+    
+    # Set permissions so libvirt (root/qemu) can use it, but keeping it secure
+    sudo chown root:kvm "$DISK_PATH"
+    sudo chmod 660 "$DISK_PATH"
+else
+    echo "✔ Disk image already exists."
 fi
 
-# Create VM
+# 3. Create VM
+# Note: We use --boot uefi to let libvirt automatically pick the OVMFFull firmware 
+# from the system descriptors.
+echo "Defining VM..."
 virt-install \
     --name "$VM_NAME" \
     --memory "$VM_MEMORY" \
     --vcpus "$VM_CPUS",sockets=1,cores="$VM_CPUS",threads=1 \
     --cpu host-passthrough,cache.mode=passthrough \
     --machine q35 \
-    --boot uefi,loader=/run/libvirt/nix-ovmf/OVMF_CODE.fd,loader_ro=yes,loader_type=pflash,nvram_template=/run/libvirt/nix-ovmf/OVMF_VARS.fd \
+    --boot uefi \
     --features smm.state=on \
     --clock offset=localtime,rtc_tickpolicy=catchup \
-    --disk path="$DISK_PATH",format=qcow2,bus=virtio,cache=writeback,io=threads,discard=unmap \
+    --disk path="$DISK_PATH",bus=virtio,cache=none,discard=unmap \
     --network network=default,model=virtio,mac="$VM_MAC" \
     --graphics spice,listen=127.0.0.1,gl.enable=yes,gl.rendernode=/dev/dri/renderD128 \
     --video virtio \
@@ -64,20 +85,16 @@ virt-install \
     --controller type=scsi,model=virtio-scsi \
     --controller type=virtio-serial \
     --cdrom "$ISO_PATH" \
-    $([ -f "$VIRTIO_ISO" ] && echo "--disk path=$VIRTIO_ISO,device=cdrom,readonly=on") \
+    --disk path="$VIRTIO_ISO",device=cdrom,readonly=on \
     --os-variant win11 \
     --noautoconsole
 
 echo ""
 echo "✓ VM created successfully"
 echo ""
-echo "Next steps:"
-echo "  1. Connect: virt-manager (or virt-viewer $VM_NAME)"
-echo "  2. Install Windows 11"
-echo "  3. During installation, load VirtIO drivers for disk/network"
-echo "  4. After installation:"
-echo "     - Install VirtIO guest tools"
-echo "     - Enable RDP (Settings > System > Remote Desktop)"
-echo "     - Configure Windows user account"
-echo "  5. Configure WinApps: winapps-configure"
-echo "  6. Test setup: winapps-setup"
+echo "Installation Tips:"
+echo "1. Connect: virt-manager"
+echo "2. Install Windows: Select 'Custom Install'"
+echo "3. Drives missing? Click 'Load Driver' -> CDROM (virtio) -> amd64 -> w11"
+echo "4. Network missing? Install NetKVM driver later or during setup"
+echo "5. After Install: Run virtio-win-guest-tools.exe from the CDROM"

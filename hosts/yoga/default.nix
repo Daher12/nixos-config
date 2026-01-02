@@ -59,8 +59,8 @@ in
   };
 
   systemd.tmpfiles.rules = [
-    "d /var/lib/libvirt/images 0711 root root - -"
-    "h /var/lib/libvirt/images - - - - +C"
+  "d /var/lib/libvirt/images 0775 root libvirtd - -"
+  "h /var/lib/libvirt/images - - - - +C"
   ];
 
   features.kernel.extraParams = [

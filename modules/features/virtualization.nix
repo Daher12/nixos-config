@@ -48,17 +48,20 @@ in
 
   config = lib.mkIf cfg.enable (lib.mkMerge [
     {
-      # Core Virtualization
+      # 1. Core Virtualization Stack
       virtualisation.libvirtd = {
         enable = true;
         onBoot = "ignore";
         onShutdown = "shutdown";
         qemu = {
-          package = pkgs.qemu_kvm;
+          package = pkgs.qemu_kvm; # Lightweight, host-arch only
           runAsRoot = false;
-          swtpm.enable = true;
-          vhostUserPackages = [ pkgs.virtiofsd ];
+          swtpm.enable = true;     # Required for Windows 11 TPM 2.0
+          
+          # Modern replacement for internal VirtioFS
+          vhostUserPackages = [ pkgs.virtiofsd ]; 
         };
+
         extraConfig = ''
           unix_sock_group = "libvirtd"
           unix_sock_ro_perms = "0777"
@@ -70,16 +73,11 @@ in
         '';
       };
 
-      # User Permissions
+      # 2. Critical Permissions (Self-Contained)
+      # Adds 'kvm' to ensure hardware accel works without modifying users.nix
       users.users.${mainUser}.extraGroups = [ "libvirtd" "kvm" ];
 
-      # Udev Rules
-      services.udev.extraRules = ''
-        KERNEL=="kvm", GROUP="kvm", MODE="0666"
-        SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
-      '';
-
-      # Kernel Modules & Params
+      # 3. Kernel Optimizations
       boot.kernelModules = [ "kvm-intel" "kvm-amd" "vhost-net" "vhost-vsock" ];
       boot.extraModprobeConfig = ''
         options kvm_intel nested=1 enable_apicv=1 ept=1
@@ -87,30 +85,45 @@ in
         options vhost-net experimental_zcopytx=1
       '';
 
-      # Packages
+      # 4. Essential Packages
       environment.systemPackages = with pkgs; [
+        # GUI Management
         virt-manager
         virt-viewer
+        
+        # SPICE / Audio / USB
         spice
         spice-gtk
         spice-protocol
-        virtio-win
         win-spice
+        
+        # Windows 11 Requirements
         swtpm
-        OVMFFull
-        remmina
-        freerdp
+        OVMFFull   # Provides UEFI Secure Boot firmware descriptors
+        
+        # Drivers (Avoids curl scripts)
+        # ISO Location: /run/current-system/sw/share/virtio-win/virtio-win.iso
+        virtio-win 
+
+        # Tools
         libguestfs
         libguestfs-with-appliance
+        remmina
+        freerdp # Installs v3 in 25.11
         adwaita-icon-theme
       ];
 
-      # Spice Services
+      # 5. Services & Udev
       virtualisation.spiceUSBRedirection.enable = cfg.spice;
       services.spice-vdagentd.enable = cfg.spice;
       programs.virt-manager.enable = true;
 
-      # Networking
+      services.udev.extraRules = ''
+        KERNEL=="kvm", GROUP="kvm", MODE="0666"
+        SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
+      '';
+
+      # 6. Networking Configuration
       networking.bridges = lib.mkIf cfg.networking.bridge {
         ${cfg.networking.bridgeName}.interfaces = [];
       };
@@ -118,7 +131,7 @@ in
         ${cfg.networking.bridgeName}.useDHCP = false;
       };
 
-      # Network Start Script
+      # Idempotent Network Start Script
       systemd.services.configure-libvirt-network = {
         description = "Configure libvirt default network";
         after = [ "libvirtd.service" ];
@@ -128,8 +141,11 @@ in
           RemainAfterExit = true;
         };
         script = ''
-          if ! ${pkgs.libvirt}/bin/virsh net-info default > /dev/null 2>&1; then
-            ${pkgs.libvirt}/bin/virsh net-define /dev/stdin <<EOF
+          VIRSH="${pkgs.libvirt}/bin/virsh"
+          
+          # Only define if not present
+          if ! $VIRSH net-info default > /dev/null 2>&1; then
+            $VIRSH net-define /dev/stdin <<EOF
             <network>
               <name>default</name>
               <forward mode='nat'><nat><port start='1024' end='65535'/></nat></forward>
@@ -142,14 +158,16 @@ in
               </ip>
             </network>
 EOF
-            ${pkgs.libvirt}/bin/virsh net-autostart default
+            $VIRSH net-autostart default
           fi
-          ${pkgs.libvirt}/bin/virsh net-start default || true
+          
+          # Ensure started (idempotent)
+          $VIRSH net-start default || true
         '';
       };
     }
 
-    # Hugepages
+    # 7. Performance Tuning (Hugepages)
     (lib.mkIf cfg.performance.hugepages {
       boot.kernelParams = [
         "hugepagesz=${cfg.performance.hugepageSize}"
@@ -162,7 +180,7 @@ EOF
       ];
     })
 
-    # I/O Scheduler
+    # 8. I/O Scheduler
     (lib.mkIf (cfg.performance.ioScheduler != "none") {
       services.udev.extraRules = ''
         ACTION=="add|change", KERNEL=="sd[a-z]|nvme[0-9]n[0-9]", ATTR{queue/scheduler}="${cfg.performance.ioScheduler}"

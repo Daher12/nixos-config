@@ -26,7 +26,7 @@ in
       group = cfg.mainUser;
       extraGroups = [ 
         "networkmanager" "wheel" "video" "audio" 
-        "input" "adbusers" "render" "libvirtd" 
+        "input" "adbusers" "render" "libvirtd" "kvm"
       ];
     };
 
