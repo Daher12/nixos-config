@@ -1,11 +1,9 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, palette, ... }:
 
 let
   cfg = config.features.kmscon;
-  # Direkter Import statt globaler Dependency injection
-  palette = import ../../lib/palette.nix;
   p = palette.colors;
-  toRgb = hex: palette.hexToRgb hex;
+  toRgb = palette.hexToRgb;
 in
 {
   options.features.kmscon = {
@@ -19,7 +17,7 @@ in
     services.kmscon = {
       enable = true;
       hwRender = true;
-      
+
       fonts = [{
         name = "CaskaydiaCove Nerd Font";
         package = pkgs.nerd-fonts.caskaydia-cove;
@@ -29,11 +27,11 @@ in
         font-size=14
         font-dpi=120
         sb-size=10000
-        
+
         palette=custom
         palette-background=${toRgb p.nord0}
         palette-foreground=${toRgb p.nord4}
-        
+
         palette-black=${toRgb p.nord1}
         palette-red=${toRgb p.nord11}
         palette-green=${toRgb p.nord14}
@@ -42,7 +40,7 @@ in
         palette-magenta=${toRgb p.nord15}
         palette-cyan=${toRgb p.nord8}
         palette-light-grey=${toRgb p.nord5}
-        
+
         palette-dark-grey=${toRgb p.nord3}
         palette-light-red=${toRgb p.nord11}
         palette-light-green=${toRgb p.nord14}

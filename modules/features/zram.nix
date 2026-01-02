@@ -1,3 +1,8 @@
+# ZRAM Swap Configuration
+# vm.swappiness=100: With zram, high swappiness is optimal - prefer compressed RAM over disk
+# vm.page-cluster=0: Disable readahead for swap; zram is random-access, not sequential
+# vm.watermark_boost_factor=0: Disable watermark boosting; unnecessary with fast zram
+
 { config, lib, ... }:
 
 let

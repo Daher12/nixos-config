@@ -2,16 +2,12 @@
 
 let
   cfg = config.programs.winapps;
-  # The static config managed by Nix
-  configFile = "winapps/winapps.conf";
-  # The mutable secrets file (Not managed by Nix content, just path)
   secretsFile = "${config.xdg.configHome}/winapps/secrets.conf";
 in
 {
   options.programs.winapps = {
     enable = lib.mkEnableOption "WinApps integration";
 
-    # Safe / Functional Configuration
     vmName = lib.mkOption {
       type = lib.types.str;
       default = "windows11";
@@ -30,7 +26,6 @@ in
       description = "RDP performance flags";
     };
 
-    # Secret Management Path
     credentialsFile = lib.mkOption {
       type = lib.types.str;
       default = secretsFile;
@@ -39,54 +34,57 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # 1. Install Packages
+    assertions = [
+      {
+        assertion = winappsPackages != null;
+        message = "winappsPackages must be provided via extraSpecialArgs when programs.winapps.enable is true";
+      }
+    ];
+
     home.packages = [
       winappsPackages.winapps
       winappsPackages.winapps-launcher
-      pkgs.freerdp 
+      pkgs.freerdp
       pkgs.netcat
     ];
 
-    # 2. Generate Main Configuration (Public Safe)
-    xdg.configFile.${configFile}.text = ''
-      # MANAGED BY NIX - DO NOT EDIT FUNCTIONAL SETTINGS
-      # Functional Settings
-      RDP_IP="${cfg.vmIP}"
-      RDP_DOMAIN="${cfg.vmName}"
-      RDP_FLAGS="${cfg.rdpFlags}"
-      
-      # Fixed Settings
-      FREERDP_COMMAND="xfreerdp"
-      MULTIMON="false"
-      DEBUG="true"
+    # Wrapper script that sources credentials before launching
+    xdg.configFile."winapps/winapps.conf".source =
+      let
+        configScript = pkgs.writeShellScript "winapps-config" ''
+          # Functional Settings
+          export RDP_IP="${cfg.vmIP}"
+          export RDP_DOMAIN="${cfg.vmName}"
+          export RDP_FLAGS="${cfg.rdpFlags}"
+          export FREERDP_COMMAND="xfreerdp"
+          export MULTIMON="false"
+          export DEBUG="true"
 
-      # Load Secrets (User/Pass)
-      # This file is not managed by Nix content, just path.
-      if [ -f "${cfg.credentialsFile}" ]; then
-          . "${cfg.credentialsFile}"
-      else
-          echo "WARNING: Secrets file not found at ${cfg.credentialsFile}" >&2
-      fi
-    '';
+          # Load Secrets
+          if [ -f "${cfg.credentialsFile}" ]; then
+            . "${cfg.credentialsFile}"
+          else
+            echo "WARNING: Secrets file not found at ${cfg.credentialsFile}" >&2
+          fi
+        '';
+      in configScript;
 
-    # 3. Activation: Bootstrap Secrets Template (Idempotent)
     home.activation.winappsSecrets = lib.hm.dag.entryAfter ["writeBoundary"] ''
       SECRETS="${cfg.credentialsFile}"
-      
+
       if [ ! -f "$SECRETS" ]; then
-        echo "Creating WinApps secrets template at $SECRETS"
-        mkdir -p "$(dirname "$SECRETS")"
-        
-        cat > "$SECRETS" <<EOF
-      # WinApps Credentials (Local Only - gitignored)
-      # Fill these in. They will be sourced by the main config.
-      
-      RDP_USER="CHANGE_ME"
-      RDP_PASS="CHANGE_ME"
-      EOF
-        
-        # Secure permissions (User read/write only)
-        chmod 600 "$SECRETS"
+        run mkdir -p "$(dirname "$SECRETS")"
+
+        run cat > "$SECRETS" << 'EOF'
+# WinApps Credentials (Local Only - gitignored)
+# These will be sourced by the launcher wrapper.
+
+RDP_USER="CHANGE_ME"
+RDP_PASS="CHANGE_ME"
+EOF
+
+        run chmod 600 "$SECRETS"
+        echo "Created WinApps secrets template at $SECRETS"
       fi
     '';
   };

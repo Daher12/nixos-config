@@ -3,19 +3,19 @@
 let
   cfg = config.programs.theme;
 
-  themeName   = "Colloid-Dark-Nord";
+  themeName = "Colloid-Dark-Nord";
   themeNameLt = "Colloid-Light-Nord";
-  colloidTheme = pkgs.unstable.colloid-gtk-theme.override { 
-    tweaks = [ "nord" ]; 
+  colloidTheme = pkgs.unstable.colloid-gtk-theme.override {
+    tweaks = [ "nord" ];
   };
-  
-  iconTheme   = pkgs.unstable.fluent-icon-theme;
-  iconName    = "Fluent-dark";
-  iconNameLt  = "Fluent";
+
+  iconTheme = pkgs.unstable.fluent-icon-theme;
+  iconName = "Fluent-dark";
+  iconNameLt = "Fluent";
 
   cursorTheme = pkgs.posy-cursors;
-  cursorName  = "Posy_Cursor_Black";
-  cursorSize  = 32;
+  cursorName = "Posy_Cursor_Black";
+  cursorSize = 32;
 
   switchTheme = pkgs.writeShellApplication {
     name = "switch-theme";
@@ -24,7 +24,7 @@ let
       set -euo pipefail
 
       MODE="''${1:-}"
-      
+
       if [[ "$MODE" != "dark" && "$MODE" != "light" ]]; then
         echo "Usage: switch-theme {dark|light}" >&2
         exit 1
@@ -48,8 +48,6 @@ let
         exit 1
       fi
 
-      # Update DConf/GSettings
-      # This effectively handles GTK3/4 in Gnome environments without writing settings.ini manually
       {
         dconf write /org/gnome/desktop/interface/color-scheme "'$COLOR'"
         dconf write /org/gnome/desktop/interface/gtk-theme "'$THEME'"
@@ -62,19 +60,17 @@ let
         exit 1
       }
 
-      # Handle GTK 4.0 (Mutable configuration)
       mkdir -p "$GTK4_DIR"
       GTK4_TEMP=$(mktemp -d)
       trap 'rm -rf "$GTK4_TEMP"' EXIT
 
       ln -sf "$THEME_BASE/$THEME/gtk-4.0/assets" "$GTK4_TEMP/assets"
       ln -sf "$THEME_BASE/$THEME/gtk-4.0/gtk.css" "$GTK4_TEMP/gtk.css"
-      
+
       if [ -f "$THEME_BASE/$THEME/gtk-4.0/gtk-dark.css" ]; then
         ln -sf "$THEME_BASE/$THEME/gtk-4.0/gtk-dark.css" "$GTK4_TEMP/gtk-dark.css"
       fi
 
-      # Safely replace GTK4 config
       rm -f "$GTK4_DIR/gtk.css" "$GTK4_DIR/gtk-dark.css" "$GTK4_DIR/assets"
       mv "$GTK4_TEMP"/* "$GTK4_DIR/"
 
@@ -106,12 +102,14 @@ in
       default = true;
       description = "Automatically switch between light/dark based on time";
     };
+
     location = {
       latitude = lib.mkOption {
         type = lib.types.float;
         default = 52.52;
         description = "Latitude for sunrise/sunset calculation";
       };
+
       longitude = lib.mkOption {
         type = lib.types.float;
         default = 13.40;
@@ -125,7 +123,7 @@ in
       colloidTheme
       iconTheme
       cursorTheme
-      switchTheme 
+      switchTheme
       libsForQt5.qt5ct
       kdePackages.qt6ct
     ];
@@ -136,13 +134,13 @@ in
         name = themeName;
         package = colloidTheme;
       };
-      iconTheme = { 
-        name = iconName; 
-        package = iconTheme; 
+      iconTheme = {
+        name = iconName;
+        package = iconTheme;
       };
-      cursorTheme = { 
-        name = cursorName; 
-        package = cursorTheme; 
+      cursorTheme = {
+        name = cursorName;
+        package = cursorTheme;
         size = cursorSize;
       };
       gtk3.extraConfig = {
@@ -153,7 +151,6 @@ in
       };
     };
 
-    # Disable HM management for GTK4 assets to allow the script to swap them
     xdg.configFile."gtk-4.0/gtk.css".enable = false;
     xdg.configFile."gtk-4.0/gtk-dark.css".enable = false;
     xdg.configFile."gtk-4.0/assets".enable = false;
@@ -161,19 +158,17 @@ in
     qt = {
       enable = true;
       platformTheme.name = "gtk";
-      style.name = "gtk2"; 
+      style.name = "gtk2";
     };
 
-    home.pointerCursor = { 
+    home.pointerCursor = {
       name = cursorName;
       package = cursorTheme;
       size = cursorSize;
       gtk.enable = true;
-      x11.enable = true; 
+      x11.enable = true;
     };
 
-    # Activation cleanup to resolve conflict with Home Manager
-    # If settings.ini exists as a regular file (from old script), back it up
     home.activation.cleanupLegacyGtkSettings = lib.hm.dag.entryBefore ["checkLinkTargets"] ''
       SETTINGS_INI="${config.xdg.configHome}/gtk-3.0/settings.ini"
       if [ -f "$SETTINGS_INI" ] && [ ! -L "$SETTINGS_INI" ]; then
@@ -184,18 +179,20 @@ in
 
     services.darkman = lib.mkIf cfg.autoSwitch {
       enable = true;
-      settings = { 
+      settings = {
         lat = cfg.location.latitude;
         lng = cfg.location.longitude;
         usegeoclue = false;
         portal = true;
       };
-      darkModeScripts.gtk-theme  = "${switchTheme}/bin/switch-theme dark";
+      darkModeScripts.gtk-theme = "${switchTheme}/bin/switch-theme dark";
       lightModeScripts.gtk-theme = "${switchTheme}/bin/switch-theme light";
     };
 
-    home.activation.applyTheme = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      $DRY_RUN_CMD ${switchTheme}/bin/switch-theme dark
-    '';
+    home.activation.applyTheme = lib.mkIf (!cfg.autoSwitch) (
+      lib.hm.dag.entryAfter ["writeBoundary"] ''
+        $DRY_RUN_CMD ${switchTheme}/bin/switch-theme dark
+      ''
+    );
   };
 }

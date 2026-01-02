@@ -3,5 +3,6 @@
     ./amd-gpu.nix
     ./intel-gpu.nix
     ./nvidia-disable.nix
+    ./ryzen-tdp.nix
   ];
 }

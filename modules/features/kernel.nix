@@ -2,6 +2,14 @@
 
 let
   cfg = config.features.kernel;
+
+  kernelPackages = {
+    default = pkgs.linuxPackages;
+    zen = pkgs.linuxPackages_zen;
+    hardened = pkgs.linuxPackages_hardened;
+    lqx = pkgs.linuxPackages_lqx;
+    xanmod = pkgs.linuxPackages_xanmod_latest;
+  };
 in
 {
   options.features.kernel = {
@@ -17,33 +25,10 @@ in
       example = [ "quiet" "splash" ];
       description = "Additional kernel command line parameters";
     };
-
-    modules = lib.mkOption {
-      type = lib.types.listOf lib.types.str;
-      default = [];
-      example = [ "kvm-amd" "vfio-pci" ];
-      description = "Kernel modules to load at boot";
-    };
-
-    blacklist = lib.mkOption {
-      type = lib.types.listOf lib.types.str;
-      default = [];
-      example = [ "nouveau" "nvidia" ];
-      description = "Kernel modules to blacklist";
-    };
   };
 
   config = {
-    boot.kernelPackages = lib.mkDefault (
-      if cfg.variant == "zen" then pkgs.linuxPackages_zen
-      else if cfg.variant == "hardened" then pkgs.linuxPackages_hardened
-      else if cfg.variant == "lqx" then pkgs.linuxPackages_lqx
-      else if cfg.variant == "xanmod" then pkgs.linuxPackages_xanmod_latest
-      else pkgs.linuxPackages
-    );
-
-    boot.kernelParams = cfg.extraParams;
-    boot.kernelModules = cfg.modules;
-    boot.blacklistedKernelModules = cfg.blacklist;
+    boot.kernelPackages = lib.mkDefault kernelPackages.${cfg.variant};
+    boot.kernelParams = lib.mkAfter cfg.extraParams;
   };
 }

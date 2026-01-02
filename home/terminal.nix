@@ -1,8 +1,7 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, palette, ... }:
 
 let
   cfg = config.programs.terminal;
-  palette = import ../lib/palette.nix;
   p = palette.colors;
 in
 {
@@ -72,7 +71,7 @@ in
       programs.ghostty = {
         enable = true;
         package = pkgs.unstable.ghostty;
-        
+
         settings = {
           theme = "Nord";
           background = p.nord0;
@@ -88,7 +87,7 @@ in
     (lib.mkIf cfg.fish.enable {
       programs.fish = {
         enable = true;
-        
+
         interactiveShellInit = ''
           set -g fish_greeting
 

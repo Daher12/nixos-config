@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, mainUser, ... }:
 
 let
   cfg = config.features.desktop-gnome;
@@ -15,8 +15,7 @@ in
 
     autoLoginUser = lib.mkOption {
       type = lib.types.str;
-      default = config.core.users.mainUser;
-      defaultText = lib.literalExpression "config.core.users.mainUser";
+      default = mainUser;
       description = "User to automatically log in";
     };
   };
@@ -67,16 +66,12 @@ in
 
     security.pam.services.gdm.enableGnomeKeyring = true;
 
-    environment.gnome.excludePackages = (with pkgs; [
-      gnome-photos gnome-tour gedit cheese gnome-music 
-      epiphany geary totem gnome-contacts gnome-weather 
-      gnome-maps yelp seahorse
-      gnome-user-docs
-      gnome-calendar
-      simple-scan
-      gnome-logs
-      gnome-connections
-    ]);
+    environment.gnome.excludePackages = with pkgs; [
+      gnome-photos gnome-tour gedit cheese gnome-music
+      epiphany geary totem gnome-contacts gnome-weather
+      gnome-maps yelp seahorse gnome-user-docs
+      gnome-calendar simple-scan gnome-logs gnome-connections
+    ];
 
     environment.systemPackages = with pkgs; [
       nautilus
@@ -91,7 +86,7 @@ in
       gnomeExtensions.blur-my-shell
     ];
 
-    services.udev.packages = with pkgs; [ gnome-settings-daemon ];
+    services.udev.packages = [ pkgs.gnome-settings-daemon ];
     programs.dconf.enable = true;
   };
 }

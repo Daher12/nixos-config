@@ -2,7 +2,7 @@
 result
 result-*
 
-# Home Manager backups (defined in your default.nix)
+# Home Manager backups
 *.backup
 
 # Editor temp files
@@ -10,16 +10,15 @@ result-*
 .idea/
 .vscode/
 
-# Private keys/secrets (Manual safety net)
+# Secrets
 *.age
-
-# Secrets & Lokale Configs
 *.secret
 *.local
 winapps.conf
 winapps.conf.local
+secrets.conf
 
-# Falls du sops-nix noch nicht nutzt, aber Keys herumliegen hast:
+# Keys
 /keys/
 id_rsa
 id_ed25519

@@ -1,19 +1,13 @@
-{ inputs }:
+{ inputs, pkgs-unstable }:
 
 let
-  # 1. Access to Unstable Packages
+  # Unstable packages overlay - uses memoized import from flake.nix
   unstable = final: prev: {
-    unstable = import inputs.nixpkgs-unstable {
-      system = final.stdenv.hostPlatform.system;
-      config.allowUnfree = true;
-    };
+    unstable = pkgs-unstable;
   };
-
 in
 {
-  # We return a clean list of overlays
   default = [
     unstable
-    # You can add more overlays here in the future
   ];
 }

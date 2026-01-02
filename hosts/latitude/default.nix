@@ -3,34 +3,30 @@
 {
   imports = [
     ./hardware-configuration.nix
-    
+
     ../../profiles/laptop.nix
     ../../profiles/desktop-gnome.nix
-    
+
     ../../modules/core
     ../../modules/hardware
     ../../modules/features
   ];
 
   system.stateVersion = "25.05";
-  networking.hostName = "e7450-nixos";
 
-  # Core Configuration
   core.locale.timeZone = "Europe/Berlin";
-  
+
   features.desktop-gnome.autoLoginUser = "dk";
 
-  # Hardware
   hardware.intel-gpu.enable = true;
   hardware.nvidia-disable.enable = true;
 
-  # Features
   features = {
     filesystem = {
       type = "ext4";
       mountOptions."/" = [ "noatime" "nodiratime" "commit=30" ];
     };
-    
+
     kernel = {
       variant = "zen";
       extraParams = [
@@ -41,25 +37,24 @@
         "zswap.enabled=0"
       ];
     };
-    
+
     power-tlp.settings = {
       CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
       CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
       USB_AUTOSUSPEND = 1;
       USB_EXCLUDE_BTUSB = 0;
     };
-    
+
     virtualization.enable = false;
-    
+
     zram.memoryPercent = 50;
   };
 
-  # Console fixes
   console.useXkbConfig = true;
   systemd.services."getty@tty1".enable = false;
   systemd.services."autovt@tty1".enable = false;
 
-  # Custom Service: Fix Suspend Battery Drain
+  # Fix spurious USB wakeups draining battery during suspend
   systemd.services.disable-wakeup-sources = {
     description = "Disable spurious wakeups from USB to save power";
     wantedBy = [ "multi-user.target" ];
@@ -74,12 +69,14 @@
           fi
         }
         disable_wakeup EHC1
-        disable_wakeup XHC 
+        disable_wakeup XHC
       '';
     };
   };
 
   services.system76-scheduler.settings.processScheduler.foregroundBoost.enable = true;
+  
+  services.thermald.enable = true;
 
   services.preload-ng = {
     enable = true;
@@ -98,7 +95,7 @@
   '';
 
   environment.systemPackages = with pkgs; [
-    libva-utils 
+    libva-utils
     sbctl
   ];
 }

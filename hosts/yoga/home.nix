@@ -1,4 +1,4 @@
-{ config, pkgs, lib, ... }:
+{ config, lib, mainUser, ... }:
 
 {
   imports = [
@@ -7,12 +7,12 @@
 
   programs.home-manager.enable = true;
 
-  home.username = "dk";
-  home.homeDirectory = "/home/dk";
+  home.username = mainUser;
+  home.homeDirectory = "/home/${mainUser}";
   home.stateVersion = "25.11";
 
   home.sessionVariables = {
-    NH_FLAKE = "/home/dk/nixos-config";
+    NH_FLAKE = "/home/${mainUser}/nixos-config";
     EDITOR = "ox";
     VISUAL = "ox";
     NIXOS_OZONE_WL = "1";

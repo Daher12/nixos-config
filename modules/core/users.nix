@@ -1,17 +1,10 @@
-# modules/core/users.nix
-{ config, lib, ... }:
+{ config, lib, mainUser, ... }:
 
 let
   cfg = config.core.users;
 in
 {
   options.core.users = {
-    mainUser = lib.mkOption {
-      type = lib.types.str;
-      default = "dk";
-      description = "Primary system user";
-    };
-
     sudoTimeout = lib.mkOption {
       type = lib.types.int;
       default = 30;
@@ -20,17 +13,22 @@ in
   };
 
   config = {
-    users.users.${cfg.mainUser} = {
+    users.users.${mainUser} = {
       isNormalUser = true;
-      description = "David";
-      group = cfg.mainUser;
-      extraGroups = [ 
-        "networkmanager" "wheel" "video" "audio" 
-        "input" "adbusers" "render" "libvirtd" "kvm"
+      description = "Primary User";
+      group = mainUser;
+      extraGroups = [
+        "networkmanager"
+        "wheel"
+        "video"
+        "audio"
+        "input"
+        "adbusers"
+        "render"
       ];
     };
 
-    users.groups.${cfg.mainUser} = {};
+    users.groups.${mainUser} = {};
 
     security.sudo = {
       wheelNeedsPassword = true;
@@ -44,26 +42,17 @@ in
     programs.adb.enable = true;
 
     security.rtkit.enable = true;
-    
+
     services.pipewire = {
       enable = true;
       alsa.enable = true;
       alsa.support32Bit = true;
       pulse.enable = true;
       jack.enable = true;
-      
-#      extraConfig.pipewire."92-low-latency" = {
-#        context.properties = {
-#          default.clock.rate = 48000;
-#          default.clock.quantum = 1024;
-#          default.clock.min-quantum = 512;
-#          default.clock.max-quantum = 2048;
-#        };
-#      };
     };
 
     services.libinput.enable = true;
-    
+
     services.logind.settings.Login = {
       HandleLidSwitch = "suspend";
       HandleLidSwitchExternalPower = "ignore";

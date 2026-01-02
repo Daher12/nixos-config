@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, mainUser, ... }:
 
 let
   cfg = config.core.nix;
@@ -7,7 +7,7 @@ in
   options.core.nix = {
     gc = {
       automatic = lib.mkEnableOption "automatic garbage collection";
-      
+
       dates = lib.mkOption {
         type = lib.types.str;
         default = "weekly";
@@ -34,17 +34,17 @@ in
     nix.settings = {
       experimental-features = [ "nix-command" "flakes" ];
       auto-optimise-store = true;
-      
+
       eval-cache = true;
       warn-dirty = false;
-      
+
       max-jobs = "auto";
       cores = 0;
-      trusted-users = [ "root" "dk" ];
-      
+      trusted-users = [ "root" mainUser ];
+
       sandbox = true;
       sandbox-fallback = false;
-      
+
       min-free = 5368709120;
       max-free = 21474836480;
 
@@ -53,7 +53,7 @@ in
         "https://nix-community.cachix.org"
         "https://cache.lix.systems"
       ];
-      
+
       trusted-public-keys = [
         "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
         "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="

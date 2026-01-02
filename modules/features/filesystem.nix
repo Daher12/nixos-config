@@ -1,4 +1,3 @@
-# modules/features/filesystem.nix
 { config, lib, pkgs, ... }:
 
 let
@@ -24,14 +23,14 @@ in
 
     enableFstrim = lib.mkOption {
       type = lib.types.bool;
-      default = cfg.type != "btrfs";
-      description = "Enable periodic TRIM (conflicts with discard=async)";
+      default = true;
+      description = "Enable periodic TRIM (disable if using discard=async)";
     };
 
     btrfs = {
       autoScrub = lib.mkOption {
         type = lib.types.bool;
-        default = cfg.type == "btrfs";
+        default = false;
         description = "Enable automatic Btrfs scrubbing";
       };
 
@@ -43,25 +42,33 @@ in
 
       autoBalance = lib.mkOption {
         type = lib.types.bool;
-        default = cfg.type == "btrfs";
+        default = false;
         description = "Enable monthly Btrfs balance";
+      };
+
+      defaultMountOptions = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [
+          "compress-force=zstd:1"
+          "noatime"
+          "nodiratime"
+          "discard=async"
+          "space_cache=v2"
+        ];
+        description = "Default mount options for Btrfs filesystems";
       };
     };
   };
 
   config = lib.mkMerge [
-    {
-      assertions = [
-        {
-          assertion = cfg.type != null;
-          message = "Filesystem type must be specified";
-        }
-        {
-          assertion = cfg.type == "btrfs" -> cfg.btrfs.autoScrub;
-          message = "Btrfs scrubbing strongly recommended when using Btrfs";
-        }
-      ];
+    # Set sensible defaults based on filesystem type
+    (lib.mkIf (cfg.type == "btrfs") {
+      features.filesystem.enableFstrim = lib.mkDefault false;
+      features.filesystem.btrfs.autoScrub = lib.mkDefault true;
+      features.filesystem.btrfs.autoBalance = lib.mkDefault true;
+    })
 
+    {
       fileSystems = lib.mkMerge (
         lib.mapAttrsToList (path: opts: {
           ${path}.options = lib.mkAfter opts;
