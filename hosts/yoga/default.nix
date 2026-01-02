@@ -45,7 +45,7 @@ in
     };
     kernel.variant = "zen";
     kmscon.enable = true;
-    virtualization.enable = true;
+    virtualization.enable = false;
     zram.memoryPercent = 100;
   };
 

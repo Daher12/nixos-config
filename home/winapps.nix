@@ -5,7 +5,7 @@ let
   localConf = "${config.home.homeDirectory}/.config/winapps/winapps.conf.local";
   
   winappsSetup = pkgs.writeShellApplication {
-    name = "winapps-setup";
+    name = "winapps-init";
     runtimeInputs = with pkgs; [ libvirt ];
     text = ''
       set -euo pipefail
