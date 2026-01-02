@@ -48,12 +48,6 @@ in
   config = lib.mkIf cfg.enable (lib.mkMerge [
     # Base Configuration
     {
-      assertions = [
-        {
-          assertion = builtins.elem mainUser config.users.users.${mainUser}.extraGroups;
-          message = "Main user must exist in system configuration";
-        }
-      ];
       # Core virtualization stack
       virtualisation.libvirtd = {
         enable = true;
@@ -68,7 +62,7 @@ in
           swtpm.enable = true;
           # UEFI firmware with Secure Boot
 #          ovmf = {
-#            enable = true;
+##            enable = true;
 #            packages = [ pkgs.OVMFFull.fd ];
 #          };
           
@@ -143,13 +137,13 @@ in
         spice
         spice-gtk
         spice-protocol
-        win-virtio
+        virtio-win
         win-spice
         swtpm
         
         # RDP clients for winapps
         remmina
-        freerdp3
+        freerdp
         
         # Utilities
         libguestfs
