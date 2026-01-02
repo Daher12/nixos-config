@@ -46,27 +46,30 @@ in
   };
 
   config = {
+    # 1. Standalone Delta Module (New Standard)
+    programs.delta = {
+      enable = cfg.delta.enable;
+      enableGitIntegration = true; # Explicitly required now
+      options = {
+        navigate = true;
+        line-numbers = true;
+        hyperlinks = true;
+        side-by-side = cfg.delta.sideBySide;
+      };
+    };
+
+    # 2. Main Git Module
     programs.git = {
       enable = true;
       package = pkgs.gitMinimal;
       
-      # Standard Home Manager options
-      userName = cfg.identity.name;
-      userEmail = cfg.identity.email;
+      # Consolidated structured settings
+      settings = {
+        # Identity
+        user.name = cfg.identity.name;
+        user.email = cfg.identity.email;
 
-      # Upstream Delta Integration
-      # This automatically sets core.pager, interactive.diffFilter, and installs the package
-      delta = {
-        enable = cfg.delta.enable;
-        options = {
-          navigate = true;
-          line-numbers = true;
-          hyperlinks = true;
-          side-by-side = cfg.delta.sideBySide;
-        };
-      };
-
-      extraConfig = {
+        # Config
         init.defaultBranch = cfg.defaultBranch;
         core.editor = cfg.editor;
 

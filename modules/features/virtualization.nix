@@ -62,7 +62,7 @@ in
           swtpm.enable = true;
           # UEFI firmware with Secure Boot
 #          ovmf = {
-##            enable = true;
+#            enable = true;
 #            packages = [ pkgs.OVMFFull.fd ];
 #          };
           
@@ -147,7 +147,6 @@ in
         
         # Utilities
         libguestfs
-       
         libguestfs-with-appliance
         
         # Theme support
@@ -169,7 +168,8 @@ in
         '')
       ];
       # Libvirt default network with static DHCP for winapps
-      systemd.services.libvirtd-config = {
+      # RENAMED to fix collision with upstream libvirtd-config
+      systemd.services.configure-libvirt-network = {
         description = "Configure libvirt default network for winapps";
         after = [ "libvirtd.service" ];
         wantedBy = [ "multi-user.target" ];
