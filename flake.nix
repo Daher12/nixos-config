@@ -39,7 +39,7 @@
   outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, lanzaboote, home-manager, winapps, lix-module, preload-ng, ... }:
     let
       system = "x86_64-linux";
-      
+
       # 1. Overlays laden
       myOverlays = import ./overlays/default.nix { inherit inputs; };
 
@@ -54,12 +54,11 @@
       };
       
       # Shared Arguments
-      palette = import ./lib/palette.nix;
+      # Reduziert auf Inputs, um Module zu entkoppeln.
+      # - Zugriff auf Unstable erfolgt nun via pkgs.unstable (Overlay)
+      # - Zugriff auf Palette erfolgt via import ./lib/palette.nix in den Modulen
       sharedArgs = {
-        inherit inputs palette lix-module;
-        pkgs-unstable = pkgs.unstable;
-        unstable = pkgs.unstable;
-        winapps = inputs.winapps;
+        inherit inputs;
       };
 
     in
@@ -87,7 +86,12 @@
                 useGlobalPkgs = true;
                 useUserPackages = true;
                 backupFileExtension = "backup";
-                extraSpecialArgs = sharedArgs;
+                
+                # Winapps explizit hier übergeben, da nur Yoga es nutzt
+                extraSpecialArgs = sharedArgs // {
+                  winappsPackages = inputs.winapps.packages.${system};
+                };
+                
                 users.dk = import ./hosts/yoga/home.nix;
                 verbose = false;
               };
@@ -108,7 +112,7 @@
             
             # [NEU] Modul nur hier laden
             inputs.preload-ng.nixosModules.default
-            
+             
             ./hosts/latitude/configuration.nix
 
             {

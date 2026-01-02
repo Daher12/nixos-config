@@ -1,4 +1,4 @@
-{ config, pkgs, inputs, lib, palette, ... }:
+{ config, pkgs, inputs, lib, ... }:
 
 let
   btrfsOpts = lib.mkAfter [ 

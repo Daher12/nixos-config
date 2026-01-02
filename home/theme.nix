@@ -1,15 +1,16 @@
-{ config, pkgs, lib, unstable, ... }:
+{ config, pkgs, lib, ... }:
 
 let
   # --- 1. ASSETS & NAMES ---
   themeName   = "Colloid-Dark-Nord";
   themeNameLt = "Colloid-Light-Nord";
   
-  colloidTheme = unstable.colloid-gtk-theme.override { 
+  # Zugriff auf Unstable Packages via Overlay (pkgs.unstable)
+  colloidTheme = pkgs.unstable.colloid-gtk-theme.override { 
     tweaks = [ "nord" ]; 
   };
-
-  iconTheme   = unstable.fluent-icon-theme;
+  
+  iconTheme   = pkgs.unstable.fluent-icon-theme;
   iconName    = "Fluent-dark";
   iconNameLt  = "Fluent";
 
@@ -18,7 +19,6 @@ let
   cursorSize  = 32;
 
   # --- 2. THE SWITCHING LOGIC (Modernized) ---
-  # We use 'writeShellApplication' for better linting and path handling.
   switchTheme = pkgs.writeShellApplication {
     name = "switch-theme";
     runtimeInputs = with pkgs; [ dconf coreutils gnused ];
@@ -38,15 +38,12 @@ let
       fi
 
       # 1. Update Dconf (The standard GNOME way)
-      # We use 'gsettings set' equivalents via dconf for speed
       dconf write /org/gnome/desktop/interface/color-scheme "'$COLOR'"
       dconf write /org/gnome/desktop/interface/gtk-theme "'$THEME'"
       dconf write /org/gnome/desktop/interface/icon-theme "'$ICON'"
       dconf write /org/gnome/shell/extensions/user-theme/name "'$THEME'"
 
       # 2. Update GTK 4 (The manual link swap)
-      # We allow this imperatively because we explicitly disabled 
-      # HM management for these specific files below.
       mkdir -p "$GTK4_DIR"
       
       # Clean up old links safely
@@ -56,7 +53,7 @@ let
       ln -sf "$THEME_BASE/$THEME/gtk-4.0/assets"   "$GTK4_DIR/assets"
       ln -sf "$THEME_BASE/$THEME/gtk-4.0/gtk.css"  "$GTK4_DIR/gtk.css"
       
-      # Optional: Link dark css if it exists (for dual support)
+      # Optional: Link dark css if it exists
       if [ -f "$THEME_BASE/$THEME/gtk-4.0/gtk-dark.css" ]; then
         ln -sf "$THEME_BASE/$THEME/gtk-4.0/gtk-dark.css" "$GTK4_DIR/gtk-dark.css"
       fi
@@ -80,32 +77,24 @@ in
   # --- GTK CONFIGURATION ---
   gtk = {
     enable = true;
-    
-    # We set the names here for Gtk2/3, but we let the script handle the
-    # actual "live" switching for Gtk4/Dconf.
     theme = {
       name = themeName;
       package = colloidTheme;
     };
-    
     iconTheme = { 
       name = iconName; 
       package = iconTheme; 
     };
-    
     cursorTheme = { 
       name = cursorName; 
       package = cursorTheme; 
       size = cursorSize;
     };
-
     gtk3.extraConfig.gtk-application-prefer-dark-theme = 1;
     gtk4.extraConfig.gtk-application-prefer-dark-theme = 1;
   };
 
   # --- CRITICAL FIX: CONFLICT RESOLUTION ---
-  # This tells Home Manager: "Do not touch the GTK4 CSS file."
-  # This allows your script to manage it imperatively without error.
   xdg.configFile."gtk-4.0/gtk.css".enable = false;
   xdg.configFile."gtk-4.0/gtk-dark.css".enable = false;
   xdg.configFile."gtk-4.0/assets".enable = false;
@@ -113,7 +102,7 @@ in
   # --- QT CONFIGURATION ---
   qt = {
     enable = true;
-    platformTheme.name = "gtk"; 
+    platformTheme.name = "gtk";
     style.name = "gtk2"; 
   };
 
@@ -140,7 +129,6 @@ in
   };
 
   # --- INITIALIZATION ---
-  # Apply dark theme on first login
   home.activation.applyTheme = lib.hm.dag.entryAfter ["writeBoundary"] ''
     ${switchTheme}/bin/switch-theme dark
   '';

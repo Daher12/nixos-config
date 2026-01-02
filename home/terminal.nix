@@ -1,13 +1,15 @@
-{ pkgs, unstable, palette, ... }:
+{ pkgs, ... }:
 
 let
+  # Entkopplung: Palette lokal importieren statt via specialArgs
+  palette = import ../lib/palette.nix;
   p = palette.colors;
 in
 {
   # --- GHOSTTY ---
   programs.ghostty = {
     enable   = true;
-    package  = unstable.ghostty;
+    package  = pkgs.unstable.ghostty; # Zugriff via Overlay
     settings = {
       theme             = "Nord";
       # Explicit fallback colors from our palette source of truth
@@ -64,4 +66,3 @@ in
     unzip
   ];
 }
-

@@ -1,4 +1,4 @@
-{ config, pkgs, lib, winapps, ... }:
+{ config, pkgs, lib, winappsPackages, ... }:
 
 let
   # No secrets management: you maintain this file manually and keep it 0600.
@@ -34,8 +34,7 @@ EOF
     config.lib.file.mkOutOfStoreSymlink localConf;
 
   home.packages = [
-    winapps.packages."${pkgs.stdenv.hostPlatform.system}".winapps
-    winapps.packages."${pkgs.stdenv.hostPlatform.system}".winapps-launcher
+    winappsPackages.winapps
+    winappsPackages.winapps-launcher
   ];
 }
-
