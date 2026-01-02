@@ -2,11 +2,7 @@
 
 {
   imports = [
-    ../../home/theme.nix
-    ../../home/terminal.nix
-    ../../home/browsers.nix
-    ../../home/git.nix
-    ../../home/winapps.nix
+    ../../home
   ];
 
   programs.home-manager.enable = true;
@@ -21,6 +17,8 @@
     VISUAL = "ox";
     NIXOS_OZONE_WL = "1";
   };
+
+  programs.winapps.enable = true;
 
   dconf.settings = {
     "org/gnome/shell" = {

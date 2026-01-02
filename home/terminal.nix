@@ -1,68 +1,131 @@
-{ pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 let
-  # Entkopplung: Palette lokal importieren statt via specialArgs
+  cfg = config.programs.terminal;
   palette = import ../lib/palette.nix;
   p = palette.colors;
 in
 {
-  # --- GHOSTTY ---
-  programs.ghostty = {
-    enable   = true;
-    package  = pkgs.unstable.ghostty; # Zugriff via Overlay
-    settings = {
-      theme             = "Nord";
-      # Explicit fallback colors from our palette source of truth
-      background        = p.nord0;
-      foreground        = p.nord4;
+  options.programs.terminal = {
+    ghostty = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Enable Ghostty terminal";
+      };
 
-      font-family       = "CaskaydiaCove Nerd Font";
-      font-size         = 11;
+      fontSize = lib.mkOption {
+        type = lib.types.int;
+        default = 11;
+        description = "Font size";
+      };
 
-      # Ghostty expects a string value (e.g. "auto" or "none"), not a boolean.
-      window-decoration = "auto";
+      fontFamily = lib.mkOption {
+        type = lib.types.str;
+        default = "CaskaydiaCove Nerd Font";
+        description = "Font family";
+      };
+    };
 
-      command           = "fish --login --interactive";
+    fish = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Enable Fish shell";
+      };
+
+      plugins = lib.mkOption {
+        type = lib.types.listOf (lib.types.submodule {
+          options = {
+            name = lib.mkOption {
+              type = lib.types.str;
+              description = "Plugin name";
+            };
+            src = lib.mkOption {
+              type = lib.types.package;
+              description = "Plugin source";
+            };
+          };
+        });
+        default = [];
+        description = "Fish plugins to install";
+      };
+    };
+
+    utilities = {
+      btop = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Enable btop system monitor";
+      };
+
+      fastfetch = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Enable fastfetch system info";
+      };
     };
   };
 
-  # --- FISH SHELL ---
-  programs.fish = {
-    enable = true;
-    # Inject dynamic palette colors into FZF env vars
-    interactiveShellInit = ''
-      set -g fish_greeting
+  config = lib.mkMerge [
+    (lib.mkIf cfg.ghostty.enable {
+      programs.ghostty = {
+        enable = true;
+        package = pkgs.unstable.ghostty;
+        
+        settings = {
+          theme = "Nord";
+          background = p.nord0;
+          foreground = p.nord4;
+          font-family = cfg.ghostty.fontFamily;
+          font-size = cfg.ghostty.fontSize;
+          window-decoration = "auto";
+          command = "fish --login --interactive";
+        };
+      };
+    })
 
-      # FZF Nord Theme
-      set -x FZF_DEFAULT_OPTS "\
-        --color=bg+:${p.nord1},bg:${p.nord0},spinner:${p.nord9},hl:${p.nord3} \
-        --color=fg:${p.nord4},header:${p.nord3},info:${p.nord9},pointer:${p.nord9} \
-        --color=marker:${p.nord9},fg+:${p.nord4},prompt:${p.nord9},hl+:${p.nord9}"
-    '';
+    (lib.mkIf cfg.fish.enable {
+      programs.fish = {
+        enable = true;
+        
+        interactiveShellInit = ''
+          set -g fish_greeting
 
-    plugins = [
-      { name = "hydro";    src = pkgs.fishPlugins.hydro.src; }
-      { name = "fzf-fish"; src = pkgs.fishPlugins.fzf-fish.src; }
-      { name = "done";     src = pkgs.fishPlugins.done.src; }
-    ];
-  };
+          set -x FZF_DEFAULT_OPTS "\
+            --color=bg+:${p.nord1},bg:${p.nord0},spinner:${p.nord9},hl:${p.nord3} \
+            --color=fg:${p.nord4},header:${p.nord3},info:${p.nord9},pointer:${p.nord9} \
+            --color=marker:${p.nord9},fg+:${p.nord4},prompt:${p.nord9},hl+:${p.nord9}"
+        '';
 
-  programs.btop = {
-    enable = true;
-    settings = {
-      color_theme = "tomorrow-night";
-    };
-  };
+        plugins = [
+          { name = "hydro"; src = pkgs.fishPlugins.hydro.src; }
+          { name = "fzf-fish"; src = pkgs.fishPlugins.fzf-fish.src; }
+          { name = "done"; src = pkgs.fishPlugins.done.src; }
+        ] ++ cfg.fish.plugins;
+      };
+    })
 
-  programs.fastfetch = {
-    enable = true;
-    package = pkgs.fastfetchMinimal;
-  };
+    (lib.mkIf cfg.utilities.btop {
+      programs.btop = {
+        enable = true;
+        settings.color_theme = "tomorrow-night";
+      };
+    })
 
-  home.packages = with pkgs; [
-    rsync ripgrep fd sd jq ox grc eza
-    nh nvd nix-output-monitor # Nix Helper Tools
-    p7zip
-    unzip
+    (lib.mkIf cfg.utilities.fastfetch {
+      programs.fastfetch = {
+        enable = true;
+        package = pkgs.fastfetchMinimal;
+      };
+    })
+
+    {
+      home.packages = with pkgs; [
+        rsync ripgrep fd sd jq ox grc eza
+        nh nvd nix-output-monitor
+        p7zip unzip
+      ];
+    }
   ];
 }

@@ -4,59 +4,32 @@
   imports = [
     ./hardware-configuration.nix
     
-    ../../modules/core/boot.nix
-    ../../modules/core/locale.nix
-    ../../modules/core/networking.nix
-    ../../modules/core/nix.nix
-    ../../modules/core/secureboot.nix
-    ../../modules/core/users.nix
+    ../../profiles/laptop.nix
+    ../../profiles/desktop-gnome.nix
     
-    ../../modules/hardware/intel-gpu.nix
-    ../../modules/hardware/nvidia-disable.nix
-    
-    ../../modules/features/bluetooth.nix
-    ../../modules/features/desktop-gnome.nix
-    ../../modules/features/filesystem.nix
-    ../../modules/features/fonts.nix
-    ../../modules/features/kernel.nix
-    ../../modules/features/power-tlp.nix
-    ../../modules/features/network-optimization.nix
-    ../../modules/features/vpn.nix
-    ../../modules/features/virtualization.nix
-    ../../modules/features/zram.nix
+    ../../modules/core
+    ../../modules/hardware
+    ../../modules/features
   ];
 
   system.stateVersion = "25.05";
   networking.hostName = "e7450-nixos";
 
-
   # Core Configuration
-  core.boot.silent = true;
   core.locale.timeZone = "Europe/Berlin";
-  core.nix.gc.automatic = true;
-  core.secureboot.enable = true;
+  
+  features.desktop-gnome.autoLoginUser = "dk";
 
   # Hardware
   hardware.intel-gpu.enable = true;
   hardware.nvidia-disable.enable = true;
-  hardware.enableRedistributableFirmware = true;
 
   # Features
   features = {
-    bluetooth.enable = true;
-    
-    desktop-gnome = {
-      enable = true;
-      autoLogin = true;
-      autoLoginUser = "dk";
-    };
-    
     filesystem = {
       type = "ext4";
-      optimizations = [ "noatime" "nodiratime" "commit=30" ];
+      mountOptions."/" = [ "noatime" "nodiratime" "commit=30" ];
     };
-    
-    fonts.enable = true;
     
     kernel = {
       variant = "zen";
@@ -69,48 +42,24 @@
       ];
     };
     
-    power-tlp = {
-      enable = true;
-      settings = {
-        CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
-        CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
-        USB_AUTOSUSPEND = 1;
-        USB_EXCLUDE_BTUSB = 0;
-      };
-    };
-
-    network-optimization.enable = true;
-    
-    vpn.tailscale = { 
-      enable = true;
-      routingFeatures = "client";
+    power-tlp.settings = {
+      CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
+      CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
+      USB_AUTOSUSPEND = 1;
+      USB_EXCLUDE_BTUSB = 0;
     };
     
-    virtualization = {
-      enable = false;
-      spice = false;
-    };
+    virtualization.enable = false;
     
-    zram = {
-      enable = true;
-      memoryPercent = 50;
-    };
+    zram.memoryPercent = 50;
   };
 
-  # Ext4 filesystem optimizations
-  fileSystems."/" = {
-    options = lib.mkAfter config.features.filesystem.optimizations;
-  };
-
-  # Console fixes (manually embedded - KMSCon not used on latitude)
+  # Console fixes
   console.useXkbConfig = true;
   systemd.services."getty@tty1".enable = false;
   systemd.services."autovt@tty1".enable = false;
 
-  # Power Management
-  services.thermald.enable = true;
-
-  # Custom Service: Fix Suspend Battery Drain (USB Wakeups)
+  # Custom Service: Fix Suspend Battery Drain
   systemd.services.disable-wakeup-sources = {
     description = "Disable spurious wakeups from USB to save power";
     wantedBy = [ "multi-user.target" ];
@@ -130,14 +79,8 @@
     };
   };
 
-  # System76 Scheduler
-  services.system76-scheduler = {
-    enable = true;
-    useStockConfig = true;
-    settings.processScheduler.foregroundBoost.enable = true;
-  };
+  services.system76-scheduler.settings.processScheduler.foregroundBoost.enable = true;
 
-  # Preload-NG (SSD optimization)
   services.preload-ng = {
     enable = true;
     settings = {
@@ -149,13 +92,11 @@
     };
   };
 
-  # Log compression
   services.journald.extraConfig = ''
     SystemMaxUse=100M
     Compress=yes
   '';
 
-  # System packages
   environment.systemPackages = with pkgs; [
     libva-utils 
     sbctl

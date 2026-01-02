@@ -15,12 +15,20 @@ in
 
     autoLoginUser = lib.mkOption {
       type = lib.types.str;
-      default = "";
+      default = config.core.users.mainUser;
+      defaultText = lib.literalExpression "config.core.users.mainUser";
       description = "User to automatically log in";
     };
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = cfg.autoLogin -> cfg.autoLoginUser != "";
+        message = "autoLoginUser must be set when autoLogin is enabled";
+      }
+    ];
+
     services.xserver = {
       enable = true;
       xkb.layout = "de";

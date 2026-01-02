@@ -1,58 +1,137 @@
-{ pkgs, ... }:
+{ config, lib, pkgs, ... }:
+
+let
+  cfg = config.programs.browsers;
+in
 {
-  # --- FIREFOX (Primary) ---
-  programs.firefox = {
-    enable = true;
-    policies = {
-      DisablePocket = true;
-      DisableTelemetry = true;
-      DisableFirefoxStudies = true;
-      UserMessaging = {
-        ExtensionRecommendations = false;
-        SkipOnboarding = true;
+  options.programs.browsers = {
+    firefox = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Enable Firefox";
       };
-      # Enterprise Extension Management
-      ExtensionSettings = {
-        # uBlock Origin
-        "uBlock0@raymondhill.net" = {
-          install_url = "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi";
-          installation_mode = "force_installed";
+
+      isDefault = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Set Firefox as default browser";
+      };
+
+      extensions = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [
+          "uBlock0@raymondhill.net"
+          "{446900e4-71c2-419f-a6a7-df9c091e268b}"
+          "@testpilot-containers"
+        ];
+        description = "Firefox extensions to install";
+      };
+
+      cache = {
+        diskEnable = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+          description = "Enable disk cache";
         };
-        # Bitwarden
-        "{446900e4-71c2-419f-a6a7-df9c091e268b}" = {
-          install_url = "https://addons.mozilla.org/firefox/downloads/latest/bitwarden-password-manager/latest.xpi";
-          installation_mode = "force_installed";
-        };
-        # Multi-Account Containers
-        "@testpilot-containers" = {
-          install_url = "https://addons.mozilla.org/firefox/downloads/latest/multi-account-containers/latest.xpi";
-          installation_mode = "force_installed";
+
+        memorySize = lib.mkOption {
+          type = lib.types.int;
+          default = 524288;
+          description = "Memory cache size in KB";
         };
       };
     };
-    profiles.dk = {
-      isDefault = true;
-      settings = {
-        # RAM Cache > Disk Cache (Speed + SSD Longevity)
-        "browser.cache.disk.enable" = false;
-        "browser.cache.memory.enable" = true;
-        "browser.cache.memory.capacity" = 524288; # 512MB
-        "browser.shell.checkDefaultBrowser" = false;
-        "browser.ctrlTab.sortByRecentlyUsed" = true;
+
+    brave = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Enable Brave browser";
+      };
+
+      extensions = lib.mkOption {
+        type = lib.types.listOf (lib.types.submodule {
+          options = {
+            id = lib.mkOption {
+              type = lib.types.str;
+              description = "Chrome Web Store extension ID";
+            };
+          };
+        });
+        default = [
+          { id = "nngceckbapebfimnlniiiahkandclblb"; }
+        ];
+        description = "Brave extensions to install";
+      };
+
+      cache = {
+        path = lib.mkOption {
+          type = lib.types.str;
+          default = "/dev/shm/brave-cache";
+          description = "Cache directory path";
+        };
+
+        size = lib.mkOption {
+          type = lib.types.int;
+          default = 536870912;
+          description = "Cache size in bytes";
+        };
       };
     };
   };
 
-  # --- BRAVE (Secondary/Fallback) ---
-  programs.brave = {
-    enable = true;
-    package = pkgs.brave;
-    extensions = [
-      { id = "nngceckbapebfimnlniiiahkandclblb"; } # Bitwarden
-    ];
-    commandLineArgs = [
-      "--disk-cache-dir=/dev/shm/brave-cache" # Use RAM for cache
-      "--disk-cache-size=536870912" 
-    ];
-  };
+  config = lib.mkMerge [
+    (lib.mkIf cfg.firefox.enable {
+      programs.firefox = {
+        enable = true;
+        
+        policies = {
+          DisablePocket = true;
+          DisableTelemetry = true;
+          DisableFirefoxStudies = true;
+          
+          UserMessaging = {
+            ExtensionRecommendations = false;
+            SkipOnboarding = true;
+          };
+
+          ExtensionSettings = builtins.listToAttrs (
+            map (ext: {
+              name = ext;
+              value = {
+                install_url = "https://addons.mozilla.org/firefox/downloads/latest/${ext}/latest.xpi";
+                installation_mode = "force_installed";
+              };
+            }) cfg.firefox.extensions
+          );
+        };
+
+        profiles.dk = {
+          isDefault = cfg.firefox.isDefault;
+          
+          settings = {
+            "browser.cache.disk.enable" = cfg.firefox.cache.diskEnable;
+            "browser.cache.memory.enable" = true;
+            "browser.cache.memory.capacity" = cfg.firefox.cache.memorySize;
+            "browser.shell.checkDefaultBrowser" = false;
+            "browser.ctrlTab.sortByRecentlyUsed" = true;
+          };
+        };
+      };
+    })
+
+    (lib.mkIf cfg.brave.enable {
+      programs.brave = {
+        enable = true;
+        package = pkgs.brave;
+        extensions = cfg.brave.extensions;
+        
+        commandLineArgs = [
+          "--disk-cache-dir=${cfg.brave.cache.path}"
+          "--disk-cache-size=${toString cfg.brave.cache.size}"
+        ];
+      };
+    })
+  ];
 }

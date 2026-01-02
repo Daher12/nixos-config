@@ -1,55 +1,97 @@
-{ pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
+let
+  cfg = config.programs.git;
+in
 {
-  # Delta is configured via git config (most stable across Home Manager versions).
-  home.packages = [ pkgs.delta ];
-
-  programs.git = {
-    enable = true;
-
-    # Keep minimal closure;
-    # switch to pkgs.git if you need extra tooling (send-email, svn, etc.).
-    package = pkgs.gitMinimal;
-
-    # [FIX] All git config now lives under 'settings' to silence warnings
-    settings = {
-      # User Identity
-      user = {
-        name  = "Daher12";
-        email = "133640261+Daher12@users.noreply.github.com";
+  options.programs.git = {
+    identity = {
+      name = lib.mkOption {
+        type = lib.types.str;
+        default = "Daher12";
+        description = "Git user name";
       };
 
-      # Init & Remote Behaviors
-      init.defaultBranch = "main";
-      pull.rebase = true;
-      rebase.autoStash = true;
-      fetch.prune = true;
-      push.autoSetupRemote = true;
+      email = lib.mkOption {
+        type = lib.types.str;
+        default = "133640261+Daher12@users.noreply.github.com";
+        description = "Git user email";
+      };
+    };
 
-      # Editor
-      core.editor = "ox";
-
-      # Force SSH for GitHub
-      # Note: Quoted attribute path for complex keys
-      "url \"ssh://git@github.com/\"".insteadOf = "https://github.com/";
-
-      # Delta (Diff Viewer) Integration
-      core.pager = "delta";
-      interactive.diffFilter = "delta --color-only";
-      
-      delta = {
-        navigate = true;
-        line-numbers = true;
-        hyperlinks = true;
-        side-by-side = false;
+    delta = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Enable delta diff viewer";
       };
 
-      diff = {
-        colorMoved = "default";
-        algorithm = "histogram";
+      sideBySide = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Use side-by-side diff view";
       };
+    };
 
-      merge.conflictStyle = "zdiff3";
+    defaultBranch = lib.mkOption {
+      type = lib.types.str;
+      default = "main";
+      description = "Default branch name for new repositories";
+    };
+
+    editor = lib.mkOption {
+      type = lib.types.str;
+      default = "ox";
+      description = "Text editor for git operations";
     };
   };
+
+  config = lib.mkMerge [
+    {
+      home.packages = lib.mkIf cfg.delta.enable [ pkgs.delta ];
+
+      programs.git = {
+        enable = true;
+        package = pkgs.gitMinimal;
+
+        settings = {
+          user = {
+            name = cfg.identity.name;
+            email = cfg.identity.email;
+          };
+
+          init.defaultBranch = cfg.defaultBranch;
+          core.editor = cfg.editor;
+
+          pull.rebase = true;
+          rebase.autoStash = true;
+          fetch.prune = true;
+          push.autoSetupRemote = true;
+
+          "url \"ssh://git@github.com/\"".insteadOf = "https://github.com/";
+
+          diff = {
+            colorMoved = "default";
+            algorithm = "histogram";
+          };
+
+          merge.conflictStyle = "zdiff3";
+        };
+      };
+    }
+
+    (lib.mkIf cfg.delta.enable {
+      programs.git.settings = {
+        core.pager = "delta";
+        interactive.diffFilter = "delta --color-only";
+
+        delta = {
+          navigate = true;
+          line-numbers = true;
+          hyperlinks = true;
+          side-by-side = cfg.delta.sideBySide;
+        };
+      };
+    })
+  ];
 }
