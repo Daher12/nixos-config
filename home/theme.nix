@@ -5,7 +5,6 @@ let
 
   themeName   = "Colloid-Dark-Nord";
   themeNameLt = "Colloid-Light-Nord";
-  
   colloidTheme = pkgs.unstable.colloid-gtk-theme.override { 
     tweaks = [ "nord" ]; 
   };
@@ -31,7 +30,6 @@ let
         exit 1
       fi
 
-      GTK3_DIR="${config.home.homeDirectory}/.config/gtk-3.0"
       GTK4_DIR="${config.home.homeDirectory}/.config/gtk-4.0"
       THEME_BASE="${colloidTheme}/share/themes"
 
@@ -50,11 +48,8 @@ let
         exit 1
       fi
 
-      if [[ ! -d "$THEME_BASE/$THEME/gtk-4.0" ]]; then
-        echo "Error: GTK4 theme files not found in $THEME" >&2
-        exit 1
-      fi
-
+      # Update DConf/GSettings
+      # This effectively handles GTK3/4 in Gnome environments without writing settings.ini manually
       {
         dconf write /org/gnome/desktop/interface/color-scheme "'$COLOR'"
         dconf write /org/gnome/desktop/interface/gtk-theme "'$THEME'"
@@ -67,16 +62,7 @@ let
         exit 1
       }
 
-      mkdir -p "$GTK3_DIR"
-      cat > "$GTK3_DIR/settings.ini" <<EOF
-[Settings]
-gtk-theme-name=$THEME
-gtk-icon-theme-name=$ICON
-gtk-cursor-theme-name=${cursorName}
-gtk-cursor-theme-size=${toString cursorSize}
-gtk-application-prefer-dark-theme=$([ "$MODE" = "dark" ] && echo "1" || echo "0")
-EOF
-
+      # Handle GTK 4.0 (Mutable configuration)
       mkdir -p "$GTK4_DIR"
       GTK4_TEMP=$(mktemp -d)
       trap 'rm -rf "$GTK4_TEMP"' EXIT
@@ -88,6 +74,7 @@ EOF
         ln -sf "$THEME_BASE/$THEME/gtk-4.0/gtk-dark.css" "$GTK4_TEMP/gtk-dark.css"
       fi
 
+      # Safely replace GTK4 config
       rm -f "$GTK4_DIR/gtk.css" "$GTK4_DIR/gtk-dark.css" "$GTK4_DIR/assets"
       mv "$GTK4_TEMP"/* "$GTK4_DIR/"
 
@@ -103,11 +90,6 @@ EOF
       fi
 
       echo "✓ Switched to $MODE mode"
-      echo "  Theme: $THEME"
-      echo "  Icons: $ICON"
-      echo "  Cursor: ${cursorName}"
-      echo ""
-      echo "Note: Some applications may require restart to fully apply changes."
     '';
   };
 in
@@ -124,14 +106,12 @@ in
       default = true;
       description = "Automatically switch between light/dark based on time";
     };
-
     location = {
       latitude = lib.mkOption {
         type = lib.types.float;
         default = 52.52;
         description = "Latitude for sunrise/sunset calculation";
       };
-
       longitude = lib.mkOption {
         type = lib.types.float;
         default = 13.40;
@@ -173,6 +153,7 @@ in
       };
     };
 
+    # Disable HM management for GTK4 assets to allow the script to swap them
     xdg.configFile."gtk-4.0/gtk.css".enable = false;
     xdg.configFile."gtk-4.0/gtk-dark.css".enable = false;
     xdg.configFile."gtk-4.0/assets".enable = false;
@@ -185,11 +166,21 @@ in
 
     home.pointerCursor = { 
       name = cursorName;
-      package = cursorTheme; 
+      package = cursorTheme;
       size = cursorSize;
       gtk.enable = true;
       x11.enable = true; 
     };
+
+    # Activation cleanup to resolve conflict with Home Manager
+    # If settings.ini exists as a regular file (from old script), back it up
+    home.activation.cleanupLegacyGtkSettings = lib.hm.dag.entryBefore ["checkLinkTargets"] ''
+      SETTINGS_INI="${config.xdg.configHome}/gtk-3.0/settings.ini"
+      if [ -f "$SETTINGS_INI" ] && [ ! -L "$SETTINGS_INI" ]; then
+        echo "Backing up legacy mutable gtk-3.0/settings.ini to avoid conflict..."
+        mv "$SETTINGS_INI" "$SETTINGS_INI.backup"
+      fi
+    '';
 
     services.darkman = lib.mkIf cfg.autoSwitch {
       enable = true;
