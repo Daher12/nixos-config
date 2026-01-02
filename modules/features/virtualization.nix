@@ -67,10 +67,10 @@ in
           # TPM 2.0 for Windows 11
           swtpm.enable = true;
           # UEFI firmware with Secure Boot
-          ovmf = {
-            enable = true;
-            packages = [ pkgs.OVMFFull.fd ];
-          };
+#          ovmf = {
+#            enable = true;
+#            packages = [ pkgs.OVMFFull.fd ];
+#          };
           
           # VirtIO-FS for shared folders
           vhostUserPackages = [ pkgs.virtiofsd ];
