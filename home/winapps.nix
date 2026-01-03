@@ -1,7 +1,14 @@
-{ config, lib, pkgs, winappsPackages, ... }:
+# home/winapps.nix
+{ config, lib, pkgs, osConfig ? {}, winappsPackages, ... }:
 
 let
   cfg = config.programs.winapps;
+
+  # Safely access NixOS VM config with fallback defaults
+  vmCfg = ((osConfig.features or {}).virtualization or {}).windows11 or {};
+  defaultIP = vmCfg.ip or "192.168.122.10";
+  defaultName = vmCfg.name or "windows11";
+
   secretsFile = "${config.xdg.configHome}/winapps/secrets.conf";
 in
 {
@@ -10,26 +17,32 @@ in
 
     vmName = lib.mkOption {
       type = lib.types.str;
-      default = "windows11";
-      description = "Libvirt VM Name";
+      default = defaultName;
+      description = "Libvirt VM name";
     };
 
     vmIP = lib.mkOption {
       type = lib.types.str;
-      default = "192.168.122.10";
-      description = "Static IP of the VM";
+      default = defaultIP;
+      description = "VM IP address";
+    };
+
+    windowsDomain = lib.mkOption {
+      type = lib.types.str;
+      default = "WORKGROUP";
+      description = "Windows domain/workgroup for RDP";
     };
 
     rdpFlags = lib.mkOption {
       type = lib.types.str;
-      default = "/gfx:avc444 /sound:sys:alsa /cert-ignore /dynamic-resolution";
-      description = "RDP performance flags";
+      default = "/gfx:avc444 /sound:sys:alsa /microphone:sys:alsa /clipboard /cert-ignore /dynamic-resolution +auto-reconnect";
+      description = "FreeRDP flags";
     };
 
     credentialsFile = lib.mkOption {
       type = lib.types.str;
       default = secretsFile;
-      description = "Path to local file containing RDP_USER and RDP_PASS";
+      description = "Path to credentials file";
     };
   };
 
@@ -37,7 +50,7 @@ in
     assertions = [
       {
         assertion = winappsPackages != null;
-        message = "winappsPackages must be provided via extraSpecialArgs when programs.winapps.enable is true";
+        message = "winappsPackages must be provided via extraSpecialArgs";
       }
     ];
 
@@ -48,43 +61,29 @@ in
       pkgs.netcat
     ];
 
-    # Wrapper script that sources credentials before launching
-    xdg.configFile."winapps/winapps.conf".source =
-      let
-        configScript = pkgs.writeShellScript "winapps-config" ''
-          # Functional Settings
-          export RDP_IP="${cfg.vmIP}"
-          export RDP_DOMAIN="${cfg.vmName}"
-          export RDP_FLAGS="${cfg.rdpFlags}"
-          export FREERDP_COMMAND="xfreerdp"
-          export MULTIMON="false"
-          export DEBUG="true"
+    xdg.configFile."winapps/winapps.conf".text = ''
+      RDP_IP="${cfg.vmIP}"
+      RDP_DOMAIN="${cfg.windowsDomain}"
+      RDP_FLAGS="${cfg.rdpFlags}"
+      FREERDP_COMMAND="xfreerdp"
+      MULTIMON="false"
+      DEBUG="false"
 
-          # Load Secrets
-          if [ -f "${cfg.credentialsFile}" ]; then
-            . "${cfg.credentialsFile}"
-          else
-            echo "WARNING: Secrets file not found at ${cfg.credentialsFile}" >&2
-          fi
-        '';
-      in configScript;
+      # Source credentials if available
+      [ -f "${cfg.credentialsFile}" ] && . "${cfg.credentialsFile}"
+    '';
 
     home.activation.winappsSecrets = lib.hm.dag.entryAfter ["writeBoundary"] ''
       SECRETS="${cfg.credentialsFile}"
-
       if [ ! -f "$SECRETS" ]; then
         run mkdir -p "$(dirname "$SECRETS")"
-
         run cat > "$SECRETS" << 'EOF'
-# WinApps Credentials (Local Only - gitignored)
-# These will be sourced by the launcher wrapper.
-
-RDP_USER="CHANGE_ME"
-RDP_PASS="CHANGE_ME"
+# WinApps Credentials (not tracked in git)
+RDP_USER="your-windows-username"
+RDP_PASS="your-windows-password"
 EOF
-
         run chmod 600 "$SECRETS"
-        echo "Created WinApps secrets template at $SECRETS"
+        verboseEcho "Created WinApps secrets template: $SECRETS"
       fi
     '';
   };
