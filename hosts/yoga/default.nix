@@ -42,8 +42,8 @@
     kmscon.enable = true;
 
     virtualization = {
-      enable = true;
-      includeGuestTools = true;
+      enable = false;
+      includeGuestTools = false;
     };
 
     zram.memoryPercent = 100;
