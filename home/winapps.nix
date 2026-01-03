@@ -1,18 +1,16 @@
-# home/winapps.nix
 { config, lib, pkgs, osConfig ? {}, winappsPackages, ... }:
 
 let
   cfg = config.programs.winapps;
-
   # Safe extraction from NixOS config with explicit defaults
   vmCfg = lib.attrByPath
     [ "features" "virtualization" "windows11" ]
-    { ip = "192.168.122.10"; name = "windows11"; }
-    (osConfig or {});
+    { ip = "192.168.122.10"; name = "windows11"; } #
+    osConfig; # Fixed: removed invalid 'or' syntax on function argument
+
   defaultIP = vmCfg.ip or "192.168.122.10";
   defaultName = vmCfg.name or "windows11";
-
-  secretsFile = "${config.xdg.configHome}/winapps/secrets.conf";
+  secretsFile = "${config.xdg.configHome}/winapps/secrets.conf"; #
 in
 {
   options.programs.winapps = {
@@ -21,31 +19,31 @@ in
     vmName = lib.mkOption {
       type = lib.types.str;
       default = defaultName;
-      description = "Libvirt VM name";
+      description = "Libvirt VM name"; #
     };
 
     vmIP = lib.mkOption {
       type = lib.types.str;
       default = defaultIP;
-      description = "VM IP address";
+      description = "VM IP address"; #
     };
 
     windowsDomain = lib.mkOption {
       type = lib.types.str;
-      default = "WORKGROUP";
+      default = "WORKGROUP"; #
       description = "Windows domain/workgroup for RDP";
     };
 
     rdpFlags = lib.mkOption {
       type = lib.types.str;
-      default = "/gfx:avc444 /sound:sys:alsa /microphone:sys:alsa /clipboard /cert-ignore /dynamic-resolution +auto-reconnect";
+      default = "/gfx:avc444 /sound:sys:alsa /microphone:sys:alsa /clipboard /cert-ignore /dynamic-resolution +auto-reconnect"; #
       description = "FreeRDP flags";
     };
 
     credentialsFile = lib.mkOption {
       type = lib.types.str;
       default = secretsFile;
-      description = "Path to credentials file";
+      description = "Path to credentials file"; #
     };
   };
 
@@ -53,7 +51,7 @@ in
     assertions = [
       {
         assertion = winappsPackages != null;
-        message = "winappsPackages must be provided via extraSpecialArgs";
+        message = "winappsPackages must be provided via extraSpecialArgs"; #
       }
     ];
 
@@ -62,7 +60,7 @@ in
       winappsPackages.winapps-launcher
       pkgs.freerdp
       pkgs.netcat
-    ];
+    ]; #
 
     xdg.configFile."winapps/winapps.conf".text = ''
       RDP_IP="${cfg.vmIP}"
@@ -74,7 +72,7 @@ in
 
       # Source credentials if available
       [ -f "${cfg.credentialsFile}" ] && . "${cfg.credentialsFile}"
-    '';
+    ''; #
 
     home.activation.winappsSecrets = lib.hm.dag.entryAfter ["writeBoundary"] ''
       SECRETS="${cfg.credentialsFile}"
@@ -88,6 +86,6 @@ EOF
         run chmod 600 "$SECRETS"
         verboseEcho "Created WinApps secrets template: $SECRETS"
       fi
-    '';
+    ''; #
   };
-}
+} #
