@@ -4,8 +4,11 @@
 let
   cfg = config.programs.winapps;
 
-  # Safely access NixOS VM config with fallback defaults
-  vmCfg = ((osConfig.features or {}).virtualization or {}).windows11 or {};
+  # Safe extraction from NixOS config with explicit defaults
+  vmCfg = lib.attrByPath
+    [ "features" "virtualization" "windows11" ]
+    { ip = "192.168.122.10"; name = "windows11"; }
+    (osConfig or {});
   defaultIP = vmCfg.ip or "192.168.122.10";
   defaultName = vmCfg.name or "windows11";
 

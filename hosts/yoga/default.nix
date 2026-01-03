@@ -77,11 +77,8 @@
     "/nix".options = btrfsOpts;
   };
 
-  # Disable CoW for VM images to prevent fragmentation
-  systemd.tmpfiles.rules = [
-    "d /var/lib/libvirt/images 0775 root libvirtd - -"
-    "h /var/lib/libvirt/images - - - - +C"
-  ];
+  # NOTE: tmpfiles.rules for /var/lib/libvirt/images is declared in
+  # modules/features/virtualization.nix when windows11.enable = true
 
   boot.kernelModules = [ "ryzen_smu" ];
   boot.extraModulePackages = [ config.boot.kernelPackages.ryzen-smu ];

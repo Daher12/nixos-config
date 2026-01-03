@@ -17,6 +17,11 @@ let
   cursorName = "Posy_Cursor_Black";
   cursorSize = 32;
 
+  # NOTE: This script performs IMPERATIVE dconf writes at runtime.
+  # This is INTENTIONAL to support darkman-based light/dark switching
+  # without requiring a NixOS/Home Manager rebuild.
+  # The dconf.settings in home.nix provide initial defaults only;
+  # runtime state may diverge and that is expected behavior.
   switchTheme = pkgs.writeShellApplication {
     name = "switch-theme";
     runtimeInputs = with pkgs; [ dconf coreutils gnused glib ];
@@ -60,23 +65,13 @@ let
         exit 1
       }
 
+      # Atomic GTK4 symlink updates
       mkdir -p "$GTK4_DIR"
-      GTK4_TEMP=$(mktemp -d)
-      trap 'rm -rf "$GTK4_TEMP"' EXIT
-
-      ln -sf "$THEME_BASE/$THEME/gtk-4.0/assets" "$GTK4_TEMP/assets"
-      ln -sf "$THEME_BASE/$THEME/gtk-4.0/gtk.css" "$GTK4_TEMP/gtk.css"
-
-      if [ -f "$THEME_BASE/$THEME/gtk-4.0/gtk-dark.css" ]; then
-        ln -sf "$THEME_BASE/$THEME/gtk-4.0/gtk-dark.css" "$GTK4_TEMP/gtk-dark.css"
-      fi
-
-      rm -f "$GTK4_DIR/gtk.css" "$GTK4_DIR/gtk-dark.css" "$GTK4_DIR/assets"
-      mv "$GTK4_TEMP"/* "$GTK4_DIR/"
-
-      if command -v gsettings >/dev/null 2>&1; then
-        gsettings set org.gnome.desktop.interface gtk-theme "$THEME" 2>/dev/null || true
-      fi
+      for item in gtk.css gtk-dark.css assets; do
+        src="$THEME_BASE/$THEME/gtk-4.0/$item"
+        dst="$GTK4_DIR/$item"
+        [ -e "$src" ] && ln -sfn "$src" "$dst"
+      done
 
       XRESOURCES="${config.home.homeDirectory}/.Xresources"
       if [ -f "$XRESOURCES" ]; then

@@ -15,7 +15,7 @@ in
   config = {
     users.users.${mainUser} = {
       isNormalUser = true;
-      description = "Primary User";
+      description = "David";
       group = mainUser;
       extraGroups = [
         "networkmanager"

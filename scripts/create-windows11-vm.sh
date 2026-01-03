@@ -10,16 +10,28 @@ VM_CPUS="4"
 VM_MEMORY="8192"  # 8GB minimum for smooth Win11 + Office
 DISK_SIZE="80"    # 80GB
 
+# NOTE: This is a ONE-TIME provisioning script.
+# The values above MUST match features.virtualization.windows11.{mac,name,ip}
+# if you've customized them in your NixOS configuration.
+# Default module values: mac=52:54:00:00:00:01, name=windows11, ip=192.168.122.10
+
+# PREREQUISITES:
+# 1. Enable virtualization module: features.virtualization.enable = true
+# 2. Enable Windows 11 support: features.virtualization.windows11.enable = true
+# 3. Rebuild NixOS: sudo nixos-rebuild switch --flake .#<hostname>
+# 4. Place Windows 11 ISO at ~/Downloads/Win11.iso
+
 # PATHS
 # Use the system libvirt directory to inherit the '+C' (No_COW) attribute 
-# defined in your default.nix. This prevents massive fragmentation on Btrfs.
+# defined in virtualization.nix. This prevents massive fragmentation on Btrfs.
 DISK_PATH="/var/lib/libvirt/images/${VM_NAME}.qcow2"
 
 # Windows 11 ISO (User must provide this)
 ISO_PATH="$HOME/Downloads/Win11.iso"
 
 # VirtIO Drivers (Provided by NixOS package 'virtio-win')
-# This path exists because we added 'virtio-win' to systemPackages
+# This path exists because virtualization.nix adds 'virtio-win' to systemPackages
+# when includeGuestTools = true (default when windows11.enable = true)
 VIRTIO_ISO="/run/current-system/sw/share/virtio-win/virtio-win.iso"
 
 echo "Windows 11 VM Configuration"
@@ -40,6 +52,7 @@ fi
 
 if [ ! -f "$VIRTIO_ISO" ]; then
     echo "⚠  VirtIO ISO not found in system packages."
+    echo "   Ensure features.virtualization.windows11.enable = true and rebuild."
     echo "   Checking fallback..."
     VIRTIO_ISO="$HOME/Downloads/virtio-win.iso"
     if [ ! -f "$VIRTIO_ISO" ]; then
