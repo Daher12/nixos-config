@@ -41,10 +41,19 @@
 
     kmscon.enable = true;
 
-    virtualization = {
-      enable = false;
-      includeGuestTools = false;
-    };
+     virtualization = {
+      enable = true;
+      includeGuestTools = true; # MANDATORY: Required by module assertion when win11 is enabled
+      
+      windows11 = {
+        enable = true;
+        # Optional overrides (defaults shown below based on your module):
+        # name = "windows11";
+        # ip = "192.168.122.10";
+        # memory = 8192; # 8GB
+        # vcpus = 4;
+      };
+     };
 
     zram.memoryPercent = 100;
 
@@ -88,6 +97,9 @@
     ac = { stapm = 54; fast = 60; slow = 54; temp = 95; };
     battery = { stapm = 18; fast = 25; slow = 18; temp = 75; };
   };
+
+  # Increase Nix daemon CPU quota for faster parallel builds (8-core CPU)
+  systemd.services.nix-daemon.serviceConfig.CPUQuota = lib.mkForce "800%";
 
   services.irqbalance.enable = true;
 

@@ -1,6 +1,12 @@
 {
   description = "Unified NixOS Configuration";
 
+  # Update pinned inputs:
+  #   nix flake lock --update-input nixos-hardware
+  #   nix flake lock --update-input winapps
+  #   nix flake lock --update-input preload-ng
+  # Full update: nix flake update
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -89,7 +95,6 @@
                   inherit inputs self palette mainUser;
                 } // extraSpecialArgs;
                 users.${mainUser}.imports = hmModules;
-                verbose = false;
               };
             }
           ] ++ modules;

@@ -49,9 +49,9 @@ in
       max-free = 21474836480;
 
       substituters = [
+        "https://cache.lix.systems"
         "https://cache.nixos.org"
         "https://nix-community.cachix.org"
-        "https://cache.lix.systems"
       ];
 
       trusted-public-keys = [
