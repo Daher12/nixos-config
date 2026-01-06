@@ -23,7 +23,7 @@ in
     zramSwap = {
       enable = true;
       algorithm = "lz4";
-      memoryPercent = cfg.memoryPercent;
+      inherit (cfg) memoryPercent;
       priority = 10;
       swapDevices = 1;
     };

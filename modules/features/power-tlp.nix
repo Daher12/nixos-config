@@ -9,14 +9,14 @@ in
 
     settings = lib.mkOption {
       type = lib.types.attrs;
-      default = {};
+      default = { };
       description = "TLP configuration settings";
     };
   };
 
   config = lib.mkIf cfg.enable {
     services.power-profiles-daemon.enable = lib.mkForce false;
-    
+
     services.tlp = {
       enable = true;
       settings = lib.mkMerge [

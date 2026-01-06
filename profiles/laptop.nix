@@ -9,9 +9,11 @@
     network-optimization.enable = lib.mkDefault true;
   };
 
-  core.boot.silent = lib.mkDefault true;
-  core.nix.gc.automatic = lib.mkDefault true;
-  core.secureboot.enable = lib.mkDefault true;
+  core = {
+    boot.silent = lib.mkDefault true;
+    nix.gc.automatic = lib.mkDefault true;
+    secureboot.enable = lib.mkDefault true;
+  };
 
   hardware.enableRedistributableFirmware = lib.mkDefault true;
 }

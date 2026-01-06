@@ -1,4 +1,10 @@
-{ config, lib, pkgs, palette, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  palette,
+  ...
+}:
 
 let
   cfg = config.programs.terminal;
@@ -34,19 +40,21 @@ in
       };
 
       plugins = lib.mkOption {
-        type = lib.types.listOf (lib.types.submodule {
-          options = {
-            name = lib.mkOption {
-              type = lib.types.str;
-              description = "Plugin name";
+        type = lib.types.listOf (
+          lib.types.submodule {
+            options = {
+              name = lib.mkOption {
+                type = lib.types.str;
+                description = "Plugin name";
+              };
+              src = lib.mkOption {
+                type = lib.types.package;
+                description = "Plugin source";
+              };
             };
-            src = lib.mkOption {
-              type = lib.types.package;
-              description = "Plugin source";
-            };
-          };
-        });
-        default = [];
+          }
+        );
+        default = [ ];
         description = "Fish plugins to install";
       };
     };
@@ -98,10 +106,20 @@ in
         '';
 
         plugins = [
-          { name = "hydro"; src = pkgs.fishPlugins.hydro.src; }
-          { name = "fzf-fish"; src = pkgs.fishPlugins.fzf-fish.src; }
-          { name = "done"; src = pkgs.fishPlugins.done.src; }
-        ] ++ cfg.fish.plugins;
+          {
+            name = "hydro";
+            inherit (pkgs.fishPlugins.hydro) src;
+          }
+          {
+            name = "fzf-fish";
+            inherit (pkgs.fishPlugins.fzf-fish) src;
+          }
+          {
+            name = "done";
+            inherit (pkgs.fishPlugins.done) src;
+          }
+        ]
+        ++ cfg.fish.plugins;
       };
     })
 
@@ -121,9 +139,19 @@ in
 
     {
       home.packages = with pkgs; [
-        rsync ripgrep fd sd jq ox grc eza
-        nh nvd nix-output-monitor
-        p7zip unzip
+        rsync
+        ripgrep
+        fd
+        sd
+        jq
+        ox
+        grc
+        eza
+        nh
+        nvd
+        nix-output-monitor
+        p7zip
+        unzip
       ];
     }
   ];

@@ -1,22 +1,21 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  mainUser,
+  ...
+}:
 
 {
   imports = [
     ./hardware-configuration.nix
-
-    ../../profiles/laptop.nix
-    ../../profiles/desktop-gnome.nix
-
-    ../../modules/core
-    ../../modules/hardware
-    ../../modules/features
   ];
 
   system.stateVersion = "25.11";
 
   core.locale.timeZone = "Europe/Berlin";
 
-  features.desktop-gnome.autoLoginUser = "dk";
+  features.desktop-gnome.autoLoginUser = mainUser;
 
   hardware.amd-gpu.enable = true;
 
@@ -41,19 +40,16 @@
 
     kmscon.enable = true;
 
-     virtualization = {
+    oomd.enable = true;
+
+    virtualization = {
       enable = true;
-      includeGuestTools = true; # MANDATORY: Required by module assertion when win11 is enabled
-      
+      includeGuestTools = true;
+
       windows11 = {
         enable = true;
-        # Optional overrides (defaults shown below based on your module):
-        # name = "windows11";
-        # ip = "192.168.122.10";
-        # memory = 8192; # 8GB
-        # vcpus = 4;
       };
-     };
+    };
 
     zram.memoryPercent = 100;
 
@@ -73,42 +69,41 @@
       PCIE_ASPM_ON_BAT = "powersupersave";
       USB_AUTOSUSPEND = 1;
       USB_EXCLUDE_AUDIO = 1;
-      
     };
   };
 
-  # Apply btrfs mount options to all subvolumes
-  fileSystems = let
-    btrfsOpts = lib.mkAfter config.features.filesystem.btrfs.defaultMountOptions;
-  in {
-    "/".options = btrfsOpts;
-    "/home".options = btrfsOpts;
-    "/nix".options = btrfsOpts;
-  };
-
-  # NOTE: tmpfiles.rules for /var/lib/libvirt/images is declared in
-  # modules/features/virtualization.nix when windows11.enable = true
+  fileSystems =
+    let
+      btrfsOpts = lib.mkAfter config.features.filesystem.btrfs.defaultMountOptions;
+    in
+    {
+      "/".options = btrfsOpts;
+      "/home".options = btrfsOpts;
+      "/nix".options = btrfsOpts;
+    };
 
   boot.kernelModules = [ "ryzen_smu" ];
   boot.extraModulePackages = [ config.boot.kernelPackages.ryzen-smu ];
 
   hardware.ryzen-tdp = {
     enable = true;
-    ac = { stapm = 54; fast = 60; slow = 54; temp = 95; };
-    battery = { stapm = 18; fast = 25; slow = 18; temp = 75; };
+    ac = {
+      stapm = 54;
+      fast = 60;
+      slow = 54;
+      temp = 95;
+    };
+    battery = {
+      stapm = 18;
+      fast = 25;
+      slow = 18;
+      temp = 75;
+    };
   };
 
-  # Increase Nix daemon CPU quota for faster parallel builds (8-core CPU)
   systemd.services.nix-daemon.serviceConfig.CPUQuota = lib.mkForce "800%";
 
   services.irqbalance.enable = true;
-
-  services.earlyoom = {
-    enable = true;
-    enableNotifications = true;
-    freeMemThreshold = 5;
-    freeSwapThreshold = 5;
-  };
 
   services.journald.extraConfig = "SystemMaxUse=200M";
 

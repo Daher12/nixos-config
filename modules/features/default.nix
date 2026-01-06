@@ -7,6 +7,7 @@
     ./kernel.nix
     ./kmscon.nix
     ./network-optimization.nix
+    ./oomd.nix
     ./power-tlp.nix
     ./virtualization.nix
     ./vpn.nix

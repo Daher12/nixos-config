@@ -6,7 +6,10 @@ in
 {
   options.core.networking = {
     backend = lib.mkOption {
-      type = lib.types.enum [ "iwd" "wpa_supplicant" ];
+      type = lib.types.enum [
+        "iwd"
+        "wpa_supplicant"
+      ];
       default = "iwd";
       description = "WiFi backend for NetworkManager";
     };
@@ -18,7 +21,11 @@ in
     };
 
     dns = lib.mkOption {
-      type = lib.types.enum [ "systemd-resolved" "dnsmasq" "none" ];
+      type = lib.types.enum [
+        "systemd-resolved"
+        "dnsmasq"
+        "none"
+      ];
       default = "systemd-resolved";
       description = "DNS resolver backend";
     };
@@ -29,7 +36,7 @@ in
       enable = true;
       wifi.backend = cfg.backend;
       wifi.powersave = cfg.enablePowersave;
-      dns = cfg.dns;
+      inherit (cfg) dns;
     };
 
     services.resolved = lib.mkIf (cfg.dns == "systemd-resolved") {

@@ -1,17 +1,10 @@
 {
   description = "Unified NixOS Configuration";
 
-  # Update pinned inputs:
-  #   nix flake lock --update-input nixos-hardware
-  #   nix flake lock --update-input winapps
-  #   nix flake lock --update-input preload-ng
-  # Full update: nix flake update
-
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    # Pinned to specific commits for reproducibility
     nixos-hardware.url = "github:NixOS/nixos-hardware/40b1a28dce561bea34858287fbb23052c3ee63fe";
 
     lanzaboote = {
@@ -29,7 +22,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Pinned for reproducibility
     winapps = {
       url = "github:winapps-org/winapps/44342c34b839547be0b2ea4f94ed00293fa7cc38";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -41,73 +33,62 @@
     };
   };
 
-  outputs = inputs@{ self, nixpkgs, ... }:
+  outputs =
+    inputs@{ self, nixpkgs, ... }:
     let
       system = "x86_64-linux";
 
-      # Memoized unstable import - evaluated once, reused in overlay
       pkgs-unstable = import inputs.nixpkgs-unstable {
         inherit system;
         config.allowUnfree = true;
       };
 
-      # Shared palette for theming
       palette = import ./lib/palette.nix;
 
       overlays = import ./overlays/default.nix {
-        inherit inputs pkgs-unstable;
+        inherit pkgs-unstable;
       };
 
-      mkPkgs = system: import nixpkgs {
+      mkHost = import ./lib/mkHost.nix {
+        inherit
+          nixpkgs
+          inputs
+          self
+          palette
+          overlays
+          ;
+      };
+
+      pkgs = import nixpkgs {
         inherit system;
         overlays = overlays.default;
         config.allowUnfree = true;
       };
-
-      # Host factory with unified specialArgs
-      mkHost = {
-        hostname,
-        mainUser,
-        modules,
-        hmModules ? [],
-        extraSpecialArgs ? {}
-      }:
-        nixpkgs.lib.nixosSystem {
-          inherit system;
-          specialArgs = {
-            inherit inputs self palette mainUser;
-          } // extraSpecialArgs;
-
-          modules = [
-            { nixpkgs.pkgs = mkPkgs system; }
-            inputs.lix-module.nixosModules.default
-            inputs.lanzaboote.nixosModules.lanzaboote
-            inputs.home-manager.nixosModules.home-manager
-
-            {
-              networking.hostName = hostname;
-
-              home-manager = {
-                useGlobalPkgs = true;
-                useUserPackages = true;
-                backupFileExtension = "backup";
-                extraSpecialArgs = {
-                  inherit inputs self palette mainUser;
-                } // extraSpecialArgs;
-                users.${mainUser}.imports = hmModules;
-              };
-            }
-          ] ++ modules;
-        };
     in
     {
-      formatter.${system} = (mkPkgs system).nixfmt-rfc-style;
+      formatter.${system} = pkgs.nixfmt-rfc-style;
+
+      checks.${system} = {
+        statix = pkgs.runCommand "statix-check" { buildInputs = [ pkgs.statix ]; } ''
+          statix check ${self} && touch $out
+        '';
+        deadnix = pkgs.runCommand "deadnix-check" { buildInputs = [ pkgs.deadnix ]; } ''
+          deadnix --fail ${self} && touch $out
+        '';
+        nixfmt = pkgs.runCommand "nixfmt-check" { buildInputs = [ pkgs.nixfmt-rfc-style ]; } ''
+          find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out
+        '';
+      };
 
       nixosConfigurations = {
         yoga = mkHost {
           hostname = "yoga";
           mainUser = "dk";
-          modules = [
+          profiles = [
+            "laptop"
+            "desktop-gnome"
+          ];
+          extraModules = [
             inputs.nixos-hardware.nixosModules.lenovo-yoga-7-slim-gen8
             ./hosts/yoga/default.nix
           ];
@@ -120,7 +101,11 @@
         e7450-nixos = mkHost {
           hostname = "e7450-nixos";
           mainUser = "dk";
-          modules = [
+          profiles = [
+            "laptop"
+            "desktop-gnome"
+          ];
+          extraModules = [
             inputs.preload-ng.nixosModules.default
             ./hosts/latitude/default.nix
           ];

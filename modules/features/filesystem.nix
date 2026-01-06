@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.features.filesystem;
@@ -6,17 +11,28 @@ in
 {
   options.features.filesystem = {
     type = lib.mkOption {
-      type = lib.types.enum [ "ext4" "btrfs" "xfs" "zfs" ];
+      type = lib.types.enum [
+        "ext4"
+        "btrfs"
+        "xfs"
+        "zfs"
+      ];
       default = "ext4";
       description = "Primary filesystem type";
     };
 
     mountOptions = lib.mkOption {
       type = lib.types.attrsOf (lib.types.listOf lib.types.str);
-      default = {};
+      default = { };
       example = {
-        "/" = [ "noatime" "compress=zstd:3" ];
-        "/home" = [ "noatime" "compress=zstd:1" ];
+        "/" = [
+          "noatime"
+          "compress=zstd:3"
+        ];
+        "/home" = [
+          "noatime"
+          "compress=zstd:1"
+        ];
       };
       description = "Mount options per filesystem";
     };
@@ -54,6 +70,7 @@ in
           "nodiratime"
           "discard=async"
           "space_cache=v2"
+          "ssd"
         ];
         description = "Default mount options for Btrfs filesystems";
       };
@@ -61,11 +78,12 @@ in
   };
 
   config = lib.mkMerge [
-    # Set sensible defaults based on filesystem type
     (lib.mkIf (cfg.type == "btrfs") {
-      features.filesystem.enableFstrim = lib.mkDefault false;
-      features.filesystem.btrfs.autoScrub = lib.mkDefault true;
-      features.filesystem.btrfs.autoBalance = lib.mkDefault true;
+      features.filesystem = {
+        enableFstrim = lib.mkDefault false;
+        btrfs.autoScrub = lib.mkDefault true;
+        btrfs.autoBalance = lib.mkDefault true;
+      };
     })
 
     {

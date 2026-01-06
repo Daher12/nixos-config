@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, ... }:
 
 let
   cfg = config.core.boot;
@@ -6,7 +6,7 @@ in
 {
   options.core.boot = {
     silent = lib.mkEnableOption "silent boot with Plymouth";
-    
+
     plymouth.theme = lib.mkOption {
       type = lib.types.str;
       default = "bgrt";
@@ -19,7 +19,7 @@ in
         default = true;
         description = "Mount /tmp in RAM";
       };
-      
+
       size = lib.mkOption {
         type = lib.types.str;
         default = "80%";
@@ -31,15 +31,20 @@ in
   config = {
     boot = {
       consoleLogLevel = if cfg.silent then 0 else 3;
-      initrd.verbose = !cfg.silent;
-      initrd.systemd.enable = true;
-      
-      initrd.compressor = "zstd";
-      initrd.compressorArgs = [ "-3" "-T0" ];
-      
+
+      initrd = {
+        verbose = !cfg.silent;
+        systemd.enable = true;
+        compressor = "zstd";
+        compressorArgs = [
+          "-3"
+          "-T0"
+        ];
+      };
+
       plymouth = lib.mkIf cfg.silent {
         enable = true;
-        theme = cfg.plymouth.theme;
+        inherit (cfg.plymouth) theme;
       };
 
       kernelParams = lib.mkIf cfg.silent [
@@ -54,14 +59,21 @@ in
         "nmi_watchdog=0"
       ];
 
-      loader.systemd-boot.enable = lib.mkForce false;
-      loader.efi.canTouchEfiVariables = true;
+      loader = {
+        systemd-boot.enable = lib.mkDefault false;
+        efi.canTouchEfiVariables = true;
+      };
+
+      tmp = lib.mkIf cfg.tmpfs.enable {
+        useTmpfs = true;
+        tmpfsSize = cfg.tmpfs.size;
+        cleanOnBoot = true;
+      };
     };
 
-    boot.tmp = lib.mkIf cfg.tmpfs.enable {
-      useTmpfs = true;
-      tmpfsSize = cfg.tmpfs.size;
-      cleanOnBoot = true;
-    };
+    services.udev.extraRules = ''
+      ACTION=="add|change", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none"
+      ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+    '';
   };
 }

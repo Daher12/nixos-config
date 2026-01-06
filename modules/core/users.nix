@@ -1,4 +1,9 @@
-{ config, lib, mainUser, ... }:
+{
+  config,
+  lib,
+  mainUser,
+  ...
+}:
 
 let
   cfg = config.core.users;
@@ -28,55 +33,72 @@ in
       ];
     };
 
-    users.groups.${mainUser} = {};
+    users.groups.${mainUser} = { };
 
-    security.sudo = {
-      wheelNeedsPassword = true;
-      extraConfig = ''
-        Defaults timestamp_timeout=${toString cfg.sudoTimeout}
-        Defaults !tty_tickets
-      '';
+    security = {
+      sudo = {
+        wheelNeedsPassword = true;
+        extraConfig = ''
+          Defaults timestamp_timeout=${toString cfg.sudoTimeout}
+          Defaults !tty_tickets
+        '';
+      };
+      rtkit.enable = true;
     };
 
     programs.fish.enable = true;
     programs.adb.enable = true;
 
-    security.rtkit.enable = true;
+    services = {
+      pipewire = {
+        enable = true;
+        alsa.enable = true;
+        alsa.support32Bit = true;
+        pulse.enable = true;
+        jack.enable = true;
 
-    services.pipewire = {
-      enable = true;
-      alsa.enable = true;
-      alsa.support32Bit = true;
-      pulse.enable = true;
-      jack.enable = true;
+        extraConfig.pipewire = {
+          "10-clock-rate" = {
+            "context.properties" = {
+              "default.clock.rate" = 48000;
+              "default.clock.quantum" = 512;
+              "default.clock.min-quantum" = 256;
+              "default.clock.max-quantum" = 1024;
+            };
+          };
+        };
+      };
+
+      libinput.enable = true;
+      fwupd.enable = true;
+
+      logind.settings.Login = {
+        HandleLidSwitch = "suspend";
+        HandleLidSwitchExternalPower = "ignore";
+        HandleLidSwitchDocked = "ignore";
+      };
     };
 
-    services.libinput.enable = true;
-
-    services.logind.settings.Login = {
-      HandleLidSwitch = "suspend";
-      HandleLidSwitchExternalPower = "ignore";
-      HandleLidSwitchDocked = "ignore";
+    systemd = {
+      settings.Manager = {
+        DefaultTimeoutStopSec = "10s";
+        DefaultTimeoutStartSec = "30s";
+      };
+      coredump.enable = false;
     };
 
-    systemd.settings.Manager = {
-      DefaultTimeoutStopSec = "10s";
-      DefaultTimeoutStartSec = "30s";
+    documentation = {
+      enable = false;
+      nixos.enable = false;
+      man.enable = false;
+      info.enable = false;
+      doc.enable = false;
     };
-
-    documentation.enable = false;
-    documentation.nixos.enable = false;
-    documentation.man.enable = false;
-    documentation.info.enable = false;
-    documentation.doc.enable = false;
-
-    services.fwupd.enable = true;
-    systemd.coredump.enable = false;
 
     boot.kernel.sysctl = {
       "vm.max_map_count" = 1048576;
-      "vm.dirty_bytes" = 268435456;
-      "vm.dirty_background_bytes" = 134217728;
+      "vm.dirty_ratio" = 10;
+      "vm.dirty_background_ratio" = 5;
       "vm.dirty_writeback_centisecs" = 1500;
       "vm.dirty_expire_centisecs" = 3000;
       "fs.file-max" = 2097152;

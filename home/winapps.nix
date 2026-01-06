@@ -1,14 +1,23 @@
-{ config, lib, pkgs, osConfig ? {}, winappsPackages, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  osConfig ? { },
+  winappsPackages,
+  ...
+}:
 
 let
   cfg = config.programs.winapps;
-  
-  # Safe extraction with fallback
-  vmCfg = 
-    if osConfig ? features.virtualization.windows11
-    then osConfig.features.virtualization.windows11
-    else { ip = "192.168.122.10"; name = "windows11"; };
-  
+
+  vmCfg =
+    osConfig.features.virtualization.windows11 or
+
+    {
+      ip = "192.168.122.10";
+      name = "windows11";
+    };
+
   secretsFile = "${config.xdg.configHome}/winapps/secrets.conf";
 in
 {
@@ -53,7 +62,9 @@ in
         message = "winappsPackages must be provided via extraSpecialArgs";
       }
       {
-        assertion = osConfig ? features.virtualization.windows11 -> osConfig.features.virtualization.windows11.enable or false;
+        assertion =
+          !(osConfig ? features.virtualization.windows11)
+          || (osConfig.features.virtualization.windows11.enable or false);
         message = "winapps requires host features.virtualization.windows11.enable = true";
       }
     ];
@@ -77,18 +88,18 @@ in
       [ -f "${cfg.credentialsFile}" ] && . "${cfg.credentialsFile}"
     '';
 
-    home.activation.winappsSecrets = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      SECRETS="${cfg.credentialsFile}"
-      if [ ! -f "$SECRETS" ]; then
-        run mkdir -p "$(dirname "$SECRETS")"
-        run cat > "$SECRETS" << 'EOF'
-# WinApps Credentials (not tracked in git)
-RDP_USER="your-windows-username"
-RDP_PASS="your-windows-password"
-EOF
-        run chmod 600 "$SECRETS"
-        verboseEcho "Created WinApps secrets template: $SECRETS"
-      fi
+    home.activation.winappsSecrets = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+            SECRETS="${cfg.credentialsFile}"
+            if [ ! -f "$SECRETS" ]; then
+              run mkdir -p "$(dirname "$SECRETS")"
+              run cat > "$SECRETS" << 'EOF'
+      # WinApps Credentials (not tracked in git)
+      RDP_USER="your-windows-username"
+      RDP_PASS="your-windows-password"
+      EOF
+              run chmod 600 "$SECRETS"
+              verboseEcho "Created WinApps secrets template: $SECRETS"
+            fi
     '';
   };
 }

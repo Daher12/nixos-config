@@ -11,14 +11,16 @@
 
   programs.home-manager.enable = true;
 
-  home.username = mainUser;
-  home.homeDirectory = "/home/${mainUser}";
+  home = {
+    username = mainUser;
+    homeDirectory = "/home/${mainUser}";
 
-  home.sessionVariables = {
-    NH_FLAKE = "/home/${mainUser}/nixos-config";
-    EDITOR = "ox";
-    VISUAL = "ox";
-    NIXOS_OZONE_WL = "1";
+    sessionVariables = {
+      NH_FLAKE = "/home/${mainUser}/nixos-config";
+      EDITOR = "ox";
+      VISUAL = "ox";
+      NIXOS_OZONE_WL = "1";
+    };
   };
 
   dconf.settings = {

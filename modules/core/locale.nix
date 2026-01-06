@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.core.locale;
@@ -35,10 +40,10 @@ in
   config = {
     time.timeZone = cfg.timeZone;
     i18n.defaultLocale = cfg.defaultLocale;
-    
+
     console = {
-      earlySetup = cfg.console.earlySetup;
-      font = cfg.console.font;
+      inherit (cfg.console) earlySetup;
+      inherit (cfg.console) font;
       packages = [ pkgs.terminus_font ];
       useXkbConfig = true;
     };

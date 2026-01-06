@@ -17,7 +17,7 @@ in
   config = lib.mkIf cfg.enable {
     boot.lanzaboote = {
       enable = true;
-      pkiBundle = cfg.pkiBundle;
+      inherit (cfg) pkiBundle;
     };
   };
 }

@@ -1,22 +1,15 @@
-{ config, pkgs, lib, ... }:
+{ pkgs, mainUser, ... }:
 
 {
   imports = [
     ./hardware-configuration.nix
-
-    ../../profiles/laptop.nix
-    ../../profiles/desktop-gnome.nix
-
-    ../../modules/core
-    ../../modules/hardware
-    ../../modules/features
   ];
 
   system.stateVersion = "25.05";
 
   core.locale.timeZone = "Europe/Berlin";
 
-  features.desktop-gnome.autoLoginUser = "dk";
+  features.desktop-gnome.autoLoginUser = mainUser;
 
   hardware.intel-gpu.enable = true;
   hardware.nvidia-disable.enable = true;
@@ -24,7 +17,11 @@
   features = {
     filesystem = {
       type = "ext4";
-      mountOptions."/" = [ "noatime" "nodiratime" "commit=30" ];
+      mountOptions."/" = [
+        "noatime"
+        "nodiratime"
+        "commit=30"
+      ];
     };
 
     kernel = {
@@ -38,6 +35,8 @@
       ];
     };
 
+    oomd.enable = true;
+
     power-tlp.settings = {
       CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
       CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
@@ -49,10 +48,6 @@
 
     zram.memoryPercent = 50;
   };
-
-  console.useXkbConfig = true;
-  systemd.services."getty@tty1".enable = false;
-  systemd.services."autovt@tty1".enable = false;
 
   # Fix spurious USB wakeups draining battery during suspend
   systemd.services.disable-wakeup-sources = {
@@ -74,25 +69,24 @@
     };
   };
 
-  services.system76-scheduler.settings.processScheduler.foregroundBoost.enable = true;
-  
-  services.thermald.enable = true;
-
-  services.preload-ng = {
-    enable = true;
-    settings = {
-      sortStrategy = 0;
-      memTotal = -10;
-      memFree = 50;
-      minSize = 2000000;
-      cycle = 30;
+  services = {
+    system76-scheduler.settings.processScheduler.foregroundBoost.enable = true;
+    thermald.enable = true;
+    preload-ng = {
+      enable = true;
+      settings = {
+        sortStrategy = 0;
+        memTotal = -10;
+        memFree = 50;
+        minSize = 2000000;
+        cycle = 30;
+      };
     };
+    journald.extraConfig = ''
+      SystemMaxUse=100M
+      Compress=yes
+    '';
   };
-
-  services.journald.extraConfig = ''
-    SystemMaxUse=100M
-    Compress=yes
-  '';
 
   environment.systemPackages = with pkgs; [
     libva-utils

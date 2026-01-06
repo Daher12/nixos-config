@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.features.fonts;
@@ -12,7 +17,7 @@ in
     fonts = {
       enableDefaultPackages = false;
       fontDir.enable = true;
-      
+
       packages = with pkgs; [
         noto-fonts
         noto-fonts-cjk-sans
@@ -29,7 +34,10 @@ in
         enable = true;
         defaultFonts = {
           serif = [ "Noto Serif" ];
-          sansSerif = [ "Inter" "Noto Sans" ];
+          sansSerif = [
+            "Inter"
+            "Noto Sans"
+          ];
           monospace = [ "CaskaydiaCove Nerd Font" ];
           emoji = [ "Noto Color Emoji" ];
         };

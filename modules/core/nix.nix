@@ -1,4 +1,10 @@
-{ config, lib, pkgs, mainUser, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  mainUser,
+  ...
+}:
 
 let
   cfg = config.core.nix;
@@ -31,60 +37,67 @@ in
   };
 
   config = {
-    nix.settings = {
-      experimental-features = [ "nix-command" "flakes" ];
-      auto-optimise-store = true;
+    nix = {
+      settings = {
+        experimental-features = [
+          "nix-command"
+          "flakes"
+        ];
+        auto-optimise-store = true;
 
-      eval-cache = true;
-      warn-dirty = false;
+        eval-cache = true;
+        warn-dirty = false;
 
-      max-jobs = "auto";
-      cores = 0;
-      trusted-users = [ "root" mainUser ];
+        max-jobs = "auto";
+        cores = 0;
+        trusted-users = [
+          "root"
+          mainUser
+        ];
 
-      sandbox = true;
-      sandbox-fallback = false;
+        sandbox = true;
+        sandbox-fallback = false;
 
-      min-free = 5368709120;
-      max-free = 21474836480;
+        min-free = 5368709120;
+        max-free = 21474836480;
 
-      substituters = [
-        "https://cache.lix.systems"
-        "https://cache.nixos.org"
-        "https://nix-community.cachix.org"
-      ];
+        substituters = [
+          "https://cache.lix.systems"
+          "https://cache.nixos.org"
+          "https://nix-community.cachix.org"
+        ];
 
-      trusted-public-keys = [
-        "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-        "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-        "cache.lix.systems:aBnZUw8zA7H35Cz2RyKFVs3H4PlGTLawyY5KRbvJR8o="
-      ];
+        trusted-public-keys = [
+          "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+          "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+          "cache.lix.systems:aBnZUw8zA7H35Cz2RyKFVs3H4PlGTLawyY5KRbvJR8o="
+        ];
 
-      fallback = true;
-      http-connections = 128;
-      connect-timeout = 5;
-      download-attempts = 3;
-      stalled-download-timeout = 300;
+        fallback = true;
+        http-connections = 128;
+        connect-timeout = 5;
+        download-attempts = 3;
+        stalled-download-timeout = 300;
 
-      keep-derivations = false;
-      keep-outputs = false;
+        keep-derivations = false;
+        keep-outputs = false;
 
-      builders-use-substitutes = true;
-      log-lines = lib.mkDefault 25;
-      accept-flake-config = true;
-      narinfo-cache-negative-ttl = 3600;
-      narinfo-cache-positive-ttl = 2592000;
-    };
+        builders-use-substitutes = true;
+        log-lines = lib.mkDefault 25;
+        accept-flake-config = true;
+        narinfo-cache-negative-ttl = 3600;
+        narinfo-cache-positive-ttl = 2592000;
+      };
 
-    nix.gc = lib.mkIf cfg.gc.automatic {
-      automatic = true;
-      dates = cfg.gc.dates;
-      options = cfg.gc.options;
-    };
+      gc = lib.mkIf cfg.gc.automatic {
+        automatic = true;
+        inherit (cfg.gc) dates options;
+      };
 
-    nix.optimise = lib.mkIf cfg.optimise.automatic {
-      automatic = true;
-      dates = [ "weekly" ];
+      optimise = lib.mkIf cfg.optimise.automatic {
+        automatic = true;
+        dates = [ "weekly" ];
+      };
     };
 
     systemd.services.nix-daemon.serviceConfig = {

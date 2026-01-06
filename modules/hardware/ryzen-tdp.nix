@@ -7,7 +7,12 @@
 #   3. Start conservative, increase STAPM until thermal throttling observed
 #   4. fast > slow >= stapm (fast = short burst, slow = sustained, stapm = average)
 
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.hardware.ryzen-tdp;
@@ -18,17 +23,49 @@ in
     enable = lib.mkEnableOption "Ryzen TDP control via ryzenadj (AC/Battery profiles)";
 
     ac = {
-      stapm = lib.mkOption { type = lib.types.int; default = 54; description = "Sustained TDP (W)"; };
-      fast = lib.mkOption { type = lib.types.int; default = 60; description = "Fast boost TDP (W)"; };
-      slow = lib.mkOption { type = lib.types.int; default = 54; description = "Slow boost TDP (W)"; };
-      temp = lib.mkOption { type = lib.types.int; default = 95; description = "Temperature limit (°C)"; };
+      stapm = lib.mkOption {
+        type = lib.types.int;
+        default = 54;
+        description = "Sustained TDP (W)";
+      };
+      fast = lib.mkOption {
+        type = lib.types.int;
+        default = 60;
+        description = "Fast boost TDP (W)";
+      };
+      slow = lib.mkOption {
+        type = lib.types.int;
+        default = 54;
+        description = "Slow boost TDP (W)";
+      };
+      temp = lib.mkOption {
+        type = lib.types.int;
+        default = 95;
+        description = "Temperature limit (°C)";
+      };
     };
 
     battery = {
-      stapm = lib.mkOption { type = lib.types.int; default = 25; description = "Sustained TDP (W)"; };
-      fast = lib.mkOption { type = lib.types.int; default = 30; description = "Fast boost TDP (W)"; };
-      slow = lib.mkOption { type = lib.types.int; default = 25; description = "Slow boost TDP (W)"; };
-      temp = lib.mkOption { type = lib.types.int; default = 85; description = "Temperature limit (°C)"; };
+      stapm = lib.mkOption {
+        type = lib.types.int;
+        default = 25;
+        description = "Sustained TDP (W)";
+      };
+      fast = lib.mkOption {
+        type = lib.types.int;
+        default = 30;
+        description = "Fast boost TDP (W)";
+      };
+      slow = lib.mkOption {
+        type = lib.types.int;
+        default = 25;
+        description = "Slow boost TDP (W)";
+      };
+      temp = lib.mkOption {
+        type = lib.types.int;
+        default = 85;
+        description = "Temperature limit (°C)";
+      };
     };
 
     watchdogInterval = lib.mkOption {
@@ -50,8 +87,14 @@ in
 
     systemd.services.ryzen-tdp-control = {
       description = "Apply Ryzen TDP limits (AC/Battery)";
-      wantedBy = [ "multi-user.target" "post-resume.target" ];
-      after = [ "systemd-logind.service" "post-resume.target" ];
+      wantedBy = [
+        "multi-user.target"
+        "post-resume.target"
+      ];
+      after = [
+        "systemd-logind.service"
+        "post-resume.target"
+      ];
 
       unitConfig = {
         StartLimitBurst = 5;
@@ -68,7 +111,11 @@ in
           let
             app = pkgs.writeShellApplication {
               name = "set-ryzen-tdp";
-              runtimeInputs = [ pkgs.coreutils pkgs.gnugrep pkgs.ryzenadj ];
+              runtimeInputs = [
+                pkgs.coreutils
+                pkgs.gnugrep
+                pkgs.ryzenadj
+              ];
               text = ''
                 set -euo pipefail
 

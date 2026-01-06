@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.features.git;
@@ -48,7 +53,7 @@ in
   config = {
     # 1. Standalone Delta Module (New Standard)
     programs.delta = {
-      enable = cfg.delta.enable;
+      inherit (cfg.delta) enable;
       enableGitIntegration = true; # Explicitly required now
       options = {
         navigate = true;
@@ -62,7 +67,7 @@ in
     programs.git = {
       enable = true;
       package = pkgs.gitMinimal;
-      
+
       # Consolidated structured settings
       settings = {
         # Identity
@@ -77,7 +82,7 @@ in
         rebase.autoStash = true;
         fetch.prune = true;
         push.autoSetupRemote = true;
-        
+
         "url \"ssh://git@github.com/\"".insteadOf = "https://github.com/";
 
         diff = {

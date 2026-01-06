@@ -1,4 +1,10 @@
-{ config, lib, pkgs, palette, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  palette,
+  ...
+}:
 
 let
   cfg = config.features.kmscon;
@@ -18,10 +24,12 @@ in
       enable = true;
       hwRender = true;
 
-      fonts = [{
-        name = "CaskaydiaCove Nerd Font";
-        package = pkgs.nerd-fonts.caskaydia-cove;
-      }];
+      fonts = [
+        {
+          name = "CaskaydiaCove Nerd Font";
+          package = pkgs.nerd-fonts.caskaydia-cove;
+        }
+      ];
 
       extraConfig = ''
         font-size=14

@@ -35,19 +35,44 @@
   };
 
   # Convert "#RRGGBB" to "R,G,B" for kmscon and other tools
-  hexToRgb = hex: let
-    toInt = str: let
-      hexToInt = {
-        "0" = 0; "1" = 1; "2" = 2; "3" = 3; "4" = 4; "5" = 5; "6" = 6; "7" = 7;
-        "8" = 8; "9" = 9; "a" = 10; "b" = 11; "c" = 12; "d" = 13; "e" = 14; "f" = 15;
-        "A" = 10; "B" = 11; "C" = 12; "D" = 13; "E" = 14; "F" = 15;
-      };
-      c1 = hexToInt.${builtins.substring 0 1 str};
-      c2 = hexToInt.${builtins.substring 1 1 str};
-    in c1 * 16 + c2;
+  hexToRgb =
+    hex:
+    let
+      toInt =
+        str:
+        let
+          hexToInt = {
+            "0" = 0;
+            "1" = 1;
+            "2" = 2;
+            "3" = 3;
+            "4" = 4;
+            "5" = 5;
+            "6" = 6;
+            "7" = 7;
+            "8" = 8;
+            "9" = 9;
+            "a" = 10;
+            "b" = 11;
+            "c" = 12;
+            "d" = 13;
+            "e" = 14;
+            "f" = 15;
+            "A" = 10;
+            "B" = 11;
+            "C" = 12;
+            "D" = 13;
+            "E" = 14;
+            "F" = 15;
+          };
+          c1 = hexToInt.${builtins.substring 0 1 str};
+          c2 = hexToInt.${builtins.substring 1 1 str};
+        in
+        c1 * 16 + c2;
 
-    r = builtins.substring 1 2 hex;
-    g = builtins.substring 3 2 hex;
-    b = builtins.substring 5 2 hex;
-  in "${toString (toInt r)},${toString (toInt g)},${toString (toInt b)}";
+      r = builtins.substring 1 2 hex;
+      g = builtins.substring 3 2 hex;
+      b = builtins.substring 5 2 hex;
+    in
+    "${toString (toInt r)},${toString (toInt g)},${toString (toInt b)}";
 }

@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.programs.theme;
@@ -17,14 +22,14 @@ let
   cursorName = "Posy_Cursor_Black";
   cursorSize = 32;
 
-  # NOTE: This script performs IMPERATIVE dconf writes at runtime.
-  # This is INTENTIONAL to support darkman-based light/dark switching
-  # without requiring a NixOS/Home Manager rebuild.
-  # The dconf.settings in home.nix provide initial defaults only;
-  # runtime state may diverge and that is expected behavior.
   switchTheme = pkgs.writeShellApplication {
     name = "switch-theme";
-    runtimeInputs = with pkgs; [ dconf coreutils gnused glib ];
+    runtimeInputs = with pkgs; [
+      dconf
+      coreutils
+      gnused
+      glib
+    ];
     text = ''
       set -euo pipefail
 
@@ -65,7 +70,6 @@ let
         exit 1
       }
 
-      # Atomic GTK4 symlink updates
       mkdir -p "$GTK4_DIR"
       for item in gtk.css gtk-dark.css assets; do
         src="$THEME_BASE/$THEME/gtk-4.0/$item"
@@ -114,14 +118,40 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = with pkgs; [
-      colloidTheme
-      iconTheme
-      cursorTheme
-      switchTheme
-      libsForQt5.qt5ct
-      kdePackages.qt6ct
-    ];
+    home = {
+      packages = with pkgs; [
+        colloidTheme
+        iconTheme
+        cursorTheme
+        switchTheme
+        libsForQt5.qt5ct
+        kdePackages.qt6ct
+      ];
+
+      pointerCursor = {
+        name = cursorName;
+        package = cursorTheme;
+        size = cursorSize;
+        gtk.enable = true;
+        x11.enable = true;
+      };
+
+      activation = {
+        cleanupLegacyGtkSettings = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+          SETTINGS_INI="${config.xdg.configHome}/gtk-3.0/settings.ini"
+          if [ -f "$SETTINGS_INI" ] && [ ! -L "$SETTINGS_INI" ]; then
+            echo "Backing up legacy mutable gtk-3.0/settings.ini to avoid conflict..."
+            mv "$SETTINGS_INI" "$SETTINGS_INI.backup"
+          fi
+        '';
+
+        applyTheme = lib.mkIf (!cfg.autoSwitch) (
+          lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+            $DRY_RUN_CMD ${switchTheme}/bin/switch-theme dark
+          ''
+        );
+      };
+    };
 
     gtk = {
       enable = true;
@@ -138,39 +168,21 @@ in
         package = cursorTheme;
         size = cursorSize;
       };
-      gtk3.extraConfig = {
-        gtk-application-prefer-dark-theme = 1;
-      };
-      gtk4.extraConfig = {
-        gtk-application-prefer-dark-theme = 1;
-      };
+      gtk3.extraConfig.gtk-application-prefer-dark-theme = 1;
+      gtk4.extraConfig.gtk-application-prefer-dark-theme = 1;
     };
 
-    xdg.configFile."gtk-4.0/gtk.css".enable = false;
-    xdg.configFile."gtk-4.0/gtk-dark.css".enable = false;
-    xdg.configFile."gtk-4.0/assets".enable = false;
+    xdg.configFile = {
+      "gtk-4.0/gtk.css".enable = false;
+      "gtk-4.0/gtk-dark.css".enable = false;
+      "gtk-4.0/assets".enable = false;
+    };
 
     qt = {
       enable = true;
       platformTheme.name = "gtk";
       style.name = "gtk2";
     };
-
-    home.pointerCursor = {
-      name = cursorName;
-      package = cursorTheme;
-      size = cursorSize;
-      gtk.enable = true;
-      x11.enable = true;
-    };
-
-    home.activation.cleanupLegacyGtkSettings = lib.hm.dag.entryBefore ["checkLinkTargets"] ''
-      SETTINGS_INI="${config.xdg.configHome}/gtk-3.0/settings.ini"
-      if [ -f "$SETTINGS_INI" ] && [ ! -L "$SETTINGS_INI" ]; then
-        echo "Backing up legacy mutable gtk-3.0/settings.ini to avoid conflict..."
-        mv "$SETTINGS_INI" "$SETTINGS_INI.backup"
-      fi
-    '';
 
     services.darkman = lib.mkIf cfg.autoSwitch {
       enable = true;
@@ -183,11 +195,5 @@ in
       darkModeScripts.gtk-theme = "${switchTheme}/bin/switch-theme dark";
       lightModeScripts.gtk-theme = "${switchTheme}/bin/switch-theme light";
     };
-
-    home.activation.applyTheme = lib.mkIf (!cfg.autoSwitch) (
-      lib.hm.dag.entryAfter ["writeBoundary"] ''
-        $DRY_RUN_CMD ${switchTheme}/bin/switch-theme dark
-      ''
-    );
   };
 }

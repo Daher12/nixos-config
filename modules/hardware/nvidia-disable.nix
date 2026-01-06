@@ -10,7 +10,10 @@ in
 
   config = lib.mkIf cfg.enable {
     boot.blacklistedKernelModules = [
-      "nouveau" "nvidia" "nvidia_drm" "nvidia_modeset"
+      "nouveau"
+      "nvidia"
+      "nvidia_drm"
+      "nvidia_modeset"
     ];
 
     boot.extraModprobeConfig = ''

@@ -9,7 +9,12 @@ in
       enable = lib.mkEnableOption "Tailscale VPN service";
 
       routingFeatures = lib.mkOption {
-        type = lib.types.enum [ "none" "client" "server" "both" ];
+        type = lib.types.enum [
+          "none"
+          "client"
+          "server"
+          "both"
+        ];
         default = "client";
         description = "Routing features to enable (client/server)";
       };
@@ -28,7 +33,6 @@ in
       useRoutingFeatures = cfg.tailscale.routingFeatures;
     };
 
-    networking.firewall.trustedInterfaces = 
-      lib.mkIf cfg.tailscale.trustInterface [ "tailscale0" ];
+    networking.firewall.trustedInterfaces = lib.mkIf cfg.tailscale.trustInterface [ "tailscale0" ];
   };
 }
