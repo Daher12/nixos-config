@@ -81,8 +81,8 @@ in
 
     systemd = {
       settings.Manager = {
-        DefaultTimeoutStopSec = "10s";
-        DefaultTimeoutStartSec = "30s";
+        DefaultTimeoutStopSec = lib.mkDefault "30s";
+        DefaultTimeoutStartSec = lib.mkDefault "90s";
       };
       coredump.enable = false;
     };

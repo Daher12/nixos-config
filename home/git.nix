@@ -51,10 +51,8 @@ in
   };
 
   config = {
-    # 1. Standalone Delta Module (New Standard)
     programs.delta = {
       inherit (cfg.delta) enable;
-      enableGitIntegration = true; # Explicitly required now
       options = {
         navigate = true;
         line-numbers = true;
@@ -63,18 +61,14 @@ in
       };
     };
 
-    # 2. Main Git Module
     programs.git = {
       enable = true;
       package = pkgs.gitMinimal;
 
-      # Consolidated structured settings
       settings = {
-        # Identity
         user.name = cfg.identity.name;
         user.email = cfg.identity.email;
 
-        # Config
         init.defaultBranch = cfg.defaultBranch;
         core.editor = cfg.editor;
 

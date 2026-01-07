@@ -7,6 +7,7 @@
     power-tlp.enable = lib.mkDefault true;
     zram.enable = lib.mkDefault true;
     network-optimization.enable = lib.mkDefault true;
+    kernel.variant = lib.mkDefault "zen";
   };
 
   core = {

@@ -45,8 +45,8 @@
 
       palette = import ./lib/palette.nix;
 
-      overlays = import ./overlays/default.nix {
-        inherit pkgs-unstable;
+      overlays = {
+        default = [ (_: _: { unstable = pkgs-unstable; }) ];
       };
 
       mkHost = import ./lib/mkHost.nix {
@@ -59,9 +59,9 @@
           ;
       };
 
+      # Only used for formatter/checks
       pkgs = import nixpkgs {
         inherit system;
-        overlays = overlays.default;
         config.allowUnfree = true;
       };
     in

@@ -24,6 +24,7 @@ in
           CPU_SCALING_GOVERNOR_ON_AC = lib.mkDefault "schedutil";
           CPU_SCALING_GOVERNOR_ON_BAT = lib.mkDefault "schedutil";
           USB_AUTOSUSPEND = lib.mkDefault 1;
+          USB_EXCLUDE_AUDIO = lib.mkDefault 1;
         }
         cfg.settings
       ];

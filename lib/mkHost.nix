@@ -1,7 +1,4 @@
 # lib/mkHost.nix
-# Unified host factory with common module injection.
-# Profiles are composed via the `profiles` parameter.
-# Base modules (core, hardware, features) are always included.
 {
   nixpkgs,
   inputs,
@@ -26,12 +23,12 @@ let
     config.allowUnfree = true;
   };
 
-  profileModules = map (p: ../profiles/${p}.nix) profiles;
+  profileModules = map (p: "${self}/profiles/${p}.nix") profiles;
 
   baseModules = [
-    ../modules/core
-    ../modules/hardware
-    ../modules/features
+    "${self}/modules/core"
+    "${self}/modules/hardware"
+    "${self}/modules/features"
   ];
 in
 nixpkgs.lib.nixosSystem {

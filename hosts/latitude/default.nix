@@ -1,4 +1,4 @@
-{ pkgs, mainUser, ... }:
+{ pkgs, ... }:
 
 {
   imports = [
@@ -8,8 +8,6 @@
   system.stateVersion = "25.05";
 
   core.locale.timeZone = "Europe/Berlin";
-
-  features.desktop-gnome.autoLoginUser = mainUser;
 
   hardware.intel-gpu.enable = true;
   hardware.nvidia-disable.enable = true;
@@ -24,23 +22,19 @@
       ];
     };
 
-    kernel = {
-      variant = "zen";
-      extraParams = [
-        "i915.enable_fbc=1"
-        "i915.fastboot=1"
-        "pcie_aspm=force"
-        "mem_sleep_default=deep"
-        "zswap.enabled=0"
-      ];
-    };
+    kernel.extraParams = [
+      "i915.enable_fbc=1"
+      "i915.fastboot=1"
+      "pcie_aspm=force"
+      "mem_sleep_default=deep"
+      "zswap.enabled=0"
+    ];
 
     oomd.enable = true;
 
     power-tlp.settings = {
       CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
       CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
-      USB_AUTOSUSPEND = 1;
       USB_EXCLUDE_BTUSB = 0;
     };
 
@@ -49,7 +43,6 @@
     zram.memoryPercent = 50;
   };
 
-  # Fix spurious USB wakeups draining battery during suspend
   systemd.services.disable-wakeup-sources = {
     description = "Disable spurious wakeups from USB to save power";
     wantedBy = [ "multi-user.target" ];
@@ -68,6 +61,10 @@
       '';
     };
   };
+
+  services.udev.extraRules = ''
+    ACTION=="add|change", SUBSYSTEM=="usb", TAG+="systemd", ENV{SYSTEMD_WANTS}+="disable-wakeup-sources.service"
+  '';
 
   services = {
     system76-scheduler.settings.processScheduler.foregroundBoost.enable = true;

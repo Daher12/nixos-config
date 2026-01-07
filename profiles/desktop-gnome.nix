@@ -1,9 +1,10 @@
-{ lib, ... }:
+{ lib, mainUser, ... }:
 
 {
   features.desktop-gnome = {
     enable = lib.mkDefault true;
     autoLogin = lib.mkDefault true;
+    autoLoginUser = lib.mkDefault mainUser;
   };
 
   features.vpn.tailscale = {

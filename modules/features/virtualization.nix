@@ -161,7 +161,7 @@ in
             virt-manager
             virt-viewer
             swtpm
-            OVMFFull # OVMF firmware (no enable option needed in 25.11+)
+            OVMFFull
             remmina
             freerdp
             adwaita-icon-theme
@@ -222,6 +222,11 @@ in
           {
             assertion = cfg.includeGuestTools;
             message = "features.virtualization.includeGuestTools must be true when windows11.enable is true";
+          }
+          {
+            assertion =
+              config.home-manager.users.${mainUser}.programs.winapps.enable or false -> cfg.includeGuestTools;
+            message = "WinApps requires virtualization.includeGuestTools = true";
           }
         ];
 
