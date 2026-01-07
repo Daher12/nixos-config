@@ -167,7 +167,7 @@ in
             adwaita-icon-theme
           ]
           ++ lib.optionals cfg.includeGuestTools [
-            virtio-win
+    ##        virtio-win     						##no ISO anymore
             libguestfs
             libguestfs-with-appliance
           ];
