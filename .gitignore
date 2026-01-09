@@ -24,3 +24,9 @@ id_rsa
 id_ed25519
 *.pem
 *.bak
+
+#media
+hosts/nix-media/secrets/
+*.secret
+*.env
+hosts/*/secrets/
