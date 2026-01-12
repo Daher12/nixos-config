@@ -5,7 +5,7 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    nixos-hardware.url = "github:NixOS/nixos-hardware/40b1a28dce561bea34858287fbb23052c3ee63fe";
+    nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     lanzaboote = {
       url = "github:nix-community/lanzaboote/v0.4.3";
@@ -13,7 +13,7 @@
     };
 
     lix-module = {
-      url = "https://git.lix.systems/lix-project/nixos-module/archive/2.93.3-2.tar.gz";
+      url = "git+https://git.lix.systems/lix-project/nixos-module?ref=release-2.93";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

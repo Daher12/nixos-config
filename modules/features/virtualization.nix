@@ -1,10 +1,4 @@
-{
-  config,
-  lib,
-  pkgs,
-  mainUser,
-  ...
-}:
+{ config, lib, pkgs, mainUser, ... }:
 
 let
   cfg = config.features.virtualization;
@@ -53,35 +47,6 @@ in
       };
     };
 
-    usbPassthrough = {
-      enable = lib.mkEnableOption "USB device passthrough";
-
-      appleDevices = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Add udev rules for Apple devices (iPhone/iPad)";
-      };
-
-      extraDevices = lib.mkOption {
-        type = lib.types.listOf (
-          lib.types.submodule {
-            options = {
-              vendorId = lib.mkOption { type = lib.types.str; };
-              productId = lib.mkOption {
-                type = lib.types.nullOr lib.types.str;
-                default = null;
-              };
-              description = lib.mkOption {
-                type = lib.types.str;
-                default = "";
-              };
-            };
-          }
-        );
-        default = [ ];
-      };
-    };
-
     performance = {
       hugepages = {
         enable = lib.mkOption {
@@ -111,173 +76,143 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable (
-    lib.mkMerge [
-      # Base libvirtd
-      {
-        virtualisation.libvirtd = {
-          enable = true;
-          onBoot = "ignore";
-          onShutdown = "shutdown";
+  config = lib.mkIf cfg.enable (lib.mkMerge [
+    # Base libvirtd
+    {
+      virtualisation.libvirtd = {
+        enable = true;
+        onBoot = "ignore";
+        onShutdown = "shutdown";
 
-          qemu = {
-            package = pkgs.qemu_kvm;
-            runAsRoot = false;
-            swtpm.enable = true;
-            vhostUserPackages = [ pkgs.virtiofsd ];
-          };
-
-          extraConfig = ''
-            unix_sock_group = "libvirtd"
-            unix_sock_ro_perms = "0777"
-            unix_sock_rw_perms = "0770"
-            auth_unix_ro = "none"
-            auth_unix_rw = "none"
-            log_filters="3:qemu 1:libvirt"
-            log_outputs="2:file:/var/log/libvirt/libvirtd.log"
-          '';
+        qemu = {
+          package = pkgs.qemu_kvm;
+          runAsRoot = false;
+          swtpm.enable = true;
+          vhostUserPackages = [ pkgs.virtiofsd ];
         };
 
-        users.users.${mainUser}.extraGroups = lib.mkAfter [
-          "libvirtd"
-          "kvm"
-        ];
-
-        # KVM modules - no nested virt (ISSUE-3), no experimental zcopytx (ISSUE-4)
-        boot.kernelModules = [
-          "kvm-intel"
-          "kvm-amd"
-          "vhost-net"
-          "vhost-vsock"
-        ];
-        boot.extraModprobeConfig = ''
-          options kvm_intel enable_apicv=1 ept=1
-          options kvm_amd avic=1 npt=1
+        extraConfig = ''
+          unix_sock_group = "libvirtd"
+          unix_sock_ro_perms = "0777"
+          unix_sock_rw_perms = "0770"
+          auth_unix_ro = "none"
+          auth_unix_rw = "none"
+          log_filters="3:qemu 1:libvirt"
+          log_outputs="2:file:/var/log/libvirt/libvirtd.log"
         '';
+      };
 
-        environment.systemPackages =
-          with pkgs;
-          [
-            virt-manager
-            virt-viewer
-            swtpm
-            OVMFFull
-            remmina
-            freerdp
-            adwaita-icon-theme
-          ]
-          ++ lib.optionals cfg.includeGuestTools [
-    ##        virtio-win     						##no ISO anymore
-            libguestfs
-            libguestfs-with-appliance
-          ];
+      users.users.${mainUser}.extraGroups = lib.mkAfter [ "libvirtd" "kvm" ];
 
-        programs.virt-manager.enable = true;
+      # KVM modules
+      boot.kernelModules = [ "kvm-intel" "kvm-amd" "vhost-net" "vhost-vsock" ];
+      boot.extraModprobeConfig = ''
+        options kvm_intel enable_apicv=1 ept=1
+        options kvm_amd avic=1 npt=1
+      '';
 
-        # Base udev rules
-        services.udev.extraRules = ''
-          KERNEL=="kvm", GROUP="kvm", MODE="0666"
-          SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
-        '';
-      }
+      environment.systemPackages = with pkgs; [
+        virt-manager
+        virt-viewer
+        swtpm
+        OVMFFull
+        remmina
+        freerdp
+        adwaita-icon-theme
+      ] ++ lib.optionals cfg.includeGuestTools [
+        virtio-win
+        libguestfs
+        libguestfs-with-appliance
+      ];
 
-      # USB passthrough (ISSUE-6)
-      (lib.mkIf cfg.usbPassthrough.enable {
-        services.udev.extraRules = lib.concatStringsSep "\n" (
-          # Apple devices
-          lib.optional cfg.usbPassthrough.appleDevices
-            ''SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", MODE="0666", GROUP="kvm"''
-          ++
-            # Extra devices
-            map (
-              dev:
-              let
-                productMatch = lib.optionalString (dev.productId != null) '', ATTR{idProduct}=="${dev.productId}"'';
-              in
-              ''SUBSYSTEM=="usb", ATTR{idVendor}=="${dev.vendorId}"${productMatch}, MODE="0666", GROUP="kvm"''
-            ) cfg.usbPassthrough.extraDevices
-        );
-      })
+      programs.virt-manager.enable = true;
 
-      # Hugepages
-      (lib.mkIf cfg.performance.hugepages.enable {
-        boot.kernelParams = [
-          "hugepagesz=2M"
-          "hugepages=${toString cfg.performance.hugepages.count}"
-          "transparent_hugepage=never"
-        ];
+      # Base udev rules
+      services.udev.extraRules = ''
+        KERNEL=="kvm", GROUP="kvm", MODE="0666"
+        SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
+      '';
+    }
 
-        systemd.tmpfiles.rules = [
-          "d /dev/hugepages 1755 root kvm - -"
-        ];
+    # QEMU config
+    {
+      virtualisation.libvirtd.qemu.verbatimConfig = ''
+        user = "qemu"
+        group = "kvm"
+      '';
+    }
 
-        virtualisation.libvirtd.qemu.verbatimConfig = ''
-          hugetlbfs_mount = "/dev/hugepages"
-        '';
-      })
+    # Hugepages
+    (lib.mkIf cfg.performance.hugepages.enable {
+      boot.kernelParams = [
+        "hugepagesz=2M"
+        "hugepages=${toString cfg.performance.hugepages.count}"
+        "transparent_hugepage=never"
+      ];
 
-      # Windows 11 network setup (ISSUE-5 - configurable MAC/IP)
-      (lib.mkIf w11.enable {
-        assertions = [
-          {
-            assertion = cfg.includeGuestTools;
-            message = "features.virtualization.includeGuestTools must be true when windows11.enable is true";
-          }
-          {
-            assertion =
-              config.home-manager.users.${mainUser}.programs.winapps.enable or false -> cfg.includeGuestTools;
-            message = "WinApps requires virtualization.includeGuestTools = true";
-          }
-        ];
+      systemd.tmpfiles.rules = [
+        "d /dev/hugepages 1755 root kvm - -"
+      ];
 
-        # CoW disabled for VM images on btrfs
-        systemd.tmpfiles.rules = [
-          "d /var/lib/libvirt/images 0775 root libvirtd - -"
-          "h /var/lib/libvirt/images - - - - +C"
-        ];
+      virtualisation.libvirtd.qemu.verbatimConfig = lib.mkForce ''
+        user = "qemu"
+        group = "kvm"
+        hugetlbfs_mount = "/dev/hugepages"
+      '';
+    })
 
-        systemd.services.libvirt-network-default = {
-          description = "Configure libvirt default network";
-          after = [ "libvirtd.service" ];
-          requires = [ "libvirtd.service" ];
-          wantedBy = [ "multi-user.target" ];
-          serviceConfig = {
-            Type = "oneshot";
-            RemainAfterExit = true;
-          };
-          script =
-            let
-              virsh = "${pkgs.libvirt}/bin/virsh";
-            in
-            ''
-                        # Wait for socket
-                        for i in $(seq 1 30); do
-                          ${virsh} list &>/dev/null && break
-                          sleep 1
-                        done
+    # Windows 11 network setup
+    (lib.mkIf w11.enable {
+      assertions = [{
+        assertion = cfg.includeGuestTools;
+        message = "features.virtualization.includeGuestTools must be true when windows11.enable is true";
+      }];
 
-                        if ! ${virsh} net-info default &>/dev/null; then
-                          ${virsh} net-define /dev/stdin <<'EOF'
-              <network>
-                <name>default</name>
-                <forward mode='nat'>
-                  <nat><port start='1024' end='65535'/></nat>
-                </forward>
-                <bridge name='virbr0' stp='on' delay='0'/>
-                <ip address='192.168.122.1' netmask='255.255.255.0'>
-                  <dhcp>
-                    <range start='192.168.122.100' end='192.168.122.254'/>
-                    <host mac='${w11.mac}' name='${w11.name}' ip='${w11.ip}'/>
-                  </dhcp>
-                </ip>
-              </network>
-              EOF
-                          ${virsh} net-autostart default
-                        fi
-                        ${virsh} net-start default 2>/dev/null || true
-            '';
+      # CoW disabled for VM images on btrfs
+      systemd.tmpfiles.rules = [
+        "d /var/lib/libvirt/images 0775 root libvirtd - -"
+        "h /var/lib/libvirt/images - - - - +C"
+      ];
+
+      systemd.services.libvirt-network-default = {
+        description = "Configure libvirt default network";
+        after = [ "libvirtd.service" ];
+        requires = [ "libvirtd.service" ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
         };
-      })
-    ]
-  );
+        script = let
+          virsh = "${pkgs.libvirt}/bin/virsh";
+        in ''
+          # Wait for socket
+          for i in $(seq 1 30); do
+            ${virsh} list &>/dev/null && break
+            sleep 1
+          done
+
+          if ! ${virsh} net-info default &>/dev/null; then
+            ${virsh} net-define /dev/stdin <<'EOF'
+<network>
+  <name>default</name>
+  <forward mode='nat'>
+    <nat><port start='1024' end='65535'/></nat>
+  </forward>
+  <bridge name='virbr0' stp='on' delay='0'/>
+  <ip address='192.168.122.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='192.168.122.100' end='192.168.122.254'/>
+      <host mac='${w11.mac}' name='${w11.name}' ip='${w11.ip}'/>
+    </dhcp>
+  </ip>
+</network>
+EOF
+            ${virsh} net-autostart default
+          fi
+          ${virsh} net-start default 2>/dev/null || true
+        '';
+      };
+    })
+  ]);
 }

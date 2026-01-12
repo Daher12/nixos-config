@@ -44,8 +44,7 @@ in
           "flakes"
         ];
         auto-optimise-store = true;
-
-        eval-cache = true;
+        
         warn-dirty = false;
 
         max-jobs = "auto";
@@ -107,7 +106,6 @@ in
       IOWeight = 50;
       IOSchedulingClass = "best-effort";
       MemoryHigh = "80%";
-      CPUQuota = "200%";
       LimitNOFILE = 1048576;
     };
 
