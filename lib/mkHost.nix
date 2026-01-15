@@ -2,9 +2,17 @@
 { hostname, mainUser, system ? "x86_64-linux", profiles ? [], extraModules ? [], hmModules ? [], extraSpecialArgs ? {} }:
 let
   profileModules = builtins.filter builtins.pathExists (map (p: "${self}/profiles/${p}.nix") profiles);
-  baseModules = [ "${self}/modules/core" "${self}/modules/hardware" "${self}/modules/features" ];
   
-  commonArgs = { inherit inputs self palette mainUser; } // extraSpecialArgs;
+  # Only load hardware/features modules when profiles exist
+  baseModules = [ "${self}/modules/core" ]
+    ++ nixpkgs.lib.optional (profiles != []) "${self}/modules/hardware"
+    ++ nixpkgs.lib.optional (profiles != []) "${self}/modules/features";
+  
+  # Type-safe specialArgs with guaranteed winappsPackages key
+  commonArgs = { 
+    inherit inputs self palette mainUser;
+    winappsPackages = extraSpecialArgs.winappsPackages or null;
+  } // (builtins.removeAttrs extraSpecialArgs ["winappsPackages"]);
 in
 nixpkgs.lib.nixosSystem {
   inherit system;
@@ -14,7 +22,7 @@ nixpkgs.lib.nixosSystem {
     inputs.lanzaboote.nixosModules.lanzaboote
     inputs.home-manager.nixosModules.home-manager
     {
-      nixpkgs.overlays = (overlays system).default;
+      nixpkgs.overlays = overlays system;
       nixpkgs.config.allowUnfree = true;
       
       networking.hostName = hostname;
