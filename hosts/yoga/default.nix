@@ -20,14 +20,22 @@
   features = {
     bluetooth.enable = true;
     power-tlp.enable = true;
+    
     filesystem = {
-    type = "btrfs";
-    btrfs = {
-      autoScrub = true;
-      scrubFilesystems = [ "/" ];
-      autoBalance = true;
+      type = "btrfs";
+      # Centralized mount options - merged with hardware-defined subvol options
+      mountOptions = {
+        "/" = config.features.filesystem.btrfs.defaultMountOptions;
+        "/home" = config.features.filesystem.btrfs.defaultMountOptions;
+        "/nix" = config.features.filesystem.btrfs.defaultMountOptions;
+      };
+      btrfs = {
+        autoScrub = true;
+        scrubFilesystems = [ "/" ];
+        autoBalance = true;
+      };
     };
-  };
+    
     kernel.extraParams = [
       "zswap.enabled=0"
       "amd_pstate=active"
