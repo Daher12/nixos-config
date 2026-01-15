@@ -1,3 +1,4 @@
+# modules/features/filesystem.nix
 {
   config,
   lib,
@@ -114,7 +115,9 @@ in
         description = "Monthly Btrfs balance";
         serviceConfig = {
           Type = "oneshot";
-          ExecStart = "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 /";
+          ExecStart = lib.concatMapStringsSep " && " (fs:
+            "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 ${fs}"
+          ) cfg.btrfs.scrubFilesystems;
         };
       };
 
