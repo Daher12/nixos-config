@@ -14,11 +14,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    assertions = [
-      {
-        assertion = !config.hardware.intel-gpu.enable;
-        message = "Cannot enable both AMD and Intel GPU modules (conflicting LIBVA_DRIVER_NAME)";
-      }
     ];
 
     boot.initrd.kernelModules = [ "amdgpu" ];
