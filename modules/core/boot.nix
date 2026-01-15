@@ -1,4 +1,3 @@
-# modules/core/boot.nix
 { config, lib, ... }:
 
 let
@@ -9,7 +8,7 @@ in
     silent = lib.mkEnableOption "silent boot with Plymouth";
 
     plymouth.theme = lib.mkOption {
-      type = lib.types.str;
+      type = lib.types.enum [ "bgrt" "spinner" "script" "text" ];
       default = "bgrt";
       description = "Plymouth theme to use";
     };
