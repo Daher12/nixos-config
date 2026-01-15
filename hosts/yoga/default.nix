@@ -18,6 +18,8 @@
   hardware.amd-gpu.enable = true;
 
   features = {
+    bluetooth.enable = true;
+    power-tlp.enable = true;
     filesystem = {
       type = "btrfs";
       mountOptions = {
