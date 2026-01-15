@@ -45,7 +45,7 @@
       windows11.enable = true;
     };
 
-    zram.memoryPercent = 100;
+    zram.memoryPercent = 50;
 
     power-tlp.settings = {
       TLP_DEFAULT_MODE = "BAT";
