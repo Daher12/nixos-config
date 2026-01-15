@@ -13,12 +13,18 @@
   system.stateVersion = "25.11";
 
   core.locale.timeZone = "Europe/Berlin";
+  core.users.description = "David";
 
   hardware.amd-gpu.enable = true;
 
   features = {
     filesystem = {
       type = "btrfs";
+      mountOptions = {
+        "/" = [ "compress-force=zstd:1" "noatime" "discard=async" ];
+        "/home" = [ "compress-force=zstd:1" "noatime" "discard=async" ];
+        "/nix" = [ "compress-force=zstd:1" "noatime" "discard=async" ];
+      };
       btrfs = {
         autoScrub = true;
         scrubFilesystems = [ "/" ];
@@ -81,7 +87,7 @@
     };
   };
 
-  systemd.services.nix-daemon.serviceConfig.CPUQuota = lib.mkForce "800%";
+  systemd.services.nix-daemon.serviceConfig.CPUQuota = "${toString (config.nix.settings.cores * 100)}%";
 
   services.irqbalance.enable = true;
 
