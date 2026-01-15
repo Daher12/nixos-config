@@ -96,7 +96,7 @@ in
               name = ext;
               value = {
                 install_url = "https://addons.mozilla.org/firefox/downloads/latest/${ext}/latest.xpi";
-                installation_mode = "force_installed";
+                installation_mode = "normal_installed";
               };
             }) cfg.firefox.extensions
           );
