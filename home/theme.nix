@@ -146,7 +146,7 @@ in
       };
 
       activation = {
-        cleanupLegacyGtkSettings = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+        cleanupLegacyGtkSettings = lib.hm.dag.entryBefore [ "writeBoundary" ] ''
           SETTINGS_INI="${config.xdg.configHome}/gtk-3.0/settings.ini"
           if [ -f "$SETTINGS_INI" ] && [ ! -L "$SETTINGS_INI" ]; then
             echo "Backing up legacy mutable gtk-3.0/settings.ini to avoid conflict..."
