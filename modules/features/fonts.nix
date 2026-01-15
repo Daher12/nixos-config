@@ -22,7 +22,6 @@ in
         noto-fonts
         noto-fonts-cjk-sans
         noto-fonts-color-emoji
-        nerd-fonts.symbols-only
         nerd-fonts.caskaydia-cove
         fira-code
         inter
