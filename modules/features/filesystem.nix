@@ -1,4 +1,3 @@
-# modules/features/filesystem.nix
 {
   config,
   lib,
@@ -88,11 +87,7 @@ in
     })
 
     {
-      fileSystems = lib.mkMerge (
-        lib.mapAttrsToList (path: opts: {
-          ${path}.options = lib.mkAfter opts;
-        }) cfg.mountOptions
-      );
+      fileSystems = lib.mapAttrs (_: opts: { options = lib.mkAfter opts; }) cfg.mountOptions;
     }
 
     (lib.mkIf cfg.enableFstrim {
