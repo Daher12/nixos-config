@@ -24,7 +24,7 @@ in
     services.udev.extraRules = ''
       # Remove NVIDIA PCI devices (Vendor ID 0x10de)
       ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", \
-        ATTR{class}=="0x0c0330|0x0c8000|0x040300|0x03*", \
+        ATTR{class}=="0x0c0330|0x0c8000|0x040300|0x030000", \
         ATTR{power/control}="auto", ATTR{remove}="1"
     '';
   };
