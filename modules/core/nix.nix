@@ -1,3 +1,4 @@
+# modules/core/nix.nix
 {
   config,
   lib,
@@ -44,8 +45,6 @@ in
           "flakes"
         ];
         auto-optimise-store = true;
-        
-        warn-dirty = false;
 
         max-jobs = "auto";
         cores = 0;
@@ -61,8 +60,8 @@ in
         max-free = 21474836480;
 
         substituters = [
-          "https://cache.lix.systems"
           "https://cache.nixos.org"
+          "https://cache.lix.systems"
           "https://nix-community.cachix.org"
         ];
 
