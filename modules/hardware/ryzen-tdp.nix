@@ -1,12 +1,3 @@
-# Ryzen TDP Control via ryzenadj
-# Provides AC/Battery power profiles with automatic switching.
-#
-# TDP values are machine-specific. To determine appropriate values:
-#   1. Check manufacturer specs for sustained/boost TDP
-#   2. Monitor thermals with: watch -n1 'cat /sys/class/hwmon/hwmon*/temp*_input'
-#   3. Start conservative, increase STAPM until thermal throttling observed
-#   4. fast > slow >= stapm (fast = short burst, slow = sustained, stapm = average)
-
 {
   config,
   lib,
@@ -120,28 +111,29 @@ in
                 set -euo pipefail
 
                 ON_AC=0
-                for psu in /sys/class/power_supply/*; do
-                  if [ -f "$psu/type" ] && [ -f "$psu/online" ]; then
-                    TYPE="$(cat "$psu/type" || true)"
-                    ONLINE="$(cat "$psu/online" || echo 0)"
-                    if echo "$TYPE" | grep -qE "Mains|USB_PD"; then
-                      if [ "$ONLINE" -eq 1 ]; then
-                        ON_AC=1
-                        break
-                      fi
-                    fi
+                for psu in /sys/class/power_supply/*/online; do
+                  [ -f "$psu" ] || continue
+                  PSU_DIR=$(dirname "$psu")
+                  [ -f "$PSU_DIR/type" ] || continue
+                  
+                  TYPE=$(cat "$PSU_DIR/type")
+                  ONLINE=$(cat "$psu")
+                  
+                  if [ "$ONLINE" = "1" ] && { [ "$TYPE" = "Mains" ] || [ "$TYPE" = "USB" ]; }; then
+                    ON_AC=1
+                    break
                   fi
                 done
 
                 if [ "$ON_AC" -eq 1 ]; then
-                  echo "Power: AC — applying ${toString cfg.ac.stapm}W STAPM"
+                  echo "Power: AC – applying ${toString cfg.ac.stapm}W STAPM"
                   ryzenadj \
                     --stapm-limit=${toMW cfg.ac.stapm} \
                     --fast-limit=${toMW cfg.ac.fast} \
                     --slow-limit=${toMW cfg.ac.slow} \
                     --tctl-temp=${toString cfg.ac.temp}
                 else
-                  echo "Power: Battery — applying ${toString cfg.battery.stapm}W STAPM"
+                  echo "Power: Battery – applying ${toString cfg.battery.stapm}W STAPM"
                   ryzenadj \
                     --stapm-limit=${toMW cfg.battery.stapm} \
                     --fast-limit=${toMW cfg.battery.fast} \
