@@ -155,8 +155,8 @@ in
 
     (lib.mkIf w11.enable {
       assertions = [{
-        assertion = cfg.includeGuestTools;
-        message = "features.virtualization.includeGuestTools must be true when windows11.enable is true";
+        assertion = cfg.includeGuestTools && config.virtualisation.libvirtd.qemu.swtpm.enable;
+        message = "features.virtualization.windows11 requires includeGuestTools and swtpm.enable";
       }];
 
       systemd.tmpfiles.rules = [
