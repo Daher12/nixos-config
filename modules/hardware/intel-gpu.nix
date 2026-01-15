@@ -11,6 +11,12 @@ in
 {
   options.hardware.intel-gpu = {
     enable = lib.mkEnableOption "Intel GPU support";
+
+    enableOpenCL = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable OpenCL support";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -20,7 +26,7 @@ in
       extraPackages = with pkgs; [
         intel-media-driver
         libvdpau-va-gl
-      ];
+      ] ++ lib.optional cfg.enableOpenCL pkgs.intel-compute-runtime;
     };
 
     environment.sessionVariables = {
