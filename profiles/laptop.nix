@@ -2,9 +2,9 @@
 
 {
   features = {
-    bluetooth.enable = lib.mkDefault true;
+    bluetooth.enable = lib.mkDefault false;
     fonts.enable = lib.mkDefault true;
-    power-tlp.enable = lib.mkDefault true;
+    power-tlp.enable = lib.mkDefault false;
     zram.enable = lib.mkDefault true;
     network-optimization.enable = lib.mkDefault true;
     kernel.variant = lib.mkDefault "zen";
