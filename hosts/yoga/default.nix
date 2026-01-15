@@ -21,13 +21,13 @@
     bluetooth.enable = true;
     power-tlp.enable = true;
     filesystem = {
-     type = "btrfs";
+    type = "btrfs";
+    btrfs = {
       autoScrub = true;
       scrubFilesystems = [ "/" ];
       autoBalance = true;
-     };
-   };
-
+    };
+  };
     kernel.extraParams = [
       "zswap.enabled=0"
       "amd_pstate=active"
