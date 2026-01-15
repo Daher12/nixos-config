@@ -29,6 +29,7 @@
    };
 
     kernel.extraParams = [
+      "zswap.enabled=0"
       "amd_pstate=active"
       "amdgpu.ppfeaturemask=0xffffffff"
       "amdgpu.dcdebugmask=0x10"
