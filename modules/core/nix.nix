@@ -1,4 +1,3 @@
-# modules/core/nix.nix
 {
   config,
   lib,
@@ -108,7 +107,7 @@ in
       LimitNOFILE = 1048576;
     };
 
-    systemd.services.NetworkManager-wait-online.enable = false;
+    systemd.services.NetworkManager-wait-online.wantedBy = lib.mkForce [];
 
     environment.systemPackages = [ pkgs.cachix ];
   };
