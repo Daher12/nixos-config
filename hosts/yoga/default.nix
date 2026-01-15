@@ -23,12 +23,6 @@
     
     filesystem = {
       type = "btrfs";
-      # Centralized mount options - merged with hardware-defined subvol options
-      mountOptions = {
-        "/" = config.features.filesystem.btrfs.defaultMountOptions;
-        "/home" = config.features.filesystem.btrfs.defaultMountOptions;
-        "/nix" = config.features.filesystem.btrfs.defaultMountOptions;
-      };
       btrfs = {
         autoScrub = true;
         scrubFilesystems = [ "/" ];
