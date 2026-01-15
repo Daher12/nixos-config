@@ -15,12 +15,18 @@ in
       default = 30;
       description = "Sudo password timeout in minutes";
     };
+
+    description = lib.mkOption {
+      type = lib.types.str;
+      default = "User";
+      description = "User full name";
+    };
   };
 
   config = {
     users.users.${mainUser} = {
       isNormalUser = true;
-      description = "David";
+      description = cfg.description;
       group = mainUser;
       extraGroups = [
         "networkmanager"
