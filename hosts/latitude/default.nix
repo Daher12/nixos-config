@@ -15,8 +15,10 @@
   features = {
     bluetooth.enable = true;
     power-tlp.enable = true;
+    
     filesystem = {
       type = "ext4";
+      # Centralized mount options
       mountOptions."/" = [
         "noatime"
         "nodiratime"
