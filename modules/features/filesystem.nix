@@ -7,6 +7,10 @@
 
 let
   cfg = config.features.filesystem;
+  
+  # Optimized async discard detection
+  hasAsyncDiscard = cfg.type == "btrfs" && 
+    lib.any (lib.hasInfix "discard=async") (lib.flatten (lib.attrValues cfg.mountOptions));
 in
 {
   options.features.filesystem = {
@@ -82,6 +86,12 @@ in
       features.filesystem = {
         btrfs.autoScrub = lib.mkDefault true;
         btrfs.autoBalance = lib.mkDefault true;
+        # Auto-apply default btrfs mount options to all btrfs filesystems
+        mountOptions = lib.mkDefault (
+          lib.mapAttrs 
+            (_: fsCfg: cfg.btrfs.defaultMountOptions) 
+            (lib.filterAttrs (_: fsCfg: fsCfg.fsType or "" == "btrfs") config.fileSystems)
+        );
       };
     })
 
@@ -93,18 +103,8 @@ in
     }
 
     {
-      # Auto-detect fstrim enablement based on filesystem type and options
-      services.fstrim.enable = 
-        if cfg.enableFstrim != null 
-        then cfg.enableFstrim
-        else if cfg.type == "btrfs" then
-          # Disable fstrim if any btrfs mount uses discard=async
-          !(builtins.any 
-            (opts: builtins.any (opt: lib.hasPrefix "discard=async" opt) opts)
-            (builtins.attrValues cfg.mountOptions))
-        else
-          true;
-      
+      # Simplified auto-detect fstrim enablement
+      services.fstrim.enable = cfg.enableFstrim or !hasAsyncDiscard;
       services.fstrim.interval = lib.mkIf config.services.fstrim.enable "weekly";
     }
 
