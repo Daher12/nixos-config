@@ -3,16 +3,17 @@
 let
   profileModules = map (p: "${self}/profiles/${p}.nix") profiles;
   baseModules = [ "${self}/modules/core" "${self}/modules/hardware" "${self}/modules/features" ];
+  
+  commonArgs = { inherit inputs self palette mainUser; } // extraSpecialArgs;
 in
 nixpkgs.lib.nixosSystem {
   inherit system;
-  specialArgs = { inherit inputs self palette mainUser; } // extraSpecialArgs;
+  specialArgs = commonArgs;
   modules = [
     inputs.lix-module.nixosModules.default
     inputs.lanzaboote.nixosModules.lanzaboote
     inputs.home-manager.nixosModules.home-manager
     {
-      # CRITICAL: Configure pkgs via module system, DO NOT pass 'pkgs' arg to nixosSystem
       nixpkgs.overlays = overlays.default;
       nixpkgs.config.allowUnfree = true;
       
@@ -21,9 +22,9 @@ nixpkgs.lib.nixosSystem {
         useGlobalPkgs = true;
         useUserPackages = true;
         backupFileExtension = "backup";
-        extraSpecialArgs = { inherit inputs self palette mainUser; } // extraSpecialArgs;
+        extraSpecialArgs = commonArgs;
         users.${mainUser}.imports = hmModules;
       };
     }
-  ] ++ profileModules ++ baseModules ++ extraModules;
+  ] ++ baseModules ++ profileModules ++ extraModules;
 }
