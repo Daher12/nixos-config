@@ -45,16 +45,14 @@
 
       palette = import ./lib/palette.nix;
 
-      overlays = system: {
-        default = [
-          (_final: _prev: {
-            unstable = import inputs.nixpkgs-unstable {
-              inherit system;
-              config.allowUnfree = true;
-            };
-          })
-        ];
-      };
+      overlays = system: [
+        (_final: _prev: {
+          unstable = import inputs.nixpkgs-unstable {
+            inherit system;
+            config.allowUnfree = true;
+          };
+        })
+      ];
 
       mkHost = import ./lib/mkHost.nix {
         inherit
