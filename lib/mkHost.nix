@@ -3,16 +3,18 @@
 let
   profileModules = builtins.filter builtins.pathExists (map (p: "${self}/profiles/${p}.nix") profiles);
   
-  # Only load hardware/features modules when profiles exist
-  baseModules = [ "${self}/modules/core" ]
-    ++ nixpkgs.lib.optional (profiles != []) "${self}/modules/hardware"
-    ++ nixpkgs.lib.optional (profiles != []) "${self}/modules/features";
+  # Conditional loading based on profile requirements
+  needsHardware = builtins.any (p: p == "laptop" || p == "desktop-gnome") profiles;
+  needsFeatures = profiles != [];
   
-  # Type-safe specialArgs with guaranteed winappsPackages key
+  baseModules = [ "${self}/modules/core" ]
+    ++ nixpkgs.lib.optional needsHardware "${self}/modules/hardware"
+    ++ nixpkgs.lib.optional needsFeatures "${self}/modules/features";
+  
+  # Simplified specialArgs - extraSpecialArgs already contains winappsPackages
   commonArgs = { 
     inherit inputs self palette mainUser;
-    winappsPackages = extraSpecialArgs.winappsPackages or null;
-  } // (builtins.removeAttrs extraSpecialArgs ["winappsPackages"]);
+  } // extraSpecialArgs;
 in
 nixpkgs.lib.nixosSystem {
   inherit system;
