@@ -38,9 +38,9 @@ in
     };
 
     enableFstrim = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Enable periodic TRIM (disable if using discard=async)";
+      type = lib.types.nullOr lib.types.bool;
+      default = null;
+      description = "Enable periodic TRIM. Auto-detects: disabled for btrfs with discard=async";
     };
 
     btrfs = {
@@ -80,22 +80,33 @@ in
   config = lib.mkMerge [
     (lib.mkIf (cfg.type == "btrfs") {
       features.filesystem = {
-        enableFstrim = lib.mkDefault false;
         btrfs.autoScrub = lib.mkDefault true;
         btrfs.autoBalance = lib.mkDefault true;
       };
     })
 
     {
-      fileSystems = lib.mapAttrs (_: opts: { options = lib.mkAfter opts; }) cfg.mountOptions;
+      # Merge feature-defined mount options with existing hardware-defined ones
+      fileSystems = lib.mapAttrs (path: fsCfg: {
+        options = lib.mkAfter (cfg.mountOptions.${path} or []);
+      }) config.fileSystems;
     }
 
-    (lib.mkIf cfg.enableFstrim {
-      services.fstrim = {
-        enable = true;
-        interval = "weekly";
-      };
-    })
+    {
+      # Auto-detect fstrim enablement based on filesystem type and options
+      services.fstrim.enable = 
+        if cfg.enableFstrim != null 
+        then cfg.enableFstrim
+        else if cfg.type == "btrfs" then
+          # Disable fstrim if any btrfs mount uses discard=async
+          !(builtins.any 
+            (opts: builtins.any (opt: lib.hasPrefix "discard=async" opt) opts)
+            (builtins.attrValues cfg.mountOptions))
+        else
+          true;
+      
+      services.fstrim.interval = lib.mkIf config.services.fstrim.enable "weekly";
+    }
 
     (lib.mkIf (cfg.type == "btrfs" && cfg.btrfs.autoScrub) {
       services.btrfs.autoScrub = {
