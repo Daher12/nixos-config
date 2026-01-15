@@ -1,3 +1,4 @@
+# modules/features/kernel.nix
 {
   config,
   lib,
@@ -43,6 +44,6 @@ in
 
   config = {
     boot.kernelPackages = lib.mkDefault kernelPackages.${cfg.variant};
-    boot.kernelParams = lib.mkAfter cfg.extraParams;
+    boot.kernelParams = lib.mkBefore cfg.extraParams;
   };
 }
