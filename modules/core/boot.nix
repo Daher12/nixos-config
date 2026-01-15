@@ -8,7 +8,12 @@ in
     silent = lib.mkEnableOption "silent boot with Plymouth";
 
     plymouth.theme = lib.mkOption {
-      type = lib.types.enum [ "bgrt" "spinner" "script" "text" ];
+      type = lib.types.enum [
+        "bgrt"
+        "spinner"
+        "script"
+        "text"
+      ];
       default = "bgrt";
       description = "Plymouth theme to use";
     };

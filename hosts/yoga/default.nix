@@ -1,7 +1,6 @@
 {
   config,
   pkgs,
-  lib,
   ...
 }:
 
@@ -9,34 +8,36 @@
   imports = [
     ./hardware-configuration.nix
   ];
-
   system.stateVersion = "25.11";
 
   core.locale.timeZone = "Europe/Berlin";
   core.users.description = "David";
 
   hardware.amd-gpu.enable = true;
-
   features = {
     bluetooth.enable = true;
     power-tlp.enable = true;
-    
     filesystem = {
       type = "btrfs";
+      # Explicitly apply defaults to specific paths
+      mountOptions = {
+        "/" = config.features.filesystem.btrfs.defaultMountOptions;
+        "/home" = config.features.filesystem.btrfs.defaultMountOptions;
+        "/nix" = config.features.filesystem.btrfs.defaultMountOptions;
+      };
       btrfs = {
         autoScrub = true;
         scrubFilesystems = [ "/" ];
         autoBalance = true;
       };
     };
-    
+
     kernel.extraParams = [
       "zswap.enabled=0"
       "amd_pstate=active"
       "amdgpu.ppfeaturemask=0xffffffff"
       "amdgpu.dcdebugmask=0x10"
     ];
-
     kmscon.enable = true;
 
     oomd.enable = true;
@@ -44,7 +45,6 @@
     virtualization = {
       enable = true;
       includeGuestTools = true;
-
       windows11.enable = true;
     };
 
@@ -66,7 +66,6 @@
       PCIE_ASPM_ON_BAT = "powersupersave";
     };
   };
-
   boot.kernelModules = [ "ryzen_smu" ];
   boot.extraModulePackages = [ config.boot.kernelPackages.ryzen-smu ];
 
@@ -86,12 +85,13 @@
     };
   };
 
-  systemd.services.nix-daemon.serviceConfig.CPUQuota = "${toString (config.nix.settings.cores * 100)}%";
+  systemd.services.nix-daemon.serviceConfig.CPUQuota = "${
+    toString (config.nix.settings.cores * 100)
+  }%";
 
   services.irqbalance.enable = true;
 
   services.journald.extraConfig = "SystemMaxUse=200M";
-
   environment.systemPackages = with pkgs; [
     libva-utils
     vulkan-tools

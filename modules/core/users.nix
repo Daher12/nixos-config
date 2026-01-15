@@ -15,7 +15,6 @@ in
       default = 30;
       description = "Sudo password timeout in minutes";
     };
-
     description = lib.mkOption {
       type = lib.types.str;
       default = "User";
@@ -26,7 +25,7 @@ in
   config = {
     users.users.${mainUser} = {
       isNormalUser = true;
-      description = cfg.description;
+      inherit (cfg) description;
       group = mainUser;
       extraGroups = [
         "networkmanager"
@@ -54,7 +53,6 @@ in
 
     programs.fish.enable = true;
     programs.adb.enable = true;
-
     services = {
       pipewire = {
         enable = true;
@@ -62,7 +60,6 @@ in
         alsa.support32Bit = true;
         pulse.enable = true;
         jack.enable = true;
-
         extraConfig.pipewire = {
           "10-clock-rate" = {
             "context.properties" = {
@@ -77,7 +74,6 @@ in
 
       libinput.enable = true;
       fwupd.enable = true;
-
       logind.settings.Login = {
         HandleLidSwitch = "suspend";
         HandleLidSwitchExternalPower = "ignore";
@@ -100,7 +96,6 @@ in
       info.enable = false;
       doc.enable = false;
     };
-
     boot.kernel.sysctl = {
       "vm.max_map_count" = 1048576;
       "vm.dirty_ratio" = 10;

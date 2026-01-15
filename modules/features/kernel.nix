@@ -7,7 +7,6 @@
 
 let
   cfg = config.features.kernel;
-
   kernelPackages = {
     default = pkgs.linuxPackages;
     zen = pkgs.linuxPackages_zen;
@@ -42,11 +41,13 @@ in
   };
 
   config = {
-    boot.kernelPackages = lib.mkDefault kernelPackages.${cfg.variant};
-    boot.kernelParams = lib.mkBefore cfg.extraParams;
-    
-    boot.kernel.sysctl = lib.mkIf (cfg.variant == "zen") {
-      "kernel.sched_autogroup_enabled" = 1;
+    boot = {
+      kernelPackages = lib.mkDefault kernelPackages.${cfg.variant};
+      kernelParams = lib.mkBefore cfg.extraParams;
+
+      kernel.sysctl = lib.mkIf (cfg.variant == "zen") {
+        "kernel.sched_autogroup_enabled" = 1;
+      };
     };
   };
 }

@@ -14,7 +14,7 @@ in
 {
   options.features.kmscon = {
     enable = lib.mkEnableOption "KMSCon graphical console";
-   };
+  };
 
   config = lib.mkIf cfg.enable {
     systemd.services."getty@tty1".enable = false;

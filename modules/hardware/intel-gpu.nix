@@ -23,10 +23,13 @@ in
     hardware.graphics = {
       enable = true;
       enable32Bit = true;
-      extraPackages = with pkgs; [
-        intel-media-driver
-        libvdpau-va-gl
-      ] ++ lib.optional cfg.enableOpenCL pkgs.intel-compute-runtime;
+      extraPackages =
+        with pkgs;
+        [
+          intel-media-driver
+          libvdpau-va-gl
+        ]
+        ++ lib.optional cfg.enableOpenCL pkgs.intel-compute-runtime;
     };
 
     environment.sessionVariables = {

@@ -96,16 +96,16 @@ in
       programs.fish = {
         enable = true;
 
-        interactiveShellInit = ''
+         interactiveShellInit = ''
           set -g fish_greeting
 
           set -x FZF_DEFAULT_OPTS (printf "\
             --color=bg+:%s,bg:%s,spinner:%s,hl:%s \
             --color=fg:%s,header:%s,info:%s,pointer:%s \
             --color=marker:%s,fg+:%s,prompt:%s,hl+:%s" \
-            ${p.nord1} ${p.nord0} ${p.nord9} ${p.nord3} \
-            ${p.nord4} ${p.nord3} ${p.nord9} ${p.nord9} \
-            ${p.nord9} ${p.nord4} ${p.nord9} ${p.nord9})
+            "${p.nord1}" "${p.nord0}" "${p.nord9}" "${p.nord3}" \
+            "${p.nord4}" "${p.nord3}" "${p.nord9}" "${p.nord9}" \
+            "${p.nord9}" "${p.nord4}" "${p.nord9}" "${p.nord9}")
         '';
 
         plugins = [

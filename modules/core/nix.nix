@@ -107,7 +107,7 @@ in
       LimitNOFILE = 1048576;
     };
 
-    systemd.services.NetworkManager-wait-online.wantedBy = lib.mkForce [];
+    systemd.services.NetworkManager-wait-online.wantedBy = lib.mkForce [ ];
 
     environment.systemPackages = [ pkgs.cachix ];
   };

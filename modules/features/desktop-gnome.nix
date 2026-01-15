@@ -27,7 +27,10 @@ in
 
     experimentalFeatures = lib.mkOption {
       type = lib.types.listOf lib.types.str;
-      default = [ "scale-monitor-framebuffer" "xwayland-native-scaling" ];
+      default = [
+        "scale-monitor-framebuffer"
+        "xwayland-native-scaling"
+      ];
       description = "Mutter experimental features";
     };
   };

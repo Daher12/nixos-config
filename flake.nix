@@ -37,11 +37,13 @@
     inputs@{ self, nixpkgs, ... }:
     let
       forAllSystems = nixpkgs.lib.genAttrs [ "x86_64-linux" ];
-      
-      pkgsFor = system: import nixpkgs {
-        inherit system;
-        config.allowUnfree = true;
-      };
+
+      pkgsFor =
+        system:
+        import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+        };
 
       palette = import ./lib/palette.nix;
 
@@ -67,9 +69,12 @@
     {
       formatter = forAllSystems (system: (pkgsFor system).nixfmt-rfc-style);
 
-      checks = forAllSystems (system: 
-        let pkgs = pkgsFor system;
-        in {
+      checks = forAllSystems (
+        system:
+        let
+          pkgs = pkgsFor system;
+        in
+        {
           statix = pkgs.runCommand "statix-check" { buildInputs = [ pkgs.statix ]; } ''
             statix check ${self} && touch $out
           '';
