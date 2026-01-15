@@ -1,7 +1,7 @@
 { nixpkgs, inputs, self, palette, overlays }:
 { hostname, mainUser, system ? "x86_64-linux", profiles ? [], extraModules ? [], hmModules ? [], extraSpecialArgs ? {} }:
 let
-  profileModules = map (p: "${self}/profiles/${p}.nix") profiles;
+  profileModules = builtins.filter builtins.pathExists (map (p: "${self}/profiles/${p}.nix") profiles);
   baseModules = [ "${self}/modules/core" "${self}/modules/hardware" "${self}/modules/features" ];
   
   commonArgs = { inherit inputs self palette mainUser; } // extraSpecialArgs;
@@ -14,7 +14,7 @@ nixpkgs.lib.nixosSystem {
     inputs.lanzaboote.nixosModules.lanzaboote
     inputs.home-manager.nixosModules.home-manager
     {
-      nixpkgs.overlays = overlays.default;
+      nixpkgs.overlays = (overlays system).default;
       nixpkgs.config.allowUnfree = true;
       
       networking.hostName = hostname;
