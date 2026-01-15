@@ -24,6 +24,7 @@ in
     boot.kernel.sysctl = {
       "net.core.default_qdisc" = "fq";
       "net.ipv4.tcp_congestion_control" = cfg.tcpCongestionControl;
+      "net.ipv6.tcp_congestion_control" = cfg.tcpCongestionControl;
       "net.core.netdev_max_backlog" = 32768;
       "net.core.rmem_max" = 67108864;
       "net.core.wmem_max" = 67108864;
