@@ -38,15 +38,17 @@
     let
       system = "x86_64-linux";
 
-      pkgs-unstable = import inputs.nixpkgs-unstable {
-        inherit system;
-        config.allowUnfree = true;
-      };
-
       palette = import ./lib/palette.nix;
 
       overlays = {
-        default = [ (_: _: { unstable = pkgs-unstable; }) ];
+        default = [
+          (_final: _prev: {
+            unstable = import inputs.nixpkgs-unstable {
+              inherit system;
+              config.allowUnfree = true;
+            };
+          })
+        ];
       };
 
       mkHost = import ./lib/mkHost.nix {
@@ -59,7 +61,6 @@
           ;
       };
 
-      # Only used for formatter/checks
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;
