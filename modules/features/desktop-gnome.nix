@@ -24,6 +24,12 @@ in
       default = mainUser;
       description = "User to automatically log in";
     };
+
+    experimentalFeatures = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ "scale-monitor-framebuffer" "xwayland-native-scaling" ];
+      description = "Mutter experimental features";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -55,10 +61,6 @@ in
       desktopManager.gnome = {
         enable = true;
         extraGSettingsOverridePackages = [ pkgs.mutter ];
-        extraGSettingsOverrides = ''
-          [org.gnome.mutter]
-          experimental-features=['scale-monitor-framebuffer', 'xwayland-native-scaling']
-        '';
       };
 
       gnome = {

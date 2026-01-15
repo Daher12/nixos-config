@@ -13,10 +13,14 @@
   system.stateVersion = "25.11";
 
   core.locale.timeZone = "Europe/Berlin";
+  core.users.description = "David";
 
   hardware.amd-gpu.enable = true;
 
   features = {
+    bluetooth.enable = true;
+    power-tlp.enable = true;
+    
     filesystem = {
       type = "btrfs";
       btrfs = {
@@ -25,8 +29,9 @@
         autoBalance = true;
       };
     };
-
+    
     kernel.extraParams = [
+      "zswap.enabled=0"
       "amd_pstate=active"
       "amdgpu.ppfeaturemask=0xffffffff"
       "amdgpu.dcdebugmask=0x10"
@@ -43,7 +48,7 @@
       windows11.enable = true;
     };
 
-    zram.memoryPercent = 100;
+    zram.memoryPercent = 50;
 
     power-tlp.settings = {
       TLP_DEFAULT_MODE = "BAT";
@@ -81,7 +86,7 @@
     };
   };
 
-  systemd.services.nix-daemon.serviceConfig.CPUQuota = lib.mkForce "800%";
+  systemd.services.nix-daemon.serviceConfig.CPUQuota = "${toString (config.nix.settings.cores * 100)}%";
 
   services.irqbalance.enable = true;
 

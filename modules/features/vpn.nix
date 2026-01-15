@@ -33,6 +33,9 @@ in
       useRoutingFeatures = cfg.tailscale.routingFeatures;
     };
 
-    networking.firewall.trustedInterfaces = lib.mkIf cfg.tailscale.trustInterface [ "tailscale0" ];
+    networking.firewall = {
+      checkReversePath = "loose";
+      trustedInterfaces = lib.mkIf cfg.tailscale.trustInterface [ "tailscale0" ];
+    };
   };
 }

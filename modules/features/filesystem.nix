@@ -7,6 +7,10 @@
 
 let
   cfg = config.features.filesystem;
+  
+  # Optimized async discard detection
+  hasAsyncDiscard = cfg.type == "btrfs" && 
+    lib.any (lib.hasInfix "discard=async") (lib.flatten (lib.attrValues cfg.mountOptions));
 in
 {
   options.features.filesystem = {
@@ -38,9 +42,9 @@ in
     };
 
     enableFstrim = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Enable periodic TRIM (disable if using discard=async)";
+      type = lib.types.nullOr lib.types.bool;
+      default = null;
+      description = "Enable periodic TRIM. Auto-detects: disabled for btrfs with discard=async";
     };
 
     btrfs = {
@@ -80,26 +84,29 @@ in
   config = lib.mkMerge [
     (lib.mkIf (cfg.type == "btrfs") {
       features.filesystem = {
-        enableFstrim = lib.mkDefault false;
         btrfs.autoScrub = lib.mkDefault true;
         btrfs.autoBalance = lib.mkDefault true;
+        # Auto-apply default btrfs mount options to all btrfs filesystems
+        mountOptions = lib.mkDefault (
+          lib.mapAttrs 
+            (_: fsCfg: cfg.btrfs.defaultMountOptions) 
+            (lib.filterAttrs (_: fsCfg: fsCfg.fsType or "" == "btrfs") config.fileSystems)
+        );
       };
     })
 
     {
-      fileSystems = lib.mkMerge (
-        lib.mapAttrsToList (path: opts: {
-          ${path}.options = lib.mkAfter opts;
-        }) cfg.mountOptions
-      );
+      # Merge feature-defined mount options with existing hardware-defined ones
+      fileSystems = lib.mapAttrs (path: fsCfg: {
+        options = lib.mkAfter (cfg.mountOptions.${path} or []);
+      }) config.fileSystems;
     }
 
-    (lib.mkIf cfg.enableFstrim {
-      services.fstrim = {
-        enable = true;
-        interval = "weekly";
-      };
-    })
+    {
+      # Simplified auto-detect fstrim enablement
+      services.fstrim.enable = cfg.enableFstrim or !hasAsyncDiscard;
+      services.fstrim.interval = lib.mkIf config.services.fstrim.enable "weekly";
+    }
 
     (lib.mkIf (cfg.type == "btrfs" && cfg.btrfs.autoScrub) {
       services.btrfs.autoScrub = {
@@ -114,7 +121,9 @@ in
         description = "Monthly Btrfs balance";
         serviceConfig = {
           Type = "oneshot";
-          ExecStart = "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 /";
+          ExecStart = lib.concatMapStringsSep " && " (fs:
+            "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 ${fs}"
+          ) cfg.btrfs.scrubFilesystems;
         };
       };
 

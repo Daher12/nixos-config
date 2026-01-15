@@ -43,6 +43,10 @@ in
 
   config = {
     boot.kernelPackages = lib.mkDefault kernelPackages.${cfg.variant};
-    boot.kernelParams = lib.mkAfter cfg.extraParams;
+    boot.kernelParams = lib.mkBefore cfg.extraParams;
+    
+    boot.kernel.sysctl = lib.mkIf (cfg.variant == "zen") {
+      "kernel.sched_autogroup_enabled" = 1;
+    };
   };
 }

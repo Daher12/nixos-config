@@ -15,12 +15,18 @@ in
       default = 30;
       description = "Sudo password timeout in minutes";
     };
+
+    description = lib.mkOption {
+      type = lib.types.str;
+      default = "User";
+      description = "User full name";
+    };
   };
 
   config = {
     users.users.${mainUser} = {
       isNormalUser = true;
-      description = "David";
+      description = cfg.description;
       group = mainUser;
       extraGroups = [
         "networkmanager"
@@ -61,9 +67,9 @@ in
           "10-clock-rate" = {
             "context.properties" = {
               "default.clock.rate" = 48000;
-              "default.clock.quantum" = 512;
-              "default.clock.min-quantum" = 256;
-              "default.clock.max-quantum" = 1024;
+              "default.clock.quantum" = 1024;
+              "default.clock.min-quantum" = 512;
+              "default.clock.max-quantum" = 2048;
             };
           };
         };

@@ -36,18 +36,23 @@
   outputs =
     inputs@{ self, nixpkgs, ... }:
     let
-      system = "x86_64-linux";
-
-      pkgs-unstable = import inputs.nixpkgs-unstable {
+      forAllSystems = nixpkgs.lib.genAttrs [ "x86_64-linux" ];
+      
+      pkgsFor = system: import nixpkgs {
         inherit system;
         config.allowUnfree = true;
       };
 
       palette = import ./lib/palette.nix;
 
-      overlays = {
-        default = [ (_: _: { unstable = pkgs-unstable; }) ];
-      };
+      overlays = system: [
+        (_final: _prev: {
+          unstable = import inputs.nixpkgs-unstable {
+            inherit system;
+            config.allowUnfree = true;
+          };
+        })
+      ];
 
       mkHost = import ./lib/mkHost.nix {
         inherit
@@ -58,30 +63,28 @@
           overlays
           ;
       };
-
-      # Only used for formatter/checks
-      pkgs = import nixpkgs {
-        inherit system;
-        config.allowUnfree = true;
-      };
     in
     {
-      formatter.${system} = pkgs.nixfmt-rfc-style;
+      formatter = forAllSystems (system: (pkgsFor system).nixfmt-rfc-style);
 
-      checks.${system} = {
-        statix = pkgs.runCommand "statix-check" { buildInputs = [ pkgs.statix ]; } ''
-          statix check ${self} && touch $out
-        '';
-        deadnix = pkgs.runCommand "deadnix-check" { buildInputs = [ pkgs.deadnix ]; } ''
-          deadnix --fail ${self} && touch $out
-        '';
-        nixfmt = pkgs.runCommand "nixfmt-check" { buildInputs = [ pkgs.nixfmt-rfc-style ]; } ''
-          find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out
-        '';
-      };
+      checks = forAllSystems (system: 
+        let pkgs = pkgsFor system;
+        in {
+          statix = pkgs.runCommand "statix-check" { buildInputs = [ pkgs.statix ]; } ''
+            statix check ${self} && touch $out
+          '';
+          deadnix = pkgs.runCommand "deadnix-check" { buildInputs = [ pkgs.deadnix ]; } ''
+            deadnix --fail ${self} && touch $out
+          '';
+          nixfmt = pkgs.runCommand "nixfmt-check" { buildInputs = [ pkgs.nixfmt-rfc-style ]; } ''
+            find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out
+          '';
+        }
+      );
 
       nixosConfigurations = {
         yoga = mkHost {
+          system = "x86_64-linux";
           hostname = "yoga";
           mainUser = "dk";
           profiles = [
@@ -94,11 +97,12 @@
           ];
           hmModules = [ ./hosts/yoga/home.nix ];
           extraSpecialArgs = {
-            winappsPackages = inputs.winapps.packages.${system};
+            winappsPackages = inputs.winapps.packages."x86_64-linux";
           };
         };
 
         e7450-nixos = mkHost {
+          system = "x86_64-linux";
           hostname = "e7450-nixos";
           mainUser = "dk";
           profiles = [

@@ -1,19 +1,30 @@
 { nixpkgs, inputs, self, palette, overlays }:
 { hostname, mainUser, system ? "x86_64-linux", profiles ? [], extraModules ? [], hmModules ? [], extraSpecialArgs ? {} }:
 let
-  profileModules = map (p: "${self}/profiles/${p}.nix") profiles;
-  baseModules = [ "${self}/modules/core" "${self}/modules/hardware" "${self}/modules/features" ];
+  profileModules = builtins.filter builtins.pathExists (map (p: "${self}/profiles/${p}.nix") profiles);
+  
+  # Conditional loading based on profile requirements
+  needsHardware = builtins.any (p: p == "laptop" || p == "desktop-gnome") profiles;
+  needsFeatures = profiles != [];
+  
+  baseModules = [ "${self}/modules/core" ]
+    ++ nixpkgs.lib.optional needsHardware "${self}/modules/hardware"
+    ++ nixpkgs.lib.optional needsFeatures "${self}/modules/features";
+  
+  # Simplified specialArgs - extraSpecialArgs already contains winappsPackages
+  commonArgs = { 
+    inherit inputs self palette mainUser;
+  } // extraSpecialArgs;
 in
 nixpkgs.lib.nixosSystem {
   inherit system;
-  specialArgs = { inherit inputs self palette mainUser; } // extraSpecialArgs;
+  specialArgs = commonArgs;
   modules = [
     inputs.lix-module.nixosModules.default
     inputs.lanzaboote.nixosModules.lanzaboote
     inputs.home-manager.nixosModules.home-manager
     {
-      # CRITICAL: Configure pkgs via module system, DO NOT pass 'pkgs' arg to nixosSystem
-      nixpkgs.overlays = overlays.default;
+      nixpkgs.overlays = overlays system;
       nixpkgs.config.allowUnfree = true;
       
       networking.hostName = hostname;
@@ -21,9 +32,9 @@ nixpkgs.lib.nixosSystem {
         useGlobalPkgs = true;
         useUserPackages = true;
         backupFileExtension = "backup";
-        extraSpecialArgs = { inherit inputs self palette mainUser; } // extraSpecialArgs;
+        extraSpecialArgs = commonArgs;
         users.${mainUser}.imports = hmModules;
       };
     }
-  ] ++ profileModules ++ baseModules ++ extraModules;
+  ] ++ baseModules ++ profileModules ++ extraModules;
 }

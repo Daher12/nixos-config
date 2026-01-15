@@ -99,10 +99,13 @@ in
         interactiveShellInit = ''
           set -g fish_greeting
 
-          set -x FZF_DEFAULT_OPTS "\
-            --color=bg+:${p.nord1},bg:${p.nord0},spinner:${p.nord9},hl:${p.nord3} \
-            --color=fg:${p.nord4},header:${p.nord3},info:${p.nord9},pointer:${p.nord9} \
-            --color=marker:${p.nord9},fg+:${p.nord4},prompt:${p.nord9},hl+:${p.nord9}"
+          set -x FZF_DEFAULT_OPTS (printf "\
+            --color=bg+:%s,bg:%s,spinner:%s,hl:%s \
+            --color=fg:%s,header:%s,info:%s,pointer:%s \
+            --color=marker:%s,fg+:%s,prompt:%s,hl+:%s" \
+            ${p.nord1} ${p.nord0} ${p.nord9} ${p.nord3} \
+            ${p.nord4} ${p.nord3} ${p.nord9} ${p.nord9} \
+            ${p.nord9} ${p.nord4} ${p.nord9} ${p.nord9})
         '';
 
         plugins = [

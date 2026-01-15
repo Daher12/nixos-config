@@ -44,8 +44,6 @@ in
           "flakes"
         ];
         auto-optimise-store = true;
-        
-        warn-dirty = false;
 
         max-jobs = "auto";
         cores = 0;
@@ -61,8 +59,8 @@ in
         max-free = 21474836480;
 
         substituters = [
-          "https://cache.lix.systems"
           "https://cache.nixos.org"
+          "https://cache.lix.systems"
           "https://nix-community.cachix.org"
         ];
 
@@ -109,7 +107,7 @@ in
       LimitNOFILE = 1048576;
     };
 
-    systemd.services.NetworkManager-wait-online.enable = false;
+    systemd.services.NetworkManager-wait-online.wantedBy = lib.mkForce [];
 
     environment.systemPackages = [ pkgs.cachix ];
   };

@@ -77,7 +77,6 @@ in
   };
 
   config = lib.mkIf cfg.enable (lib.mkMerge [
-    # Base libvirtd
     {
       virtualisation.libvirtd = {
         enable = true;
@@ -104,7 +103,6 @@ in
 
       users.users.${mainUser}.extraGroups = lib.mkAfter [ "libvirtd" "kvm" ];
 
-      # KVM modules
       boot.kernelModules = [ "kvm-intel" "kvm-amd" "vhost-net" "vhost-vsock" ];
       boot.extraModprobeConfig = ''
         options kvm_intel enable_apicv=1 ept=1
@@ -120,21 +118,18 @@ in
         freerdp
         adwaita-icon-theme
       ] ++ lib.optionals cfg.includeGuestTools [
-        virtio-win
         libguestfs
         libguestfs-with-appliance
       ];
 
       programs.virt-manager.enable = true;
 
-      # Base udev rules
       services.udev.extraRules = ''
         KERNEL=="kvm", GROUP="kvm", MODE="0666"
         SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
       '';
     }
 
-    # QEMU config
     {
       virtualisation.libvirtd.qemu.verbatimConfig = ''
         user = "qemu"
@@ -142,7 +137,6 @@ in
       '';
     }
 
-    # Hugepages
     (lib.mkIf cfg.performance.hugepages.enable {
       boot.kernelParams = [
         "hugepagesz=2M"
@@ -154,30 +148,26 @@ in
         "d /dev/hugepages 1755 root kvm - -"
       ];
 
-      virtualisation.libvirtd.qemu.verbatimConfig = lib.mkForce ''
-        user = "qemu"
-        group = "kvm"
+      virtualisation.libvirtd.qemu.verbatimConfig = lib.mkAfter ''
         hugetlbfs_mount = "/dev/hugepages"
       '';
     })
 
-    # Windows 11 network setup
     (lib.mkIf w11.enable {
       assertions = [{
-        assertion = cfg.includeGuestTools;
-        message = "features.virtualization.includeGuestTools must be true when windows11.enable is true";
+        assertion = cfg.includeGuestTools && config.virtualisation.libvirtd.qemu.swtpm.enable;
+        message = "features.virtualization.windows11 requires includeGuestTools and swtpm.enable";
       }];
 
-      # CoW disabled for VM images on btrfs
       systemd.tmpfiles.rules = [
         "d /var/lib/libvirt/images 0775 root libvirtd - -"
-        "h /var/lib/libvirt/images - - - - +C"
-      ];
+      ] ++ lib.optional (config.features.filesystem.type == "btrfs")
+        "h /var/lib/libvirt/images - - - - +C";
 
       systemd.services.libvirt-network-default = {
         description = "Configure libvirt default network";
-        after = [ "libvirtd.service" ];
-        requires = [ "libvirtd.service" ];
+        after = [ "libvirtd.socket" ];
+        requires = [ "libvirtd.socket" ];
         wantedBy = [ "multi-user.target" ];
         serviceConfig = {
           Type = "oneshot";
@@ -186,12 +176,6 @@ in
         script = let
           virsh = "${pkgs.libvirt}/bin/virsh";
         in ''
-          # Wait for socket
-          for i in $(seq 1 30); do
-            ${virsh} list &>/dev/null && break
-            sleep 1
-          done
-
           if ! ${virsh} net-info default &>/dev/null; then
             ${virsh} net-define /dev/stdin <<'EOF'
 <network>
