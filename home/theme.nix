@@ -120,13 +120,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    assertions = [
-      {
-        assertion = cfg.autoSwitch -> (cfg.location.latitude != 52.52 || cfg.location.longitude != 13.40);
-        message = "Theme autoSwitch requires setting custom location.latitude and location.longitude";
-      }
-    ];
-
     home = {
       packages = with pkgs; [
         colloidTheme
