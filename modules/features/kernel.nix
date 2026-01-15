@@ -1,4 +1,3 @@
-# modules/features/kernel.nix
 {
   config,
   lib,
