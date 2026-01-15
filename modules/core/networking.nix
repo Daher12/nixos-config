@@ -1,3 +1,4 @@
+# modules/core/networking.nix
 { config, lib, ... }:
 
 let
@@ -48,7 +49,5 @@ in
         DNSOverTLS=no
       '';
     };
-
-    networking.firewall.checkReversePath = "loose";
   };
 }
