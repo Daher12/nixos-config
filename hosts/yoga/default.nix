@@ -21,18 +21,12 @@
     bluetooth.enable = true;
     power-tlp.enable = true;
     filesystem = {
-      type = "btrfs";
-      mountOptions = {
-        "/" = [ "compress-force=zstd:1" "noatime" "discard=async" ];
-        "/home" = [ "compress-force=zstd:1" "noatime" "discard=async" ];
-        "/nix" = [ "compress-force=zstd:1" "noatime" "discard=async" ];
-      };
-      btrfs = {
-        autoScrub = true;
-        scrubFilesystems = [ "/" ];
-        autoBalance = true;
-      };
-    };
+     type = "btrfs";
+      autoScrub = true;
+      scrubFilesystems = [ "/" ];
+      autoBalance = true;
+     };
+   };
 
     kernel.extraParams = [
       "amd_pstate=active"
