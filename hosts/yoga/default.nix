@@ -15,6 +15,12 @@
 
   hardware.amd-gpu.enable = true;
   features = {
+    desktop-gnome = {
+    autoLogin = true;
+    # Optional: override the user if it's not the mainUser
+    # autoLoginUser = "david"; 
+    };
+    sops.enable = true;
     filesystem = {
       type = "btrfs";
       # Explicitly apply defaults to specific paths

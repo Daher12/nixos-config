@@ -72,7 +72,7 @@ in
       routingFeatures = lib.mkDefault "client";
       trustInterface = lib.mkDefault true;
     };
-    sops.enable = true;
+    sops.enable = lib.mkDefault false;
   };
 
   # ----------------------------------------------------------------------------
