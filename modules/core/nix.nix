@@ -2,6 +2,8 @@
   config,
   lib,
   pkgs,
+  inputs,
+  self,
   mainUser,
   ...
 }:
@@ -13,7 +15,6 @@ in
   options.core.nix = {
     gc = {
       automatic = lib.mkEnableOption "automatic garbage collection";
-
       dates = lib.mkOption {
         type = lib.types.str;
         default = "weekly";
@@ -26,7 +27,6 @@ in
         description = "Options passed to nix-collect-garbage";
       };
     };
-
     optimise = {
       automatic = lib.mkOption {
         type = lib.types.bool;
@@ -51,25 +51,21 @@ in
           "root"
           mainUser
         ];
-
         sandbox = true;
         sandbox-fallback = false;
 
         min-free = 5368709120;
         max-free = 21474836480;
-
         substituters = [
           "https://cache.nixos.org"
           "https://cache.lix.systems"
           "https://nix-community.cachix.org"
         ];
-
         trusted-public-keys = [
           "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
           "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
           "cache.lix.systems:aBnZUw8zA7H35Cz2RyKFVs3H4PlGTLawyY5KRbvJR8o="
         ];
-
         fallback = true;
         http-connections = 128;
         connect-timeout = 5;
@@ -84,13 +80,27 @@ in
         accept-flake-config = true;
         narinfo-cache-negative-ttl = 3600;
         narinfo-cache-positive-ttl = 2592000;
+
+        # Purity: Disable the global registry to prevent 'surprise' network lookups.
+        # We rely solely on the pinned registry entries below.
+        flake-registry = "";
       };
+
+      # Pin only essential flakes to the registry.
+      # This ensures 'nix shell nixpkgs#foo' uses the EXACT version from flake.lock.
+      registry = lib.mkDefault {
+        nixpkgs.flake = inputs.nixpkgs;
+        self.flake = self;
+      };
+
+      # Add pinned nixpkgs to NIX_PATH for legacy tools (nix-shell).
+      # .outPath ensures we get the store path safely.
+      nixPath = [ "nixpkgs=${inputs.nixpkgs.outPath}" ];
 
       gc = lib.mkIf cfg.gc.automatic {
         automatic = true;
         inherit (cfg.gc) dates options;
       };
-
       optimise = lib.mkIf cfg.optimise.automatic {
         automatic = true;
         dates = [ "weekly" ];
@@ -108,7 +118,6 @@ in
     };
 
     systemd.services.NetworkManager-wait-online.wantedBy = lib.mkForce [ ];
-
     environment.systemPackages = [ pkgs.cachix ];
   };
 }
