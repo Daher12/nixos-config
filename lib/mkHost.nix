@@ -15,21 +15,30 @@
   extraSpecialArgs ? { },
 }:
 let
-  profileModules = builtins.filter builtins.pathExists (
-    map (p: "${self}/profiles/${p}.nix") profiles
-  );
+  # Defensive normalization: Ensure 'self' is a Path or Flake Object.
+  # Rejects strings to prevent "context-less" import errors.
+  flakeRoot =
+    if builtins.isAttrs self && self ? outPath then self.outPath
+    else if builtins.isPath self then self
+    else throw "mkHost: 'self' must be a flake object or a path, got: ${builtins.typeOf self}";
+
+  # Use flakeRoot for robust path concatenation.
+  # This guarantees a valid Store Path and fails fast via native import error if missing.
+  profileModules = map (p: flakeRoot + "/profiles/${p}.nix") profiles;
 
   # Conditional loading based on profile requirements
   needsHardware = builtins.any (p: p == "laptop" || p == "desktop-gnome") profiles;
   needsFeatures = profiles != [ ];
 
+  # CONSISTENCY FIX: Use flakeRoot for all internal module paths.
+  # This avoids mixed types (Path vs String) in the module list.
   baseModules = [
-    "${self}/modules/core"
+    (flakeRoot + "/modules/core")
   ]
-  ++ nixpkgs.lib.optional needsHardware "${self}/modules/hardware"
-  ++ nixpkgs.lib.optional needsFeatures "${self}/modules/features";
+  ++ nixpkgs.lib.optional needsHardware (flakeRoot + "/modules/hardware")
+  ++ nixpkgs.lib.optional needsFeatures (flakeRoot + "/modules/features");
 
-  # Simplified specialArgs - extraSpecialArgs already contains winappsPackages
+  # Pass inputs and self to modules (required for registry pinning)
   commonArgs = {
     inherit
       inputs
