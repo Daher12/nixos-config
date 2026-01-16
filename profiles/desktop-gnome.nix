@@ -6,7 +6,5 @@
     autoLogin = lib.mkDefault false;
     autoLoginUser = lib.mkDefault mainUser;
   };
-
-  # Removed: Tailscale (moved to laptop.nix / per-host)
-  # Removed: System76 Scheduler (moved to laptop.nix)
+  features.fonts.enable = lib.mkDefault true;
 }
