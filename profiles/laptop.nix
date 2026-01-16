@@ -66,27 +66,25 @@ in
     sops.enable = lib.mkDefault false;
   };
 
-  config = lib.mkIf config.features.sops.enable {
-    sops.secrets."wifi_home_psk".restartUnits = [ "NetworkManager.service" ];
-    sops.secrets."wifi_work_psk".restartUnits = [ "NetworkManager.service" ];
+  sops.secrets."wifi_home_psk".restartUnits = lib.mkIf config.features.sops.enable [ "NetworkManager.service" ];
+  sops.secrets."wifi_work_psk".restartUnits = lib.mkIf config.features.sops.enable [ "NetworkManager.service" ];
 
-    sops.templates."wifi-home.nmconnection" = {
-      mode = "0600";
-      path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
-      content = homeWifiContent;
-    };
-
-    sops.templates."wifi-work.nmconnection" = {
-      mode = "0600";
-      path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
-      content = workWifiContent;
-    };
-
-    systemd.services.NetworkManager.restartTriggers = [
-      homeWifiMarker
-      workWifiMarker
-    ];
+  sops.templates."wifi-home.nmconnection" = lib.mkIf config.features.sops.enable {
+    mode = "0600";
+    path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
+    content = homeWifiContent;
   };
+
+  sops.templates."wifi-work.nmconnection" = lib.mkIf config.features.sops.enable {
+    mode = "0600";
+    path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
+    content = workWifiContent;
+  };
+
+  systemd.services.NetworkManager.restartTriggers = lib.mkIf config.features.sops.enable [
+    homeWifiMarker
+    workWifiMarker
+  ];
 
   services.system76-scheduler = {
     enable = lib.mkDefault true;
