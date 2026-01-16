@@ -16,7 +16,7 @@ let
     type=wifi
 
     [wifi]
-    ssid=MyHomeNetwork
+    ssid=FRITZ!Box G
     mode=infrastructure
 
     [wifi-security]
