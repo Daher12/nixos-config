@@ -15,7 +15,6 @@
 
   hardware.amd-gpu.enable = true;
   features = {
-    bluetooth.enable = true;
     filesystem = {
       type = "btrfs";
       # Explicitly apply defaults to specific paths
