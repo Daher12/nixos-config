@@ -40,8 +40,6 @@
     };
 
     virtualization.enable = false;
-
-    zram.memoryPercent = 50;
   };
 
   systemd.services.disable-wakeup-sources = {
