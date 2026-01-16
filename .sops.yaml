@@ -1,7 +1,7 @@
 keys:
-  - &admin_david age1... # Replace with your Age Public Key
-  - &host_yoga age1...   # Replace with Yoga's Age Public Key
-  - &host_latitude age1... # Replace with Latitude's Age Public Key
+  - &admin_david age1... # Replace with Admin Public Key (generated in Step 1)
+  - &host_yoga age1...   # Replace with Yoga Host Public Key (generated in Step 1)
+  - &host_latitude age1... # Replace with Latitude Host Public Key (generated in Step 1)
 
 creation_rules:
   - path_regex: secrets/hosts/yoga\.yaml$
