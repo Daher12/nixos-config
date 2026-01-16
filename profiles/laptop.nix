@@ -7,7 +7,7 @@
 
 let
   # ----------------------------------------------------------------------------
-  # 1. Define WiFi Data (Lazy evaluation makes this safe)
+  # 1. Define WiFi Data
   # ----------------------------------------------------------------------------
   homeWifiContent = ''
     [connection]
@@ -28,7 +28,7 @@ let
     [ipv6]
     method=auto
   '';
-  
+
   homeWifiMarker = pkgs.writeText "wifi-home-marker" homeWifiContent;
 
   workWifiContent = ''
@@ -50,7 +50,7 @@ let
     [ipv6]
     method=auto
   '';
-  
+
   workWifiMarker = pkgs.writeText "wifi-work-marker" workWifiContent;
 
 in
@@ -65,7 +65,7 @@ lib.mkMerge [
       zram.enable = lib.mkDefault true;
       network-optimization.enable = lib.mkDefault true;
       kernel.variant = lib.mkDefault "zen";
-      
+
       vpn.tailscale = {
         enable = lib.mkDefault true;
         routingFeatures = lib.mkDefault "client";
@@ -97,26 +97,31 @@ lib.mkMerge [
   }
 
   # ----------------------------------------------------------------------------
-  # Block 2: SOPS Configuration (Atomic Enable/Disable)
+  # Block 2: SOPS Configuration (Atomic Enable/Disable + Statix Compliant)
   # ----------------------------------------------------------------------------
   (lib.mkIf config.features.sops.enable {
-    # 1. Secrets
-    sops.secrets."wifi_home_psk".restartUnits = [ "NetworkManager.service" ];
-    sops.secrets."wifi_work_psk".restartUnits = [ "NetworkManager.service" ];
+    # [FIX] Grouped 'sops' attribute to satisfy statix linter
+    sops = {
+      secrets = {
+        "wifi_home_psk".restartUnits = [ "NetworkManager.service" ];
+        "wifi_work_psk".restartUnits = [ "NetworkManager.service" ];
+      };
 
-    # 2. Templates
-    sops.templates."wifi-home.nmconnection" = {
-      mode = "0600";
-      path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
-      content = homeWifiContent;
-    };
-    sops.templates."wifi-work.nmconnection" = {
-      mode = "0600";
-      path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
-      content = workWifiContent;
+      templates = {
+        "wifi-home.nmconnection" = {
+          mode = "0600";
+          path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
+          content = homeWifiContent;
+        };
+        "wifi-work.nmconnection" = {
+          mode = "0600";
+          path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
+          content = workWifiContent;
+        };
+      };
     };
 
-    # 3. Drift Detection (Safe because markers rely on placeholder, which is now safe)
+    # Drift Detection
     systemd.services.NetworkManager.restartTriggers = [
       homeWifiMarker
       workWifiMarker

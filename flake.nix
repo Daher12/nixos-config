@@ -43,7 +43,7 @@
     inputs@{
       self,
       nixpkgs,
-      sops-nix, # [INTEGRATION] Explicitly listed (available via inputs@ too)
+      #      sops-nix, # [INTEGRATION] Explicitly listed (available via inputs@ too)
       ...
     }:
     let
