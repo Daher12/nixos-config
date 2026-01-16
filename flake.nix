@@ -1,128 +1,73 @@
 {
-  description = "Unified NixOS Configuration";
+  nixpkgs,
+  inputs,
+  self,
+  palette,
+  overlays,
+}:
+{
+  hostname,
+  mainUser,
+  system ? "x86_64-linux",
+  profiles ? [ ],
+  extraModules ? [ ],
+  hmModules ? [ ],
+  extraSpecialArgs ? { },
+}:
+let
+  # 1. Robust Normalization: Handle self as Flake Object OR Path.
+  # This prevents errors if 'self' structure varies (e.g. in repl vs build).
+  flakeRoot = 
+    if builtins.isAttrs self && self ? outPath then self.outPath
+    else if builtins.isPath self then self
+    else throw "mkHost: 'self' must be a flake object or a path.";
 
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+  # 2. Use flakeRoot for robust path concatenation.
+  profileModules = map (p: flakeRoot + "/profiles/${p}.nix") profiles;
 
-    nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+  needsHardware = builtins.any (p: p == "laptop" || p == "desktop-gnome") profiles;
+  needsFeatures = profiles != [ ];
 
-    lanzaboote = {
-      url = "github:nix-community/lanzaboote/v0.4.3";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+  # 3. Consistency: Use flakeRoot for all internal paths
+  baseModules = [
+    (flakeRoot + "/modules/core")
+  ]
+  ++ nixpkgs.lib.optional needsHardware (flakeRoot + "/modules/hardware")
+  ++ nixpkgs.lib.optional needsFeatures (flakeRoot + "/modules/features");
 
-    lix-module = {
-      url = "git+https://git.lix.systems/lix-project/nixos-module?ref=release-2.93";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    home-manager = {
-      url = "github:nix-community/home-manager/release-25.11";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    winapps = {
-      url = "github:winapps-org/winapps/44342c34b839547be0b2ea4f94ed00293fa7cc38";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    preload-ng = {
-      url = "github:miguel-b-p/preload-ng/eb3c66a20d089ab2e3b8ff34c45c3d527584ed38";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-  };
-
-  outputs =
-    inputs@{ self, nixpkgs, ... }:
-    let
-      forAllSystems = nixpkgs.lib.genAttrs [ "x86_64-linux" ];
-
-      pkgsFor =
-        system:
-        import nixpkgs {
-          inherit system;
-          config.allowUnfree = true;
-        };
-
-      palette = import ./lib/palette.nix;
-
-      overlays = system: [
-        (_final: _prev: {
-          unstable = import inputs.nixpkgs-unstable {
-            inherit system;
-            config.allowUnfree = true;
-          };
-        })
-      ];
-
-      mkHost = import ./lib/mkHost.nix {
-        inherit
-          nixpkgs
-          inputs
-          self
-          palette
-          overlays
-          ;
-      };
-    in
+  commonArgs = {
+    inherit
+      inputs
+      self       # Passed for Registry Pinning (Flake Object)
+      flakeRoot  # Passed for File Access (Store Path)
+      palette
+      mainUser
+      ;
+  }
+  // extraSpecialArgs;
+in
+nixpkgs.lib.nixosSystem {
+  inherit system;
+  specialArgs = commonArgs;
+  modules = [
+    inputs.lix-module.nixosModules.default
+    inputs.lanzaboote.nixosModules.lanzaboote
+    inputs.home-manager.nixosModules.home-manager
     {
-      formatter = forAllSystems (system: (pkgsFor system).nixfmt-rfc-style);
+      nixpkgs.overlays = overlays system;
+      nixpkgs.config.allowUnfree = true;
 
-      checks = forAllSystems (
-        system:
-        let
-          pkgs = pkgsFor system;
-        in
-        {
-          statix = pkgs.runCommand "statix-check" { buildInputs = [ pkgs.statix ]; } ''
-            statix check ${self} && touch $out
-          '';
-          deadnix = pkgs.runCommand "deadnix-check" { buildInputs = [ pkgs.deadnix ]; } ''
-            deadnix --fail ${self} && touch $out
-          '';
-          nixfmt = pkgs.runCommand "nixfmt-check" { buildInputs = [ pkgs.nixfmt-rfc-style ]; } ''
-            find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out
-          '';
-        }
-      );
-
-      nixosConfigurations = {
-        yoga = mkHost {
-          system = "x86_64-linux";
-          hostname = "yoga";
-          mainUser = "dk";
-          profiles = [
-            "laptop"
-            "desktop-gnome"
-          ];
-          extraModules = [
-            inputs.nixos-hardware.nixosModules.lenovo-yoga-7-slim-gen8
-            ./hosts/yoga/default.nix
-          ];
-          hmModules = [ ./hosts/yoga/home.nix ];
-          extraSpecialArgs = {
-            winappsPackages = inputs.winapps.packages."x86_64-linux";
-          };
-        };
-
-        e7450-nixos = mkHost {
-          system = "x86_64-linux";
-          hostname = "e7450-nixos";
-          mainUser = "dk";
-          profiles = [
-            "laptop"
-            "desktop-gnome"
-          ];
-          extraModules = [
-            inputs.preload-ng.nixosModules.default
-            ./hosts/latitude/default.nix
-          ];
-          hmModules = [ ./hosts/latitude/home.nix ];
-          extraSpecialArgs = {
-            winappsPackages = null;
-          };
-        };
+      networking.hostName = hostname;
+      home-manager = {
+        useGlobalPkgs = true;
+        useUserPackages = true;
+        backupFileExtension = "backup";
+        extraSpecialArgs = commonArgs;
+        users.${mainUser}.imports = hmModules;
       };
-    };
+    }
+  ]
+  ++ baseModules
+  ++ profileModules
+  ++ extraModules;
 }
