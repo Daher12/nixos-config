@@ -111,7 +111,7 @@
           };
         };
 
-        "e7450-nixos" = mkHost {
+        "latitude" = mkHost {
           hostname = "latitude";
           mainUser = "dk";
           profiles = [
