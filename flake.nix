@@ -99,7 +99,7 @@
           mainUser = "dk"; # Updated from previous example to match your file
           profiles = [
             "laptop"
-            # "desktop-gnome" # [NOTE] Ensure you actually want gnome on the yoga
+            "desktop-gnome" # [NOTE] Ensure you actually want gnome on the yoga
           ];
           extraModules = [
             inputs.nixos-hardware.nixosModules.lenovo-yoga-7-slim-gen8
@@ -112,7 +112,7 @@
         };
 
         "e7450-nixos" = mkHost {
-          hostname = "e7450-nixos";
+          hostname = "latitude";
           mainUser = "dk";
           profiles = [
             "laptop"
