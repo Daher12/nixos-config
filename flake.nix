@@ -1,70 +1,73 @@
 {
-  description = "NixOS Configuration";
+  nixpkgs,
+  inputs,
+  self,
+  palette,
+  overlays,
+}:
+{
+  hostname,
+  mainUser,
+  system ? "x86_64-linux",
+  profiles ? [ ],
+  extraModules ? [ ],
+  hmModules ? [ ],
+  extraSpecialArgs ? { },
+}:
+let
+  # 1. Robust Normalization: Handle self as Flake Object OR Path.
+  # This prevents errors if 'self' structure varies (e.g. in repl vs build).
+  flakeRoot = 
+    if builtins.isAttrs self && self ? outPath then self.outPath
+    else if builtins.isPath self then self
+    else throw "mkHost: 'self' must be a flake object or a path.";
 
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+  # 2. Use flakeRoot for robust path concatenation.
+  profileModules = map (p: flakeRoot + "/profiles/${p}.nix") profiles;
 
-    lix-module = {
-      url = "https://git.lix.systems/lix-project/nixos-module/archive/2.91.0.tar.gz";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+  needsHardware = builtins.any (p: p == "laptop" || p == "desktop-gnome") profiles;
+  needsFeatures = profiles != [ ];
 
-    home-manager = {
-      url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+  # 3. Consistency: Use flakeRoot for all internal paths
+  baseModules = [
+    (flakeRoot + "/modules/core")
+  ]
+  ++ nixpkgs.lib.optional needsHardware (flakeRoot + "/modules/hardware")
+  ++ nixpkgs.lib.optional needsFeatures (flakeRoot + "/modules/features");
 
-    lanzaboote = {
-      url = "github:nix-community/lanzaboote/v0.3.0";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    # NEW: SOPS-Nix for secret management
-    sops-nix = {
-      url = "github:Mic92/sops-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-  };
-
-  outputs =
+  commonArgs = {
+    inherit
+      inputs
+      self       # Passed for Registry Pinning (Flake Object)
+      flakeRoot  # Passed for File Access (Store Path)
+      palette
+      mainUser
+      ;
+  }
+  // extraSpecialArgs;
+in
+nixpkgs.lib.nixosSystem {
+  inherit system;
+  specialArgs = commonArgs;
+  modules = [
+    inputs.lix-module.nixosModules.default
+    inputs.lanzaboote.nixosModules.lanzaboote
+    inputs.home-manager.nixosModules.home-manager
     {
-      self,
-      nixpkgs,
-      lix-module,
-      home-manager,
-      lanzaboote,
-      sops-nix, # Added to args
-      ...
-    }@inputs:
-    let
-      mkHost = import ./lib/mkHost.nix {
-        inherit
-          inputs
-          nixpkgs
-          self
-          ;
-        palette = import ./lib/palette.nix;
-        overlays = import ./overlays { inherit inputs; };
-      };
-    in
-    {
-      nixosConfigurations = {
-        yoga = mkHost {
-          hostname = "yoga";
-          mainUser = "david";
-          profiles = [ "laptop" ];
-          hmModules = [ ./hosts/yoga/home.nix ];
-        };
+      nixpkgs.overlays = overlays system;
+      nixpkgs.config.allowUnfree = true;
 
-        latitude = mkHost {
-          hostname = "latitude";
-          mainUser = "david";
-          profiles = [
-            "laptop"
-            "desktop-gnome"
-          ];
-          hmModules = [ ./hosts/latitude/home.nix ];
-        };
+      networking.hostName = hostname;
+      home-manager = {
+        useGlobalPkgs = true;
+        useUserPackages = true;
+        backupFileExtension = "backup";
+        extraSpecialArgs = commonArgs;
+        users.${mainUser}.imports = hmModules;
       };
-    };
+    }
+  ]
+  ++ baseModules
+  ++ profileModules
+  ++ extraModules;
 }
