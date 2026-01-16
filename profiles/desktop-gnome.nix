@@ -7,14 +7,6 @@
     autoLoginUser = lib.mkDefault mainUser;
   };
 
-  features.vpn.tailscale = {
-    enable = lib.mkDefault true;
-    routingFeatures = lib.mkDefault "client";
-    trustInterface = lib.mkDefault true;
-  };
-
-  services.system76-scheduler = {
-    enable = lib.mkDefault true;
-    useStockConfig = lib.mkDefault true;
-  };
+  # Removed: Tailscale (moved to laptop.nix / per-host)
+  # Removed: System76 Scheduler (moved to laptop.nix)
 }
