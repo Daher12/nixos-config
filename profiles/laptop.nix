@@ -2,9 +2,8 @@
 
 {
   features = {
-    bluetooth.enable = lib.mkDefault false;
-    fonts.enable = lib.mkDefault true;
-    power-tlp.enable = lib.mkDefault true; # Default to enabled for laptops
+    bluetooth.enable = lib.mkDefault true;
+    power-tlp.enable = lib.mkDefault true; 
     zram.enable = lib.mkDefault true;
     network-optimization.enable = lib.mkDefault true;
     kernel.variant = lib.mkDefault "zen";
