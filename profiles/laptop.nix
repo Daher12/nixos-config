@@ -6,6 +6,9 @@
 }:
 
 let
+  # ----------------------------------------------------------------------------
+  # 1. Define WiFi Data (Lazy evaluation makes this safe)
+  # ----------------------------------------------------------------------------
   homeWifiContent = ''
     [connection]
     id=HomeWiFi
@@ -25,7 +28,7 @@ let
     [ipv6]
     method=auto
   '';
-
+  
   homeWifiMarker = pkgs.writeText "wifi-home-marker" homeWifiContent;
 
   workWifiContent = ''
@@ -47,61 +50,76 @@ let
     [ipv6]
     method=auto
   '';
-
+  
   workWifiMarker = pkgs.writeText "wifi-work-marker" workWifiContent;
 
 in
-{
-  features = {
-    bluetooth.enable = lib.mkDefault true;
-    power-tlp.enable = lib.mkDefault true;
-    zram.enable = lib.mkDefault true;
-    network-optimization.enable = lib.mkDefault true;
-    kernel.variant = lib.mkDefault "zen";
-    vpn.tailscale = {
+lib.mkMerge [
+  # ----------------------------------------------------------------------------
+  # Block 1: Base Configuration (Always Applied)
+  # ----------------------------------------------------------------------------
+  {
+    features = {
+      bluetooth.enable = lib.mkDefault true;
+      power-tlp.enable = lib.mkDefault true;
+      zram.enable = lib.mkDefault true;
+      network-optimization.enable = lib.mkDefault true;
+      kernel.variant = lib.mkDefault "zen";
+      
+      vpn.tailscale = {
+        enable = lib.mkDefault true;
+        routingFeatures = lib.mkDefault "client";
+        trustInterface = lib.mkDefault true;
+      };
+
+      # Default SOPS to false (Host must enable it explicitly)
+      sops.enable = lib.mkDefault false;
+    };
+
+    services.system76-scheduler = {
       enable = lib.mkDefault true;
-      routingFeatures = lib.mkDefault "client";
-      trustInterface = lib.mkDefault true;
+      useStockConfig = lib.mkDefault true;
+      settings.cfsProfiles.enable = true;
+      settings.processScheduler = {
+        enable = true;
+        foregroundBoost.enable = true;
+        pipewireBoost.enable = true;
+      };
     };
-    sops.enable = lib.mkDefault false;
-  };
 
-  sops.secrets."wifi_home_psk".restartUnits = lib.mkIf config.features.sops.enable [ "NetworkManager.service" ];
-  sops.secrets."wifi_work_psk".restartUnits = lib.mkIf config.features.sops.enable [ "NetworkManager.service" ];
-
-  sops.templates."wifi-home.nmconnection" = lib.mkIf config.features.sops.enable {
-    mode = "0600";
-    path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
-    content = homeWifiContent;
-  };
-
-  sops.templates."wifi-work.nmconnection" = lib.mkIf config.features.sops.enable {
-    mode = "0600";
-    path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
-    content = workWifiContent;
-  };
-
-  systemd.services.NetworkManager.restartTriggers = lib.mkIf config.features.sops.enable [
-    homeWifiMarker
-    workWifiMarker
-  ];
-
-  services.system76-scheduler = {
-    enable = lib.mkDefault true;
-    useStockConfig = lib.mkDefault true;
-    settings.cfsProfiles.enable = true;
-    settings.processScheduler = {
-      enable = true;
-      foregroundBoost.enable = true;
-      pipewireBoost.enable = true;
+    core = {
+      boot.silent = lib.mkDefault true;
+      nix.gc.automatic = lib.mkDefault true;
+      secureboot.enable = lib.mkDefault true;
     };
-  };
 
-  core = {
-    boot.silent = lib.mkDefault true;
-    nix.gc.automatic = lib.mkDefault true;
-    secureboot.enable = lib.mkDefault true;
-  };
+    hardware.enableRedistributableFirmware = lib.mkDefault true;
+  }
 
-  hardware.enableRedistributableFirmware = lib.mkDefault true;
-}
+  # ----------------------------------------------------------------------------
+  # Block 2: SOPS Configuration (Atomic Enable/Disable)
+  # ----------------------------------------------------------------------------
+  (lib.mkIf config.features.sops.enable {
+    # 1. Secrets
+    sops.secrets."wifi_home_psk".restartUnits = [ "NetworkManager.service" ];
+    sops.secrets."wifi_work_psk".restartUnits = [ "NetworkManager.service" ];
+
+    # 2. Templates
+    sops.templates."wifi-home.nmconnection" = {
+      mode = "0600";
+      path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
+      content = homeWifiContent;
+    };
+    sops.templates."wifi-work.nmconnection" = {
+      mode = "0600";
+      path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
+      content = workWifiContent;
+    };
+
+    # 3. Drift Detection (Safe because markers rely on placeholder, which is now safe)
+    systemd.services.NetworkManager.restartTriggers = [
+      homeWifiMarker
+      workWifiMarker
+    ];
+  })
+]
