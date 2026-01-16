@@ -6,10 +6,11 @@
 }:
 
 let
-  cfg = config.features.git;
+  cfg = config.programs.git;
 in
 {
-  options.features.git = {
+  # Namespace changed from features.git to programs.git
+  options.programs.git = {
     identity = {
       name = lib.mkOption {
         type = lib.types.str;
@@ -24,12 +25,15 @@ in
       };
     };
 
+    # This extends the standard programs.git.delta options if they exist,
+    # or defines them if they don't.
     delta = {
       enable = lib.mkOption {
         type = lib.types.bool;
         default = true;
         description = "Enable delta diff viewer";
       };
+
       sideBySide = lib.mkOption {
         type = lib.types.bool;
         default = false;
@@ -64,11 +68,12 @@ in
     programs.git = {
       enable = true;
       package = pkgs.gitMinimal;
+      
+      # Use the extended options defined above
+      userName = cfg.identity.name;
+      userEmail = cfg.identity.email;
 
-      settings = {
-        user.name = cfg.identity.name;
-        user.email = cfg.identity.email;
-
+      extraConfig = {
         init.defaultBranch = cfg.defaultBranch;
         core.editor = cfg.editor;
 
@@ -78,12 +83,11 @@ in
         push.autoSetupRemote = true;
 
         "url \"ssh://git@github.com/\"".insteadOf = "https://github.com/";
-
+        
         diff = {
           colorMoved = "default";
           algorithm = "histogram";
         };
-
         merge.conflictStyle = "zdiff3";
       };
     };
