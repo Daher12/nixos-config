@@ -15,20 +15,16 @@
   extraSpecialArgs ? { },
 }:
 let
-  # 1. Robust Normalization: Handle self as Flake Object OR Path.
-  # This prevents errors if 'self' structure varies (e.g. in repl vs build).
   flakeRoot = 
     if builtins.isAttrs self && self ? outPath then self.outPath
     else if builtins.isPath self then self
     else throw "mkHost: 'self' must be a flake object or a path.";
 
-  # 2. Use flakeRoot for robust path concatenation.
   profileModules = map (p: flakeRoot + "/profiles/${p}.nix") profiles;
 
   needsHardware = builtins.any (p: p == "laptop" || p == "desktop-gnome") profiles;
   needsFeatures = profiles != [ ];
 
-  # 3. Consistency: Use flakeRoot for all internal paths
   baseModules = [
     (flakeRoot + "/modules/core")
   ]
@@ -38,8 +34,8 @@ let
   commonArgs = {
     inherit
       inputs
-      self       # Passed for Registry Pinning (Flake Object)
-      flakeRoot  # Passed for File Access (Store Path)
+      self
+      flakeRoot
       palette
       mainUser
       ;
@@ -52,6 +48,7 @@ nixpkgs.lib.nixosSystem {
   modules = [
     inputs.lix-module.nixosModules.default
     inputs.lanzaboote.nixosModules.lanzaboote
+    inputs.sops-nix.nixosModules.sops
     inputs.home-manager.nixosModules.home-manager
     {
       nixpkgs.overlays = overlays system;
