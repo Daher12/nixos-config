@@ -14,7 +14,6 @@
 
   features = {
     bluetooth.enable = true;
-    power-tlp.enable = true;
 
     filesystem = {
       type = "ext4";
@@ -71,7 +70,6 @@
   '';
 
   services = {
-    system76-scheduler.settings.processScheduler.foregroundBoost.enable = true;
     thermald.enable = true;
     preload-ng = {
       enable = true;
