@@ -6,9 +6,6 @@
 }:
 
 let
-  # ============================================================================
-  # NETWORK 1: HOME
-  # ============================================================================
   homeWifiContent = ''
     [connection]
     id=HomeWiFi
@@ -29,16 +26,11 @@ let
     method=auto
   '';
 
-  # Marker for Home (changes if SSID/UUID changes)
   homeWifiMarker = pkgs.writeText "wifi-home-marker" homeWifiContent;
 
-  # ============================================================================
-  # NETWORK 2: WORK
-  # ============================================================================
   workWifiContent = ''
     [connection]
     id=WorkWiFi
-    # Generate a NEW UUID for this connection (run `uuidgen` again)
     uuid=8b4c5d6e-2345-6789-0bcd-ef1234567890
     type=wifi
 
@@ -56,7 +48,6 @@ let
     method=auto
   '';
 
-  # Marker for Work
   workWifiMarker = pkgs.writeText "wifi-work-marker" workWifiContent;
 
 in
@@ -75,36 +66,28 @@ in
     sops.enable = lib.mkDefault false;
   };
 
-  # ----------------------------------------------------------------------------
-  # SOPS Configuration
-  # ----------------------------------------------------------------------------
+  config = lib.mkIf config.features.sops.enable {
+    sops.secrets."wifi_home_psk".restartUnits = [ "NetworkManager.service" ];
+    sops.secrets."wifi_work_psk".restartUnits = [ "NetworkManager.service" ];
 
-  # 1. Define Secrets
-  sops.secrets."wifi_home_psk".restartUnits = [ "NetworkManager.service" ];
-  sops.secrets."wifi_work_psk".restartUnits = [ "NetworkManager.service" ];
+    sops.templates."wifi-home.nmconnection" = {
+      mode = "0600";
+      path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
+      content = homeWifiContent;
+    };
 
-  # 2. Define Templates
-  sops.templates."wifi-home.nmconnection" = {
-    mode = "0600";
-    path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
-    content = homeWifiContent;
+    sops.templates."wifi-work.nmconnection" = {
+      mode = "0600";
+      path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
+      content = workWifiContent;
+    };
+
+    systemd.services.NetworkManager.restartTriggers = [
+      homeWifiMarker
+      workWifiMarker
+    ];
   };
 
-  sops.templates."wifi-work.nmconnection" = {
-    mode = "0600";
-    path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
-    content = workWifiContent;
-  };
-
-  # 3. Drift Detection (Restart NM if EITHER template changes)
-  systemd.services.NetworkManager.restartTriggers = [
-    homeWifiMarker
-    workWifiMarker
-  ];
-
-  # ----------------------------------------------------------------------------
-  # Other Hardware/System Settings
-  # ----------------------------------------------------------------------------
   services.system76-scheduler = {
     enable = lib.mkDefault true;
     useStockConfig = lib.mkDefault true;
