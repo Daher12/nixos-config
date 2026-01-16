@@ -9,6 +9,7 @@
     ./network-optimization.nix
     ./oomd.nix
     ./power-tlp.nix
+    ./sops.nix # NEW
     ./virtualization.nix
     ./vpn.nix
     ./zram.nix
