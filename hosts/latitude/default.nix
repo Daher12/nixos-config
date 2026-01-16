@@ -13,8 +13,6 @@
   hardware.nvidia-disable.enable = true;
 
   features = {
-    bluetooth.enable = true;
-
     filesystem = {
       type = "ext4";
       # Centralized mount options
