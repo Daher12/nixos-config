@@ -1,12 +1,12 @@
 { lib, config, pkgs, ... }:
 
 let
-  # 1. Define the Template Content
-  # We separate this string so we can use it for both the sops template AND the drift trigger.
-  wifiContent = ''
+  # ============================================================================
+  # NETWORK 1: HOME
+  # ============================================================================
+  homeWifiContent = ''
     [connection]
     id=HomeWiFi
-    # Run `uuidgen` in your terminal and paste the result here
     uuid=7a3b4c5d-1234-5678-9abc-def012345678
     type=wifi
     
@@ -16,19 +16,44 @@ let
     
     [wifi-security]
     key-mgmt=wpa-psk
-    # This placeholder is replaced by sops-nix during activation
-    psk=${config.sops.placeholder."wifi_psk"}
+    psk=${config.sops.placeholder."wifi_home_psk"}
     
     [ipv4]
     method=auto
+    [ipv6]
+    method=auto
+  '';
+  
+  # Marker for Home (changes if SSID/UUID changes)
+  homeWifiMarker = pkgs.writeText "wifi-home-marker" homeWifiContent;
+
+  # ============================================================================
+  # NETWORK 2: WORK
+  # ============================================================================
+  workWifiContent = ''
+    [connection]
+    id=WorkWiFi
+    # Generate a NEW UUID for this connection (run `uuidgen` again)
+    uuid=8b4c5d6e-2345-6789-0bcd-ef1234567890
+    type=wifi
     
+    [wifi]
+    ssid=MyWorkOffice
+    mode=infrastructure
+    
+    [wifi-security]
+    key-mgmt=wpa-psk
+    psk=${config.sops.placeholder."wifi_work_psk"}
+    
+    [ipv4]
+    method=auto
     [ipv6]
     method=auto
   '';
 
-  # 2. Create the Marker (Drift Detection)
-  # optimization: pkgs.writeText produces a unique store path that changes ONLY if 'text' changes.
-  wifiTemplateMarker = pkgs.writeText "wifi-template-marker" wifiContent;
+  # Marker for Work
+  workWifiMarker = pkgs.writeText "wifi-work-marker" workWifiContent;
+
 in
 {
   features = {
@@ -42,38 +67,47 @@ in
       routingFeatures = lib.mkDefault "client";
       trustInterface = lib.mkDefault true;
     };
-
-    # Enable SOPS for all laptops
     sops.enable = true;
   };
 
-  # 3. Secret Definition (Restarts NM on password rotation)
-  sops.secrets."wifi_psk" = {
-    restartUnits = [ "NetworkManager.service" ];
-  };
+  # ----------------------------------------------------------------------------
+  # SOPS Configuration
+  # ----------------------------------------------------------------------------
 
-  # 4. Template Definition
+  # 1. Define Secrets
+  sops.secrets."wifi_home_psk".restartUnits = [ "NetworkManager.service" ];
+  sops.secrets."wifi_work_psk".restartUnits = [ "NetworkManager.service" ];
+
+  # 2. Define Templates
   sops.templates."wifi-home.nmconnection" = {
     mode = "0600";
     path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
-    content = wifiContent;
+    content = homeWifiContent;
   };
 
-  # 5. Explicit Trigger for Template Drift
-  # If you change the SSID (but not the secret), the 'wifiContent' string changes,
-  # which changes the 'wifiTemplateMarker' store path, which triggers the restart.
-  systemd.services.NetworkManager.restartTriggers = [ wifiTemplateMarker ];
+  sops.templates."wifi-work.nmconnection" = {
+    mode = "0600";
+    path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
+    content = workWifiContent;
+  };
 
+  # 3. Drift Detection (Restart NM if EITHER template changes)
+  systemd.services.NetworkManager.restartTriggers = [ 
+    homeWifiMarker 
+    workWifiMarker 
+  ];
+
+  # ----------------------------------------------------------------------------
+  # Other Hardware/System Settings
+  # ----------------------------------------------------------------------------
   services.system76-scheduler = {
     enable = lib.mkDefault true;
     useStockConfig = lib.mkDefault true;
-    settings = {
-      cfsProfiles.enable = true;
-      processScheduler = {
-        enable = true;
-        foregroundBoost.enable = true;
-        pipewireBoost.enable = true;
-      };
+    settings.cfsProfiles.enable = true;
+    settings.processScheduler = {
+      enable = true;
+      foregroundBoost.enable = true;
+      pipewireBoost.enable = true;
     };
   };
 
