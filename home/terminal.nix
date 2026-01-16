@@ -96,7 +96,7 @@ in
       programs.fish = {
         enable = true;
 
-         interactiveShellInit = ''
+        interactiveShellInit = ''
           set -g fish_greeting
 
           set -x FZF_DEFAULT_OPTS (printf "\

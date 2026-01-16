@@ -5,13 +5,13 @@
 }:
 
 {
-  # Directly configure the upstream module. 
+  # Directly configure the upstream module.
   # No custom options needed.
   programs.git = {
     enable = true;
     package = pkgs.gitMinimal;
-    
-    # Set defaults here. If you need to override them per-host, 
+
+    # Set defaults here. If you need to override them per-host,
     # you can just set 'programs.git.userName = "..."' in that host's home.nix.
     userName = "Daher12";
     userEmail = "133640261+Daher12@users.noreply.github.com";

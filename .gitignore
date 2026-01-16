@@ -24,3 +24,7 @@ id_rsa
 id_ed25519
 *.pem
 *.bak
+keys.txt
+key.txt
+key_*.txt
+age.key

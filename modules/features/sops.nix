@@ -1,4 +1,9 @@
-{ config, lib, flakeRoot, ... }:
+{
+  config,
+  lib,
+  flakeRoot,
+  ...
+}:
 
 let
   cfg = config.features.sops;

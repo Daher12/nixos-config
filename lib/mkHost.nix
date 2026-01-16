@@ -15,10 +15,13 @@
   extraSpecialArgs ? { },
 }:
 let
-  flakeRoot = 
-    if builtins.isAttrs self && self ? outPath then self.outPath
-    else if builtins.isPath self then self
-    else throw "mkHost: 'self' must be a flake object or a path.";
+  flakeRoot =
+    if builtins.isAttrs self && self ? outPath then
+      self.outPath
+    else if builtins.isPath self then
+      self
+    else
+      throw "mkHost: 'self' must be a flake object or a path.";
 
   profileModules = map (p: flakeRoot + "/profiles/${p}.nix") profiles;
 

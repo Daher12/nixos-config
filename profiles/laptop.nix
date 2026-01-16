@@ -1,4 +1,9 @@
-{ lib, config, pkgs, ... }:
+{
+  lib,
+  config,
+  pkgs,
+  ...
+}:
 
 let
   # ============================================================================
@@ -9,21 +14,21 @@ let
     id=HomeWiFi
     uuid=7a3b4c5d-1234-5678-9abc-def012345678
     type=wifi
-    
+
     [wifi]
     ssid=MyHomeNetwork
     mode=infrastructure
-    
+
     [wifi-security]
     key-mgmt=wpa-psk
     psk=${config.sops.placeholder."wifi_home_psk"}
-    
+
     [ipv4]
     method=auto
     [ipv6]
     method=auto
   '';
-  
+
   # Marker for Home (changes if SSID/UUID changes)
   homeWifiMarker = pkgs.writeText "wifi-home-marker" homeWifiContent;
 
@@ -36,15 +41,15 @@ let
     # Generate a NEW UUID for this connection (run `uuidgen` again)
     uuid=8b4c5d6e-2345-6789-0bcd-ef1234567890
     type=wifi
-    
+
     [wifi]
     ssid=MyWorkOffice
     mode=infrastructure
-    
+
     [wifi-security]
     key-mgmt=wpa-psk
     psk=${config.sops.placeholder."wifi_work_psk"}
-    
+
     [ipv4]
     method=auto
     [ipv6]
@@ -92,9 +97,9 @@ in
   };
 
   # 3. Drift Detection (Restart NM if EITHER template changes)
-  systemd.services.NetworkManager.restartTriggers = [ 
-    homeWifiMarker 
-    workWifiMarker 
+  systemd.services.NetworkManager.restartTriggers = [
+    homeWifiMarker
+    workWifiMarker
   ];
 
   # ----------------------------------------------------------------------------
