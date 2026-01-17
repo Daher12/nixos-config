@@ -1,4 +1,9 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 {
   imports = [
@@ -13,17 +18,22 @@
     ../../modules/hardware/intel-gpu.nix
   ];
 
-  system.stateVersion = "24.05"; 
+  system.stateVersion = "24.05";
 
   # --- Boot & Kernel ---
-  boot.loader.systemd-boot = { enable = true; configurationLimit = 10; };
+  boot.loader.systemd-boot = {
+    enable = true;
+    configurationLimit = 10;
+  };
+  # Kernel packages left to default (NixOS 25.11 LTS) for maximum stability
   boot.kernelParams = [ "transparent_hugepage=madvise" ];
 
   # --- Hardware ---
+  # Firmware and drivers are handled by the shared intel-gpu module
   hardware.intel-gpu = {
     enable = true;
-    enableOpenCL = true; 
-    enableVpl = true;    
+    enableOpenCL = true;
+    enableVpl = true;
     enableGuc = true;
   };
 
@@ -31,16 +41,20 @@
   services.openssh = {
     enable = true;
     ports = [ 26 ];
-    openFirewall = true; # Automatically opens TCP 26
+    openFirewall = true;
   };
-  
+
   # --- NFS Server (Strict v4 Only) ---
-  services.rpcbind.enable = false; # Disable port 111 (Force v4)
-  networking.firewall.allowedTCPPorts = [ 2049 ]; # Open only NFSv4
+  # FIX: The NFS module force-enables rpcbind by default.
+  # We use mkForce to disable it for a strict v4-only (Port 2049) setup.
+  services.rpcbind.enable = lib.mkForce false;
+
+  # Only open the NFSv4 port
+  networking.firewall.allowedTCPPorts = [ 2049 ];
 
   services.nfs.server = {
     enable = true;
-    # Disable v3/UDP listeners
+    # Explicitly disable v3/UDP listeners in the NFS daemon config
     extraNfsdConfig = ''
       vers3=n
       udp=n
@@ -56,7 +70,7 @@
     enable = true;
     dates = "04:00";
     allowReboot = false;
-    flake = "github:daher12/nixos-config#nix-media"; 
+    flake = "github:daher12/nixos-config#nix-media";
     randomizedDelaySec = "45min";
   };
 
@@ -66,9 +80,12 @@
     trustInterface = true;
     routingFeatures = "server";
   };
-  
+
   features.sops.enable = true;
-  services.fstrim = { enable = true; interval = "weekly"; };
+  services.fstrim = {
+    enable = true;
+    interval = "weekly";
+  };
   services.thermald.enable = true;
   users.users.dk.extraGroups = [ "docker" ];
 }

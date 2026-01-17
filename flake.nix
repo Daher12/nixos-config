@@ -18,7 +18,8 @@
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # [INTEGRATION] Added SOPS-Nix for secret management
+
+    # Secret Management
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -33,11 +34,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
+
   outputs =
     inputs@{
       self,
       nixpkgs,
-      #      sops-nix, # [INTEGRATION] Explicitly listed (available via inputs@ too)
       ...
     }:
     let
@@ -48,11 +49,11 @@
       };
       palette = import ./lib/palette.nix;
 
-      # [INTEGRATION] Refactored overlays to match mkHost expectation.
-      # mkHost expects a function: system -> [ overlays ]
+      # Overlays configuration
       overlays = _system: [
         (_: _: { unstable = pkgs-unstable; })
       ];
+
       mkHost = import ./lib/mkHost.nix {
         inherit
           nixpkgs
@@ -72,27 +73,39 @@
     {
       formatter.${system} = pkgs.nixfmt-rfc-style;
       checks.${system} = {
-        statix = pkgs.runCommand "statix-check" { buildInputs = [ pkgs.statix ];
-        } ''
-          statix check ${self} && touch $out
-        '';
-        deadnix = pkgs.runCommand "deadnix-check" { buildInputs = [ pkgs.deadnix ];
-        } ''
-          deadnix --fail ${self} && touch $out
-        '';
-        nixfmt = pkgs.runCommand "nixfmt-check" { buildInputs = [ pkgs.nixfmt-rfc-style ];
-        } ''
-          find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out
-        '';
+        statix =
+          pkgs.runCommand "statix-check"
+            {
+              buildInputs = [ pkgs.statix ];
+            }
+            ''
+              statix check ${self} && touch $out
+            '';
+        deadnix =
+          pkgs.runCommand "deadnix-check"
+            {
+              buildInputs = [ pkgs.deadnix ];
+            }
+            ''
+              deadnix --fail ${self} && touch $out
+            '';
+        nixfmt =
+          pkgs.runCommand "nixfmt-check"
+            {
+              buildInputs = [ pkgs.nixfmt-rfc-style ];
+            }
+            ''
+              find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out
+            '';
       };
 
       nixosConfigurations = {
         yoga = mkHost {
           hostname = "yoga";
-          mainUser = "dk"; # Updated from previous example to match your file
+          mainUser = "dk";
           profiles = [
             "laptop"
-            "desktop-gnome" # [NOTE] Ensure you actually want gnome on the yoga
+            "desktop-gnome"
           ];
           extraModules = [
             inputs.nixos-hardware.nixosModules.lenovo-yoga-7-slim-gen8
@@ -125,18 +138,21 @@
         "nix-media" = mkHost {
           hostname = "nix-media";
           mainUser = "dk";
-          # Empty profiles = Server mode.
-          # Prevents auto-import of modules/hardware and modules/features.
-          # We handle these imports manually in hosts/nix-media/default.nix.
+
+          # Server Mode: Empty profiles list prevents auto-import of
+          # desktop/laptop/hardware modules defined in mkHost logic.
           profiles = [ ];
-          
+
           extraModules = [
             ./hosts/nix-media/default.nix
           ];
-          
-          # Empty HM modules = Minimal user environment (No firefox/themes/extensions)
-          hmModules = [ ]; 
-          
+
+          # Minimal Home Manager config to satisfy the module requirement
+          # regarding 'home.stateVersion' without installing full user environment.
+          hmModules = [
+            { home.stateVersion = "24.05"; }
+          ];
+
           extraSpecialArgs = {
             winappsPackages = null;
           };

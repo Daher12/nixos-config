@@ -7,7 +7,7 @@ let
     name = "jellyfin";
     subnet = "172.18.0.0/16";
   };
-  
+
   # Storage Paths
   storagePath = "/mnt/storage";
   dockerPath = "/home/${user}/docker";
@@ -19,7 +19,10 @@ in
     enable = true;
     autoPrune = {
       enable = true;
-      flags = [ "--all" "--force" ];
+      flags = [
+        "--all"
+        "--force"
+      ];
     };
     daemon.settings = {
       "bip" = "172.17.0.1/16";
@@ -32,16 +35,31 @@ in
   # Ensure the Docker network exists with the correct subnet
   systemd.services."docker-network-jellyfin" = {
     description = "Ensure Docker network '${dockerNetwork.name}' exists";
-    after = [ "docker.service" "docker.socket" ];
+    after = [
+      "docker.service"
+      "docker.socket"
+    ];
     requires = [ "docker.service" ];
-    before = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
-    requiredBy = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
-    serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
-    path = [ pkgs.docker pkgs.jq ];
+    before = [
+      "docker-jellyfin.service"
+      "docker-audiobookshelf.service"
+    ];
+    requiredBy = [
+      "docker-jellyfin.service"
+      "docker-audiobookshelf.service"
+    ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = [
+      pkgs.docker
+      pkgs.jq
+    ];
     script = ''
       NETWORK="${dockerNetwork.name}"
       SUBNET="${dockerNetwork.subnet}"
-      
+
       if docker network inspect "$NETWORK" >/dev/null 2>&1; then
         EXISTING=$(docker network inspect "$NETWORK" --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}')
         if [ "$EXISTING" != "$SUBNET" ]; then
@@ -59,7 +77,15 @@ in
   fileSystems."${jellyfinCachePath}" = {
     device = "tmpfs";
     fsType = "tmpfs";
-    options = [ "size=2G" "mode=0755" "uid=1000" "gid=1000" "noatime" "nosuid" "nodev" ];
+    options = [
+      "size=2G"
+      "mode=0755"
+      "uid=1000"
+      "gid=1000"
+      "noatime"
+      "nosuid"
+      "nodev"
+    ];
   };
 
   # --- Container Definitions ---
@@ -140,8 +166,8 @@ in
 
   systemd.services."docker-jellyfin" = {
     serviceConfig = {
-      IOWeight = 8000;       # High I/O Priority
-      CPUWeight = 1000;      # High CPU Priority
+      IOWeight = 8000; # High I/O Priority
+      CPUWeight = 1000; # High CPU Priority
       OOMScoreAdjust = -500; # Protect from OOM killer
     };
   };
@@ -174,18 +200,24 @@ in
 
   systemd.services."docker-image-refresh" = {
     description = "Pull latest Docker images and restart containers";
-    serviceConfig = { Type = "oneshot"; User = "root"; };
-    path = [ pkgs.docker pkgs.systemd ];
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+    };
+    path = [
+      pkgs.docker
+      pkgs.systemd
+    ];
     script = ''
       set -e
       echo "Refreshing Docker images..."
       docker pull lscr.io/linuxserver/jellyfin:latest
       docker pull ghcr.io/advplyr/audiobookshelf:latest
       docker pull gcr.io/cadvisor/cadvisor:latest
-      
+
       echo "Restarting services..."
       systemctl restart docker-jellyfin.service docker-audiobookshelf.service docker-cadvisor.service
-      
+
       echo "Pruning old images..."
       docker image prune -f
     '';

@@ -1,4 +1,9 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 let
   # --- Service Definitions for Dashboard ---
@@ -29,17 +34,21 @@ let
     redir @redirect_${name} /${name}/ 308
   '';
 
-  mkHandle = name: cfg: 
-    if name == "jellyfin" then ''
-      handle /${name}/* {
-        uri strip_prefix /${name}
-        reverse_proxy http://127.0.0.1:${toString cfg.port}
-      }
-    '' else ''
-      handle /${name}/* {
-        reverse_proxy http://127.0.0.1:${toString cfg.port}
-      }
-    '';
+  mkHandle =
+    name: cfg:
+    if name == "jellyfin" then
+      ''
+        handle /${name}/* {
+          uri strip_prefix /${name}
+          reverse_proxy http://127.0.0.1:${toString cfg.port}
+        }
+      ''
+    else
+      ''
+        handle /${name}/* {
+          reverse_proxy http://127.0.0.1:${toString cfg.port}
+        }
+      '';
 
   mkServiceCard = name: cfg: ''
     <a href="/${name}/" class="service-card">
@@ -143,7 +152,7 @@ in
     enable = true;
     user = "caddy";
     group = "caddy";
-    
+
     # Configure Virtual Host with Tailscale DNS
     virtualHosts."nix-media.tail6db26.ts.net".extraConfig = ''
       tls { get_certificate tailscale }
@@ -151,13 +160,13 @@ in
         X-Content-Type-Options "nosniff"
         -Server
       }
-      
+
       # Generated Redirects (e.g., /jellyfin -> /jellyfin/)
       ${lib.concatMapStrings (name: mkRedirect name services.${name}) (lib.attrNames services)}
-      
+
       # Generated Reverse Proxies
       ${lib.concatMapStrings (name: mkHandle name services.${name}) (lib.attrNames services)}
-      
+
       # Root Handle: Serve Landing Page
       handle / {
         root * /etc/caddy
