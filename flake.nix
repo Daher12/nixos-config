@@ -4,24 +4,20 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
-
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     lanzaboote = {
       url = "github:nix-community/lanzaboote/v0.4.3";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
     lix-module = {
       url = "git+https://git.lix.systems/lix-project/nixos-module?ref=release-2.93";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
     # [INTEGRATION] Added SOPS-Nix for secret management
     sops-nix = {
       url = "github:Mic92/sops-nix";
@@ -32,13 +28,11 @@
       url = "github:winapps-org/winapps/44342c34b839547be0b2ea4f94ed00293fa7cc38";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
     preload-ng = {
       url = "github:miguel-b-p/preload-ng/eb3c66a20d089ab2e3b8ff34c45c3d527584ed38";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
-
   outputs =
     inputs@{
       self,
@@ -48,12 +42,10 @@
     }:
     let
       system = "x86_64-linux";
-
       pkgs-unstable = import inputs.nixpkgs-unstable {
         inherit system;
         config.allowUnfree = true;
       };
-
       palette = import ./lib/palette.nix;
 
       # [INTEGRATION] Refactored overlays to match mkHost expectation.
@@ -61,7 +53,6 @@
       overlays = _system: [
         (_: _: { unstable = pkgs-unstable; })
       ];
-
       mkHost = import ./lib/mkHost.nix {
         inherit
           nixpkgs
@@ -80,15 +71,17 @@
     in
     {
       formatter.${system} = pkgs.nixfmt-rfc-style;
-
       checks.${system} = {
-        statix = pkgs.runCommand "statix-check" { buildInputs = [ pkgs.statix ]; } ''
+        statix = pkgs.runCommand "statix-check" { buildInputs = [ pkgs.statix ];
+        } ''
           statix check ${self} && touch $out
         '';
-        deadnix = pkgs.runCommand "deadnix-check" { buildInputs = [ pkgs.deadnix ]; } ''
+        deadnix = pkgs.runCommand "deadnix-check" { buildInputs = [ pkgs.deadnix ];
+        } ''
           deadnix --fail ${self} && touch $out
         '';
-        nixfmt = pkgs.runCommand "nixfmt-check" { buildInputs = [ pkgs.nixfmt-rfc-style ]; } ''
+        nixfmt = pkgs.runCommand "nixfmt-check" { buildInputs = [ pkgs.nixfmt-rfc-style ];
+        } ''
           find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out
         '';
       };
@@ -123,6 +116,27 @@
             ./hosts/latitude/default.nix
           ];
           hmModules = [ ./hosts/latitude/home.nix ];
+          extraSpecialArgs = {
+            winappsPackages = null;
+          };
+        };
+
+        # NEW: Media Server
+        "nix-media" = mkHost {
+          hostname = "nix-media";
+          mainUser = "dk";
+          # Empty profiles = Server mode.
+          # Prevents auto-import of modules/hardware and modules/features.
+          # We handle these imports manually in hosts/nix-media/default.nix.
+          profiles = [ ];
+          
+          extraModules = [
+            ./hosts/nix-media/default.nix
+          ];
+          
+          # Empty HM modules = Minimal user environment (No firefox/themes/extensions)
+          hmModules = [ ]; 
+          
           extraSpecialArgs = {
             winappsPackages = null;
           };

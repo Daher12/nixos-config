@@ -176,9 +176,9 @@ in
         ];
 
         systemd.tmpfiles.rules = [
-            "d /var/lib/libvirt/images 0775 root libvirtd - -"
-          ]
-          ++ lib.optional (config.features.filesystem.type == "btrfs") "h /var/lib/libvirt/images - - - - +C";
+          "d /var/lib/libvirt/images 0775 root libvirtd - -"
+        ]
+        ++ lib.optional (config.features.filesystem.type == "btrfs") "h /var/lib/libvirt/images - - - - +C";
 
         systemd.services.libvirt-network-default = {
           description = "Configure libvirt default network";

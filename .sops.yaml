@@ -2,6 +2,7 @@ keys:
   - &admin_david age1vzw0xw2d6nhtdhjas57aw96u0w2yad4kce6k4952eg3s9ztrhstqv74u46
   - &host_yoga  age1dhs2lj07d5x9je5a3l5uf6d5kh83yucrza49htc9e2a0e6j45acqte5520
   - &host_latitude age1fgw4w5hkfrlp4nyrqxsgy3g02prqk245mjy8m88p4euha05kmd6sw83a74
+  - &host_nix-media age1ntm37dt5h4qxqgv34ytjlw6wty560kzathxvlgp4gjx76s2ydc4qspjsm3
 
 creation_rules:
   - path_regex: secrets/hosts/yoga\.yaml$
@@ -14,3 +15,8 @@ creation_rules:
       - age:
           - *admin_david
           - *host_latitude
+- path_regex: secrets/hosts/nix-media\.yaml$
+    key_groups:
+      - age:
+          - *admin_david
+          - *host_nix-media
