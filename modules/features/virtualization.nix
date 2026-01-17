@@ -13,10 +13,8 @@ in
 {
   options.features.virtualization = {
     enable = lib.mkEnableOption "libvirt/QEMU virtualization";
-
     windows11 = {
       enable = lib.mkEnableOption "Windows 11 VM with Office/iTunes optimizations";
-
       name = lib.mkOption {
         type = lib.types.str;
         default = "windows11";
@@ -28,7 +26,6 @@ in
         default = "52:54:00:00:00:01";
         description = "VM MAC address for DHCP reservation";
       };
-
       ip = lib.mkOption {
         type = lib.types.str;
         default = "192.168.122.10";
@@ -52,7 +49,6 @@ in
         description = "Disk size in GiB";
       };
     };
-
     performance = {
       hugepages = {
         enable = lib.mkOption {
@@ -60,21 +56,18 @@ in
           default = false;
           description = "Enable 2M hugepages for VM memory";
         };
-
         count = lib.mkOption {
           type = lib.types.int;
           default = 4096;
           description = "Number of 2M hugepages (4096 = 8GB)";
         };
       };
-
       ioThreads = lib.mkOption {
         type = lib.types.bool;
         default = true;
         description = "Recommend I/O threads in VM XML";
       };
     };
-
     includeGuestTools = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -88,7 +81,7 @@ in
         virtualisation.libvirtd = {
           enable = true;
           onBoot = "ignore";
-          onShutdown = "suspend";
+          onShutdown = "shutdown";
 
           qemu = {
             package = pkgs.qemu_kvm;
@@ -123,7 +116,6 @@ in
           options kvm_intel enable_apicv=1 ept=1
           options kvm_amd avic=1 npt=1
         '';
-
         environment.systemPackages =
           with pkgs;
           [
@@ -139,13 +131,17 @@ in
             libguestfs
             libguestfs-with-appliance
           ];
-
         programs.virt-manager.enable = true;
 
         services.udev.extraRules = ''
           KERNEL=="kvm", GROUP="kvm", MODE="0666"
           SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
         '';
+
+        # [Optim] Reduce shutdown delay by forcing a 30s timeout for guest suspension/shutdown
+        systemd.services.libvirt-guests.serviceConfig = {
+          TimeoutStopSec = "30s";
+        };
       }
 
       {
@@ -180,9 +176,9 @@ in
         ];
 
         systemd.tmpfiles.rules = [
-          "d /var/lib/libvirt/images 0775 root libvirtd - -"
-        ]
-        ++ lib.optional (config.features.filesystem.type == "btrfs") "h /var/lib/libvirt/images - - - - +C";
+            "d /var/lib/libvirt/images 0775 root libvirtd - -"
+          ]
+          ++ lib.optional (config.features.filesystem.type == "btrfs") "h /var/lib/libvirt/images - - - - +C";
 
         systemd.services.libvirt-network-default = {
           description = "Configure libvirt default network";
@@ -198,8 +194,8 @@ in
               virsh = "${pkgs.libvirt}/bin/virsh";
             in
             ''
-                        if ! ${virsh} net-info default &>/dev/null; then
-                          ${virsh} net-define /dev/stdin <<'EOF'
+              if ! ${virsh} net-info default &>/dev/null; then
+                ${virsh} net-define /dev/stdin <<'EOF'
               <network>
                 <name>default</name>
                 <forward mode='nat'>
@@ -214,9 +210,9 @@ in
                 </ip>
               </network>
               EOF
-                          ${virsh} net-autostart default
-                        fi
-                        ${virsh} net-start default 2>/dev/null || true
+                ${virsh} net-autostart default
+              fi
+              ${virsh} net-start default 2>/dev/null || true
             '';
         };
       })
