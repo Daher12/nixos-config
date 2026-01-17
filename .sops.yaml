@@ -15,7 +15,7 @@ creation_rules:
       - age:
           - *admin_david
           - *host_latitude
-- path_regex: secrets/hosts/nix-media\.yaml$
+  - path_regex: secrets/hosts/nix-media\.yaml$
     key_groups:
       - age:
           - *admin_david

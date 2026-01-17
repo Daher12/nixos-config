@@ -13,7 +13,7 @@ in
 
   config = lib.mkIf cfg.enable (lib.mkMerge [
     {
-      # Base Graphics Stack
+      # Base Graphics Stack (Enables global OpenGL/Mesa)
       hardware.graphics = {
         enable = true;
         extraPackages = with pkgs; [
@@ -23,14 +23,9 @@ in
         ++ lib.optional cfg.enableOpenCL pkgs.intel-compute-runtime
         ++ lib.optional cfg.enableVpl pkgs.vpl-gpu-rt;
       };
-
-      # Host-level debugging (optional, strictly for user shell)
-      environment.variables = lib.optionalAttrs cfg.enableVpl {
-        LIBVA_DRIVER_NAME = "iHD";
-      };
     }
 
-    # Conditional Firmware Enablement (The "Safe" Pattern)
+    # Firmware: Conditional Enablement via mkMerge (Type-safe)
     (lib.mkIf cfg.enableGuc {
       hardware.enableRedistributableFirmware = true;
       boot.kernelParams = [ "i915.enable_guc=3" ];
