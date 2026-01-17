@@ -88,7 +88,7 @@ in
         virtualisation.libvirtd = {
           enable = true;
           onBoot = "ignore";
-          onShutdown = "shutdown";
+          onShutdown = "suspend";
 
           qemu = {
             package = pkgs.qemu_kvm;

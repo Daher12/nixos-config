@@ -15,6 +15,7 @@
 
   hardware.amd-gpu.enable = true;
   features = {
+    nas.enable = true;
     desktop-gnome = {
       autoLogin = true;
       # Optional: override the user if it's not the mainUser

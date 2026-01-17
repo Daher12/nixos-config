@@ -6,6 +6,7 @@
     ./fonts.nix
     ./kernel.nix
     ./kmscon.nix
+    ./nas.nix
     ./network-optimization.nix
     ./oomd.nix
     ./power-tlp.nix
