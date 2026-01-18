@@ -8,18 +8,12 @@
 # Push Notifications via ntfy (Secured with SOPS)
 #
 # Usage: ntfy-send <priority> <tags> <title> <message>
-#
-# Hooks configured for:
-#   - Docker container failures
-#   - NixOS auto-upgrade failures
-#   - SMART disk errors
 
 let
   ntfyServer = "https://ntfy.sh";
   hostname = config.networking.hostName;
 
   # Secrets: Define the topic secret
-  # We use the 'root' owner because smartd and systemd services run as root.
   secretName = "ntfy_topic";
 
   # List of systemd services to monitor for failure
@@ -33,7 +27,6 @@ let
   ];
 
   # The main notification script
-  # MODIFIED: Reads the topic from the SOPS secret file at runtime
   ntfySend = pkgs.writeShellScriptBin "ntfy-send" ''
     set -euo pipefail
 
@@ -111,9 +104,12 @@ in
 
   # --- SMART Disk Monitoring ---
   services.smartd = {
-    notifications.x11.enable = false;
-    notifications.wall.enable = true; # Console broadcast
-    notifications.mail.enable = false;
+    # Refactored for statix: grouped notification settings
+    notifications = {
+      x11.enable = false;
+      wall.enable = true; # Console broadcast
+      mail.enable = false;
+    };
     extraOptions = [
       "-A /var/log/smartd/"
       "--attributelog=-"

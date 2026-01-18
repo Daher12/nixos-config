@@ -104,11 +104,13 @@ let
     # Capture ~4 seconds of output for smoothing
     OUTPUT=$(${pkgs.coreutils}/bin/timeout 4s ${pkgs.intel-gpu-tools}/bin/intel_gpu_top -s 1000 | tr -d '\r')
 
-    echo "$OUTPUT" | ${pkgs.gawk}/bin/awk '
+    echo "$OUTPUT" |
+    ${pkgs.gawk}/bin/awk '
       BEGIN { render_sum=0; video_sum=0; enhance_sum=0; samples=0 }
       /Freq/ || /req/ || /^$/ { next }
       $1 ~ /^[0-9.]+$/ && NF >= 13 {
-        render_sum  += $7; video_sum += $11; enhance_sum += $13; samples++
+        render_sum  += $7;
+        video_sum += $11; enhance_sum += $13; samples++
       }
       END {
         if (samples > 0) {
@@ -119,7 +121,8 @@ let
           if (video > busy) busy = video
           if (enhance > busy) busy = enhance
         } else {
-          render = 0; video = 0; enhance = 0; busy = 0
+          render = 0;
+          video = 0; enhance = 0; busy = 0
         }
         printf "intel_gpu_engine_busy_percent{engine=\"render\"} %.2f\n", render
         printf "intel_gpu_engine_busy_percent{engine=\"video\"} %.2f\n", video
@@ -129,7 +132,8 @@ let
       }
     ' > "$TMPFILE"
 
-    if [ -s "$TMPFILE" ]; then
+    if [ -s "$TMPFILE" ];
+    then
       mv "$TMPFILE" "$OUTFILE"
       chmod 644 "$OUTFILE"
     fi
@@ -139,13 +143,20 @@ in
   # --- Secrets Definition ---
   sops.secrets = {
     "grafana_admin_password" = {
-      owner = config.systemd.services.grafana.serviceConfig.User or "grafana";
+      # No specific owner needed for the raw file, as we use a template
       restartUnits = [ "grafana.service" ];
     };
     "ntfy_url" = {
       # Accessed via LoadCredential, no specific owner needed
       restartUnits = [ "alertmanager-ntfy-bridge.service" ];
     };
+  };
+
+  # TEMPLATE: Format the password as an EnvironmentFile for Grafana
+  sops.templates."grafana-env" = {
+    content = ''
+      GF_SECURITY_ADMIN_PASSWORD=${config.sops.placeholder.grafana_admin_password}
+    '';
   };
 
   # --- Prometheus ---
@@ -167,7 +178,6 @@ in
         environment = "production";
       };
     };
-
     ruleFiles = [ alertRulesFile ];
     alertmanagers = [
       {
@@ -291,7 +301,6 @@ in
       # Securely load the URL secret
       LoadCredential = [ "ntfy_url:${config.sops.secrets.ntfy_url.path}" ];
     };
-
     script = ''
       ${pkgs.python3}/bin/python3 << 'EOF'
       import http.server
@@ -417,7 +426,7 @@ in
       };
       security = {
         admin_user = "admin";
-        # Password handled via file provisioning below
+        # Password handled via systemd EnvironmentFile (see below)
         allow_embedding = false;
         cookie_secure = true;
         cookie_samesite = "lax";
@@ -435,8 +444,7 @@ in
       dashboards.default_home_dashboard_path = "/etc/grafana/dashboards/system-overview.json";
     };
 
-    # Provision Admin Password from Secret
-    security.adminPasswordFile = config.sops.secrets.grafana_admin_password.path;
+    # Removed deprecated security.adminPasswordFile option
 
     provision = {
       enable = true;
@@ -462,7 +470,10 @@ in
       ];
     };
   };
+
+  # Inject the admin password environment variable
   systemd.services.grafana.serviceConfig = {
+    EnvironmentFile = config.sops.templates."grafana-env".path;
     MemoryMax = "384M";
     MemoryHigh = "320M";
     CPUQuota = "30%";

@@ -181,7 +181,8 @@ in
 
   # Allow Caddy to access Tailscale certificate socket
   systemd.services.caddy.serviceConfig = {
-    Group = "tailscale";
+    # FIX: Use mkForce to override the default "caddy" group
+    Group = lib.mkForce "tailscale";
     LogsDirectory = "caddy";
     Restart = "on-failure";
     RestartSec = "5s";
