@@ -1,9 +1,4 @@
-{
-  config,
-  pkgs,
-  lib,
-  ...
-}:
+{ pkgs, lib, ... }:
 
 let
   # --- Service Definitions for Dashboard ---
@@ -29,7 +24,8 @@ let
   };
 
   # --- Caddy Configuration Generators ---
-  mkRedirect = name: cfg: ''
+  # FIX: Replaced unused 'cfg' with '_'
+  mkRedirect = name: _: ''
     @redirect_${name} path /${name}
     redir @redirect_${name} /${name}/ 308
   '';

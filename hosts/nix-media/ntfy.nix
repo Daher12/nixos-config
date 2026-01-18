@@ -74,8 +74,9 @@ in
 
   # --- Failure Hooks ---
   # Automatically generates OnFailure handlers for critical services
+  # FIX: Replaced unused 'name' with '_'
   systemd.services =
-    (lib.genAttrs failureServices (name: {
+    (lib.genAttrs failureServices (_: {
       unitConfig.OnFailure = "ntfy-failure@%n.service";
     }))
     // {
@@ -104,7 +105,6 @@ in
 
   # --- SMART Disk Monitoring ---
   services.smartd = {
-    # Refactored for statix: grouped notification settings
     notifications = {
       x11.enable = false;
       wall.enable = true; # Console broadcast

@@ -1,10 +1,4 @@
-{
-  config,
-  lib,
-  pkgs,
-  modulesPath,
-  ...
-}:
+{ lib, modulesPath, ... }:
 
 # Hardware Configuration - Intel N100 Mini PC
 {
