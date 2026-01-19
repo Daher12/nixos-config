@@ -15,7 +15,7 @@ in
 
     serverIp = lib.mkOption {
       type = lib.types.str;
-      default = "nix-media"; # Use hostname (Tailscale DNS) or the IP "100.123.189.29"
+      default = "100.123.189.29"; # Use hostname (Tailscale DNS) or the IP "100.123.189.29"
       description = "NFS Server IP or Hostname";
     };
   };
@@ -43,6 +43,7 @@ in
         "nfsvers=4.2"
         "soft"
         "timeo=30"
+        "resvport"
         # FIX: Add retry logic for transient network issues
         "retrans=3"
         "_netdev"

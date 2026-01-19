@@ -93,8 +93,9 @@ in
       ntfy-boot = {
         description = "Notify on system boot";
         wantedBy = [ "multi-user.target" ];
-        after = [ "network-online.target" ];
-        wants = [ "network-online.target" ];
+        # FIX: Explicitly wait for secrets to be decrypted
+        after = [ "network-online.target" "sops-nix.service" ];
+        wants = [ "network-online.target" "sops-nix.service" ];
         serviceConfig = {
           Type = "oneshot";
           ExecStart = "${ntfySend}/bin/ntfy-send default computer,white_check_mark \"System Boot\" \"${hostname} started successfully\"";
@@ -104,7 +105,8 @@ in
 
   # --- SMART Disk Monitoring ---
   services.smartd = {
-    enable = true; # Required for NixOS 25.11+
+    enable = true;
+    # Required for NixOS 25.11+
 
     notifications = {
       x11.enable = false;
