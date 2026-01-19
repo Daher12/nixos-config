@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ pkgs, lib, ... }:
 
 {
   imports = [
@@ -138,5 +138,22 @@
     sops.enable = true;
   };
 
+  environment.systemPackages = [
+    pkgs.mergerfs
+  ];
+
   users.users.dk.extraGroups = [ "docker" ];
+
+  # --- Headless Optimizations ---
+  # Override desktop services enabled by modules/core
+  services.pipewire.enable = lib.mkForce false;
+  security.rtkit.enable = lib.mkForce false; # DBus RealtimeKit (for audio)
+  services.libinput.enable = lib.mkForce false; # Input device handling
+  programs.adb.enable = lib.mkForce false; # Android Debug Bridge
+
+  # Explicitly disable other desktop features
+  services.pulseaudio.enable = false;
+  services.udisks2.enable = false;
+  services.flatpak.enable = false;
+
 }
