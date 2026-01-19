@@ -29,12 +29,21 @@ in
         "x-systemd.automount"
         "noauto"
         "x-systemd.idle-timeout=600"
+        # FIX: Wait for network AND tailscale to be fully ready
+        "x-systemd.requires=network-online.target"
+        "x-systemd.after=network-online.target"
         "x-systemd.requires=tailscaled.service"
         "x-systemd.after=tailscaled.service"
         "nfsvers=4.2"
         "soft"
         "timeo=30"
+        # FIX: Add retry logic for transient network issues
+        "retrans=3"
+        "_netdev"
       ];
     };
+
+    # Ensure network-online.target is enabled
+    systemd.targets.network-online.wantedBy = lib.mkForce [ "multi-user.target" ];
   };
 }

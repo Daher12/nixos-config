@@ -96,7 +96,7 @@
       server = {
         enable = true;
         exports = ''
-          /mnt/storage 100.64.0.0/10(rw,async,crossmnt,fsid=0,no_subtree_check,all_squash,anonuid=1000,anongid=100)
+           /mnt/storage 100.64.0.0/10(rw,async,crossmnt,fsid=0,no_subtree_check,no_root_squash)
         '';
       };
 
