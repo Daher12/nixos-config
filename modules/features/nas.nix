@@ -12,6 +12,12 @@ in
       default = "/mnt/nas";
       description = "Local mount point";
     };
+
+    serverIp = lib.mkOption {
+      type = lib.types.str;
+      default = "nix-media"; # Use hostname (Tailscale DNS) or the IP "100.123.189.29"
+      description = "NFS Server IP or Hostname";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -23,7 +29,7 @@ in
     ];
 
     fileSystems."${cfg.mountPoint}" = {
-      device = "100.123.189.29:/mnt/storage";
+      device = "${cfg.serverIp}:/";
       fsType = "nfs";
       options = [
         "x-systemd.automount"

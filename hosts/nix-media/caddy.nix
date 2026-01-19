@@ -175,7 +175,6 @@ in
   # Provision the HTML file
   environment.etc."caddy/landing.html".source = landingPage;
 
-
   services.tailscale.permitCertUid = "caddy";
   # Allow Caddy to access Tailscale certificate socket
   systemd.services.caddy.serviceConfig = {
@@ -184,4 +183,3 @@ in
     RestartSec = "5s";
   };
 }
-	

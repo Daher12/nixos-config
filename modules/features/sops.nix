@@ -16,24 +16,26 @@ in
     enable = lib.mkEnableOption "SOPS Secret Management";
 
     method = lib.mkOption {
-      type = lib.types.enum [ "age" "ssh" ];
+      type = lib.types.enum [
+        "age"
+        "ssh"
+      ];
       default = "age";
       description = "Decryption method: 'age' uses an age key file, 'ssh' derives an age identity from an SSH private key (typically the host ed25519 key).";
     };
   };
 
   config = lib.mkIf cfg.enable {
-    assertions =
-      [
-        {
-          assertion = builtins.pathExists secretsFile;
-          message = "SOPS enabled for host '${hostname}' but no secrets file found at: ${toString secretsFile}";
-        }
-      ]
-      ++ lib.optional (cfg.method == "ssh") {
-        assertion = builtins.pathExists sshHostKey;
-        message = "SOPS method 'ssh' selected but SSH host key not found at: ${sshHostKey}";
-      };
+    assertions = [
+      {
+        assertion = builtins.pathExists secretsFile;
+        message = "SOPS enabled for host '${hostname}' but no secrets file found at: ${toString secretsFile}";
+      }
+    ]
+    ++ lib.optional (cfg.method == "ssh") {
+      assertion = builtins.pathExists sshHostKey;
+      message = "SOPS method 'ssh' selected but SSH host key not found at: ${sshHostKey}";
+    };
 
     sops = {
       defaultSopsFormat = "yaml";
@@ -48,4 +50,3 @@ in
     };
   };
 }
-
