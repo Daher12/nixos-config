@@ -153,7 +153,8 @@
 
   # Explicitly disable other desktop features
   services.pulseaudio.enable = false;
-  services.udisks2.enable = false;
+  services.udisks2.enable = lib.mkForce false;
   services.flatpak.enable = false;
+  services.fwupd.enable = lib.mkForce false;
 
 }

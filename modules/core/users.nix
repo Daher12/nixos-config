@@ -36,6 +36,10 @@ in
         "adbusers"
         "render"
       ];
+      openssh.authorizedKeys.keys = [
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINvXYwk5iekNITQ2UrkllAeaA/Ax7NusdRqmYFeGsR9p"
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGFnKXecASihl/0JbGW5aoFVnYSfpfkmhma6S5VwLMd3"
+      ];
     };
 
     users.groups.${mainUser} = { };

@@ -105,18 +105,18 @@ in
   # --- SMART Disk Monitoring ---
   services.smartd = {
     enable = true; # Required for NixOS 25.11+
-    
+
     notifications = {
       x11.enable = false;
       wall.enable = true; # Console broadcast
       mail.enable = false;
     };
-    
+
     extraOptions = [
       "-A /var/log/smartd/"
       "--attributelog=-"
     ];
-    
+
     # Use the smartdNotify wrapper defined above
     defaults.monitored = "-a -o on -s (S/../.././02|L/../../6/03) -W 4,45,55 -m @${smartdNotify}";
   };
