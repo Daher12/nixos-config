@@ -151,6 +151,7 @@
           # regarding 'home.stateVersion' without installing full user environment.
           hmModules = [
             { home.stateVersion = "24.05"; }
+            ./home/git.nix
           ];
 
           extraSpecialArgs = {

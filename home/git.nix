@@ -6,9 +6,11 @@
     package = pkgs.gitMinimal;
 
     settings = {
-      user.name = "Daher12";
-      user.email = "133640261+Daher12@users.noreply.github.com";
-
+      user = {
+        name = "Daher12";
+        email = "133640261+Daher12@users.noreply.github.com";
+        signingkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINvXYwk5iekNITQ2UrkllAeaA/Ax7NusdRqmYFeGsR9p";
+      };
       init.defaultBranch = "main";
       core.editor = "ox";
 
@@ -18,6 +20,9 @@
       push.autoSetupRemote = true;
 
       "url \"ssh://git@github.com/\"".insteadOf = "https://github.com/";
+
+      gpg.format = "ssh";
+      commit.gpgsign = true;
 
       diff = {
         colorMoved = "default";
