@@ -175,12 +175,13 @@ in
   # Provision the HTML file
   environment.etc."caddy/landing.html".source = landingPage;
 
+
+  services.tailscale.permitCertUid = "caddy";
   # Allow Caddy to access Tailscale certificate socket
   systemd.services.caddy.serviceConfig = {
-    # FIX: Use mkForce to override the default "caddy" group
-    Group = lib.mkForce "tailscale";
     LogsDirectory = "caddy";
     Restart = "on-failure";
     RestartSec = "5s";
   };
 }
+	

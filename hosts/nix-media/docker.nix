@@ -84,9 +84,6 @@ in
             # [SECURE PARITY] GPU Access via Numeric GID
             "--group-add=${renderGid}"
 
-            # [RESILIENCE] Restart Policy
-            "--restart=unless-stopped"
-
             "--cpus=3.5"
             "--shm-size=256m"
             "--pids-limit=1000"
@@ -120,7 +117,6 @@ in
           ports = [ "13378:80" ];
           extraOptions = [
             "--network=${dockerNetwork.name}"
-            "--restart=unless-stopped"
             "--memory=512m"
             "--cpus=0.5"
             "--pids-limit=100"
@@ -145,7 +141,6 @@ in
           ];
           ports = [ "127.0.0.1:8080:8080" ];
           extraOptions = [
-            "--restart=unless-stopped"
             "--device=/dev/kmsg"
             "--memory=256m"
             "--cpus=0.25"
