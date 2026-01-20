@@ -42,10 +42,10 @@ in
         "x-systemd.after=tailscaled.service"
         "nfsvers=4.2"
         "soft"
-        "timeo=30"
+        "timeo=600"
         "resvport"
         # FIX: Add retry logic for transient network issues
-        "retrans=3"
+        "retrans=2"
         "_netdev"
       ];
     };

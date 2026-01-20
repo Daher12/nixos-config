@@ -149,10 +149,7 @@
 
           # Minimal Home Manager config to satisfy the module requirement
           # regarding 'home.stateVersion' without installing full user environment.
-          hmModules = [
-            { home.stateVersion = "24.05"; }
-            ./home/git.nix
-          ];
+          hmModules = [ ./hosts/nix-media/home.nix ];
 
           extraSpecialArgs = {
             winappsPackages = null;
