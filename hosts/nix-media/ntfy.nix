@@ -94,8 +94,14 @@ in
         description = "Notify on system boot";
         wantedBy = [ "multi-user.target" ];
         # FIX: Explicitly wait for secrets to be decrypted
-        after = [ "network-online.target" "sops-nix.service" ];
-        wants = [ "network-online.target" "sops-nix.service" ];
+        after = [
+          "network-online.target"
+          "sops-nix.service"
+        ];
+        wants = [
+          "network-online.target"
+          "sops-nix.service"
+        ];
         serviceConfig = {
           Type = "oneshot";
           ExecStart = "${ntfySend}/bin/ntfy-send default computer,white_check_mark \"System Boot\" \"${hostname} started successfully\"";
