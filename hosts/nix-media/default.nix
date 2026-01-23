@@ -1,7 +1,7 @@
 {
   pkgs,
   lib,
-  mainUser, # Injected via specialArgs from flake.nix
+  mainUser,
   ...
 }:
 
@@ -13,7 +13,6 @@
     ./caddy.nix
     ./ntfy.nix
 
-    # Feature modules
     ../../modules/features/sops.nix
     ../../modules/features/vpn.nix
     ../../modules/hardware/intel-gpu.nix
@@ -28,14 +27,9 @@
       configurationLimit = 10;
     };
 
-    #    kernelPackages = pkgs.linuxPackages_6_12;
-
     kernelParams = [
       "transparent_hugepage=madvise"
-      #      "i915.force_probe=46d1"
     ];
-
-    #    supportedFilesystems = [ "ntfs" ];
 
     kernel.sysctl = {
       "vm.swappiness" = 10;
@@ -63,7 +57,6 @@
   environment.systemPackages = with pkgs; [
     mergerfs
     xfsprogs
-    #    ntfs3g
     wget
     mosh
     ethtool
@@ -82,7 +75,7 @@
   # ---------------------------------------------------------------------------
   networking = {
     interfaces.enp1s0.wakeOnLan.enable = true;
-    firewall.allowedTCPPorts = [ 2049 ]; # NFS
+    firewall.allowedTCPPorts = [ 2049 ];
   };
 
   features.vpn.tailscale = {
@@ -94,7 +87,6 @@
   # ---------------------------------------------------------------------------
   # Shell & User Environment
   # ---------------------------------------------------------------------------
-  # [FIXED] Merged all 'programs' definitions into one block
   programs = {
     zsh = {
       enable = true;
@@ -108,7 +100,7 @@
       };
     };
     zoxide.enable = true;
-    adb.enable = lib.mkForce false; # Headless optimization
+    adb.enable = lib.mkForce false;
   };
 
   users.users.${mainUser} = {
@@ -119,7 +111,6 @@
   # ---------------------------------------------------------------------------
   # Services
   # ---------------------------------------------------------------------------
-  # [FIXED] Merged all 'services' definitions into one block
   services = {
     journald.extraConfig = ''
       Storage=persistent
@@ -163,7 +154,6 @@
     };
     thermald.enable = true;
 
-    # Headless Optimizations (Merged here to satisfy linter)
     pipewire.enable = lib.mkForce false;
     pulseaudio.enable = false;
     libinput.enable = lib.mkForce false;
@@ -180,7 +170,7 @@
     autoUpgrade = {
       enable = true;
       dates = "04:00";
-      allowReboot = false;
+      operation = "boot";  # Stage new generation, don't auto-switch
       flake = "github:daher12/nixos-config#nix-media";
       randomizedDelaySec = "45min";
     };
@@ -188,4 +178,45 @@
 
   features.sops.enable = true;
   security.rtkit.enable = lib.mkForce false;
+
+  # ---------------------------------------------------------------------------
+  # Weekly Reboot with Validation
+  # ---------------------------------------------------------------------------
+  systemd.services.weekly-maintenance-reboot = {
+    description = "Weekly reboot into latest NixOS generation";
+    serviceConfig.Type = "oneshot";
+    
+    script = ''
+      set -e
+      
+      # 1. Abort if media is actively streaming
+      ${pkgs.curl}/bin/curl -sf http://127.0.0.1:8096/Sessions \
+        | ${pkgs.jq}/bin/jq -e '. | length == 0' \
+        || { echo "Active Jellyfin sessions, aborting"; exit 0; }
+      
+      # 2. Check if new generation exists
+      CURRENT=$(readlink /run/current-system)
+      NEXT=$(readlink /nix/var/nix/profiles/system)
+      
+      if [ "$CURRENT" = "$NEXT" ]; then
+        echo "No new generation, skipping reboot"
+        exit 0
+      fi
+      
+      # 3. Dry-activate new generation (catches broken services)
+      $NEXT/bin/switch-to-configuration test 2>&1 | tee /var/log/pre-reboot-test.log
+      
+      # 4. Schedule reboot
+      echo "Validation passed, rebooting in 60s..."
+      shutdown -r +1 "Applying weekly NixOS updates"
+    '';
+  };
+
+  systemd.timers.weekly-maintenance-reboot = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "Sun 04:30";
+      Persistent = true;
+    };
+  };
 }
