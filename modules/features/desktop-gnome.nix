@@ -45,7 +45,7 @@ in
 
     services = {
       xserver = {
-        enable = true;
+        enable = lib.mkDefault true;
         xkb.layout = "de";
         excludePackages = [ pkgs.xterm ];
       };
@@ -118,6 +118,6 @@ in
       ];
     };
 
-    programs.dconf.enable = true;
+    programs.dconf.enable = lib.mkDefault true;
   };
 }
