@@ -75,15 +75,15 @@ in
       };
     };
     programs.zoxide.enable = lib.mkDefault true;
-    programs.adb.enable = true;
+    programs.adb.enable = lib.mkDefault true;
 
     services = {
       pipewire = {
-        enable = true;
-        alsa.enable = true;
-        alsa.support32Bit = true;
-        pulse.enable = true;
-        jack.enable = true;
+        enable = lib.mkDefault true;
+        alsa.enable = lib.mkDefault true;
+        alsa.support32Bit = lib.mkDefault true;
+        pulse.enable = lib.mkDefault true;
+        jack.enable = lib.mkDefault true;
         extraConfig.pipewire = {
           "10-clock-rate" = {
             "context.properties" = {
@@ -96,8 +96,8 @@ in
         };
       };
 
-      libinput.enable = true;
-      fwupd.enable = true;
+      libinput.enable = lib.mkDefault true;
+      fwupd.enable = lib.mkDefault true;
       logind.settings.Login = {
         HandleLidSwitch = "suspend";
         HandleLidSwitchExternalPower = "ignore";
@@ -121,13 +121,13 @@ in
       doc.enable = false;
     };
     boot.kernel.sysctl = {
-      "vm.max_map_count" = 1048576;
-      "vm.dirty_ratio" = 10;
-      "vm.dirty_background_ratio" = 5;
-      "vm.dirty_writeback_centisecs" = 1500;
-      "vm.dirty_expire_centisecs" = 3000;
-      "fs.file-max" = 2097152;
-      "fs.inotify.max_user_watches" = 524288;
+      "vm.max_map_count" = lib.mkDefault 1048576;
+      "vm.dirty_ratio" = lib.mkDefault 10;
+      "vm.dirty_background_ratio" = lib.mkDefault 5;
+      "vm.dirty_writeback_centisecs" = lib.mkDefault 1500;
+      "vm.dirty_expire_centisecs" = lib.mkDefault 3000;
+      "fs.file-max" = lib.mkDefault 2097152;
+      "fs.inotify.max_user_watches" = lib.mkDefault 524288;
     };
   };
 }
