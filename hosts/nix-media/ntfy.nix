@@ -16,15 +16,17 @@ let
   # Secrets: Define the topic secret
   secretName = "ntfy_topic";
 
-  # List of systemd services to monitor for failure
-  failureServices = [
-    "docker-jellyfin"
-    "docker-audiobookshelf"
-    "docker-cadvisor"
-    "docker-network-jellyfin"
-    "nixos-upgrade"
-    "docker-image-refresh"
-  ];
+ # Critical services to monitor (regenerate with: systemctl list-units --type=service)
+  criticalServices = [
+    "docker-jellyfin.service"
+    "docker-audiobookshelf.service"
+    "docker-cadvisor.service"
+    "docker-network-jellyfin.service"
+    "nixos-upgrade.service"
+   "docker-image-refresh.service"
+   ];
+
+  failureServices = map (lib.removeSuffix ".service") criticalServices;
 
   # The main notification script (Reads topic from SOPS secret)
   ntfySend = pkgs.writeShellScriptBin "ntfy-send" ''
