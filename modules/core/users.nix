@@ -59,7 +59,7 @@ in
           Defaults !tty_tickets
         '';
       };
-      rtkit.enable = true;
+      rtkit.enable = lib.mkDefault true;
     };
 
     programs.fish.enable = lib.mkDefault (cfg.defaultShell == "fish");
