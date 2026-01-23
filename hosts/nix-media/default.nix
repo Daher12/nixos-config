@@ -44,7 +44,7 @@
 
     # Host-specific sysctl overrides (additive to core.sysctl.optimizeForServer)
     kernel.sysctl = {
-      "vm.dirty_writeback_centisecs" = lib.mkForce 200;
+      "vm.dirty_writeback_centisecs" = 200;
     };
   };
 
