@@ -16,7 +16,7 @@
     ./monitoring.nix
     ./caddy.nix
     ./ntfy.nix
-    ./maintenance.nix # NEW: Encapsulates auto-upgrade & reboot logic
+    ./maintenance.nix # Encapsulates auto-upgrade & reboot logic
 
     # Global Features
     ../../modules/features/sops.nix
@@ -75,11 +75,53 @@
   ];
 
   # ---------------------------------------------------------------------------
-  # Networking
+  # Networking (systemd-networkd)
   # ---------------------------------------------------------------------------
   networking = {
-    interfaces.enp1s0.wakeOnLan.enable = true;
+    # 1. Disable the desktop-oriented NetworkManager
+    # (Overrides core mkDefault from modules/core/networking.nix)
+    networkmanager.enable = false;
+
+    # 2. Enable systemd-networkd (Server standard)
+    useNetworkd = true;
+    
+    # 3. Explicitly overwrite hardware-configuration.nix legacy settings
+    # This ensures we don't run two DHCP clients or have ambiguous config.
+    interfaces.enp1s0.useDHCP = lib.mkForce false;
+    
+    # 4. Firewall (WoL is now handled by networkd below)
     firewall.allowedTCPPorts = [ 2049 ];
+  };
+  
+  # 5. Define the Link Configuration (Physical Layer)
+  systemd.network.links."10-enp1s0" = {
+    matchConfig.Name = "enp1s0";
+    linkConfig = {
+      # Native networkd WoL handling (replaces legacy networking.interfaces.*.wakeOnLan)
+      WakeOnLan = "magic";
+    };
+  };
+
+  # 6. Define the Network Configuration (Logical Layer)
+  systemd.network.networks."10-lan" = {
+    matchConfig.Name = "enp1s0";
+    networkConfig = {
+      # Explicit IPv4 only to avoid timeouts/delays from partial IPv6
+      DHCP = "ipv4";
+      IPv6AcceptRA = false;
+      LinkLocalAddressing = "no"; 
+    };
+    # Critical: If using AdGuard/PiHole, uncomment below to stop DHCP DNS override
+    # dhcpV4Config.UseDNS = false;
+  };
+  
+  # 7. Ensure maintenance services wait for VALID network connectivity
+  systemd.network.wait-online = {
+    enable = true;
+    timeout = 30;
+    # Scope to enp1s0 AND require it to be 'routable' (DHCP done + routes present).
+    # This guarantees network-online.target truly means "internet ready".
+    extraArgs = [ "--interface=enp1s0:routable" ];
   };
 
   features.vpn.tailscale = {
