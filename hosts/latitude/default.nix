@@ -10,7 +10,8 @@
   core.locale.timeZone = "Europe/Berlin";
 
   hardware.intel-gpu.enable = true;
-  hardware.nvidia-disable.enable = true;
+  hardware.nvidia.disable.enable = true;
+  services.xserver.enable = false;
 
   features = {
     filesystem = {
