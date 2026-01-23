@@ -2,6 +2,7 @@
   config,
   lib,
   mainUser,
+  pkgs,
   ...
 }:
 
@@ -20,6 +21,15 @@ in
       default = "User";
       description = "User full name";
     };
+    defaultShell = lib.mkOption {
+      type = lib.types.enum [
+        "fish"
+        "zsh"
+        "bash"
+      ];
+      default = "fish";
+      description = "Default shell for main user";
+    };
   };
 
   config = {
@@ -27,6 +37,7 @@ in
       isNormalUser = true;
       inherit (cfg) description;
       group = mainUser;
+      shell = pkgs.${cfg.defaultShell};
       extraGroups = [
         "networkmanager"
         "wheel"
@@ -51,8 +62,21 @@ in
       rtkit.enable = true;
     };
 
-    programs.fish.enable = true;
+    programs.fish.enable = lib.mkDefault (cfg.defaultShell == "fish");
+    programs.zsh = lib.mkIf (cfg.defaultShell == "zsh") {
+      enable = true;
+      enableCompletion = true;
+      autosuggestions.enable = true;
+      syntaxHighlighting.enable = true;
+      histSize = 10000;
+      ohMyZsh = {
+        enable = true;
+        theme = "agnoster";
+      };
+    };
+    programs.zoxide.enable = lib.mkDefault true;
     programs.adb.enable = true;
+
     services = {
       pipewire = {
         enable = true;
