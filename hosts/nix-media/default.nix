@@ -119,7 +119,7 @@
       };
     };
 
-    rpcbind.enable = false;
+    rpcbind.enable = lib.mkForce false;
     nfs = {
       server = {
         enable = true;
