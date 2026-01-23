@@ -121,7 +121,7 @@ in
       doc.enable = false;
     };
     boot.kernel.sysctl = {
-      "vm.max_map_count" = lib.mkDefault 1048576;
+      "vm.max_map_count" = lib.mkForce 1048576; # Force to fix nix build error
       "vm.dirty_ratio" = lib.mkDefault 10;
       "vm.dirty_background_ratio" = lib.mkDefault 5;
       "vm.dirty_writeback_centisecs" = lib.mkDefault 1500;
