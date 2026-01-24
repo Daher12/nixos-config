@@ -6,7 +6,7 @@
   # ---------------------------------------------------------------------------
   system.autoUpgrade = {
     enable = true;
-    dates = "04:00";
+    dates = "05:00";
     operation = "boot"; # Stage only. Do not switch.
     flake = "github:daher12/nixos-config#nix-media";
     randomizedDelaySec = "45min";
@@ -135,8 +135,8 @@
   systemd.timers.weekly-maintenance-reboot = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      # 05:00 ensures autoUpgrade (04:00 + 45m random) has mostly completed.
-      OnCalendar = "Sun 05:00";
+      # 07:30 ensures autoUpgrade (05:00 + 45m random) has completed.
+      OnCalendar = "Sun 07:30";
       Persistent = true;
     };
   };
