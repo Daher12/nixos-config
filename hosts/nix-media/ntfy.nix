@@ -16,15 +16,15 @@ let
   # Secrets: Define the topic secret
   secretName = "ntfy_topic";
 
- # Critical services to monitor (regenerate with: systemctl list-units --type=service)
+  # Critical services to monitor (regenerate with: systemctl list-units --type=service)
   criticalServices = [
     "docker-jellyfin.service"
     "docker-audiobookshelf.service"
     "docker-cadvisor.service"
     "docker-network-jellyfin.service"
     "nixos-upgrade.service"
-   "docker-image-refresh.service"
-   ];
+    "docker-image-refresh.service"
+  ];
 
   failureServices = map (lib.removeSuffix ".service") criticalServices;
 

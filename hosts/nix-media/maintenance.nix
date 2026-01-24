@@ -1,4 +1,4 @@
-{ pkgs, config, ... }:
+{ pkgs, ... }:
 
 {
   # ---------------------------------------------------------------------------
@@ -19,15 +19,15 @@
   # ---------------------------------------------------------------------------
   systemd.services.weekly-maintenance-reboot = {
     description = "Weekly reboot into latest NixOS generation with safety checks";
-    
+
     # Ensure network is up so we don't false-negative on the curl check
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
-    
+
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      
+
       # Bound runtime; avoid stuck oneshots holding state
       TimeoutStartSec = "2min";
 
@@ -44,41 +44,41 @@
       RuntimeDirectoryMode = "0700";
     };
 
-    path = with pkgs; [ 
-      curl 
-      jq 
-      coreutils 
-      systemd 
+    path = with pkgs; [
+      curl
+      jq
+      coreutils
+      systemd
     ];
 
     script = ''
       set -euo pipefail
-      
+
       # -----------------------------------------------------------------------
       # 1. Safety Checks (Activity Detection)
       # -----------------------------------------------------------------------
-      
+
       # Check Jellyfin (Port 8096)
       TMP="$RUNTIME_DIRECTORY/jf-sessions.json"
-      
+
       # Fail-closed: If we cannot explicitly confirm the server is idle, we assume it is busy.
       if ! curl -sf --max-time 5 http://127.0.0.1:8096/Sessions -o "$TMP"; then
          echo "Unable to query Jellyfin sessions (curl failed). Skipping reboot (fail-closed)."
          exit 0
       fi
-      
+
       # Guard against parse errors (e.g. invalid JSON, 502 HTML response)
       if ! jq -e '.' < "$TMP" >/dev/null; then
          echo "Unable to parse Jellyfin sessions JSON. Skipping reboot (fail-closed)."
          exit 0
       fi
-      
+
       # Fail-closed on unexpected schema: require an array.
       if ! jq -e 'type == "array"' < "$TMP" >/dev/null; then
          echo "Unexpected Jellyfin sessions payload type (not array). Skipping reboot (fail-closed)."
          exit 0
       fi
-      
+
       if jq -e 'length > 0' < "$TMP" >/dev/null; then
          echo "Active Jellyfin sessions detected. Aborting maintenance reboot."
          exit 0
@@ -94,18 +94,18 @@
         echo "Uptime < 1h (timer catch-up scenario). Skipping reboot."
         exit 0
       fi
-      
+
       # -----------------------------------------------------------------------
       # 2. Idempotency Check
       # -----------------------------------------------------------------------
       CURRENT=$(readlink -f /run/current-system)
       NEXT=$(readlink -f /nix/var/nix/profiles/system)
-      
+
       if [ "$CURRENT" = "$NEXT" ]; then
         echo "System is already running the latest generation. Skipping reboot."
         exit 0
       fi
-      
+
       # -----------------------------------------------------------------------
       # 3. Validation & Execution
       # -----------------------------------------------------------------------
@@ -126,7 +126,7 @@
         echo "nixos-upgrade.service failed. Skipping reboot to prevent loading bad state."
         exit 0
       fi
-      
+
       echo "Safety checks passed. Rebooting into staged generation."
       shutdown -r +1 "Applying weekly NixOS updates"
     '';

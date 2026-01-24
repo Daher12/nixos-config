@@ -84,44 +84,46 @@
 
     # 2. Enable systemd-networkd (Server standard)
     useNetworkd = true;
-    
+
     # 3. Explicitly overwrite hardware-configuration.nix legacy settings
     # This ensures we don't run two DHCP clients or have ambiguous config.
     interfaces.enp1s0.useDHCP = lib.mkForce false;
-    
+
     # 4. Firewall (WoL is now handled by networkd below)
     firewall.allowedTCPPorts = [ 2049 ];
   };
-  
-  # 5. Define the Link Configuration (Physical Layer)
-  systemd.network.links."10-enp1s0" = {
-    matchConfig.Name = "enp1s0";
-    linkConfig = {
-      # Native networkd WoL handling (replaces legacy networking.interfaces.*.wakeOnLan)
-      WakeOnLan = "magic";
-    };
-  };
 
-  # 6. Define the Network Configuration (Logical Layer)
-  systemd.network.networks."10-lan" = {
-    matchConfig.Name = "enp1s0";
-    networkConfig = {
-      # Explicit IPv4 only to avoid timeouts/delays from partial IPv6
-      DHCP = "ipv4";
-      IPv6AcceptRA = false;
-      LinkLocalAddressing = "no"; 
+  systemd.network = {
+    # 5. Define the Link Configuration (Physical Layer)
+    links."10-enp1s0" = {
+      matchConfig.Name = "enp1s0";
+      linkConfig = {
+        # Native networkd WoL handling (replaces legacy networking.interfaces.*.wakeOnLan)
+        WakeOnLan = "magic";
+      };
     };
-    # Critical: If using AdGuard/PiHole, uncomment below to stop DHCP DNS override
-    # dhcpV4Config.UseDNS = false;
-  };
-  
-  # 7. Ensure maintenance services wait for VALID network connectivity
-  systemd.network.wait-online = {
-    enable = true;
-    timeout = 30;
-    # Scope to enp1s0 AND require it to be 'routable' (DHCP done + routes present).
-    # This guarantees network-online.target truly means "internet ready".
-    extraArgs = [ "--interface=enp1s0:routable" ];
+
+    # 6. Define the Network Configuration (Logical Layer)
+    networks."10-lan" = {
+      matchConfig.Name = "enp1s0";
+      networkConfig = {
+        # Explicit IPv4 only to avoid timeouts/delays from partial IPv6
+        DHCP = "ipv4";
+        IPv6AcceptRA = false;
+        LinkLocalAddressing = "no";
+      };
+      # Critical: If using AdGuard/PiHole, uncomment below to stop DHCP DNS override
+      # dhcpV4Config.UseDNS = false;
+    };
+
+    # 7. Ensure maintenance services wait for VALID network connectivity
+    wait-online = {
+      enable = true;
+      timeout = 30;
+      # Scope to enp1s0 AND require it to be 'routable' (DHCP done + routes present).
+      # This guarantees network-online.target truly means "internet ready".
+      extraArgs = [ "--interface=enp1s0:routable" ];
+    };
   };
 
   features.vpn.tailscale = {
@@ -148,6 +150,7 @@
       RateLimitInterval=30s
       RateLimitBurst=1000
     '';
+
     logrotate.enable = true;
 
     openssh = {

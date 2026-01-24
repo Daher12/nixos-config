@@ -16,6 +16,7 @@ in
       default = 30;
       description = "Sudo password timeout in minutes";
     };
+
     description = lib.mkOption {
       type = lib.types.str;
       default = "User";
@@ -62,20 +63,22 @@ in
       rtkit.enable = lib.mkDefault true;
     };
 
-    programs.fish.enable = lib.mkDefault (cfg.defaultShell == "fish");
-    programs.zsh = lib.mkIf (cfg.defaultShell == "zsh") {
-      enable = true;
-      enableCompletion = true;
-      autosuggestions.enable = true;
-      syntaxHighlighting.enable = true;
-      histSize = 10000;
-      ohMyZsh = {
+    programs = {
+      fish.enable = lib.mkDefault (cfg.defaultShell == "fish");
+      zsh = lib.mkIf (cfg.defaultShell == "zsh") {
         enable = true;
-        theme = "agnoster";
+        enableCompletion = true;
+        autosuggestions.enable = true;
+        syntaxHighlighting.enable = true;
+        histSize = 10000;
+        ohMyZsh = {
+          enable = true;
+          theme = "agnoster";
+        };
       };
+      zoxide.enable = lib.mkDefault true;
+      adb.enable = lib.mkDefault true;
     };
-    programs.zoxide.enable = lib.mkDefault true;
-    programs.adb.enable = lib.mkDefault true;
 
     services = {
       pipewire = {
@@ -120,14 +123,17 @@ in
       info.enable = false;
       doc.enable = false;
     };
+
     boot.kernel.sysctl = {
-      "vm.max_map_count" = lib.mkForce 1048576; # Force to fix nix build error
+      "vm.max_map_count" = lib.mkForce 1048576;
+      # Force to fix nix build error
       "vm.dirty_ratio" = lib.mkDefault 10;
       "vm.dirty_background_ratio" = lib.mkDefault 5;
       "vm.dirty_writeback_centisecs" = lib.mkDefault 1500;
       "vm.dirty_expire_centisecs" = lib.mkDefault 3000;
       "fs.file-max" = lib.mkDefault 2097152;
-      "fs.inotify.max_user_watches" = lib.mkDefault 524288;
+      # Fix priority collision with upstream defaults (mkOverride 900 vs 1000)
+      "fs.inotify.max_user_watches" = lib.mkOverride 900 524288;
     };
   };
 }

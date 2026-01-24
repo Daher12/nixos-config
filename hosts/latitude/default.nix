@@ -8,10 +8,8 @@
   system.stateVersion = "25.05";
 
   core.locale.timeZone = "Europe/Berlin";
-
   hardware.intel-gpu.enable = true;
   hardware.nvidia.disable.enable = true;
-  services.xserver.enable = false;
 
   features = {
     filesystem = {
@@ -52,7 +50,8 @@
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "disable-wakeups" ''
         disable_wakeup() {
-          if grep -q "^$1.*enabled" /proc/acpi/wakeup; then
+          if grep -q "^$1.*enabled" /proc/acpi/wakeup;
+          then
             echo $1 > /proc/acpi/wakeup
           fi
         }
@@ -62,11 +61,13 @@
     };
   };
 
-  services.udev.extraRules = ''
-    ACTION=="add|change", SUBSYSTEM=="usb", TAG+="systemd", ENV{SYSTEMD_WANTS}+="disable-wakeup-sources.service"
-  '';
-
   services = {
+    xserver.enable = false;
+
+    udev.extraRules = ''
+      ACTION=="add|change", SUBSYSTEM=="usb", TAG+="systemd", ENV{SYSTEMD_WANTS}+="disable-wakeup-sources.service"
+    '';
+
     thermald.enable = true;
     preload-ng = {
       enable = true;

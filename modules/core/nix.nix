@@ -43,35 +43,35 @@ in
           "nix-command"
           "flakes"
         ];
-        
+
         # FIX: Use mkDefault for settings that might vary by host hardware
         auto-optimise-store = lib.mkDefault true;
         max-jobs = lib.mkDefault "auto";
         cores = lib.mkDefault 0;
-        
+
         trusted-users = [
           "root"
           mainUser
         ];
-        
+
         sandbox = lib.mkDefault true;
         sandbox-fallback = false;
 
         min-free = 5368709120;
         max-free = 21474836480;
-        
+
         substituters = [
           "https://cache.nixos.org"
           "https://cache.lix.systems"
           "https://nix-community.cachix.org"
         ];
-        
+
         trusted-public-keys = [
           "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
           "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
           "cache.lix.systems:aBnZUw8zA7H35Cz2RyKFVs3H4PlGTLawyY5KRbvJR8o="
         ];
-        
+
         fallback = lib.mkDefault true;
         http-connections = 128;
         connect-timeout = 5;
@@ -86,7 +86,7 @@ in
         accept-flake-config = true;
         narinfo-cache-negative-ttl = 3600;
         narinfo-cache-positive-ttl = 2592000;
-        
+
         # Purity: Disable the global registry to prevent 'surprise' network lookups.
         # We rely solely on the pinned registry entries below.
         flake-registry = "";
