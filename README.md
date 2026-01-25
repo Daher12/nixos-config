@@ -9,9 +9,9 @@ Production-grade NixOS flake managing 3 hosts (2 workstations, 1 headless media 
 ## Architecture
 
 **Hosts:**
-- `yoga` (Lenovo Yoga 7 Slim Gen 8): High-performance AMD workstation with Btrfs, Secure Boot, hardware transcoding VM
-- `latitude` (Dell E7450): Legacy Intel laptop optimized for battery life and responsiveness
-- `nix-media` (Intel N100 Mini PC): Headless media server with Docker containers, XFS storage pool, monitoring stack
+- `yoga` (Lenovo Yoga 7 Slim Gen 8): AMD workstation with 
+- `latitude` (Dell E7450): Legacy laptop optimized 
+- `nix-media` (Intel N100 Mini PC): Headless media server with Docker containers, storage pool, monitoring stack
 
 **Core Design:**
 - **Modularity**: Composable `core/`, `hardware/`, `features/` modules with profile-based bundling (`laptop`, `desktop-gnome`)
