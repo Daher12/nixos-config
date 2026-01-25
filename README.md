@@ -36,26 +36,26 @@ nix flake check                     # Lint (statix/deadnix/nixfmt)
 **Security & Secrets:**
 - Lanzaboote Secure Boot (yoga, latitude)
 - SOPS-nix encrypted WiFi credentials, Grafana passwords, ntfy topics
-- Tailscale mesh networking with WireGuard
+- Tailscale mesh networking
 
 **Performance Optimizations:**
 - Ryzen TDP control with AC/battery profiles (yoga: 54W/18W)
 - Btrfs with zstd compression, async discard, automated scrub/balance
-- ZRAM with tuned kernel parameters (`vm.swappiness=100`)
+- ZRAM 
 - BBR congestion control, fq qdisc, TCP Fast Open
 
 **Desktop (GNOME 47 + Wayland):**
 - Nord-themed GTK/Qt with automatic light/dark switching (darkman)
 - Ghostty terminal, Fish shell with hydro prompt
-- GPU-accelerated kmscon console
+- kmscon console
 
 **Media Server Stack:**
 - Jellyfin + Audiobookshelf in Docker with Intel QSV transcoding
 - Prometheus + Grafana monitoring with custom Intel GPU metrics
 - Caddy reverse proxy with Tailscale TLS certificates
 - MergerFS pooled XFS storage, NFS exports over Tailscale
-- Weekly automated upgrades with activity-aware reboot logic
-
+- Weekly automated upgrades
+  
 ## Structure
 ```
 .
