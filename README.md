@@ -1,36 +1,94 @@
 # Unified NixOS Configuration
 
-This repository contains a modular NixOS flake configuration targeting **NixOS 25.11**. It utilizes a unified architecture to manage multiple hosts with shared profiles, hardware-specific modules, and a consistent Home Manager environment.
+[![NixOS](https://img.shields.io/badge/NixOS-25.11-blue.svg)](https://nixos.org)
+[![Lix](https://img.shields.io/badge/Lix-2.93.3-blueviolet.svg)](https://lix.systems)
+[![Flake](https://img.shields.io/badge/Flake-enabled-green.svg)](https://nixos.wiki/wiki/Flakes)
 
-## 🏗️ Configuration Overview
+Production-grade NixOS flake managing 3 hosts (2 workstations, 1 headless media server) with modular architecture, automated maintenance, and encrypted secrets.
 
-* **Package Manager**: Transitioned to **Lix** (v2.93.3-2) for enhanced performance and modern Nix features.
-* **System Architecture**: Uses a `mkHost` abstraction to inject global `inputs`, shared `overlays`, and consistent `specialArgs` across all configurations.
-* **Module System**:
-    * **Core**: Mandatory system services including Secure Boot (Lanzaboote), custom user management, and low-latency Pipewire audio.
-    * **Hardware**: Specialized modules for AMD/Intel GPUs and NVIDIA disabling.
-    * **Features**: Optional toggles for virtualization, TLP power management, zram, and filesystem-specific optimizations.
-* **Home Manager**: Fully integrated as a NixOS module with shared package sets and global configuration for the user `dk`.
+## Architecture
 
----
+**Hosts:**
+- `yoga` (Lenovo Yoga 7 Slim Gen 8): High-performance AMD workstation with Btrfs, Secure Boot, hardware transcoding VM
+- `latitude` (Dell E7450): Legacy Intel laptop optimized for battery life and responsiveness
+- `nix-media` (Intel N100 Mini PC): Headless media server with Docker containers, XFS storage pool, monitoring stack
 
-## 💻 Host Descriptions
+**Core Design:**
+- **Modularity**: Composable `core/`, `hardware/`, `features/` modules with profile-based bundling (`laptop`, `desktop-gnome`)
+- **Secrets**: SOPS-nix with per-host age keys (SSH-derived or dedicated)
+- **Unified Overlays**: Shared unstable overlay, consistent palette theming (Nord)
+- **CI/CD**: Daily automated flake updates with dry-run verification, weekly auto-upgrade on `nix-media`
 
-### 1. `yoga` (Lenovo Yoga 7 Slim Gen 8)
+## Quick Start
+```bash
+# Clone and build
+git clone https://github.com/daher12/nixos-config.git
+cd nixos-config
+nixos-rebuild switch --flake .#<hostname>
 
-* **Role**: Primary high-performance workstation.
-* **Kernel**: Zen variant with AMD-specific optimizations (`amd_pstate=active`) and `ryzen-smu` for power monitoring.
-* **Graphics**: AMD GPU enabled with Vulkan and VA-API support.
-* **Storage**: Btrfs on root/home/nix with `zstd:1` compression, `discard=async`, and automated monthly scrub/balance maintenance.
-* **Performance**: 50% zram allocation, `systemd-oomd`, and `ryzen-tdp` for custom AC/Battery power profiles.
-* **Security**: Secure Boot enabled via Lanzaboote with `sbctl` integration.
+# Maintenance
+nix flake update                    # Update all inputs
+nix flake check                     # Lint (statix/deadnix/nixfmt)
+```
 
-### 2. `latitude` (Dell Latitude E7450)
+## Key Features
 
-* **Role**: Portable legacy laptop.
-* **Kernel**: Zen variant with specific Intel i915 parameters for fastboot and FBC.
-* **Graphics**: Intel GPU enabled; dedicated NVIDIA hardware explicitly disabled to save power.
-* **Storage**: Standard Ext4 filesystem with high-performance mount options (`noatime`, `commit=30`).
-* **Performance**: Preload-NG enabled for faster application launching and System76-scheduler for foreground process boosting.
-* **Power**: TLP optimized for battery life and custom systemd services to disable spurious USB wakeups.
+**Security & Secrets:**
+- Lanzaboote Secure Boot (yoga, latitude)
+- SOPS-nix encrypted WiFi credentials, Grafana passwords, ntfy topics
+- Tailscale mesh networking with WireGuard
 
+**Performance Optimizations:**
+- Ryzen TDP control with AC/battery profiles (yoga: 54W/18W)
+- Btrfs with zstd compression, async discard, automated scrub/balance
+- ZRAM with tuned kernel parameters (`vm.swappiness=100`)
+- BBR congestion control, fq qdisc, TCP Fast Open
+
+**Desktop (GNOME 47 + Wayland):**
+- Nord-themed GTK/Qt with automatic light/dark switching (darkman)
+- Ghostty terminal, Fish shell with hydro prompt
+- GPU-accelerated kmscon console
+
+**Media Server Stack:**
+- Jellyfin + Audiobookshelf in Docker with Intel QSV transcoding
+- Prometheus + Grafana monitoring with custom Intel GPU metrics
+- Caddy reverse proxy with Tailscale TLS certificates
+- MergerFS pooled XFS storage, NFS exports over Tailscale
+- Weekly automated upgrades with activity-aware reboot logic
+
+## Structure
+```
+.
+├── flake.nix              # Entry point, host definitions
+├── lib/
+│   ├── mkHost.nix         # Host builder with shared args
+│   └── palette.nix        # Nord color scheme
+├── modules/
+│   ├── core/              # Base system (boot, nix, users, networking)
+│   ├── hardware/          # GPU drivers, TDP control, NVIDIA disable
+│   └── features/          # Optional toggles (desktop, power, VMs, fonts)
+├── profiles/
+│   ├── laptop.nix         # Battery optimizations, SOPS WiFi, Tailscale
+│   └── desktop-gnome.nix  # GNOME with curated exclusions
+├── hosts/
+│   ├── yoga/              # Btrfs, Secure Boot, Windows 11 VM, WinApps
+│   ├── latitude/          # Ext4, preload-ng, Intel GPU tuning
+│   └── nix-media/         # systemd-networkd, Docker, monitoring, ntfy
+├── home/                  # Shared Home Manager (browsers, git, terminal, theme)
+└── secrets/
+    └── hosts/             # SOPS-encrypted per-host YAML files
+```
+
+## Highlights
+
+- **Zero-touch WiFi**: Encrypted PSKs via SOPS templates, drift detection with `restartTriggers`
+- **Fail-safe upgrades**: `nix-media` stages updates daily, reboots weekly only when idle (Jellyfin session check)
+- **Resource efficiency**: systemd slicing, cgroup limits, priority tuning (Jellyfin gets 8x IOWeight vs cAdvisor)
+- **Observability**: Prometheus alerts via ntfy push notifications, SMART disk monitoring, systemd failure hooks
+- **Reproducibility**: Pinned registry, locked inputs, `flake.lock` auto-updated via GitHub Actions
+
+## Requirements
+
+- NixOS 25.11+
+- UEFI system (Secure Boot optional but recommended)
+- For secrets: `sops` CLI, age keys in `.sops.yaml`
