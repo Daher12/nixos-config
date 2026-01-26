@@ -2,17 +2,23 @@
 
 let
   # --- HOST CONFIGURATION ---
-  # Critical for Hardware Transcoding (Run 'getent group render')
+  # Hardware Transcoding Groups (Confirmed via `id`)
   renderGid = "303"; 
   videoGid = "26";
   
-  # Dynamic User Mapping (Single Source of Truth)
-  # Derives from the actual NixOS configuration to prevent drift.
+  # Dynamic User Mapping (Robust)
+  # 1. Get the user/group config
   user = config.users.users.${mainUser} or {};
-  uid = builtins.toString (user.uid or 1001);
   groupName = user.group or mainUser;
-  # Safely look up the GID of the user's primary group
-  gid = builtins.toString (lib.attrByPath [ groupName "gid" ] 1001 (config.users.groups or {}));
+  group = config.users.groups.${groupName} or {};
+
+  # 2. Extract IDs safely (Handle nulls if option is unset)
+  #    Falls back to 1001 only if not explicitly set in default.nix.
+  rawUid = user.uid or null;
+  uid = builtins.toString (if rawUid != null then rawUid else 1001);
+
+  rawGid = group.gid or null;
+  gid = builtins.toString (if rawGid != null then rawGid else 1001);
 
   tz = "Europe/Berlin";
 
@@ -65,8 +71,8 @@ in
           image = images.jellyfin;
           environment = {
             DOCKER_MODS = "ghcr.io/intro-skipper/intro-skipper-docker-mod";
-            PGID = gid;
-            PUID = uid;
+            PGID = gid; # Will now correctly resolve to 982
+            PUID = uid; # Will now correctly resolve to 1001
             TZ = tz;
             LIBVA_DRIVER_NAME = "iHD";
           };
