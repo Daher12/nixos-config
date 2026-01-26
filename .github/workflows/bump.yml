@@ -2,8 +2,6 @@ name: "Maintain: Update Flake Lock"
 
 on:
   schedule:
-    # 02:00 UTC is safe. It allows ~1-2 hours for this job to run 
-    # before your hosts auto-upgrade at 04:00 Local.
     - cron: '0 2 * * *'
   workflow_dispatch:
 
@@ -11,11 +9,10 @@ jobs:
   update-and-verify:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to push the lockfile
+      contents: write
     
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Nix
         uses: cachix/install-nix-action@v30
@@ -23,61 +20,49 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             accept-flake-config = true
-            # Enable free/unfree for evaluation
-            allow-unfree = true
+            extra-experimental-features = nix-command flakes
 
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v15
+      # FIX: Create nix.conf directory before Cachix tries to write to it
+      - name: Prepare Nix Config
+        run: mkdir -p ~/.config/nix
+
+      - uses: cachix/cachix-action@v15
         with:
           name: nix-community
 
-      # 1. ATOMIC UPDATE: Update everything to ensure consistency
+      # FIX: Use --accept-flake-config explicitly; update may eval new flake.nix
       - name: Update Flake Inputs
         id: update
         run: |
-          nix flake update
-          # Capture specific revs for the commit message if desired, 
-          # but a generic update log is usually sufficient for automation.
+          nix flake update --accept-flake-config
+          # Capture AFTER update to get actual new rev
           echo "nixpkgs_rev=$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev[0:7]')" >> $GITHUB_OUTPUT
 
-      # 2. STATIC ANALYSIS: Fast checks first
+      # FIX: Use --impure for unfree; remove deprecated NIXPKGS_ALLOW_UNFREE
       - name: Flake Checks (Linting)
-        env:
-          NIXPKGS_ALLOW_UNFREE: "1"
-        run: nix flake check --all-systems
+        run: nix flake check --all-systems --impure
 
-      # 3. SMOKE TEST: Evaluation (The Fix for "Impossible Build")
-      # We use --dry-run. This proves the config is valid and solves the dependency graph.
-      # It catches 99% of "update broke my config" issues (renamed options, type errors).
       - name: Verify Host Configurations (Dry Run)
-        env:
-          NIXPKGS_ALLOW_UNFREE: "1"
         run: |
-          # Verify all hosts define a valid system closure
           for host in yoga latitude nix-media; do
             echo "::group::Verifying $host"
-            nix build .#nixosConfigurations.$host.config.system.build.toplevel --dry-run --show-trace
+            nix build .#nixosConfigurations.$host.config.system.build.toplevel \
+              --dry-run --show-trace --impure
             echo "::endgroup::"
           done
 
-      # 4. DEEP VERIFICATION: Inspect specific critical services
       - name: Verify Critical Service Definitions
-        env:
-          NIXPKGS_ALLOW_UNFREE: "1"
         run: |
-          # Verify Docker containers evaluate correctly
-          nix eval .#nixosConfigurations.nix-media.config.virtualisation.oci-containers.containers --apply 'builtins.attrNames'
-          
-          # Verify Prometheus config evaluates
-          nix eval .#nixosConfigurations.nix-media.config.services.prometheus.enable
+          nix eval .#nixosConfigurations.nix-media.config.virtualisation.oci-containers.containers \
+            --apply 'builtins.attrNames' --impure
+          nix eval .#nixosConfigurations.nix-media.config.services.prometheus.enable --impure
 
-      # 5. COMMIT: Gated by the success of steps 2, 3, and 4
       - name: Commit Updated Lock File
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: |
             chore(flake): update inputs [skip ci]
             
-            Updates nixpkgs to ${{ steps.update.outputs.nixpkgs_rev }}
+            nixpkgs: ${{ steps.update.outputs.nixpkgs_rev }}
           branch: main
           file_pattern: flake.lock
