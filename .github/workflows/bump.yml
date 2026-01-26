@@ -2,6 +2,8 @@ name: "Maintain: Update Flake Lock"
 
 on:
   schedule:
+    # 02:00 UTC is safe. It allows ~1-2 hours for this job to run 
+    # before your hosts auto-upgrade at 04:00 Local.
     - cron: '0 2 * * *'
   workflow_dispatch:
 
@@ -9,12 +11,14 @@ jobs:
   update-and-verify:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Required to push the lockfile and formatting changes
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v30
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
         with:
           extra_nix_config: |
             accept-flake-config = true
@@ -23,22 +27,33 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
             substituters = https://cache.nixos.org https://nix-community.cachix.org
 
-      # Skip cachix-action entirely—substituters already configured above
-      
+      # 1. UPDATE: Update everything to ensure consistency
       - name: Update Flake Inputs
         id: update
         run: |
           nix flake update --accept-flake-config
           echo "nixpkgs_rev=$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev[0:7]')" >> $GITHUB_OUTPUT
 
+      # 2. FORMAT: Auto-format the code before checking it
+      - name: Format Nix Code
+        run: nix fmt
+
+      # 3. VERIFY: Static Analysis & Dry Run Build
       - name: Verify Configurations
         run: |
+          # Checks will now pass because 'nix fmt' ran above
           nix flake check --all-systems --impure --keep-going
+          
+          # Dry-run build for all hosts to ensure the update didn't break the build graph
           for host in yoga latitude nix-media; do
+            echo "::group::Verifying $host"
             nix build .#nixosConfigurations.$host.config.system.build.toplevel --dry-run --impure
+            echo "::endgroup::"
           done
 
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      # 4. COMMIT: Save the lockfile AND the formatted nix files
+      - name: Commit Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(flake): update inputs\n\nnixpkgs: ${{ steps.update.outputs.nixpkgs_rev }}"
-          file_pattern: flake.lock
+          commit_message: "chore(flake): update inputs & format\n\nnixpkgs: ${{ steps.update.outputs.nixpkgs_rev }}"
+          file_pattern: flake.lock **/*.nix
