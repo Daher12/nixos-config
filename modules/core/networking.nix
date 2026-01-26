@@ -1,3 +1,4 @@
+# modules/core/networking.nix
 { config, lib, ... }:
 
 let
@@ -33,11 +34,10 @@ in
 
   config = {
     networking.networkmanager = {
-      # FIX: Use mkDefault to allow hosts to disable NM (e.g. servers using systemd-networkd)
       enable = lib.mkDefault true;
       wifi.backend = cfg.backend;
       wifi.powersave = cfg.enablePowersave;
-      inherit (cfg) dns;
+      dns = cfg.dns;
     };
 
     services.resolved = lib.mkIf (cfg.dns == "systemd-resolved") {
