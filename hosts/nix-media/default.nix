@@ -20,7 +20,7 @@ in
     ./monitoring.nix
     ./caddy.nix
     ./ntfy.nix
-    ./maintenance.nix # Auto-upgrade & reboot strategies
+    ./maintenance.nix
 
     ../../modules/features/sops.nix
     ../../modules/features/vpn.nix
@@ -39,7 +39,6 @@ in
 
     kernelParams = [ "transparent_hugepage=madvise" ];
     
-    # Aggressive writeback for throughput (additive to core.sysctl)
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
   };
 
@@ -70,10 +69,7 @@ in
   networking = {
     networkmanager.enable = false;
     useNetworkd = true;
-    
-    # Prevent conflict with systemd-networkd DHCP definitions below
     interfaces.${lanIf}.useDHCP = lib.mkForce false;
-    
     firewall.allowedTCPPorts = [ nfsPort ];
   };
 
@@ -86,7 +82,7 @@ in
     networks."10-lan" = {
       matchConfig.Name = lanIf;
       networkConfig = {
-        DHCP = "ipv4"; # Explicit IPv4 to avoid IPv6 timeouts
+        DHCP = "ipv4";
         IPv6AcceptRA = false;
         LinkLocalAddressing = "no";
       };
@@ -95,7 +91,6 @@ in
     wait-online = {
       enable = true;
       timeout = 30;
-      # Strict requirement: interface must have routes (internet ready)
       extraArgs = [ "--interface=${lanIf}:routable" ];
     };
   };
@@ -106,7 +101,16 @@ in
     routingFeatures = "server";
   };
 
-  users.users.${mainUser}.extraGroups = [ "docker" ];
+  # ---------------------------------------------------------------------------
+  # Users & Groups (Enforced to match live system)
+  # ---------------------------------------------------------------------------
+  users.users.${mainUser} = {
+    uid = 1001; # Matches your NFS standard
+    extraGroups = [ "docker" ];
+  };
+  
+  # Explicitly set GID to 982 (as confirmed via `id`) to avoid ownership drift
+  users.groups.${mainUser}.gid = 982;
 
   services = {
     journald.extraConfig = ''
@@ -138,7 +142,7 @@ in
       server = {
         enable = true;
         exports = ''
-          /mnt/storage ${tailscaleCidr}(rw,async,crossmnt,fsid=0,no_subtree_check,no_root_squash,all_squash,anonuid=1001,anongid=1500)
+          /mnt/storage ${tailscaleCidr}(rw,async,crossmnt,fsid=0,no_subtree_check,no_root_squash,all_squash,anonuid=1001,anongid=982)
         '';
       };
       settings.nfsd = {
