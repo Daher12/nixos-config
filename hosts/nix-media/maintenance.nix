@@ -19,15 +19,14 @@
   # ---------------------------------------------------------------------------
   systemd.services.weekly-maintenance-reboot = {
     description = "Weekly reboot into latest NixOS generation with safety checks";
-
-    # Ensure network is up so we don't false-negative on the curl check
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
+    
+    # Optimization: We only check localhost, so we don't need to wait for WAN
+    # after = [ "network-online.target" ]; 
+    # wants = [ "network-online.target" ];
 
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-
       # Bound runtime; avoid stuck oneshots holding state
       TimeoutStartSec = "2min";
 
@@ -38,7 +37,6 @@
       ProtectKernelTunables = true;
       ProtectKernelModules = true;
       ProtectControlGroups = true;
-
       # Use a private runtime directory instead of /tmp for security/cleanliness
       RuntimeDirectory = "weekly-maintenance-reboot";
       RuntimeDirectoryMode = "0700";
@@ -62,8 +60,9 @@
       TMP="$RUNTIME_DIRECTORY/jf-sessions.json"
 
       # Fail-closed: If we cannot explicitly confirm the server is idle, we assume it is busy.
+      # Note: If Jellyfin requires Auth, curl -f returns 401/403, triggering exit 0 (Skip).
       if ! curl -sf --max-time 5 http://127.0.0.1:8096/Sessions -o "$TMP"; then
-         echo "Unable to query Jellyfin sessions (curl failed). Skipping reboot (fail-closed)."
+         echo "Unable to query Jellyfin sessions (curl failed/auth required). Skipping reboot (fail-closed)."
          exit 0
       fi
 
@@ -96,10 +95,16 @@
       fi
 
       # -----------------------------------------------------------------------
-      # 2. Idempotency Check
+      # 2. Idempotency Check (Robust)
       # -----------------------------------------------------------------------
-      CURRENT=$(readlink -f /run/current-system)
-      NEXT=$(readlink -f /nix/var/nix/profiles/system)
+      # Use || true to prevent script abortion if links are missing
+      CURRENT=$(readlink -f /run/current-system || true)
+      NEXT=$(readlink -f /nix/var/nix/profiles/system || true)
+
+      if [ -z "$CURRENT" ] || [ -z "$NEXT" ]; then
+        echo "Unable to resolve system profile links. Skipping reboot (fail-closed)."
+        exit 0
+      fi
 
       if [ "$CURRENT" = "$NEXT" ]; then
         echo "System is already running the latest generation. Skipping reboot."
