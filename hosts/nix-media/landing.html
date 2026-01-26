@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nix Media Server</title>
+  <style>
+    :root {
+      --color-bg-primary: #ffffff;
+      --color-bg-card: #ffffff;
+      --color-border: #e2e8f0;
+      --color-text-primary: #0f172a;
+      --color-text-secondary: #64748b;
+      --color-accent: #3b82f6;
+      --color-status-online: #10b981;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --color-bg-primary: #0f172a;
+        --color-bg-card: rgba(30, 41, 59, 0.6);
+        --color-border: #334155;
+        --color-text-primary: #f8fafc;
+        --color-text-secondary: #94a3b8;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, system-ui, sans-serif;
+      background: var(--color-bg-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .container { max-width: 900px; width: 100%; }
+    .header { text-align: center; margin-bottom: 3rem; }
+    h1 { color: var(--color-text-primary); margin-bottom: 0.5rem; }
+    .subtitle { color: var(--color-text-secondary); }
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    .service-card {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      padding: 2rem;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+    .service-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--color-accent);
+    }
+    .service-icon { font-size: 24px; margin-bottom: 1rem; }
+    .service-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      margin-bottom: 0.5rem;
+    }
+    .service-description {
+      color: var(--color-text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin-bottom: 1rem;
+      flex-grow: 1;
+    }
+    .service-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--color-text-secondary);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--color-status-online);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--color-status-online);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div style="font-size: 4rem; margin-bottom: 1rem;">🖥️</div>
+      <h1>Nix Media Server</h1>
+      <p class="subtitle">Self-hosted ecosystem • NixOS 25.11</p>
+    </div>
+    <div class="services-grid" id="services"></div>
+  </div>
+  <script>
+    const services = @servicesJson@;
+    const icons = {
+      'play-circle': '▶️',
+      'headphones': '🎧',
+      'bar-chart': '📊',
+      'server': '⚙️'
+    };
+    
+    const grid = document.getElementById('services');
+    services.forEach(svc => {
+      const card = document.createElement('a');
+      card.className = 'service-card';
+      card.href = svc.url;
+      card.innerHTML = `
+        <div class="service-icon">${icons[svc.icon] || '📦'}</div>
+        <h2 class="service-title">${svc.title}</h2>
+        <p class="service-description">${svc.description}</p>
+        <div class="service-status">
+          <span class="status-dot"></span>
+          <span>ONLINE</span>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  </script>
+</body>
+</html>
