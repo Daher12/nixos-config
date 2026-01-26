@@ -1,4 +1,3 @@
-# modules/core/users.nix
 {
   config,
   lib,
