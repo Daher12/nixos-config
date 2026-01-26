@@ -10,102 +10,80 @@
 #   - Intel GPU metrics (custom script)
 
 let
-  # Alert rules configuration
-  alertRulesFile = pkgs.writeText "alert-rules.yml" (
-    builtins.toJSON {
-      groups = [
-        {
-          name = "system_alerts";
-          interval = "60s";
-          rules = [
-            {
-              alert = "HighCPUUsage";
-              expr = ''100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90'';
-              for = "5m";
-              labels = {
-                severity = "warning";
-              };
-              annotations = {
-                summary = "CPU > 90% for 5m";
-              };
-            }
-            {
-              alert = "HighMemoryUsage";
-              expr = "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 90";
-              for = "5m";
-              labels = {
-                severity = "warning";
-              };
-              annotations = {
-                summary = "Memory > 90% for 5m";
-              };
-            }
-            {
-              alert = "LowDiskSpace";
-              expr = ''100 - ((node_filesystem_avail_bytes{mountpoint="/mnt/storage"} * 100) / node_filesystem_size_bytes{mountpoint="/mnt/storage"}) > 90'';
-              for = "10m";
-              labels = {
-                severity = "critical";
-              };
-              annotations = {
-                summary = "Storage < 10% free";
-              };
-            }
-            {
-              alert = "LowRootDiskSpace";
-              expr = ''100 - ((node_filesystem_avail_bytes{mountpoint="/"} * 100) / node_filesystem_size_bytes{mountpoint="/"}) > 85'';
-              for = "10m";
-              labels = {
-                severity = "warning";
-              };
-              annotations = {
-                summary = "Root < 15% free";
-              };
-            }
-            {
-              alert = "ContainerDown";
-              expr = ''up{job="cadvisor"} == 0'';
-              for = "2m";
-              labels = {
-                severity = "critical";
-              };
-              annotations = {
-                summary = "cAdvisor down";
-              };
-            }
-            {
-              alert = "HighIOWait";
-              expr = ''avg(irate(node_cpu_seconds_total{mode="iowait"}[5m])) * 100 > 50'';
-              for = "5m";
-              labels = {
-                severity = "warning";
-              };
-              annotations = {
-                summary = "I/O wait > 50%";
-              };
-            }
-          ];
-        }
-      ];
-    }
-  );
+  # FIX: Use correct YAML generator for Prometheus rules
+  # Prevents JSON-as-YAML ambiguity and validates structure at build time.
+  alertRulesFile = (pkgs.formats.yaml {}).generate "alert-rules.yaml" {
+    groups = [
+      {
+        name = "system_alerts";
+        interval = "60s";
+        rules = [
+          {
+            alert = "HighCPUUsage";
+            expr = ''100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90'';
+            for = "5m";
+            labels.severity = "warning";
+            annotations.summary = "CPU > 90% for 5m";
+          }
+          {
+            alert = "HighMemoryUsage";
+            expr = "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 90";
+            for = "5m";
+            labels.severity = "warning";
+            annotations.summary = "Memory > 90% for 5m";
+          }
+          {
+            alert = "LowDiskSpace";
+            expr = ''100 - ((node_filesystem_avail_bytes{mountpoint="/mnt/storage"} * 100) / node_filesystem_size_bytes{mountpoint="/mnt/storage"}) > 90'';
+            for = "10m";
+            labels.severity = "critical";
+            annotations.summary = "Storage < 10% free";
+          }
+          {
+            alert = "LowRootDiskSpace";
+            expr = ''100 - ((node_filesystem_avail_bytes{mountpoint="/"} * 100) / node_filesystem_size_bytes{mountpoint="/"}) > 85'';
+            for = "10m";
+            labels.severity = "warning";
+            annotations.summary = "Root < 15% free";
+          }
+          {
+            alert = "ContainerDown";
+            expr = ''up{job="cadvisor"} == 0'';
+            for = "2m";
+            labels.severity = "critical";
+            annotations.summary = "cAdvisor down";
+          }
+          {
+            alert = "HighIOWait";
+            expr = ''avg(irate(node_cpu_seconds_total{mode="iowait"}[5m])) * 100 > 50'';
+            for = "5m";
+            labels.severity = "warning";
+            annotations.summary = "I/O wait > 50%";
+          }
+        ];
+      }
+    ];
+  };
 
   # Intel GPU Metrics Script
   gpuMetricsScript = pkgs.writeShellScript "collect-gpu-metrics" ''
     export LC_ALL=C
+    
+    # HARDENING: Ensure directory exists with correct ownership (matches tmpfiles)
+    # Prevents race conditions or root-owned artifacts preventing node-exporter reads.
+    ${pkgs.coreutils}/bin/install -d -m 0755 -o prometheus -g prometheus /var/lib/prometheus-node-exporter
+
     TMPFILE=/var/lib/prometheus-node-exporter/intel_gpu.prom.tmp
     OUTFILE=/var/lib/prometheus-node-exporter/intel_gpu.prom
 
     # Capture ~4 seconds of output for smoothing
     OUTPUT=$(${pkgs.coreutils}/bin/timeout 4s ${pkgs.intel-gpu-tools}/bin/intel_gpu_top -s 1000 | tr -d '\r')
 
-    echo "$OUTPUT" |
-    ${pkgs.gawk}/bin/awk '
+    echo "$OUTPUT" | ${pkgs.gawk}/bin/awk '
       BEGIN { render_sum=0; video_sum=0; enhance_sum=0; samples=0 }
       /Freq/ || /req/ || /^$/ { next }
       $1 ~ /^[0-9.]+$/ && NF >= 13 {
-        render_sum  += $7;
-        video_sum += $11; enhance_sum += $13; samples++
+        render_sum  += $7; video_sum += $11; enhance_sum += $13; samples++
       }
       END {
         if (samples > 0) {
@@ -116,8 +94,7 @@ let
           if (video > busy) busy = video
           if (enhance > busy) busy = enhance
         } else {
-          render = 0;
-          video = 0; enhance = 0; busy = 0
+          render = 0; video = 0; enhance = 0; busy = 0
         }
         printf "intel_gpu_engine_busy_percent{engine=\"render\"} %.2f\n", render
         printf "intel_gpu_engine_busy_percent{engine=\"video\"} %.2f\n", video
@@ -127,8 +104,7 @@ let
       }
     ' > "$TMPFILE"
 
-    if [ -s "$TMPFILE" ];
-    then
+    if [ -s "$TMPFILE" ]; then
       mv "$TMPFILE" "$OUTFILE"
       chmod 644 "$OUTFILE"
     fi
@@ -189,9 +165,7 @@ in
           static_configs = [
             {
               targets = [ "127.0.0.1:${toString config.services.prometheus.exporters.node.port}" ];
-              labels = {
-                instance = "nix-media";
-              };
+              labels.instance = "nix-media";
             }
           ];
         }
@@ -201,9 +175,7 @@ in
           static_configs = [
             {
               targets = [ "127.0.0.1:8080" ];
-              labels = {
-                instance = "nix-media";
-              };
+              labels.instance = "nix-media";
             }
           ];
         }
@@ -213,9 +185,7 @@ in
           static_configs = [
             {
               targets = [ "127.0.0.1:9323" ];
-              labels = {
-                instance = "nix-media";
-              };
+              labels.instance = "nix-media";
             }
           ];
         }
@@ -224,17 +194,8 @@ in
         enable = true;
         port = 9100;
         enabledCollectors = [
-          "cpu"
-          "diskstats"
-          "filesystem"
-          "loadavg"
-          "meminfo"
-          "netdev"
-          "stat"
-          "systemd"
-          "textfile"
-          "uname"
-          "xfs"
+          "cpu" "diskstats" "filesystem" "loadavg" "meminfo" 
+          "netdev" "stat" "systemd" "textfile" "uname" "xfs"
         ];
         extraFlags = [
           "--collector.textfile.directory=/var/lib/prometheus-node-exporter"
@@ -242,29 +203,22 @@ in
         ];
       };
 
-      # Alertmanager Config (Nested inside prometheus for statix grouping)
+      # Alertmanager Config
       alertmanager = {
         enable = true;
         port = 9093;
         listenAddress = "127.0.0.1";
         configuration = {
-          global = {
-            resolve_timeout = "5m";
-          };
+          global.resolve_timeout = "5m";
           route = {
             receiver = "ntfy";
-            group_by = [
-              "alertname"
-              "severity"
-            ];
+            group_by = [ "alertname" "severity" ];
             group_wait = "30s";
             group_interval = "5m";
             repeat_interval = "4h";
             routes = [
               {
-                match = {
-                  severity = "critical";
-                };
+                match.severity = "critical";
                 receiver = "ntfy";
                 repeat_interval = "1h";
               }
@@ -284,7 +238,6 @@ in
         };
       };
     };
-
     grafana = {
       enable = true;
       settings = {
@@ -297,7 +250,6 @@ in
         };
         security = {
           admin_user = "admin";
-          # Password handled via systemd EnvironmentFile
           allow_embedding = false;
           cookie_secure = true;
           cookie_samesite = "lax";
@@ -343,7 +295,6 @@ in
 
   # --- Systemd Grouping ---
   systemd = {
-    # Services
     services = {
       # Webhook bridge: Alertmanager -> ntfy
       alertmanager-ntfy-bridge = {
@@ -356,7 +307,6 @@ in
           RestartSec = "5s";
           DynamicUser = true;
           MemoryMax = "64M";
-          # Securely load the URL secret
           LoadCredential = [ "ntfy_url:${config.sops.secrets.ntfy_url.path}" ];
         };
         script = ''
@@ -378,9 +328,13 @@ in
 
           class AlertHandler(http.server.BaseHTTPRequestHandler):
               def do_POST(self):
-                  length = int(self.headers.get('Content-Length', 0))
-                  body = json.loads(self.rfile.read(length)) if length else {}
-                  
+                  try:
+                      length = int(self.headers.get('Content-Length', 0))
+                      body = json.loads(self.rfile.read(length)) if length else {}
+                  except Exception:
+                      # HARDENING: Handle malformed JSON safely without crashing
+                      body = {}
+
                   for alert in body.get('alerts', []):
                       status = alert.get('status', 'unknown')
                       labels = alert.get('labels', {})
@@ -432,7 +386,6 @@ in
         TasksMax = 512;
         Nice = 10;
       };
-
       prometheus-node-exporter.serviceConfig = {
         MemoryMax = "128M";
         MemoryHigh = "96M";
@@ -441,13 +394,11 @@ in
         TasksMax = 64;
         Nice = 15;
       };
-
       alertmanager.serviceConfig = {
         MemoryMax = "128M";
         CPUQuota = "10%";
         Nice = 10;
       };
-
       grafana.serviceConfig = {
         EnvironmentFile = config.sops.templates."grafana-env".path;
         MemoryMax = "384M";
@@ -457,7 +408,6 @@ in
         TasksMax = 256;
         Nice = 5;
       };
-
       # Intel GPU Metrics
       intel-gpu-metrics = {
         description = "Intel GPU Metrics Collector";
@@ -490,7 +440,7 @@ in
     ];
   };
 
-  # --- Dashboard ---
+  # --- Dashboard (Unchanged) ---
   environment.etc."grafana/dashboards/system-overview.json".text = builtins.toJSON {
     title = "NixOS Media Server";
     uid = "nixos-overview";
@@ -498,283 +448,82 @@ in
     timezone = "browser";
     schemaVersion = 38;
     refresh = "1m";
-    time = {
-      from = "now-6h";
-      to = "now";
-    };
+    time = { from = "now-6h"; to = "now"; };
     panels = [
       {
         id = 1;
-        gridPos = {
-          x = 0;
-          y = 0;
-          w = 12;
-          h = 8;
-        };
+        gridPos = { x = 0; y = 0; w = 12; h = 8; };
         type = "timeseries";
         title = "CPU Usage";
-        targets = [
-          {
-            expr = ''100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)'';
-            legendFormat = "CPU Usage";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "percent";
-          min = 0;
-          max = 100;
-          custom.lineWidth = 2;
-          thresholds = {
-            mode = "absolute";
-            steps = [
-              {
-                value = 0;
-                color = "green";
-              }
-              {
-                value = 70;
-                color = "yellow";
-              }
-              {
-                value = 90;
-                color = "red";
-              }
-            ];
-          };
-        };
+        targets = [ { expr = ''100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)''; legendFormat = "CPU Usage"; } ];
+        fieldConfig.defaults = { unit = "percent"; min = 0; max = 100; custom.lineWidth = 2; thresholds = { mode = "absolute"; steps = [ { value = 0; color = "green"; } { value = 70; color = "yellow"; } { value = 90; color = "red"; } ]; }; };
       }
       {
         id = 2;
-        gridPos = {
-          x = 12;
-          y = 0;
-          w = 12;
-          h = 8;
-        };
+        gridPos = { x = 12; y = 0; w = 12; h = 8; };
         type = "timeseries";
         title = "Memory Usage";
-        targets = [
-          {
-            expr = "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))";
-            legendFormat = "RAM Used";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "percent";
-          min = 0;
-          max = 100;
-          custom.lineWidth = 2;
-          thresholds = {
-            mode = "absolute";
-            steps = [
-              {
-                value = 0;
-                color = "green";
-              }
-              {
-                value = 70;
-                color = "yellow";
-              }
-              {
-                value = 90;
-                color = "red";
-              }
-            ];
-          };
-        };
+        targets = [ { expr = "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))"; legendFormat = "RAM Used"; } ];
+        fieldConfig.defaults = { unit = "percent"; min = 0; max = 100; custom.lineWidth = 2; thresholds = { mode = "absolute"; steps = [ { value = 0; color = "green"; } { value = 70; color = "yellow"; } { value = 90; color = "red"; } ]; }; };
       }
       {
         id = 3;
-        gridPos = {
-          x = 0;
-          y = 8;
-          w = 12;
-          h = 8;
-        };
+        gridPos = { x = 0; y = 8; w = 12; h = 8; };
         type = "timeseries";
         title = "Storage Usage";
-        targets = [
-          {
-            expr = ''100 - ((node_filesystem_avail_bytes{mountpoint="/mnt/storage"} * 100) / node_filesystem_size_bytes{mountpoint="/mnt/storage"})'';
-            legendFormat = "Storage Used";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "percent";
-          min = 0;
-          max = 100;
-          custom.lineWidth = 2;
-          thresholds = {
-            mode = "absolute";
-            steps = [
-              {
-                value = 0;
-                color = "green";
-              }
-              {
-                value = 80;
-                color = "yellow";
-              }
-              {
-                value = 90;
-                color = "red";
-              }
-            ];
-          };
-        };
+        targets = [ { expr = ''100 - ((node_filesystem_avail_bytes{mountpoint="/mnt/storage"} * 100) / node_filesystem_size_bytes{mountpoint="/mnt/storage"})''; legendFormat = "Storage Used"; } ];
+        fieldConfig.defaults = { unit = "percent"; min = 0; max = 100; custom.lineWidth = 2; thresholds = { mode = "absolute"; steps = [ { value = 0; color = "green"; } { value = 80; color = "yellow"; } { value = 90; color = "red"; } ]; }; };
       }
       {
         id = 4;
-        gridPos = {
-          x = 12;
-          y = 8;
-          w = 12;
-          h = 8;
-        };
+        gridPos = { x = 12; y = 8; w = 12; h = 8; };
         type = "timeseries";
         title = "Network Traffic";
         targets = [
-          {
-            expr = ''irate(node_network_receive_bytes_total{device="enp1s0"}[5m])'';
-            legendFormat = "RX";
-          }
-          {
-            expr = ''irate(node_network_transmit_bytes_total{device="enp1s0"}[5m])'';
-            legendFormat = "TX";
-          }
+          { expr = ''irate(node_network_receive_bytes_total{device="enp1s0"}[5m])''; legendFormat = "RX"; }
+          { expr = ''irate(node_network_transmit_bytes_total{device="enp1s0"}[5m])''; legendFormat = "TX"; }
         ];
-        fieldConfig.defaults = {
-          unit = "Bps";
-          custom.lineWidth = 2;
-        };
+        fieldConfig.defaults = { unit = "Bps"; custom.lineWidth = 2; };
       }
       {
         id = 5;
-        gridPos = {
-          x = 0;
-          y = 16;
-          w = 12;
-          h = 8;
-        };
+        gridPos = { x = 0; y = 16; w = 12; h = 8; };
         type = "timeseries";
         title = "Container CPU";
-        targets = [
-          {
-            expr = ''rate(container_cpu_usage_seconds_total{name=~"jellyfin|audiobookshelf"}[5m]) * 100'';
-            legendFormat = "{{name}}";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "percent";
-          min = 0;
-          custom.lineWidth = 2;
-        };
+        targets = [ { expr = ''rate(container_cpu_usage_seconds_total{name=~"jellyfin|audiobookshelf"}[5m]) * 100''; legendFormat = "{{name}}"; } ];
+        fieldConfig.defaults = { unit = "percent"; min = 0; custom.lineWidth = 2; };
       }
       {
         id = 6;
-        gridPos = {
-          x = 12;
-          y = 16;
-          w = 12;
-          h = 8;
-        };
+        gridPos = { x = 12; y = 16; w = 12; h = 8; };
         type = "timeseries";
         title = "Container Memory";
-        targets = [
-          {
-            expr = ''container_memory_usage_bytes{name=~"jellyfin|audiobookshelf"}'';
-            legendFormat = "{{name}}";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "bytes";
-          custom.lineWidth = 2;
-        };
+        targets = [ { expr = ''container_memory_usage_bytes{name=~"jellyfin|audiobookshelf"}''; legendFormat = "{{name}}"; } ];
+        fieldConfig.defaults = { unit = "bytes"; custom.lineWidth = 2; };
       }
       {
         id = 8;
-        gridPos = {
-          x = 0;
-          y = 24;
-          w = 12;
-          h = 8;
-        };
+        gridPos = { x = 0; y = 24; w = 12; h = 8; };
         type = "timeseries";
         title = "Intel GPU (N100)";
         targets = [
-          {
-            expr = "intel_gpu_busy_percent";
-            legendFormat = "GPU Overall";
-          }
-          {
-            expr = ''intel_gpu_engine_busy_percent{engine="render"}'';
-            legendFormat = "Render/3D";
-          }
-          {
-            expr = ''intel_gpu_engine_busy_percent{engine="video"}'';
-            legendFormat = "Video (Transcoding)";
-          }
-          {
-            expr = ''intel_gpu_engine_busy_percent{engine="videoenhance"}'';
-            legendFormat = "Video Enhancement";
-          }
+          { expr = "intel_gpu_busy_percent"; legendFormat = "GPU Overall"; }
+          { expr = ''intel_gpu_engine_busy_percent{engine="render"}''; legendFormat = "Render/3D"; }
+          { expr = ''intel_gpu_engine_busy_percent{engine="video"}''; legendFormat = "Video (Transcoding)"; }
+          { expr = ''intel_gpu_engine_busy_percent{engine="videoenhance"}''; legendFormat = "Video Enhancement"; }
         ];
-        fieldConfig.defaults = {
-          unit = "percent";
-          min = 0;
-          max = 100;
-          custom.lineWidth = 2;
-          thresholds = {
-            mode = "absolute";
-            steps = [
-              {
-                value = 0;
-                color = "green";
-              }
-              {
-                value = 70;
-                color = "yellow";
-              }
-              {
-                value = 90;
-                color = "red";
-              }
-            ];
-          };
-        };
+        fieldConfig.defaults = { unit = "percent"; min = 0; max = 100; custom.lineWidth = 2; thresholds = { mode = "absolute"; steps = [ { value = 0; color = "green"; } { value = 70; color = "yellow"; } { value = 90; color = "red"; } ]; }; };
       }
       {
         id = 7;
-        gridPos = {
-          x = 12;
-          y = 24;
-          w = 12;
-          h = 8;
-        };
+        gridPos = { x = 12; y = 24; w = 12; h = 8; };
         type = "timeseries";
         title = "Disk I/O";
         targets = [
-          {
-            expr = ''irate(node_disk_read_bytes_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+"}[5m])'';
-            legendFormat = "{{device}} read";
-          }
-          {
-            expr = ''irate(node_disk_written_bytes_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+"}[5m]) * -1'';
-            legendFormat = "{{device}} write";
-          }
+          { expr = ''irate(node_disk_read_bytes_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+"}[5m])''; legendFormat = "{{device}} read"; }
+          { expr = ''irate(node_disk_written_bytes_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+"}[5m]) * -1''; legendFormat = "{{device}} write"; }
         ];
-        fieldConfig.defaults = {
-          unit = "binBps";
-          custom = {
-            lineWidth = 2;
-            fillOpacity = 10;
-            gradientMode = "opacity";
-          };
-          thresholds = {
-            mode = "absolute";
-            steps = [ ];
-          };
-        };
+        fieldConfig.defaults = { unit = "binBps"; custom = { lineWidth = 2; fillOpacity = 10; gradientMode = "opacity"; }; thresholds = { mode = "absolute"; steps = [ ]; }; };
       }
     ];
   };
