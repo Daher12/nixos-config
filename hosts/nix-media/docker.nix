@@ -1,71 +1,73 @@
-{
-  lib,
-  pkgs,
-  ...
-}:
+{ pkgs, lib, config, mainUser, ... }:
 
 let
-  user = "dk";
+  # --- HOST CONFIGURATION ---
+  # Critical for Hardware Transcoding (Run 'getent group render')
+  renderGid = "303"; 
+  videoGid = "26";
+  
+  # Dynamic User Mapping (Single Source of Truth)
+  # Derives from the actual NixOS configuration to prevent drift.
+  user = config.users.users.${mainUser} or {};
+  uid = builtins.toString (user.uid or 1001);
+  groupName = user.group or mainUser;
+  # Safely look up the GID of the user's primary group
+  gid = builtins.toString (lib.attrByPath [ groupName "gid" ] 1001 (config.users.groups or {}));
 
-  # --- HOST CONFIGURATION: UPDATE THESE GIDs ---
-  # Run 'getent group render | cut -d: -f3' on your host to verify.
-  # These are critical for Jellyfin hardware transcoding.
-  # The build will FAIL if renderGid is left as "REPLACE_ME".
-  renderGid = "303"; # e.g. "303" or "109"
-  videoGid = "26"; # e.g. "44" (Optional fallback)
-  # ---------------------------------------------
+  tz = "Europe/Berlin";
+
+  images = {
+    jellyfin = "lscr.io/linuxserver/jellyfin:latest";
+    audiobookshelf = "ghcr.io/advplyr/audiobookshelf:latest";
+    cadvisor = "gcr.io/cadvisor/cadvisor:latest";
+  };
 
   dockerNetwork = {
     name = "jellyfin";
     subnet = "172.18.0.0/16";
   };
 
+  # Paths
   storagePath = "/mnt/storage";
-  dockerPath = "/home/${user}/docker";
+  dockerPath = "/home/${mainUser}/docker";
   jellyfinCachePath = "/var/cache/jellyfin";
 in
 {
-  # [FAIL-SAFE] Assertions must be top-level module attributes
-  # Strictly enforces that the render group is set.
+  # Safety Rails
   assertions = [
     {
       assertion = renderGid != "REPLACE_ME";
-      message = ''
-        [Docker Config Error] You must replace 'renderGid' in hosts/nix-media/docker.nix.
-        Run 'getent group render' on the server to find the numeric ID (e.g., 109 or 303).
-      '';
+      message = "Docker Config Error: Set 'renderGid' in hosts/nix-media/docker.nix";
+    }
+    {
+      # Ensures alignment with NFS exports (anonuid=1001)
+      assertion = uid == "1001";
+      message = "Docker Config Warning: Expected ${mainUser} to have UID=1001 (Server Standard); got UID=${uid}";
     }
   ];
 
-  # --- Virtualisation ---
   virtualisation = {
     docker = {
       enable = true;
       autoPrune = {
         enable = true;
-        flags = [
-          "--all"
-          "--force"
-        ];
+        flags = [ "--all" "--force" ];
       };
-      daemon.settings = {
-        "metrics-addr" = "127.0.0.1:9323";
-      };
+      daemon.settings."metrics-addr" = "127.0.0.1:9323";
     };
 
     oci-containers = {
       backend = "docker";
-
       containers = {
         # 1. Jellyfin (Media Server)
         jellyfin = {
           autoStart = true;
-          image = "lscr.io/linuxserver/jellyfin:latest";
+          image = images.jellyfin;
           environment = {
             DOCKER_MODS = "ghcr.io/intro-skipper/intro-skipper-docker-mod";
-            PGID = "1000";
-            PUID = "1000";
-            TZ = "Europe/Berlin";
+            PGID = gid;
+            PUID = uid;
+            TZ = tz;
             LIBVA_DRIVER_NAME = "iHD";
           };
           volumes = [
@@ -80,33 +82,25 @@ in
           extraOptions = [
             "--network=${dockerNetwork.name}"
             "--device=/dev/dri:/dev/dri"
-
-            # [SECURE PARITY] GPU Access via Numeric GID
             "--group-add=${renderGid}"
-
             "--cpus=3.5"
             "--shm-size=256m"
             "--pids-limit=1000"
-
-            # Healthcheck
-            # Note: Requires 'curl' inside the container image.
             "--health-cmd=curl -fsS http://localhost:8096/health || exit 1"
             "--health-interval=60s"
             "--health-retries=4"
             "--health-timeout=10s"
-          ]
-          # [CORRECTED] Conditionally add video group only if configured
-          ++ lib.optional (videoGid != "REPLACE_ME") "--group-add=${videoGid}";
+          ] ++ lib.optional (videoGid != "REPLACE_ME") "--group-add=${videoGid}";
         };
 
         # 2. Audiobookshelf
         audiobookshelf = {
           autoStart = true;
-          image = "ghcr.io/advplyr/audiobookshelf:latest";
+          image = images.audiobookshelf;
           environment = {
-            AUDIOBOOKSHELF_UID = "1000";
-            AUDIOBOOKSHELF_GID = "1000";
-            TZ = "Europe/Berlin";
+            AUDIOBOOKSHELF_UID = uid;
+            AUDIOBOOKSHELF_GID = gid;
+            TZ = tz;
           };
           volumes = [
             "${dockerPath}/audiobookshelf/config:/config"
@@ -120,8 +114,6 @@ in
             "--memory=512m"
             "--cpus=0.5"
             "--pids-limit=100"
-
-            # Healthcheck
             "--health-cmd=curl -fsS http://localhost/ping || exit 1"
             "--health-interval=60s"
             "--health-retries=3"
@@ -131,7 +123,7 @@ in
         # 3. cAdvisor (Monitoring)
         cadvisor = {
           autoStart = true;
-          image = "gcr.io/cadvisor/cadvisor:latest";
+          image = images.cadvisor;
           volumes = [
             "/:/rootfs:ro"
             "/var/run:/var/run:ro"
@@ -151,121 +143,90 @@ in
     };
   };
 
-  # Jellyfin Cache on TMPFS
+  # Jellyfin Transcode/Cache on TMPFS
   fileSystems."${jellyfinCachePath}" = {
     device = "tmpfs";
     fsType = "tmpfs";
     options = [
       "size=2G"
       "mode=0755"
-      "uid=1000"
-      "gid=1000"
+      "uid=${uid}"
+      "gid=${gid}"
       "noatime"
       "nosuid"
       "nodev"
     ];
   };
 
-  # --- Systemd Grouping ---
   systemd = {
     services = {
-      # Ensure Network Exists
+      # Ensure Network Exists (Idempotent)
       "docker-network-jellyfin" = {
         description = "Ensure Docker network '${dockerNetwork.name}' exists";
-        after = [
-          "docker.service"
-          "docker.socket"
-        ];
+        after = [ "docker.service" "docker.socket" ];
         requires = [ "docker.service" ];
-        before = [
-          "docker-jellyfin.service"
-          "docker-audiobookshelf.service"
-        ];
-        requiredBy = [
-          "docker-jellyfin.service"
-          "docker-audiobookshelf.service"
-        ];
+        before = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
+        requiredBy = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
         };
         path = [ pkgs.docker ];
         script = ''
-          NETWORK="${dockerNetwork.name}"
-          SUBNET="${dockerNetwork.subnet}"
-
-          if docker network inspect "$NETWORK" >/dev/null 2>&1; then
-            EXISTING=$(docker network inspect "$NETWORK" --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}')
-            if [ "$EXISTING" != "$SUBNET" ]; then
-              echo "WARNING: Network '$NETWORK' exists with different subnet ($EXISTING vs $SUBNET)"
-            else
-              echo "Network '$NETWORK' exists with correct subnet."
-            fi
-          else
-            docker network create "$NETWORK" --subnet="$SUBNET"
+          if ! docker network inspect "${dockerNetwork.name}" >/dev/null 2>&1; then
+            docker network create "${dockerNetwork.name}" --subnet="${dockerNetwork.subnet}"
           fi
         '';
       };
 
       # Resource Prioritization
-      "docker-jellyfin" = {
-        serviceConfig = {
-          IOWeight = 8000;
-          CPUWeight = 1000;
-          OOMScoreAdjust = -500;
-        };
+      "docker-jellyfin".serviceConfig = {
+        IOWeight = 8000;
+        CPUWeight = 1000;
+        OOMScoreAdjust = -500;
       };
 
-      "docker-audiobookshelf" = {
-        serviceConfig = {
-          IOWeight = 100;
-          CPUWeight = 100;
-          OOMScoreAdjust = 500;
-        };
+      "docker-audiobookshelf".serviceConfig = {
+        IOWeight = 100;
+        CPUWeight = 100;
+        OOMScoreAdjust = 500;
       };
 
-      "docker-cadvisor" = {
-        serviceConfig = {
-          CPUWeight = 50;
-          OOMScoreAdjust = 700;
-        };
+      "docker-cadvisor".serviceConfig = {
+        CPUWeight = 50;
+        OOMScoreAdjust = 700;
       };
 
-      # Image Refresh Script
+      # Weekly Image Refresh
       "docker-image-refresh" = {
         description = "Pull latest Docker images and restart containers";
         serviceConfig = {
           Type = "oneshot";
           User = "root";
         };
-        path = [
-          pkgs.docker
-          pkgs.systemd
-        ];
+        path = [ pkgs.docker pkgs.systemd ];
         script = ''
           set -e
-          echo "Refreshing Docker images..."
-          docker pull lscr.io/linuxserver/jellyfin:latest
-          docker pull ghcr.io/advplyr/audiobookshelf:latest
-          docker pull gcr.io/cadvisor/cadvisor:latest
+          echo "Pulling images..."
+          docker pull ${images.jellyfin}
+          docker pull ${images.audiobookshelf}
+          docker pull ${images.cadvisor}
 
           echo "Restarting services..."
           systemctl restart docker-jellyfin.service docker-audiobookshelf.service docker-cadvisor.service
-
-          echo "Pruning old images..."
+          
+          echo "Pruning..."
           docker image prune -f
         '';
       };
     };
 
-    timers = {
-      "docker-image-refresh" = {
-        wantedBy = [ "timers.target" ];
-        timerConfig = {
-          OnCalendar = "Sun 03:00";
-          Persistent = true;
-          RandomizedDelaySec = "5min";
-        };
+    timers."docker-image-refresh" = {
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnCalendar = "Sun 03:00";
+        Persistent = true;
+        RandomizedDelaySec = "5min";
       };
     };
   };
