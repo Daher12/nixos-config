@@ -1,3 +1,4 @@
+# modules/core/users.nix
 {
   config,
   lib,
@@ -22,6 +23,7 @@ in
       default = "User";
       description = "User full name";
     };
+
     defaultShell = lib.mkOption {
       type = lib.types.enum [
         "fish"
@@ -124,15 +126,15 @@ in
       doc.enable = false;
     };
 
+
+ # Priority 900: nixpkgs sets this at default priority (1000), causing merge conflicts
     boot.kernel.sysctl = {
-      "vm.max_map_count" = lib.mkForce 1048576;
-      # Force to fix nix build error
+      "vm.max_map_count" = lib.mkOverride 900 1048576;
       "vm.dirty_ratio" = lib.mkDefault 10;
       "vm.dirty_background_ratio" = lib.mkDefault 5;
       "vm.dirty_writeback_centisecs" = lib.mkDefault 1500;
       "vm.dirty_expire_centisecs" = lib.mkDefault 3000;
       "fs.file-max" = lib.mkDefault 2097152;
-      # Fix priority collision with upstream defaults (mkOverride 900 vs 1000)
       "fs.inotify.max_user_watches" = lib.mkOverride 900 524288;
     };
   };
