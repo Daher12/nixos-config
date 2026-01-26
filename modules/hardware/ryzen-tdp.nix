@@ -8,6 +8,67 @@
 let
   cfg = config.hardware.ryzen-tdp;
   toMW = watts: toString (watts * 1000);
+  
+  # Refactored script with concurrency locking
+  setTdp = pkgs.writeShellApplication {
+    name = "set-ryzen-tdp";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.gnugrep
+      pkgs.ryzenadj
+      pkgs.util-linux # for flock
+    ];
+    text = ''
+      set -euo pipefail
+
+      LOCK_FILE="/run/ryzen-tdp.lock"
+
+      is_on_ac() {
+        for psu in /sys/class/power_supply/*; do
+           local type_file="$psu/type"
+           local online_file="$psu/online"
+
+           if [ -f "$type_file" ] && [ -f "$online_file" ]; then
+              local type
+              type=$(cat "$type_file")
+              local online
+              online=$(cat "$online_file")
+
+              # Treat USB as AC only if online (e.g. USB-C PD)
+              if [ "$online" = "1" ] && { [ "$type" = "Mains" ] || [ "$type" = "USB" ]; }; then
+                 return 0
+              fi
+           fi
+        done
+        return 1
+      }
+
+      apply_limits() {
+        if is_on_ac; then
+          echo "Power: AC – applying ${toString cfg.ac.stapm}W STAPM"
+          ryzenadj \
+            --stapm-limit=${toMW cfg.ac.stapm} \
+            --fast-limit=${toMW cfg.ac.fast} \
+            --slow-limit=${toMW cfg.ac.slow} \
+            --tctl-temp=${toString cfg.ac.temp}
+        else
+          echo "Power: Battery – applying ${toString cfg.battery.stapm}W STAPM"
+          ryzenadj \
+            --stapm-limit=${toMW cfg.battery.stapm} \
+            --fast-limit=${toMW cfg.battery.fast} \
+            --slow-limit=${toMW cfg.battery.slow} \
+            --tctl-temp=${toString cfg.battery.temp}
+        fi
+      }
+
+      # Main execution with exclusive lock to prevent SMU mailbox races
+      # (udev and timer events can fire simultaneously)
+      {
+        flock -w 5 -x 9 # avoid indefinite hangs if a prior run wedges
+        apply_limits
+      } 9>"$LOCK_FILE"
+    '';
+  };
 in
 {
   options.hardware.ryzen-tdp = {
@@ -86,10 +147,13 @@ in
         "systemd-logind.service"
         "post-resume.target"
       ];
-
+      
       unitConfig = {
         StartLimitBurst = 5;
         StartLimitIntervalSec = 10;
+        # Robustness: Don't fail on machines without battery/AC sensors (e.g. Desktops/VMs)
+        # Tighten: require at least one readable "online" indicator.
+        ConditionPathExistsGlob = "/sys/class/power_supply/*/online";
       };
 
       serviceConfig = {
@@ -97,53 +161,7 @@ in
         Restart = "on-failure";
         RestartSec = "1s";
         ExecStartPre = "${pkgs.coreutils}/bin/sleep ${toString cfg.settleDelaySec}";
-
-        ExecStart =
-          let
-            app = pkgs.writeShellApplication {
-              name = "set-ryzen-tdp";
-              runtimeInputs = [
-                pkgs.coreutils
-                pkgs.gnugrep
-                pkgs.ryzenadj
-              ];
-              text = ''
-                set -euo pipefail
-
-                ON_AC=0
-                for psu in /sys/class/power_supply/*/online; do
-                  [ -f "$psu" ] || continue
-                  PSU_DIR=$(dirname "$psu")
-                  [ -f "$PSU_DIR/type" ] || continue
-                  
-                  TYPE=$(cat "$PSU_DIR/type")
-                  ONLINE=$(cat "$psu")
-                  
-                  if [ "$ONLINE" = "1" ] && { [ "$TYPE" = "Mains" ] || [ "$TYPE" = "USB" ]; }; then
-                    ON_AC=1
-                    break
-                  fi
-                done
-
-                if [ "$ON_AC" -eq 1 ]; then
-                  echo "Power: AC – applying ${toString cfg.ac.stapm}W STAPM"
-                  ryzenadj \
-                    --stapm-limit=${toMW cfg.ac.stapm} \
-                    --fast-limit=${toMW cfg.ac.fast} \
-                    --slow-limit=${toMW cfg.ac.slow} \
-                    --tctl-temp=${toString cfg.ac.temp}
-                else
-                  echo "Power: Battery – applying ${toString cfg.battery.stapm}W STAPM"
-                  ryzenadj \
-                    --stapm-limit=${toMW cfg.battery.stapm} \
-                    --fast-limit=${toMW cfg.battery.fast} \
-                    --slow-limit=${toMW cfg.battery.slow} \
-                    --tctl-temp=${toString cfg.battery.temp}
-                fi
-              '';
-            };
-          in
-          "${app}/bin/set-ryzen-tdp";
+        ExecStart = lib.getExe setTdp;
       };
     };
 
@@ -159,7 +177,9 @@ in
     };
 
     services.udev.extraRules = ''
-      SUBSYSTEM=="power_supply", ACTION=="change", TAG+="systemd", ENV{SYSTEMD_WANTS}+="ryzen-tdp-control.service"
+      # Trigger only on power_supply changes (charging/discharging state)
+      # ATTR{online} check helps filter some noise, but oneshot service + flock handles the rest.
+      SUBSYSTEM=="power_supply", ACTION=="change", ATTR{online}=="?*", TAG+="systemd", ENV{SYSTEMD_WANTS}+="ryzen-tdp-control.service"
     '';
   };
 }
