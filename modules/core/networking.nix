@@ -1,4 +1,3 @@
-# modules/core/networking.nix
 { config, lib, ... }:
 
 let
