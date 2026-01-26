@@ -14,55 +14,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v30
+      - uses: cachix/install-nix-action@v30
         with:
-          nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             accept-flake-config = true
-            extra-experimental-features = nix-command flakes
+            experimental-features = nix-command flakes
+            # Suppress cachix warnings by pre-allowing substituters
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
+            substituters = https://cache.nixos.org https://nix-community.cachix.org
 
-      # FIX: Create nix.conf directory before Cachix tries to write to it
-      - name: Prepare Nix Config
-        run: mkdir -p ~/.config/nix
-
-      - uses: cachix/cachix-action@v15
-        with:
-          name: nix-community
-
-      # FIX: Use --accept-flake-config explicitly; update may eval new flake.nix
+      # Skip cachix-action entirely—substituters already configured above
+      
       - name: Update Flake Inputs
         id: update
         run: |
           nix flake update --accept-flake-config
-          # Capture AFTER update to get actual new rev
           echo "nixpkgs_rev=$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev[0:7]')" >> $GITHUB_OUTPUT
 
-      # FIX: Use --impure for unfree; remove deprecated NIXPKGS_ALLOW_UNFREE
-      - name: Flake Checks (Linting)
-        run: nix flake check --all-systems --impure
-
-      - name: Verify Host Configurations (Dry Run)
+      - name: Verify Configurations
         run: |
+          nix flake check --all-systems --impure --keep-going
           for host in yoga latitude nix-media; do
-            echo "::group::Verifying $host"
-            nix build .#nixosConfigurations.$host.config.system.build.toplevel \
-              --dry-run --show-trace --impure
-            echo "::endgroup::"
+            nix build .#nixosConfigurations.$host.config.system.build.toplevel --dry-run --impure
           done
 
-      - name: Verify Critical Service Definitions
-        run: |
-          nix eval .#nixosConfigurations.nix-media.config.virtualisation.oci-containers.containers \
-            --apply 'builtins.attrNames' --impure
-          nix eval .#nixosConfigurations.nix-media.config.services.prometheus.enable --impure
-
-      - name: Commit Updated Lock File
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: |
-            chore(flake): update inputs [skip ci]
-            
-            nixpkgs: ${{ steps.update.outputs.nixpkgs_rev }}
-          branch: main
+          commit_message: "chore(flake): update inputs\n\nnixpkgs: ${{ steps.update.outputs.nixpkgs_rev }}"
           file_pattern: flake.lock
