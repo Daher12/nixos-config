@@ -7,5 +7,5 @@
 
   home.stateVersion = "25.11";
 
-  programs.winapps.enable = true;
+  programs.winapps.enable = false;
 }
