@@ -12,28 +12,36 @@ in
   options.browsers = {
     firefox = {
       enable = lib.mkEnableOption "Firefox";
+      
       extensions = lib.mkOption {
-        type = lib.types.listOf lib.types.package;
-        default = [ ];
-        description = "List of Firefox extension packages";
+        type = lib.types.listOf lib.types.str;
+        default = [
+          "uBlock0@raymondhill.net"
+          "{446900e4-71c2-419f-a6a7-df9c091e268b}"
+        ];
+        description = "Firefox extension addon IDs";
       };
+
       extraSettings = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
         default = { };
-        description = "Extra Firefox prefs merged into the default profile (wins over defaults).";
+        description = "Additional Firefox preferences";
       };
     };
+
     brave = {
       enable = lib.mkEnableOption "Brave";
+      
       extensions = lib.mkOption {
         type = lib.types.listOf lib.types.str;
-        default = [ ];
-        description = "List of Brave extension IDs";
+        default = [ "hfmolcaikbnbminafcmeiejglbeelilh" ];
+        description = "Chrome Web Store extension IDs";
       };
+
       extraCommandLineArgs = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ ];
-        description = "Extra Brave command line arguments appended to defaults.";
+        description = "Additional command line arguments";
       };
     };
   };
@@ -42,21 +50,33 @@ in
     (lib.mkIf cfg.firefox.enable {
       programs.firefox = {
         enable = true;
+        
+        policies = {
+          DisablePocket = true;
+          DisableTelemetry = true;
+          DisableFirefoxStudies = true;
+          
+          ExtensionSettings = builtins.listToAttrs (
+            map (ext: {
+              name = ext;
+              value = {
+                install_url = "https://addons.mozilla.org/firefox/downloads/latest/${ext}/latest.xpi";
+                installation_mode = "force_installed";
+              };
+            }) cfg.firefox.extensions
+          );
+        };
+
         profiles.default = {
           id = 0;
-          name = "default";
           isDefault = true;
-          # FIX: Use inherit to satisfy statix
-          inherit (cfg.firefox) extensions;
+          
           settings = {
-            "browser.startup.homepage" = lib.mkDefault "about:blank";
-            "browser.search.region" = lib.mkDefault "DE";
-            "distribution.searchplugins.defaultLocale" = lib.mkDefault "de-DE";
-            "intl.locale.requested" = lib.mkDefault "de-DE";
-            "intl.accept_languages" = lib.mkDefault "de-DE,de,en-US,en";
-            "gfx.webrender.all" = lib.mkDefault true;
-          }
-          // cfg.firefox.extraSettings;
+            "browser.startup.homepage" = "about:blank";
+            "browser.search.region" = "DE";
+            "intl.accept_languages" = "de-DE,de,en-US,en";
+            "gfx.webrender.all" = true;
+          } // cfg.firefox.extraSettings;
         };
       };
     })
@@ -65,8 +85,13 @@ in
       programs.brave = {
         enable = true;
         package = pkgs.brave;
+        
         extensions = map (id: { inherit id; }) cfg.brave.extensions;
-        commandLineArgs = lib.unique ([ "--password-store=basic" ] ++ cfg.brave.extraCommandLineArgs);
+        
+        commandLineArgs = lib.unique (
+          [ "--password-store=basic" ]
+          ++ cfg.brave.extraCommandLineArgs
+        );
       };
     })
   ];
