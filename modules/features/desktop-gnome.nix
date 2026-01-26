@@ -61,10 +61,7 @@ in
         };
       };
 
-      desktopManager.gnome = {
-        enable = true;
-        extraGSettingsOverridePackages = [ pkgs.mutter ];
-      };
+      desktopManager.gnome.enable = true;
 
       gnome = {
         games.enable = false;
