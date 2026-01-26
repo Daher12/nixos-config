@@ -9,10 +9,28 @@
 let
   cfg = config.features.virtualization;
   w11 = cfg.windows11;
+
+  # Extract XML to a file for validation and cleanliness
+  defaultNetworkXml = pkgs.writeText "libvirt-default-net.xml" ''
+    <network>
+      <name>default</name>
+      <forward mode='nat'>
+        <nat><port start='1024' end='65535'/></nat>
+      </forward>
+      <bridge name='virbr0' stp='on' delay='0'/>
+      <ip address='192.168.122.1' netmask='255.255.255.0'>
+        <dhcp>
+          <range start='192.168.122.100' end='192.168.122.254'/>
+          ${lib.optionalString w11.enable "<host mac='${w11.mac}' name='${w11.name}' ip='${w11.ip}'/>"}
+        </dhcp>
+      </ip>
+    </network>
+  '';
 in
 {
   options.features.virtualization = {
     enable = lib.mkEnableOption "libvirt/QEMU virtualization";
+    
     windows11 = {
       enable = lib.mkEnableOption "Windows 11 VM with Office/iTunes optimizations";
       name = lib.mkOption {
@@ -26,6 +44,7 @@ in
         default = "52:54:00:00:00:01";
         description = "VM MAC address for DHCP reservation";
       };
+
       ip = lib.mkOption {
         type = lib.types.str;
         default = "192.168.122.10";
@@ -49,6 +68,7 @@ in
         description = "Disk size in GiB";
       };
     };
+
     performance = {
       hugepages = {
         enable = lib.mkOption {
@@ -68,6 +88,7 @@ in
         description = "Recommend I/O threads in VM XML";
       };
     };
+
     includeGuestTools = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -106,16 +127,19 @@ in
           "kvm"
         ];
 
+        # Removed 'kvm-intel'/'kvm-amd' force-load. 
+        # The kernel/hardware-configuration.nix handles this automatically based on CPU.
         boot.kernelModules = [
-          "kvm-intel"
-          "kvm-amd"
           "vhost-net"
           "vhost-vsock"
         ];
+        
+        # Safe to leave these options; they only apply if the module is loaded.
         boot.extraModprobeConfig = ''
           options kvm_intel enable_apicv=1 ept=1
           options kvm_amd avic=1 npt=1
         '';
+
         environment.systemPackages =
           with pkgs;
           [
@@ -131,14 +155,17 @@ in
             libguestfs
             libguestfs-with-appliance
           ];
+
         programs.virt-manager.enable = true;
 
+        # Hardening: Restrict KVM access to root and kvm group (0660).
         services.udev.extraRules = ''
-          KERNEL=="kvm", GROUP="kvm", MODE="0666"
+          KERNEL=="kvm", GROUP="kvm", MODE="0660"
           SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
         '';
 
-        # [Optim] Reduce shutdown delay by forcing a 30s timeout for guest suspension/shutdown
+        # [Optim] Set a finite timeout for guest shutdown to prevent the host from 
+        # hanging indefinitely if a VM refuses to stop.
         systemd.services.libvirt-guests.serviceConfig = {
           TimeoutStopSec = "30s";
         };
@@ -162,6 +189,7 @@ in
           "d /dev/hugepages 1755 root kvm - -"
         ];
 
+        # Ensure we *append* to the existing qemu verbatimConfig (don't clobber user/group).
         virtualisation.libvirtd.qemu.verbatimConfig = lib.mkAfter ''
           hugetlbfs_mount = "/dev/hugepages"
         '';
@@ -194,22 +222,9 @@ in
               virsh = "${pkgs.libvirt}/bin/virsh";
             in
             ''
+              # Check if network exists, if not, define and start it.
               if ! ${virsh} net-info default &>/dev/null; then
-                ${virsh} net-define /dev/stdin <<'EOF'
-              <network>
-                <name>default</name>
-                <forward mode='nat'>
-                  <nat><port start='1024' end='65535'/></nat>
-                </forward>
-                <bridge name='virbr0' stp='on' delay='0'/>
-                <ip address='192.168.122.1' netmask='255.255.255.0'>
-                  <dhcp>
-                    <range start='192.168.122.100' end='192.168.122.254'/>
-                    <host mac='${w11.mac}' name='${w11.name}' ip='${w11.ip}'/>
-                  </dhcp>
-                </ip>
-              </network>
-              EOF
+                ${virsh} net-define ${defaultNetworkXml}
                 ${virsh} net-autostart default
               fi
               ${virsh} net-start default 2>/dev/null || true
