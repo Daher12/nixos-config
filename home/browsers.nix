@@ -23,7 +23,6 @@ in
         description = "Extra Firefox prefs merged into the default profile (wins over defaults).";
       };
     };
-
     brave = {
       enable = lib.mkEnableOption "Brave";
       extensions = lib.mkOption {
@@ -47,18 +46,15 @@ in
           id = 0;
           name = "default";
           isDefault = true;
-          extensions = cfg.firefox.extensions;
+          # FIX: Use inherit to satisfy statix
+          inherit (cfg.firefox) extensions;
           settings = 
             {
               "browser.startup.homepage" = lib.mkDefault "about:blank";
               "browser.search.region" = lib.mkDefault "DE";
               "distribution.searchplugins.defaultLocale" = lib.mkDefault "de-DE";
-              
-              # Modern replacement for general.useragent.locale
               "intl.locale.requested" = lib.mkDefault "de-DE";
-              # What websites see (HTTP Accept-Language)
               "intl.accept_languages" = lib.mkDefault "de-DE,de,en-US,en";
-              
               "gfx.webrender.all" = lib.mkDefault true;
             } 
             // cfg.firefox.extraSettings;
@@ -70,14 +66,10 @@ in
       programs.brave = {
         enable = true;
         package = pkgs.brave;
-        
-        # Explicitly map string IDs to the submodule format required by HM
-        # (Avoids relying on implicit coercion from "string" to "{ id = string; }")
         extensions = map (id: { inherit id; }) cfg.brave.extensions;
-
         commandLineArgs = 
           lib.unique (
-            [ "--password-store=basic" ] # stable default
+            [ "--password-store=basic" ]
             ++ cfg.brave.extraCommandLineArgs
           );
       };
