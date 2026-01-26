@@ -98,7 +98,9 @@ in
 
       gc = lib.mkIf cfg.gc.automatic {
         automatic = true;
-        dates = cfg.gc.dates;
+        # FIX: Use inherit to satisfy linter (assignment match)
+        inherit (cfg.gc) dates;
+        # Note: 'options' maps to 'flags', so it cannot be inherited.
         options = cfg.gc.flags;
       };
       
