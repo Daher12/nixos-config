@@ -42,8 +42,7 @@ in
     i18n.defaultLocale = cfg.defaultLocale;
 
     console = {
-      inherit (cfg.console) earlySetup;
-      inherit (cfg.console) font;
+      inherit (cfg.console) earlySetup font;
       packages = [ pkgs.terminus_font ];
       useXkbConfig = true;
     };
