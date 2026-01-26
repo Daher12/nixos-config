@@ -36,7 +36,7 @@ jobs:
 
       # 2. FORMAT: Auto-format the code before checking it
       - name: Format Nix Code
-        run: nix fmt
+        run: find . -name '*.nix' -exec nix fmt -v {} +
 
       # 3. VERIFY: Static Analysis & Dry Run Build
       - name: Verify Configurations
