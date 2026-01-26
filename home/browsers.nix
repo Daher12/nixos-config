@@ -2,79 +2,39 @@
   config,
   lib,
   pkgs,
-  mainUser,
   ...
 }:
 
 let
-  cfg = config.programs.browsers;
+  cfg = config.browsers;
 in
 {
-  options.programs.browsers = {
+  options.browsers = {
     firefox = {
-      enable = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Enable Firefox";
-      };
-      isDefault = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Set Firefox as default browser";
-      };
+      enable = lib.mkEnableOption "Firefox";
       extensions = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [
-          "uBlock0@raymondhill.net"
-          "{446900e4-71c2-419f-a6a7-df9c091e268b}"
-          "@testpilot-containers"
-        ];
-        description = "Firefox extensions to install";
+        type = lib.types.listOf lib.types.package;
+        default = [];
+        description = "List of Firefox extension packages";
       };
-      cache = {
-        diskEnable = lib.mkOption {
-          type = lib.types.bool;
-          default = false;
-          description = "Enable disk cache";
-        };
-        memorySize = lib.mkOption {
-          type = lib.types.int;
-          default = 524288;
-          description = "Memory cache size in KB";
-        };
+      extraSettings = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = {};
+        description = "Extra Firefox prefs merged into the default profile (wins over defaults).";
       };
     };
+
     brave = {
-      enable = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Enable Brave browser";
-      };
+      enable = lib.mkEnableOption "Brave";
       extensions = lib.mkOption {
-        type = lib.types.listOf (
-          lib.types.submodule {
-            options = {
-              id = lib.mkOption {
-                type = lib.types.str;
-                description = "Chrome Web Store extension ID";
-              };
-            };
-          }
-        );
-        default = [ { id = "nngceckbapebfimnlniiiahkandclblb"; } ];
-        description = "Brave extensions to install";
+        type = lib.types.listOf lib.types.str;
+        default = [];
+        description = "List of Brave extension IDs";
       };
-      cache = {
-        path = lib.mkOption {
-          type = lib.types.str;
-          default = "/dev/shm/brave-cache";
-          description = "Cache directory path";
-        };
-        size = lib.mkOption {
-          type = lib.types.int;
-          default = 536870912;
-          description = "Cache size in bytes";
-        };
+      extraCommandLineArgs = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [];
+        description = "Extra Brave command line arguments appended to defaults.";
       };
     };
   };
@@ -83,45 +43,43 @@ in
     (lib.mkIf cfg.firefox.enable {
       programs.firefox = {
         enable = true;
-        policies = {
-          DisablePocket = true;
-          DisableTelemetry = true;
-          DisableFirefoxStudies = true;
-          UserMessaging = {
-            ExtensionRecommendations = false;
-            SkipOnboarding = true;
-          };
-          ExtensionSettings = builtins.listToAttrs (
-            map (ext: {
-              name = ext;
-              value = {
-                install_url = "https://addons.mozilla.org/firefox/downloads/latest/${ext}/latest.xpi";
-                installation_mode = "normal_installed";
-              };
-            }) cfg.firefox.extensions
-          );
-        };
-        profiles.${mainUser} = {
-          inherit (cfg.firefox) isDefault;
-          settings = {
-            "browser.cache.disk.enable" = cfg.firefox.cache.diskEnable;
-            "browser.cache.memory.enable" = true;
-            "browser.cache.memory.capacity" = cfg.firefox.cache.memorySize;
-            "browser.shell.checkDefaultBrowser" = false;
-            "browser.ctrlTab.sortByRecentlyUsed" = true;
-          };
+        profiles.default = {
+          id = 0;
+          name = "default";
+          isDefault = true;
+          extensions = cfg.firefox.extensions;
+          settings = 
+            {
+              "browser.startup.homepage" = lib.mkDefault "about:blank";
+              "browser.search.region" = lib.mkDefault "DE";
+              "distribution.searchplugins.defaultLocale" = lib.mkDefault "de-DE";
+              
+              # Modern replacement for general.useragent.locale
+              "intl.locale.requested" = lib.mkDefault "de-DE";
+              # What websites see (HTTP Accept-Language)
+              "intl.accept_languages" = lib.mkDefault "de-DE,de,en-US,en";
+              
+              "gfx.webrender.all" = lib.mkDefault true;
+            } 
+            // cfg.firefox.extraSettings;
         };
       };
     })
+
     (lib.mkIf cfg.brave.enable {
       programs.brave = {
         enable = true;
         package = pkgs.brave;
-        inherit (cfg.brave) extensions;
-        commandLineArgs = [
-          "--disk-cache-dir=${cfg.brave.cache.path}"
-          "--disk-cache-size=${toString cfg.brave.cache.size}"
-        ];
+        
+        # Explicitly map string IDs to the submodule format required by HM
+        # (Avoids relying on implicit coercion from "string" to "{ id = string; }")
+        extensions = map (id: { inherit id; }) cfg.brave.extensions;
+
+        commandLineArgs = 
+          lib.unique (
+            [ "--password-store=basic" ] # stable default
+            ++ cfg.brave.extraCommandLineArgs
+          );
       };
     })
   ];
