@@ -21,7 +21,7 @@
     description = "Weekly reboot into latest NixOS generation with safety checks";
 
     # Optimization: We only check localhost, so we don't need to wait for WAN
-    # after = [ "network-online.target" ]; 
+    # after = [ "network-online.target" ];
     # wants = [ "network-online.target" ];
 
     serviceConfig = {

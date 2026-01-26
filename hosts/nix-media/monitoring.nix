@@ -12,7 +12,7 @@
 let
   # FIX: Use correct YAML generator for Prometheus rules
   # Prevents JSON-as-YAML ambiguity and validates structure at build time.
-  alertRulesFile = (pkgs.formats.yaml {}).generate "alert-rules.yaml" {
+  alertRulesFile = (pkgs.formats.yaml { }).generate "alert-rules.yaml" {
     groups = [
       {
         name = "system_alerts";
@@ -68,7 +68,7 @@ let
   # Intel GPU Metrics Script
   gpuMetricsScript = pkgs.writeShellScript "collect-gpu-metrics" ''
     export LC_ALL=C
-    
+
     # HARDENING: Ensure directory exists with correct ownership (matches tmpfiles)
     # Prevents race conditions or root-owned artifacts preventing node-exporter reads.
     ${pkgs.coreutils}/bin/install -d -m 0755 -o prometheus -g prometheus /var/lib/prometheus-node-exporter
@@ -194,8 +194,17 @@ in
         enable = true;
         port = 9100;
         enabledCollectors = [
-          "cpu" "diskstats" "filesystem" "loadavg" "meminfo" 
-          "netdev" "stat" "systemd" "textfile" "uname" "xfs"
+          "cpu"
+          "diskstats"
+          "filesystem"
+          "loadavg"
+          "meminfo"
+          "netdev"
+          "stat"
+          "systemd"
+          "textfile"
+          "uname"
+          "xfs"
         ];
         extraFlags = [
           "--collector.textfile.directory=/var/lib/prometheus-node-exporter"
@@ -212,7 +221,10 @@ in
           global.resolve_timeout = "5m";
           route = {
             receiver = "ntfy";
-            group_by = [ "alertname" "severity" ];
+            group_by = [
+              "alertname"
+              "severity"
+            ];
             group_wait = "30s";
             group_interval = "5m";
             repeat_interval = "4h";
@@ -448,82 +460,283 @@ in
     timezone = "browser";
     schemaVersion = 38;
     refresh = "1m";
-    time = { from = "now-6h"; to = "now"; };
+    time = {
+      from = "now-6h";
+      to = "now";
+    };
     panels = [
       {
         id = 1;
-        gridPos = { x = 0; y = 0; w = 12; h = 8; };
+        gridPos = {
+          x = 0;
+          y = 0;
+          w = 12;
+          h = 8;
+        };
         type = "timeseries";
         title = "CPU Usage";
-        targets = [ { expr = ''100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)''; legendFormat = "CPU Usage"; } ];
-        fieldConfig.defaults = { unit = "percent"; min = 0; max = 100; custom.lineWidth = 2; thresholds = { mode = "absolute"; steps = [ { value = 0; color = "green"; } { value = 70; color = "yellow"; } { value = 90; color = "red"; } ]; }; };
+        targets = [
+          {
+            expr = ''100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)'';
+            legendFormat = "CPU Usage";
+          }
+        ];
+        fieldConfig.defaults = {
+          unit = "percent";
+          min = 0;
+          max = 100;
+          custom.lineWidth = 2;
+          thresholds = {
+            mode = "absolute";
+            steps = [
+              {
+                value = 0;
+                color = "green";
+              }
+              {
+                value = 70;
+                color = "yellow";
+              }
+              {
+                value = 90;
+                color = "red";
+              }
+            ];
+          };
+        };
       }
       {
         id = 2;
-        gridPos = { x = 12; y = 0; w = 12; h = 8; };
+        gridPos = {
+          x = 12;
+          y = 0;
+          w = 12;
+          h = 8;
+        };
         type = "timeseries";
         title = "Memory Usage";
-        targets = [ { expr = "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))"; legendFormat = "RAM Used"; } ];
-        fieldConfig.defaults = { unit = "percent"; min = 0; max = 100; custom.lineWidth = 2; thresholds = { mode = "absolute"; steps = [ { value = 0; color = "green"; } { value = 70; color = "yellow"; } { value = 90; color = "red"; } ]; }; };
+        targets = [
+          {
+            expr = "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))";
+            legendFormat = "RAM Used";
+          }
+        ];
+        fieldConfig.defaults = {
+          unit = "percent";
+          min = 0;
+          max = 100;
+          custom.lineWidth = 2;
+          thresholds = {
+            mode = "absolute";
+            steps = [
+              {
+                value = 0;
+                color = "green";
+              }
+              {
+                value = 70;
+                color = "yellow";
+              }
+              {
+                value = 90;
+                color = "red";
+              }
+            ];
+          };
+        };
       }
       {
         id = 3;
-        gridPos = { x = 0; y = 8; w = 12; h = 8; };
+        gridPos = {
+          x = 0;
+          y = 8;
+          w = 12;
+          h = 8;
+        };
         type = "timeseries";
         title = "Storage Usage";
-        targets = [ { expr = ''100 - ((node_filesystem_avail_bytes{mountpoint="/mnt/storage"} * 100) / node_filesystem_size_bytes{mountpoint="/mnt/storage"})''; legendFormat = "Storage Used"; } ];
-        fieldConfig.defaults = { unit = "percent"; min = 0; max = 100; custom.lineWidth = 2; thresholds = { mode = "absolute"; steps = [ { value = 0; color = "green"; } { value = 80; color = "yellow"; } { value = 90; color = "red"; } ]; }; };
+        targets = [
+          {
+            expr = ''100 - ((node_filesystem_avail_bytes{mountpoint="/mnt/storage"} * 100) / node_filesystem_size_bytes{mountpoint="/mnt/storage"})'';
+            legendFormat = "Storage Used";
+          }
+        ];
+        fieldConfig.defaults = {
+          unit = "percent";
+          min = 0;
+          max = 100;
+          custom.lineWidth = 2;
+          thresholds = {
+            mode = "absolute";
+            steps = [
+              {
+                value = 0;
+                color = "green";
+              }
+              {
+                value = 80;
+                color = "yellow";
+              }
+              {
+                value = 90;
+                color = "red";
+              }
+            ];
+          };
+        };
       }
       {
         id = 4;
-        gridPos = { x = 12; y = 8; w = 12; h = 8; };
+        gridPos = {
+          x = 12;
+          y = 8;
+          w = 12;
+          h = 8;
+        };
         type = "timeseries";
         title = "Network Traffic";
         targets = [
-          { expr = ''irate(node_network_receive_bytes_total{device="enp1s0"}[5m])''; legendFormat = "RX"; }
-          { expr = ''irate(node_network_transmit_bytes_total{device="enp1s0"}[5m])''; legendFormat = "TX"; }
+          {
+            expr = ''irate(node_network_receive_bytes_total{device="enp1s0"}[5m])'';
+            legendFormat = "RX";
+          }
+          {
+            expr = ''irate(node_network_transmit_bytes_total{device="enp1s0"}[5m])'';
+            legendFormat = "TX";
+          }
         ];
-        fieldConfig.defaults = { unit = "Bps"; custom.lineWidth = 2; };
+        fieldConfig.defaults = {
+          unit = "Bps";
+          custom.lineWidth = 2;
+        };
       }
       {
         id = 5;
-        gridPos = { x = 0; y = 16; w = 12; h = 8; };
+        gridPos = {
+          x = 0;
+          y = 16;
+          w = 12;
+          h = 8;
+        };
         type = "timeseries";
         title = "Container CPU";
-        targets = [ { expr = ''rate(container_cpu_usage_seconds_total{name=~"jellyfin|audiobookshelf"}[5m]) * 100''; legendFormat = "{{name}}"; } ];
-        fieldConfig.defaults = { unit = "percent"; min = 0; custom.lineWidth = 2; };
+        targets = [
+          {
+            expr = ''rate(container_cpu_usage_seconds_total{name=~"jellyfin|audiobookshelf"}[5m]) * 100'';
+            legendFormat = "{{name}}";
+          }
+        ];
+        fieldConfig.defaults = {
+          unit = "percent";
+          min = 0;
+          custom.lineWidth = 2;
+        };
       }
       {
         id = 6;
-        gridPos = { x = 12; y = 16; w = 12; h = 8; };
+        gridPos = {
+          x = 12;
+          y = 16;
+          w = 12;
+          h = 8;
+        };
         type = "timeseries";
         title = "Container Memory";
-        targets = [ { expr = ''container_memory_usage_bytes{name=~"jellyfin|audiobookshelf"}''; legendFormat = "{{name}}"; } ];
-        fieldConfig.defaults = { unit = "bytes"; custom.lineWidth = 2; };
+        targets = [
+          {
+            expr = ''container_memory_usage_bytes{name=~"jellyfin|audiobookshelf"}'';
+            legendFormat = "{{name}}";
+          }
+        ];
+        fieldConfig.defaults = {
+          unit = "bytes";
+          custom.lineWidth = 2;
+        };
       }
       {
         id = 8;
-        gridPos = { x = 0; y = 24; w = 12; h = 8; };
+        gridPos = {
+          x = 0;
+          y = 24;
+          w = 12;
+          h = 8;
+        };
         type = "timeseries";
         title = "Intel GPU (N100)";
         targets = [
-          { expr = "intel_gpu_busy_percent"; legendFormat = "GPU Overall"; }
-          { expr = ''intel_gpu_engine_busy_percent{engine="render"}''; legendFormat = "Render/3D"; }
-          { expr = ''intel_gpu_engine_busy_percent{engine="video"}''; legendFormat = "Video (Transcoding)"; }
-          { expr = ''intel_gpu_engine_busy_percent{engine="videoenhance"}''; legendFormat = "Video Enhancement"; }
+          {
+            expr = "intel_gpu_busy_percent";
+            legendFormat = "GPU Overall";
+          }
+          {
+            expr = ''intel_gpu_engine_busy_percent{engine="render"}'';
+            legendFormat = "Render/3D";
+          }
+          {
+            expr = ''intel_gpu_engine_busy_percent{engine="video"}'';
+            legendFormat = "Video (Transcoding)";
+          }
+          {
+            expr = ''intel_gpu_engine_busy_percent{engine="videoenhance"}'';
+            legendFormat = "Video Enhancement";
+          }
         ];
-        fieldConfig.defaults = { unit = "percent"; min = 0; max = 100; custom.lineWidth = 2; thresholds = { mode = "absolute"; steps = [ { value = 0; color = "green"; } { value = 70; color = "yellow"; } { value = 90; color = "red"; } ]; }; };
+        fieldConfig.defaults = {
+          unit = "percent";
+          min = 0;
+          max = 100;
+          custom.lineWidth = 2;
+          thresholds = {
+            mode = "absolute";
+            steps = [
+              {
+                value = 0;
+                color = "green";
+              }
+              {
+                value = 70;
+                color = "yellow";
+              }
+              {
+                value = 90;
+                color = "red";
+              }
+            ];
+          };
+        };
       }
       {
         id = 7;
-        gridPos = { x = 12; y = 24; w = 12; h = 8; };
+        gridPos = {
+          x = 12;
+          y = 24;
+          w = 12;
+          h = 8;
+        };
         type = "timeseries";
         title = "Disk I/O";
         targets = [
-          { expr = ''irate(node_disk_read_bytes_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+"}[5m])''; legendFormat = "{{device}} read"; }
-          { expr = ''irate(node_disk_written_bytes_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+"}[5m]) * -1''; legendFormat = "{{device}} write"; }
+          {
+            expr = ''irate(node_disk_read_bytes_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+"}[5m])'';
+            legendFormat = "{{device}} read";
+          }
+          {
+            expr = ''irate(node_disk_written_bytes_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+"}[5m]) * -1'';
+            legendFormat = "{{device}} write";
+          }
         ];
-        fieldConfig.defaults = { unit = "binBps"; custom = { lineWidth = 2; fillOpacity = 10; gradientMode = "opacity"; }; thresholds = { mode = "absolute"; steps = [ ]; }; };
+        fieldConfig.defaults = {
+          unit = "binBps";
+          custom = {
+            lineWidth = 2;
+            fillOpacity = 10;
+            gradientMode = "opacity";
+          };
+          thresholds = {
+            mode = "absolute";
+            steps = [ ];
+          };
+        };
       }
     ];
   };

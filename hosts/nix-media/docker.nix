@@ -1,16 +1,22 @@
-{ pkgs, lib, config, mainUser, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  mainUser,
+  ...
+}:
 
 let
   # --- HOST CONFIGURATION ---
   # Hardware Transcoding Groups (Confirmed via `id`)
-  renderGid = "303"; 
+  renderGid = "303";
   videoGid = "26";
-  
+
   # Dynamic User Mapping (Robust)
   # 1. Get the user/group config
-  user = config.users.users.${mainUser} or {};
+  user = config.users.users.${mainUser} or { };
   groupName = user.group or mainUser;
-  group = config.users.groups.${groupName} or {};
+  group = config.users.groups.${groupName} or { };
 
   # 2. Extract IDs safely (Handle nulls if option is unset)
   #    Falls back to 1001 only if not explicitly set in default.nix.
@@ -57,7 +63,10 @@ in
       enable = true;
       autoPrune = {
         enable = true;
-        flags = [ "--all" "--force" ];
+        flags = [
+          "--all"
+          "--force"
+        ];
       };
       daemon.settings."metrics-addr" = "127.0.0.1:9323";
     };
@@ -96,7 +105,8 @@ in
             "--health-interval=60s"
             "--health-retries=4"
             "--health-timeout=10s"
-          ] ++ lib.optional (videoGid != "REPLACE_ME") "--group-add=${videoGid}";
+          ]
+          ++ lib.optional (videoGid != "REPLACE_ME") "--group-add=${videoGid}";
         };
 
         # 2. Audiobookshelf
@@ -169,10 +179,19 @@ in
       # Ensure Network Exists (Idempotent)
       "docker-network-jellyfin" = {
         description = "Ensure Docker network '${dockerNetwork.name}' exists";
-        after = [ "docker.service" "docker.socket" ];
+        after = [
+          "docker.service"
+          "docker.socket"
+        ];
         requires = [ "docker.service" ];
-        before = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
-        requiredBy = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
+        before = [
+          "docker-jellyfin.service"
+          "docker-audiobookshelf.service"
+        ];
+        requiredBy = [
+          "docker-jellyfin.service"
+          "docker-audiobookshelf.service"
+        ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
@@ -210,7 +229,10 @@ in
           Type = "oneshot";
           User = "root";
         };
-        path = [ pkgs.docker pkgs.systemd ];
+        path = [
+          pkgs.docker
+          pkgs.systemd
+        ];
         script = ''
           set -e
           echo "Pulling images..."
@@ -220,7 +242,7 @@ in
 
           echo "Restarting services..."
           systemctl restart docker-jellyfin.service docker-audiobookshelf.service docker-cadvisor.service
-          
+
           echo "Pruning..."
           docker image prune -f
         '';

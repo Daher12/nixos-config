@@ -14,7 +14,7 @@ let
 
   # Secrets: Define the topic secret
   secretName = "ntfy_topic";
-  
+
   # Critical services to monitor
   criticalServices = [
     "docker-jellyfin.service"
@@ -24,7 +24,7 @@ let
     "nixos-upgrade.service"
     "docker-image-refresh.service"
   ];
-  
+
   failureServices = map (lib.removeSuffix ".service") criticalServices;
 
   # The main notification script (Reads topic from SOPS secret)
@@ -37,7 +37,7 @@ let
       # Exit 0 to prevent the notification service itself from entering 'failed' state
       exit 0
     fi
-    
+
     # HARDENING: Strip newlines which SOPS/editors might insert
     NTFY_TOPIC=$(tr -d '\n' < "${config.sops.secrets.${secretName}.path}")
 
@@ -100,8 +100,14 @@ in
         description = "Notify on system boot";
         wantedBy = [ "multi-user.target" ];
         # Best-effort ordering; script self-checks for secret existence
-        after = [ "network-online.target" "sops-nix.service" ];
-        wants = [ "network-online.target" "sops-nix.service" ];
+        after = [
+          "network-online.target"
+          "sops-nix.service"
+        ];
+        wants = [
+          "network-online.target"
+          "sops-nix.service"
+        ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;

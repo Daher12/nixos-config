@@ -16,16 +16,16 @@
   core.users.description = "David";
 
   hardware.amd-gpu.enable = true;
-  
+
   features = {
     nas.enable = true;
-    
+
     desktop-gnome = {
       autoLogin = true;
     };
 
     sops.enable = true;
-    
+
     filesystem = {
       type = "btrfs";
       # Redundant mountOptions removed; relying on hardware-configuration.nix / defaults
@@ -42,7 +42,7 @@
       "amdgpu.ppfeaturemask=0xffffffff"
       "amdgpu.dcdebugmask=0x10"
     ];
-    
+
     kmscon.enable = true;
     oomd.enable = true;
 
@@ -89,15 +89,17 @@
   };
 
   # FIXED: Moved mkIf to guard the attribute set, not the scalar value
-  systemd.services.nix-daemon.serviceConfig = 
-    let cores = config.nix.settings.cores or 0;
-    in lib.mkIf (cores > 0) {
+  systemd.services.nix-daemon.serviceConfig =
+    let
+      cores = config.nix.settings.cores or 0;
+    in
+    lib.mkIf (cores > 0) {
       CPUQuota = "${toString (cores * 100)}%";
     };
 
   services.irqbalance.enable = true;
   services.journald.extraConfig = "SystemMaxUse=200M";
-  
+
   environment.systemPackages = with pkgs; [
     libva-utils
     vulkan-tools

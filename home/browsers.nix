@@ -14,12 +14,12 @@ in
       enable = lib.mkEnableOption "Firefox";
       extensions = lib.mkOption {
         type = lib.types.listOf lib.types.package;
-        default = [];
+        default = [ ];
         description = "List of Firefox extension packages";
       };
       extraSettings = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
-        default = {};
+        default = { };
         description = "Extra Firefox prefs merged into the default profile (wins over defaults).";
       };
     };
@@ -27,12 +27,12 @@ in
       enable = lib.mkEnableOption "Brave";
       extensions = lib.mkOption {
         type = lib.types.listOf lib.types.str;
-        default = [];
+        default = [ ];
         description = "List of Brave extension IDs";
       };
       extraCommandLineArgs = lib.mkOption {
         type = lib.types.listOf lib.types.str;
-        default = [];
+        default = [ ];
         description = "Extra Brave command line arguments appended to defaults.";
       };
     };
@@ -48,16 +48,15 @@ in
           isDefault = true;
           # FIX: Use inherit to satisfy statix
           inherit (cfg.firefox) extensions;
-          settings = 
-            {
-              "browser.startup.homepage" = lib.mkDefault "about:blank";
-              "browser.search.region" = lib.mkDefault "DE";
-              "distribution.searchplugins.defaultLocale" = lib.mkDefault "de-DE";
-              "intl.locale.requested" = lib.mkDefault "de-DE";
-              "intl.accept_languages" = lib.mkDefault "de-DE,de,en-US,en";
-              "gfx.webrender.all" = lib.mkDefault true;
-            } 
-            // cfg.firefox.extraSettings;
+          settings = {
+            "browser.startup.homepage" = lib.mkDefault "about:blank";
+            "browser.search.region" = lib.mkDefault "DE";
+            "distribution.searchplugins.defaultLocale" = lib.mkDefault "de-DE";
+            "intl.locale.requested" = lib.mkDefault "de-DE";
+            "intl.accept_languages" = lib.mkDefault "de-DE,de,en-US,en";
+            "gfx.webrender.all" = lib.mkDefault true;
+          }
+          // cfg.firefox.extraSettings;
         };
       };
     })
@@ -67,11 +66,7 @@ in
         enable = true;
         package = pkgs.brave;
         extensions = map (id: { inherit id; }) cfg.brave.extensions;
-        commandLineArgs = 
-          lib.unique (
-            [ "--password-store=basic" ]
-            ++ cfg.brave.extraCommandLineArgs
-          );
+        commandLineArgs = lib.unique ([ "--password-store=basic" ] ++ cfg.brave.extraCommandLineArgs);
       };
     })
   ];

@@ -61,7 +61,7 @@ lib.mkMerge [
       zram.enable = lib.mkDefault true;
       network-optimization.enable = lib.mkDefault true;
       kernel.variant = lib.mkDefault "zen";
-      
+
       vpn.tailscale = {
         enable = lib.mkDefault true;
         routingFeatures = lib.mkDefault "client";

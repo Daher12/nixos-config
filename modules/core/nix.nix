@@ -15,7 +15,7 @@ in
   options.core.nix = {
     gc = {
       automatic = lib.mkEnableOption "automatic garbage collection";
-      
+
       dates = lib.mkOption {
         type = lib.types.str;
         default = "weekly";
@@ -28,7 +28,7 @@ in
         description = "Options passed to nix-collect-garbage";
       };
     };
-    
+
     optimise.automatic = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -103,7 +103,7 @@ in
         # Note: 'options' maps to 'flags', so it cannot be inherited.
         options = cfg.gc.flags;
       };
-      
+
       optimise = lib.mkIf cfg.optimise.automatic {
         automatic = true;
         dates = [ "weekly" ];
@@ -121,7 +121,7 @@ in
     };
 
     systemd.services.NetworkManager-wait-online.wantedBy = lib.mkForce [ ];
-    
+
     environment.systemPackages = [ pkgs.cachix ];
   };
 }

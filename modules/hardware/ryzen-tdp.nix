@@ -8,7 +8,7 @@
 let
   cfg = config.hardware.ryzen-tdp;
   toMW = watts: toString (watts * 1000);
-  
+
   # Refactored script with concurrency locking
   setTdp = pkgs.writeShellApplication {
     name = "set-ryzen-tdp";
@@ -147,7 +147,7 @@ in
         "systemd-logind.service"
         "post-resume.target"
       ];
-      
+
       unitConfig = {
         StartLimitBurst = 5;
         StartLimitIntervalSec = 10;

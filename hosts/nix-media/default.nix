@@ -38,7 +38,7 @@ in
     };
 
     kernelParams = [ "transparent_hugepage=madvise" ];
-    
+
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
   };
 
@@ -108,7 +108,7 @@ in
     uid = 1001; # Matches your NFS standard
     extraGroups = [ "docker" ];
   };
-  
+
   # Explicitly set GID to 982 (as confirmed via `id`) to avoid ownership drift
   users.groups.${mainUser}.gid = 982;
 
@@ -137,7 +137,7 @@ in
     };
 
     rpcbind.enable = lib.mkForce false;
-    
+
     nfs = {
       server = {
         enable = true;

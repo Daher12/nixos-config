@@ -9,24 +9,21 @@
 
 let
   cfg = config.programs.winapps;
-  
+
   # Safe attrpath access: osConfig may be {} when HM is used standalone.
   # Provides a safe fallback object if the host config doesn't define the VM.
-  vmCfg = lib.attrByPath
-    [ "features" "virtualization" "windows11" ]
-    {
-      enable = false;
-      ip = "192.168.122.10";
-      name = "windows11";
-    }
-    osConfig;
+  vmCfg = lib.attrByPath [ "features" "virtualization" "windows11" ] {
+    enable = false;
+    ip = "192.168.122.10";
+    name = "windows11";
+  } osConfig;
 
   secretsFile = "${config.xdg.configHome}/winapps/secrets.conf";
 in
 {
   options.programs.winapps = {
     enable = lib.mkEnableOption "WinApps integration";
-    
+
     vmName = lib.mkOption {
       type = lib.types.str;
       default = vmCfg.name;

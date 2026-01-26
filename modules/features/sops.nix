@@ -53,8 +53,10 @@ in
       ];
     };
 
-    environment.systemPackages = [ pkgs.sops ]
-      # Maintenance: Only install ssh-to-age when actually needed for key derivation
-      ++ lib.optional (cfg.method == "ssh") pkgs.ssh-to-age;
+    environment.systemPackages = [
+      pkgs.sops
+    ]
+    # Maintenance: Only install ssh-to-age when actually needed for key derivation
+    ++ lib.optional (cfg.method == "ssh") pkgs.ssh-to-age;
   };
 }

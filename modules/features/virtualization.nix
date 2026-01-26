@@ -30,7 +30,7 @@ in
 {
   options.features.virtualization = {
     enable = lib.mkEnableOption "libvirt/QEMU virtualization";
-    
+
     windows11 = {
       enable = lib.mkEnableOption "Windows 11 VM with Office/iTunes optimizations";
       name = lib.mkOption {
@@ -127,13 +127,13 @@ in
           "kvm"
         ];
 
-        # Removed 'kvm-intel'/'kvm-amd' force-load. 
+        # Removed 'kvm-intel'/'kvm-amd' force-load.
         # The kernel/hardware-configuration.nix handles this automatically based on CPU.
         boot.kernelModules = [
           "vhost-net"
           "vhost-vsock"
         ];
-        
+
         # Safe to leave these options; they only apply if the module is loaded.
         boot.extraModprobeConfig = ''
           options kvm_intel enable_apicv=1 ept=1
@@ -164,7 +164,7 @@ in
           SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
         '';
 
-        # [Optim] Set a finite timeout for guest shutdown to prevent the host from 
+        # [Optim] Set a finite timeout for guest shutdown to prevent the host from
         # hanging indefinitely if a VM refuses to stop.
         systemd.services.libvirt-guests.serviceConfig = {
           TimeoutStopSec = "30s";

@@ -125,8 +125,7 @@ in
       doc.enable = false;
     };
 
-
- # Priority 900: nixpkgs sets this at default priority (1000), causing merge conflicts
+    # Priority 900: nixpkgs sets this at default priority (1000), causing merge conflicts
     boot.kernel.sysctl = {
       "vm.max_map_count" = lib.mkOverride 900 1048576;
       "vm.dirty_ratio" = lib.mkDefault 10;

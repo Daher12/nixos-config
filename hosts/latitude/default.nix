@@ -3,7 +3,10 @@
 let
   # Firmware-defined ACPI tokens from /proc/acpi/wakeup
   # Latitude E7450 typically uses EHC1 (USB2) and XHC (USB3)
-  usbWakeDevices = [ "EHC1" "XHC" ];
+  usbWakeDevices = [
+    "EHC1"
+    "XHC"
+  ];
 
   disableUsbWakeups = pkgs.writeShellScript "disable-usb-wakeups" ''
     set -euo pipefail
@@ -31,7 +34,7 @@ in
   system.stateVersion = "25.05";
 
   core.locale.timeZone = "Europe/Berlin";
-  
+
   hardware.intel-gpu.enable = true;
   # Matches the nested namespace in your modules/hardware/nvidia-disable.nix
   hardware.nvidia.disable.enable = true;
@@ -82,7 +85,7 @@ in
     '';
 
     thermald.enable = true;
-    
+
     preload-ng = {
       enable = true;
       settings = {
@@ -93,7 +96,7 @@ in
         cycle = 30;
       };
     };
-    
+
     journald.extraConfig = ''
       SystemMaxUse=100M
       Compress=yes
