@@ -15,7 +15,7 @@ in
 
     serverIp = lib.mkOption {
       type = lib.types.str;
-      default = "100.123.189.29"; # Use hostname (Tailscale DNS) or the IP "100.123.189.29"
+      default = "100.123.189.29";
       description = "NFS Server IP or Hostname";
     };
   };
@@ -35,7 +35,7 @@ in
         "x-systemd.automount"
         "noauto"
         "x-systemd.idle-timeout=600"
-        # FIX: Wait for network AND tailscale to be fully ready
+        # Prevent mount attempts before Tailscale establishes network routes
         "x-systemd.requires=network-online.target"
         "x-systemd.after=network-online.target"
         "x-systemd.requires=tailscaled.service"
@@ -44,13 +44,11 @@ in
         "soft"
         "timeo=600"
         "resvport"
-        # FIX: Add retry logic for transient network issues
         "retrans=2"
         "_netdev"
       ];
     };
 
-    # Ensure network-online.target is enabled
     systemd.targets.network-online.wantedBy = lib.mkForce [ "multi-user.target" ];
   };
 }
