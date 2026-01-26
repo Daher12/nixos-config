@@ -7,7 +7,8 @@
 
 let
   cfg = config.features.filesystem;
-  # Optimized async discard detection
+  
+  # Detect if any Btrfs mount uses async discard (makes periodic fstrim redundant)
   hasAsyncDiscard =
     cfg.type == "btrfs"
     && lib.any (lib.hasInfix "discard=async") (lib.flatten (lib.attrValues cfg.mountOptions));
@@ -53,6 +54,7 @@ in
         default = false;
         description = "Enable automatic Btrfs scrubbing";
       };
+
       scrubFilesystems = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ "/" ];
@@ -64,6 +66,7 @@ in
         default = false;
         description = "Enable monthly Btrfs balance";
       };
+
       defaultMountOptions = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [
@@ -88,14 +91,17 @@ in
     })
 
     {
-      # Fix: Rename unused argument 'path' to '_path' to suppress warning
-      fileSystems = lib.mapAttrs (_path: opts: {
+      # Apply mount options via fileSystems attribute set
+      fileSystems = lib.mapAttrs (_: opts: {
         options = lib.mkAfter opts;
       }) cfg.mountOptions;
     }
 
     {
-      services.fstrim.enable = if cfg.enableFstrim != null then cfg.enableFstrim else !hasAsyncDiscard;
+      services.fstrim.enable = 
+        if cfg.enableFstrim != null 
+        then cfg.enableFstrim 
+        else !hasAsyncDiscard;
 
       services.fstrim.interval = lib.mkIf config.services.fstrim.enable "weekly";
     }
@@ -113,8 +119,10 @@ in
         description = "Monthly Btrfs balance";
         serviceConfig = {
           Type = "oneshot";
-          ExecStart = lib.concatMapStringsSep " && " (
-            fs: "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 ${fs}"
+          # FIX: Use a list of commands. Systemd runs them sequentially.
+          # Concatenating them into one string fails because 'btrfs balance' only accepts one path.
+          ExecStart = map (
+             fs: "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 ${fs}"
           ) cfg.btrfs.scrubFilesystems;
         };
       };
