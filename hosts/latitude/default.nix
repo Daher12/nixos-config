@@ -1,4 +1,3 @@
-# hosts/latitude/default.nix
 { pkgs, lib, ... }:
 
 let
@@ -14,7 +13,8 @@ let
     disable_dev() {
       local dev="$1"
       # Toggle only if currently enabled (idempotent safe-guard)
-      if grep -qE "^${dev}[[:space:]].*enabled" "$wake"; then
+      # FIX: Used $dev instead of ''${dev} to prevent Nix interpolation error
+      if grep -qE "^$dev[[:space:]].*enabled" "$wake"; then
         echo "Disabling wakeup for $dev"
         echo "$dev" > "$wake"
       fi
@@ -29,15 +29,21 @@ in
   ];
 
   system.stateVersion = "25.05";
-  core.locale.timeZone = "Europe/Berlin";
 
+  core.locale.timeZone = "Europe/Berlin";
+  
   hardware.intel-gpu.enable = true;
+  # Matches the nested namespace in your modules/hardware/nvidia-disable.nix
   hardware.nvidia.disable.enable = true;
 
   features = {
     filesystem = {
       type = "ext4";
-      mountOptions."/" = [ "noatime" "nodiratime" "commit=30" ];
+      mountOptions."/" = [
+        "noatime"
+        "nodiratime"
+        "commit=30"
+      ];
     };
 
     kernel.extraParams = [
@@ -58,10 +64,11 @@ in
     };
   };
 
-  systemd.services.disable-usb-wakeup-sources = {
-    description = "Disable spurious wakeups from USB to save power";
+  # Host-specific quirk: Disable spurious wakeups from USB to save power
+  systemd.services.disable-wakeup-sources = {
+    description = "Disable spurious wakeups from USB (EHC1/XHC)";
     wantedBy = [ "multi-user.target" ];
-    # Removed udev-settle dependency for faster boot
+    after = [ "systemd-udev-settle.service" ];
     serviceConfig = {
       Type = "oneshot";
       # Removed RemainAfterExit=true to allow re-execution on udev changes
@@ -70,25 +77,23 @@ in
   };
 
   services = {
-    # Re-apply after USB topology changes; /proc/acpi/wakeup toggles are not persistent
     udev.extraRules = ''
-      ACTION=="add|change", SUBSYSTEM=="usb", TAG+="systemd", ENV{SYSTEMD_WANTS}+="disable-usb-wakeup-sources.service"
+      ACTION=="add|change", SUBSYSTEM=="usb", TAG+="systemd", ENV{SYSTEMD_WANTS}+="disable-wakeup-sources.service"
     '';
 
     thermald.enable = true;
-
+    
     preload-ng = {
       enable = true;
       settings = {
-        cycle = 30;            # Data gathering/prediction quantum (seconds)
-        useCorrelation = true; # Use correlation coefficient for more accurate predictions
-        minSize = 2000000;     # Min sum of mapped memory (bytes) to track an app
-        memTotal = -10;        # Percentage of total RAM to subtract from budget
-        memFree = 50;          # Percentage of currently free RAM preload can use
-        sortStrategy = 0;      # 0=SORT_NONE: Optimal for Flash/SSD storage
+        sortStrategy = 0;
+        memTotal = -10;
+        memFree = 50;
+        minSize = 2000000;
+        cycle = 30;
       };
     };
-
+    
     journald.extraConfig = ''
       SystemMaxUse=100M
       Compress=yes
