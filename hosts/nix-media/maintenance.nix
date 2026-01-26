@@ -19,7 +19,7 @@
   # ---------------------------------------------------------------------------
   systemd.services.weekly-maintenance-reboot = {
     description = "Weekly reboot into latest NixOS generation with safety checks";
-    
+
     # Optimization: We only check localhost, so we don't need to wait for WAN
     # after = [ "network-online.target" ]; 
     # wants = [ "network-online.target" ];
@@ -60,8 +60,8 @@
       TMP="$RUNTIME_DIRECTORY/jf-sessions.json"
 
       # Fail-closed: If we cannot explicitly confirm the server is idle, we assume it is busy.
-      # Note: If Jellyfin requires Auth, curl -f returns 401/403, triggering exit 0 (Skip).
-      if ! curl -sf --max-time 5 http://127.0.0.1:8096/Sessions -o "$TMP"; then
+      # Added --connect-timeout 2 to prevent SYN hangs.
+      if ! curl -sf --connect-timeout 2 --max-time 5 http://127.0.0.1:8096/Sessions -o "$TMP"; then
          echo "Unable to query Jellyfin sessions (curl failed/auth required). Skipping reboot (fail-closed)."
          exit 0
       fi
