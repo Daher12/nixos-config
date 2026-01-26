@@ -47,11 +47,13 @@ in
         ];
       };
 
+      # Plymouth configuration (conditional block)
       plymouth = lib.mkIf cfg.silent {
         enable = true;
         inherit (cfg.plymouth) theme;
       };
 
+      # Silent boot parameters (only when enabled)
       kernelParams = lib.mkIf cfg.silent [
         "quiet"
         "splash"
@@ -69,6 +71,7 @@ in
         efi.canTouchEfiVariables = true;
       };
 
+      # Tmpfs configuration (separate conditional block)
       tmp = lib.mkIf cfg.tmpfs.enable {
         useTmpfs = true;
         tmpfsSize = cfg.tmpfs.size;
@@ -76,6 +79,7 @@ in
       };
     };
 
+    # I/O scheduler optimization for SSDs
     services.udev.extraRules = ''
       ACTION=="add|change", SUBSYSTEM=="block", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="none"
     '';
