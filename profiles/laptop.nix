@@ -7,13 +7,14 @@
 
 let
   # ----------------------------------------------------------------------------
-  # 1. Define WiFi Data
+  # WiFi Data (NetworkManager Keyfile Format)
   # ----------------------------------------------------------------------------
   homeWifiContent = ''
     [connection]
     id=HomeWiFi
     uuid=7a3b4c5d-1234-5678-9abc-def012345678
     type=wifi
+    autoconnect=true # predictable behavior; avoids relying on NM defaults
 
     [wifi]
     ssid=FRITZ!Box G
@@ -29,13 +30,12 @@ let
     method=auto
   '';
 
-  homeWifiMarker = pkgs.writeText "wifi-home-marker" homeWifiContent;
-
   workWifiContent = ''
     [connection]
     id=WorkWiFi
     uuid=8b4c5d6e-2345-6789-0bcd-ef1234567890
     type=wifi
+    autoconnect=true # predictable behavior; avoids relying on NM defaults
 
     [wifi]
     ssid=MyWorkOffice
@@ -50,13 +50,10 @@ let
     [ipv6]
     method=auto
   '';
-
-  workWifiMarker = pkgs.writeText "wifi-work-marker" workWifiContent;
-
 in
 lib.mkMerge [
   # ----------------------------------------------------------------------------
-  # Block 1: Base Configuration (Always Applied)
+  # Block 1: Base Configuration
   # ----------------------------------------------------------------------------
   {
     features = {
@@ -65,14 +62,13 @@ lib.mkMerge [
       zram.enable = lib.mkDefault true;
       network-optimization.enable = lib.mkDefault true;
       kernel.variant = lib.mkDefault "zen";
-
+      
       vpn.tailscale = {
         enable = lib.mkDefault true;
         routingFeatures = lib.mkDefault "client";
         trustInterface = lib.mkDefault true;
       };
 
-      # Default SOPS to false (Host must enable it explicitly)
       sops.enable = lib.mkDefault false;
     };
 
@@ -97,12 +93,20 @@ lib.mkMerge [
   }
 
   # ----------------------------------------------------------------------------
-  # Block 2: SOPS Configuration (Atomic Enable/Disable + Statix Compliant)
+  # Block 2: SOPS Configuration
   # ----------------------------------------------------------------------------
   (lib.mkIf config.features.sops.enable {
-    # [FIX] Grouped 'sops' attribute to satisfy statix linter
+    # Safety: ensure the consumer of these secrets is actually enabled.
+    assertions = [
+      {
+        assertion = config.networking.networkmanager.enable or false;
+        message = "WiFi nmconnection templates are enabled, but networking.networkmanager.enable is false.";
+      }
+    ];
+
     sops = {
       secrets = {
+        # Native sops-nix restart handling (superior to restartTriggers on static markers)
         "wifi_home_psk".restartUnits = [ "NetworkManager.service" ];
         "wifi_work_psk".restartUnits = [ "NetworkManager.service" ];
       };
@@ -110,21 +114,19 @@ lib.mkMerge [
       templates = {
         "wifi-home.nmconnection" = {
           mode = "0600";
+          owner = "root"; # explicit: system-connections must be root-owned
+          group = "root";
           path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
           content = homeWifiContent;
         };
         "wifi-work.nmconnection" = {
           mode = "0600";
+          owner = "root";
+          group = "root";
           path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
           content = workWifiContent;
         };
       };
     };
-
-    # Drift Detection
-    systemd.services.NetworkManager.restartTriggers = [
-      homeWifiMarker
-      workWifiMarker
-    ];
   })
 ]
