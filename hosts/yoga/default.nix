@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }:
 
@@ -8,28 +9,26 @@
   imports = [
     ./hardware-configuration.nix
   ];
+
   system.stateVersion = "25.11";
 
   core.locale.timeZone = "Europe/Berlin";
   core.users.description = "David";
 
   hardware.amd-gpu.enable = true;
+  
   features = {
     nas.enable = true;
+    
     desktop-gnome = {
       autoLogin = true;
-      # Optional: override the user if it's not the mainUser
-      # autoLoginUser = "david";
     };
+
     sops.enable = true;
+    
     filesystem = {
       type = "btrfs";
-      # Explicitly apply defaults to specific paths
-      mountOptions = {
-        "/" = config.features.filesystem.btrfs.defaultMountOptions;
-        "/home" = config.features.filesystem.btrfs.defaultMountOptions;
-        "/nix" = config.features.filesystem.btrfs.defaultMountOptions;
-      };
+      # Redundant mountOptions removed; relying on hardware-configuration.nix / defaults
       btrfs = {
         autoScrub = true;
         scrubFilesystems = [ "/" ];
@@ -43,8 +42,8 @@
       "amdgpu.ppfeaturemask=0xffffffff"
       "amdgpu.dcdebugmask=0x10"
     ];
+    
     kmscon.enable = true;
-
     oomd.enable = true;
 
     virtualization = {
@@ -69,8 +68,9 @@
       PCIE_ASPM_ON_BAT = "powersupersave";
     };
   };
+
   boot.kernelModules = [ "ryzen_smu" ];
-  boot.extraModulePackages = [ config.boot.kernelPackages.ryzen-smu ];
+  boot.extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
 
   hardware.ryzen-tdp = {
     enable = true;
@@ -88,13 +88,16 @@
     };
   };
 
-  systemd.services.nix-daemon.serviceConfig.CPUQuota = "${
-    toString (config.nix.settings.cores * 100)
-  }%";
+  # FIXED: Moved mkIf to guard the attribute set, not the scalar value
+  systemd.services.nix-daemon.serviceConfig = 
+    let cores = config.nix.settings.cores or 0;
+    in lib.mkIf (cores > 0) {
+      CPUQuota = "${toString (cores * 100)}%";
+    };
 
   services.irqbalance.enable = true;
-
   services.journald.extraConfig = "SystemMaxUse=200M";
+  
   environment.systemPackages = with pkgs; [
     libva-utils
     vulkan-tools
