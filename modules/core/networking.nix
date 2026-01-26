@@ -13,7 +13,6 @@ in
       default = "iwd";
       description = "WiFi backend for NetworkManager";
     };
-
     enablePowersave = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -36,7 +35,8 @@ in
       enable = lib.mkDefault true;
       wifi.backend = cfg.backend;
       wifi.powersave = cfg.enablePowersave;
-      dns = cfg.dns;
+      # FIX: Use inherit to satisfy statix
+      inherit (cfg) dns;
     };
 
     services.resolved = lib.mkIf (cfg.dns == "systemd-resolved") {
