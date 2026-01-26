@@ -9,21 +9,24 @@
 
 let
   cfg = config.programs.winapps;
-
-  vmCfg =
-    osConfig.features.virtualization.windows11 or
-
+  
+  # Safe attrpath access: osConfig may be {} when HM is used standalone.
+  # Provides a safe fallback object if the host config doesn't define the VM.
+  vmCfg = lib.attrByPath
+    [ "features" "virtualization" "windows11" ]
     {
+      enable = false;
       ip = "192.168.122.10";
       name = "windows11";
-    };
+    }
+    osConfig;
 
   secretsFile = "${config.xdg.configHome}/winapps/secrets.conf";
 in
 {
   options.programs.winapps = {
     enable = lib.mkEnableOption "WinApps integration";
-
+    
     vmName = lib.mkOption {
       type = lib.types.str;
       default = vmCfg.name;
@@ -62,10 +65,12 @@ in
         message = "winappsPackages must be provided via extraSpecialArgs";
       }
       {
+        # Only enforce the host-side feature when that subtree actually exists in osConfig.
+        # This prevents errors in standalone Home Manager setups.
         assertion =
-          !(osConfig ? features.virtualization.windows11)
-          || (osConfig.features.virtualization.windows11.enable or false);
-        message = "winapps requires host features.virtualization.windows11.enable = true";
+          !(lib.hasAttrByPath [ "features" "virtualization" "windows11" ] osConfig)
+          || (vmCfg.enable or false);
+        message = "winapps requires host features.virtualization.windows11.enable = true (when osConfig provides it)";
       }
     ];
 
@@ -81,6 +86,7 @@ in
       RDP_DOMAIN="${cfg.windowsDomain}"
       RDP_FLAGS="${cfg.rdpFlags}"
       FREERDP_COMMAND="xfreerdp"
+      VM_NAME="${cfg.vmName}"
       MULTIMON="false"
       DEBUG="false"
 
@@ -89,17 +95,20 @@ in
     '';
 
     home.activation.winappsSecrets = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-            SECRETS="${cfg.credentialsFile}"
-            if [ ! -f "$SECRETS" ]; then
-              run mkdir -p "$(dirname "$SECRETS")"
-              run cat > "$SECRETS" << 'EOF'
+      SECRETS="${cfg.credentialsFile}"
+      if [ ! -f "$SECRETS" ]; then
+        # Fix: Use $DRY_RUN_CMD to respect dry-run mode (avoiding shell redirection '>')
+        $DRY_RUN_CMD mkdir -p "$(dirname "$SECRETS")"
+        
+        # 'tee' allows us to write to the file as a command, which $DRY_RUN_CMD can guard.
+        $DRY_RUN_CMD tee "$SECRETS" > /dev/null << 'EOF'
       # WinApps Credentials (not tracked in git)
       RDP_USER="your-windows-username"
       RDP_PASS="your-windows-password"
       EOF
-              run chmod 600 "$SECRETS"
-              verboseEcho "Created WinApps secrets template: $SECRETS"
-            fi
+        $DRY_RUN_CMD chmod 600 "$SECRETS"
+        verboseEcho "Created WinApps secrets template: $SECRETS"
+      fi
     '';
   };
 }
