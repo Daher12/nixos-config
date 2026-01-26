@@ -12,8 +12,8 @@ in
     boot.kernel.sysctl = {
       "vm.swappiness" = lib.mkForce 10;
       "vm.vfs_cache_pressure" = lib.mkForce 50;
-      "vm.dirty_background_bytes" = lib.mkForce 134217728;
-      "vm.dirty_bytes" = lib.mkForce 536870912;
+      "vm.dirty_background_bytes" = lib.mkForce 134217728; # 128MB
+      "vm.dirty_bytes" = lib.mkForce 536870912; # 512MB
       "fs.inotify.max_user_watches" = lib.mkForce 1048576;
       "fs.inotify.max_user_instances" = lib.mkForce 1024;
       "net.core.somaxconn" = lib.mkForce 4096;
