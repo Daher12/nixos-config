@@ -79,6 +79,13 @@ in
 
     security.pam.services.gdm.enableGnomeKeyring = true;
 
+    # Apply experimental features via home-manager
+    home-manager.users.${mainUser}.dconf.settings = {
+      "org/gnome/mutter" = {
+        experimental-features = cfg.experimentalFeatures;
+      };
+    };
+
     environment = {
       gnome.excludePackages = with pkgs; [
         gnome-photos
