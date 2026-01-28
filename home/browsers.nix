@@ -55,12 +55,20 @@ in
         commandLineArgs = [ "--password-store=basic" ];
       };
 
-      # Brave ships multiple .desktop variants - hide extras
-      xdg.desktopEntries = {
-        "brave-browser-beta".noDisplay = true;
-        "brave-browser-nightly".noDisplay = true;
-        "brave-browser-dev".noDisplay = true;
-      };
-    })
+	  xdg.desktopEntries = {
+	    "brave-browser-beta" = {
+    	  name = "Brave Beta";
+      	noDisplay = true;
+	    };
+	    "brave-browser-nightly" = {
+	      name = "Brave Nightly";
+    	  noDisplay = true;
+	    };
+	    "brave-browser-dev" = {
+	      name = "Brave Dev";
+	      noDisplay = true;
+	    };
+ 	 };
+	})
   ];
 }
