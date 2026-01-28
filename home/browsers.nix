@@ -10,40 +10,8 @@ let
 in
 {
   options.browsers = {
-    firefox = {
-      enable = lib.mkEnableOption "Firefox";
-
-      extensions = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [
-          "uBlock0@raymondhill.net"
-          "{446900e4-71c2-419f-a6a7-df9c091e268b}"
-        ];
-        description = "Firefox extension addon IDs";
-      };
-
-      extraSettings = lib.mkOption {
-        type = lib.types.attrsOf lib.types.anything;
-        default = { };
-        description = "Additional Firefox preferences";
-      };
-    };
-
-    brave = {
-      enable = lib.mkEnableOption "Brave";
-
-      extensions = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [ "hfmolcaikbnbminafcmeiejglbeelilh" ];
-        description = "Chrome Web Store extension IDs";
-      };
-
-      extraCommandLineArgs = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [ ];
-        description = "Additional command line arguments";
-      };
-    };
+    firefox.enable = lib.mkEnableOption "Firefox with uBlock Origin and Bitwarden";
+    brave.enable = lib.mkEnableOption "Brave with Bitwarden";
   };
 
   config = lib.mkMerge [
@@ -56,28 +24,25 @@ in
           DisableTelemetry = true;
           DisableFirefoxStudies = true;
 
-          ExtensionSettings = builtins.listToAttrs (
-            map (ext: {
-              name = ext;
-              value = {
-                install_url = "https://addons.mozilla.org/firefox/downloads/latest/${ext}/latest.xpi";
-                installation_mode = "force_installed";
-              };
-            }) cfg.firefox.extensions
-          );
+          ExtensionSettings = {
+            "uBlock0@raymondhill.net" = {
+              install_url = "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi";
+              installation_mode = "force_installed";
+            };
+            "{446900e4-71c2-419f-a6a7-df9c091e268b}" = {
+              install_url = "https://addons.mozilla.org/firefox/downloads/latest/bitwarden-password-manager/latest.xpi";
+              installation_mode = "force_installed";
+            };
+          };
         };
 
         profiles.default = {
           id = 0;
           isDefault = true;
-
           settings = {
             "browser.startup.homepage" = "about:blank";
-            "browser.search.region" = "DE";
-            "intl.accept_languages" = "de-DE,de,en-US,en";
             "gfx.webrender.all" = true;
-          }
-          // cfg.firefox.extraSettings;
+          };
         };
       };
     })
@@ -86,10 +51,15 @@ in
       programs.brave = {
         enable = true;
         package = pkgs.brave;
+        extensions = [{ id = "nngceckbapebfimnlniiiahkandclblb"; }]; # Bitwarden
+        commandLineArgs = [ "--password-store=basic" ];
+      };
 
-        extensions = map (id: { inherit id; }) cfg.brave.extensions;
-
-        commandLineArgs = lib.unique ([ "--password-store=basic" ] ++ cfg.brave.extraCommandLineArgs);
+      # Brave ships multiple .desktop variants - hide extras
+      xdg.desktopEntries = {
+        "brave-browser-beta".noDisplay = true;
+        "brave-browser-nightly".noDisplay = true;
+        "brave-browser-dev".noDisplay = true;
       };
     })
   ];
