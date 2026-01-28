@@ -124,6 +124,12 @@ in
     '';
 
     logrotate.enable = true;
+    
+    auto-maintenance = {
+     enable = true;
+     updateInterval = "weekly";           # Sun 03:00
+     rebootInterval = "Sun *-*-1,15 04:00:00";  # 1st & 15th of month
+    };
 
     openssh = {
       enable = true;
