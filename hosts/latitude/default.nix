@@ -40,6 +40,14 @@ in
   hardware.nvidia.disable.enable = true;
 
   features = {
+    nas.enable = true;
+
+    desktop-gnome = {
+      autoLogin = true;
+    };
+
+
+  features = {
     filesystem = {
       type = "ext4";
       mountOptions."/" = [
