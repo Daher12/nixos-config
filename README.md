@@ -6,8 +6,6 @@
 [![Lix](https://img.shields.io/badge/Lix-2.93-7E3FF2?style=for-the-badge)](https://lix.systems)
 [![Flakes](https://img.shields.io/badge/Flakes-Enabled-41BAC1?style=for-the-badge)](https://nixos.wiki/wiki/Flakes)
 
-*Production flake managing workstations and headless infrastructure*
-
 </div>
 
 ---
