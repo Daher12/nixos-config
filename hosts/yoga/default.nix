@@ -14,7 +14,9 @@
 
   core.locale.timeZone = "Europe/Berlin";
   core.users.description = "David";
-
+  networking.hosts = {
+  "100.123.189.29" = [ "nix-media" ];
+  };
   hardware.amd-gpu.enable = true;
 
   features = {
