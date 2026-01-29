@@ -23,7 +23,7 @@ utils.mkPalette {
     # Text
     nord4 = p.text;
     nord5 = p.text;
-    nord6 = p.text; # Fix: Ensure Bright White is bright
+    nord6 = p.text; # Fix: Ensure Bright White is bright (was subtle)
 
     # Accents
     nord7 = p.foam;    # Cyan
