@@ -14,9 +14,9 @@
 
 | Host | Hardware | Role |
 |------|----------|------|
-| **yoga** | Lenovo Yoga 7 Slim Gen 8 | Desktop workstation + VMs |
-| **latitude** | Dell E7450 | Legacy laptop |
-| **nix-media** | Intel N100 Mini PC | Media server + monitoring |
+| **yoga** | Lenovo Yoga 7 Slim Gen 8 | Main Lapotp |
+| **latitude** | Dell E7450 | Legacy Laptop |
+| **nix-media** | Intel N100 Mini PC | Media server |
 
 ---
 
@@ -37,7 +37,7 @@
 ## ⚡ Stack
 
 ### **Workstations**
-- 🎨 GNOME 47 + Wayland with Nord theming
+- 🎨 GNOME with Nord theming
 - 🔒 Secure Boot (Lanzaboote)
 - 💾 Btrfs with automated maintenance
 - 🌐 Tailscale mesh networking
@@ -67,16 +67,6 @@ nixos-rebuild switch --flake .#<hostname>
 # Maintenance
 nix flake update && nix flake check
 ```
-
----
-
-## 📋 Requirements
-
-- NixOS **25.11+**
-- UEFI firmware
-- `sops` CLI for secrets management
-
----
 
 <div align="center">
 
