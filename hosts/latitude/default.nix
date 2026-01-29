@@ -32,7 +32,7 @@ in
   ];
 
   system.stateVersion = "25.05";
-
+  core.users.description = "David";
   core.locale.timeZone = "Europe/Berlin";
   networking.hosts = {
   "100.123.189.29" = [ "nix-media" ];
