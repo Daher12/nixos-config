@@ -35,11 +35,11 @@ in
 
   # 2. Helper: Validate Palette Schema (Fail Fast)
   mkPalette = { name, colors, hexToRgb, ... }@args:
+    # Guard Clauses (if/else chain avoids variable collision)
+    if !builtins.isString name then throw "mkPalette: 'name' must be a string"
+    else if !builtins.isAttrs colors then throw "mkPalette: 'colors' must be an attrset"
+    else
     let
-      # Type Safety Checks
-      _ = if !builtins.isString name then throw "mkPalette: 'name' must be a string" else null;
-      _ = if !builtins.isAttrs colors then throw "mkPalette: 'colors' must be an attrset" else null;
-
       missing = builtins.filter (k: ! (builtins.hasAttr k colors)) requiredKeys;
       
       # Force validation of all values by running hexToRgb on them
