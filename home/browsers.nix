@@ -51,24 +51,24 @@ in
       programs.brave = {
         enable = true;
         package = pkgs.brave;
-        extensions = [{ id = "nngceckbapebfimnlniiiahkandclblb"; }]; # Bitwarden
+        extensions = [ { id = "nngceckbapebfimnlniiiahkandclblb"; } ]; # Bitwarden
         commandLineArgs = [ "--password-store=basic" ];
       };
 
-	  xdg.desktopEntries = {
-	    "brave-browser-beta" = {
-    	  name = "Brave Beta";
-      	noDisplay = true;
-	    };
-	    "brave-browser-nightly" = {
-	      name = "Brave Nightly";
-    	  noDisplay = true;
-	    };
-	    "brave-browser-dev" = {
-	      name = "Brave Dev";
-	      noDisplay = true;
-	    };
- 	 };
-	})
+      xdg.desktopEntries = {
+        "brave-browser-beta" = {
+          name = "Brave Beta";
+          noDisplay = true;
+        };
+        "brave-browser-nightly" = {
+          name = "Brave Nightly";
+          noDisplay = true;
+        };
+        "brave-browser-dev" = {
+          name = "Brave Dev";
+          noDisplay = true;
+        };
+      };
+    })
   ];
 }

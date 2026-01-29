@@ -35,7 +35,7 @@ in
   core.users.description = "David";
   core.locale.timeZone = "Europe/Berlin";
   networking.hosts = {
-  "100.123.189.29" = [ "nix-media" ];
+    "100.123.189.29" = [ "nix-media" ];
   };
 
   hardware.intel-gpu.enable = true;
@@ -51,7 +51,7 @@ in
         "commit=30"
       ];
     };
-    
+
     nas.enable = true;
 
     desktop-gnome = {
