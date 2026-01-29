@@ -1,57 +1,67 @@
-```markdown
 # NixOS Configuration
 
-[![NixOS 25.11](https://img.shields.io/badge/NixOS-25.11-blue.svg)](https://nixos.org)
-[![Lix](https://img.shields.io/badge/Lix-2.93-blueviolet.svg)](https://lix.systems)
+<div align="center">
 
-Production flake managing workstations and headless infrastructure with encrypted secrets and automated maintenance.
+[![NixOS 25.11](https://img.shields.io/badge/NixOS-25.11-5277C3?style=for-the-badge&logo=nixos&logoColor=white)](https://nixos.org)
+[![Lix](https://img.shields.io/badge/Lix-2.93-7E3FF2?style=for-the-badge)](https://lix.systems)
+[![Flakes](https://img.shields.io/badge/Flakes-Enabled-41BAC1?style=for-the-badge)](https://nixos.wiki/wiki/Flakes)
 
-## Hosts
+*Production flake managing workstations and headless infrastructure*
 
+</div>
+
+---
+
+## 🖥️ Hosts
+
+| Host | Hardware | Role |
+|------|----------|------|
+| **yoga** | Lenovo Yoga 7 Slim Gen 8 | Desktop workstation + VMs |
+| **latitude** | Dell E7450 | Legacy laptop |
+| **nix-media** | Intel N100 Mini PC | Media server + monitoring |
+
+---
+
+## 📁 Structure
 ```
-yoga        Lenovo Yoga 7 Slim (Ryzen)  →  Desktop workstation + VMs
-latitude    Dell E7450 (Intel)          →  Legacy laptop
-nix-media   N100 Mini PC                →  Media server + monitoring
+├── modules/
+│   ├── core/        # boot, nix, users, networking
+│   ├── hardware/    # GPU drivers, TDP, device quirks
+│   └── features/    # desktop, power, VMs, fonts, filesystems
+├── profiles/        # Role bundles (laptop, desktop)
+├── hosts/           # Per-host configuration
+├── home/            # Shared home-manager modules
+└── secrets/         # SOPS-encrypted credentials
 ```
 
-## Structure
+---
 
-```
-modules/
-├── core/       boot, nix, users, networking
-├── hardware/   GPU drivers, TDP, device quirks
-└── features/   desktop, power, VMs, fonts, filesystems
+## ⚡ Stack
 
-profiles/       Role bundles (laptop, desktop)
-hosts/          Per-host configuration
-home/           Shared home-manager modules
-secrets/        SOPS-encrypted credentials
-```
+### **Workstations**
+- 🎨 GNOME 47 + Wayland with Nord theming
+- 🔒 Secure Boot (Lanzaboote)
+- 💾 Btrfs with automated maintenance
+- 🌐 Tailscale mesh networking
 
-## Stack
+### **Media Server**
+- 📺 Jellyfin + Audiobookshelf (Docker)
+- 📊 Prometheus + Grafana monitoring
+- 🌍 Caddy reverse proxy with Tailscale TLS
+- 💿 MergerFS storage pool with NFS exports
+- 🔄 Automated updates with idle detection
 
-**Workstations**
-- GNOME with Nord theming
-- Secure Boot (Lanzaboote)
-- Btrfs with automated maintenance
-- Tailscale mesh networking
+### **Infrastructure**
+- 🔐 SOPS-nix encrypted secrets
+- 🤖 GitHub Actions CI (updates, lint, builds)
+- 🔧 Systemd-networkd on servers
+- 🧩 Modular hardware abstraction
 
-**Media Server**
-- Jellyfin + Audiobookshelf (Docker)
-- Prometheus + Grafana monitoring
-- Caddy reverse proxy with Tailscale TLS
-- MergerFS storage pool with NFS exports
-- Automated updates with idle detection
+---
 
-**Infrastructure**
-- SOPS-nix encrypted secrets
-- GitHub Actions CI (flake updates, lint, dry-run builds)
-- Systemd-networkd on servers
-- Modular hardware abstraction
-
-## Quick Start
-
+## 🚀 Quick Start
 ```bash
+# Clone and build
 git clone https://github.com/daher12/nixos-config.git
 cd nixos-config
 nixos-rebuild switch --flake .#<hostname>
@@ -60,9 +70,18 @@ nixos-rebuild switch --flake .#<hostname>
 nix flake update && nix flake check
 ```
 
-## Requirements
+---
 
-- NixOS 25.11+
+## 📋 Requirements
+
+- NixOS **25.11+**
 - UEFI firmware
 - `sops` CLI for secrets management
-```
+
+---
+
+<div align="center">
+
+**[Documentation](https://nixos.org/manual/nixos/stable/)** • **[Flakes Guide](https://nixos.wiki/wiki/Flakes)** • **[Issues](https://github.com/daher12/nixos-config/issues)**
+
+</div>
