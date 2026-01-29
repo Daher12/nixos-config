@@ -3,7 +3,7 @@ let
 in
 utils.mkPalette {
   name = "nord";
-  inherit (utils) hexToRgb; # Pass the validator to the schema
+  inherit (utils) hexToRgb;
 
   colors = {
     # Polar Night (Backgrounds)
