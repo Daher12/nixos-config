@@ -12,12 +12,14 @@ let
 
   # Guard: Fail with a helpful list if the name is wrong
   active =
-    if builtins.hasAttr activeName available
-    then available.${activeName}
-    else throw "palette: Unknown theme '${activeName}'. Available: ${builtins.concatStringsSep ", " (builtins.attrNames available)}";
+    if builtins.hasAttr activeName available then
+      available.${activeName}
+    else
+      throw "palette: Unknown theme '${activeName}'. Available: ${builtins.concatStringsSep ", " (builtins.attrNames available)}";
 in
 # Export active theme + registry
 # deepSeq läuft erst, wenn 'active' Attribute (z.B. colors) abgerufen werden.
-active // {
+active
+// {
   palettes = available;
 }
