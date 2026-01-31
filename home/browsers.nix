@@ -11,7 +11,7 @@ in
   options.browsers = {
     firefox = {
       enable = lib.mkEnableOption "Firefox";
-      
+
       extensions = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [
@@ -30,7 +30,7 @@ in
 
     brave = {
       enable = lib.mkEnableOption "Brave";
-      
+
       extensions = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ "hfmolcaikbnbminafcmeiejglbeelilh" ];
@@ -49,12 +49,12 @@ in
     (lib.mkIf cfg.firefox.enable {
       programs.firefox = {
         enable = true;
-        
+
         policies = {
           DisablePocket = true;
           DisableTelemetry = true;
           DisableFirefoxStudies = true;
-          
+
           ExtensionSettings = builtins.listToAttrs (
             map (ext: {
               name = ext;
@@ -69,13 +69,14 @@ in
         profiles.default = {
           id = 0;
           isDefault = true;
-          
+
           settings = {
             "browser.startup.homepage" = "about:blank";
             "browser.search.region" = "DE";
             "intl.accept_languages" = "de-DE,de,en-US,en";
             "gfx.webrender.all" = true;
-          } // cfg.firefox.extraSettings;
+          }
+          // cfg.firefox.extraSettings;
         };
       };
     })
@@ -83,13 +84,10 @@ in
     (lib.mkIf cfg.brave.enable {
       programs.brave = {
         enable = true;
-        
+
         extensions = map (id: { inherit id; }) cfg.brave.extensions;
-        
-        commandLineArgs = lib.unique (
-          [ "--password-store=basic" ]
-          ++ cfg.brave.extraCommandLineArgs
-        );
+
+        commandLineArgs = lib.unique ([ "--password-store=basic" ] ++ cfg.brave.extraCommandLineArgs);
       };
     })
   ];
