@@ -8,8 +8,11 @@
 
 let
   cfg = config.features.kmscon;
+
   p = palette.colors;
-  toRgb = palette.hexToRgb;
+
+  paletteUtils = import ../../lib/palettes/utils.nix { inherit lib; };
+  toRgb = paletteUtils.hexToRgb;
 in
 {
   options.features.kmscon = {
@@ -61,3 +64,4 @@ in
     };
   };
 }
+
