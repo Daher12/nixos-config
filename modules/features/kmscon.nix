@@ -8,7 +8,7 @@
 let
   cfg = config.features.kmscon;
 
-  palette = config.theme.palette;
+  inherit (config.theme) palette;
   p = palette.colors;
 
   paletteUtils = import ../../lib/palettes/utils.nix;

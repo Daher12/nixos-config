@@ -18,8 +18,28 @@
     "100.123.189.29" = [ "nix-media" ];
   };
 
-  hardware.amd-gpu.enable = true;
-  hardware.amd-kvm.enable = true;
+  hardware = {
+    amd-gpu.enable = true;
+    amd-kvm.enable = true;
+
+    ryzen-tdp = {
+      enable = true;
+      ac = {
+        stapm = 54;
+        fast = 60;
+        slow = 54;
+        temp = 95;
+      };
+      battery = {
+        stapm = 18;
+        fast = 25;
+        slow = 18;
+        temp = 75;
+      };
+    };
+  };
+
+  theme.paletteName = "rosePine";
 
   features = {
     nas.enable = true;
@@ -76,23 +96,6 @@
   boot.kernelModules = [ "ryzen_smu" ];
   boot.extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
 
-  hardware.ryzen-tdp = {
-    enable = true;
-    ac = {
-      stapm = 54;
-      fast = 60;
-      slow = 54;
-      temp = 95;
-    };
-    battery = {
-      stapm = 18;
-      fast = 25;
-      slow = 18;
-      temp = 75;
-    };
-  };
-
-  # FIXED: Moved mkIf to guard the attribute set, not the scalar value
   systemd.services.nix-daemon.serviceConfig =
     let
       cores = config.nix.settings.cores or 0;
