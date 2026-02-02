@@ -1,3 +1,4 @@
+# hosts/nix-media/default.nix
 {
   pkgs,
   lib,
@@ -15,6 +16,7 @@ in
   imports = [
     ./hardware-configuration.nix
     ../../modules/hardware/intel-gpu.nix
+    ../../modules/roles/media.nix
 
     ./docker.nix
     ./monitoring.nix
@@ -25,6 +27,11 @@ in
     ../../modules/features/sops.nix
     ../../modules/features/vpn.nix
   ];
+
+  roles.media = {
+    enable = true;
+    dockerUid = 1001;
+  };
 
   core.users.defaultShell = "zsh";
   core.sysctl.optimizeForServer = true;
@@ -38,7 +45,6 @@ in
     };
 
     kernelParams = [ "transparent_hugepage=madvise" ];
-
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
   };
 
@@ -101,15 +107,11 @@ in
     routingFeatures = "server";
   };
 
-  # ---------------------------------------------------------------------------
-  # Users & Groups (Enforced to match live system)
-  # ---------------------------------------------------------------------------
   users.users.${mainUser} = {
-    uid = 1001; # Matches your NFS standard
+    uid = 1001;
     extraGroups = [ "docker" ];
   };
 
-  # Explicitly set GID to 982 (as confirmed via `id`) to avoid ownership drift
   users.groups.${mainUser}.gid = 982;
 
   services = {
@@ -158,7 +160,6 @@ in
 
     thermald.enable = true;
 
-    # Headless Optimizations
     pipewire.enable = false;
     pulseaudio.enable = false;
     libinput.enable = false;

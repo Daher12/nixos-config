@@ -76,8 +76,14 @@ in
       ntfy-boot = {
         description = "Notify on system boot";
         wantedBy = [ "multi-user.target" ];
-        after = [ "network-online.target" "sops-nix.service" ];
-        wants = [ "network-online.target" "sops-nix.service" ];
+        after = [
+          "network-online.target"
+          "sops-nix.service"
+        ];
+        wants = [
+          "network-online.target"
+          "sops-nix.service"
+        ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;

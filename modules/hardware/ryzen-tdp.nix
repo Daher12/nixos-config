@@ -1,3 +1,4 @@
+# modules/hardware/ryzen-tdp.nix
 {
   config,
   lib,
@@ -9,19 +10,18 @@ let
   cfg = config.hardware.ryzen-tdp;
   toMW = watts: toString (watts * 1000);
 
-  # Refactored script with concurrency locking
   setTdp = pkgs.writeShellApplication {
     name = "set-ryzen-tdp";
     runtimeInputs = [
       pkgs.coreutils
       pkgs.gnugrep
       pkgs.ryzenadj
-      pkgs.util-linux # for flock
+      pkgs.util-linux
     ];
     text = ''
       set -euo pipefail
 
-      LOCK_FILE="/run/ryzen-tdp.lock"
+      LOCK_FILE=/run/ryzen-tdp.lock
 
       is_on_ac() {
         for psu in /sys/class/power_supply/*; do
@@ -34,7 +34,6 @@ let
               local online
               online=$(cat "$online_file")
 
-              # Treat USB as AC only if online (e.g. USB-C PD)
               if [ "$online" = "1" ] && { [ "$type" = "Mains" ] || [ "$type" = "USB" ]; }; then
                  return 0
               fi
@@ -61,12 +60,10 @@ let
         fi
       }
 
-      # Main execution with exclusive lock to prevent SMU mailbox races
-      # (udev and timer events can fire simultaneously)
-      {
-        flock -w 5 -x 9 # avoid indefinite hangs if a prior run wedges
-        apply_limits
-      } 9>"$LOCK_FILE"
+      exec 9>"$LOCK_FILE"
+      flock -w 5 -x 9 || exit 1
+
+      apply_limits
     '';
   };
 in
@@ -78,22 +75,18 @@ in
       stapm = lib.mkOption {
         type = lib.types.int;
         default = 54;
-        description = "Sustained TDP (W)";
       };
       fast = lib.mkOption {
         type = lib.types.int;
         default = 60;
-        description = "Fast boost TDP (W)";
       };
       slow = lib.mkOption {
         type = lib.types.int;
         default = 54;
-        description = "Slow boost TDP (W)";
       };
       temp = lib.mkOption {
         type = lib.types.int;
         default = 95;
-        description = "Temperature limit (°C)";
       };
     };
 
@@ -101,36 +94,31 @@ in
       stapm = lib.mkOption {
         type = lib.types.int;
         default = 25;
-        description = "Sustained TDP (W)";
       };
       fast = lib.mkOption {
         type = lib.types.int;
         default = 30;
-        description = "Fast boost TDP (W)";
       };
       slow = lib.mkOption {
         type = lib.types.int;
         default = 25;
-        description = "Slow boost TDP (W)";
       };
       temp = lib.mkOption {
         type = lib.types.int;
         default = 85;
-        description = "Temperature limit (°C)";
       };
     };
 
     watchdogInterval = lib.mkOption {
       type = lib.types.str;
       default = "5min";
-      example = "60s";
-      description = "How often to re-apply limits (firmware may reset them)";
+      description = "How often to re-apply limits";
     };
 
     settleDelaySec = lib.mkOption {
       type = lib.types.int;
       default = 2;
-      description = "Delay before applying limits after wake/profile change";
+      description = "Delay before applying limits after wake";
     };
   };
 
@@ -151,8 +139,6 @@ in
       unitConfig = {
         StartLimitBurst = 5;
         StartLimitIntervalSec = 10;
-        # Robustness: Don't fail on machines without battery/AC sensors (e.g. Desktops/VMs)
-        # Tighten: require at least one readable "online" indicator.
         ConditionPathExistsGlob = "/sys/class/power_supply/*/online";
       };
 
@@ -162,6 +148,7 @@ in
         RestartSec = "1s";
         ExecStartPre = "${pkgs.coreutils}/bin/sleep ${toString cfg.settleDelaySec}";
         ExecStart = lib.getExe setTdp;
+        TimeoutStartSec = "10s";
       };
     };
 
@@ -177,8 +164,6 @@ in
     };
 
     services.udev.extraRules = ''
-      # Trigger only on power_supply changes (charging/discharging state)
-      # ATTR{online} check helps filter some noise, but oneshot service + flock handles the rest.
       SUBSYSTEM=="power_supply", ACTION=="change", ATTR{online}=="?*", TAG+="systemd", ENV{SYSTEMD_WANTS}+="ryzen-tdp-control.service"
     '';
   };

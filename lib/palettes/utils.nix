@@ -24,7 +24,6 @@ let
     "F" = 15;
   };
 
-  # Robust Lookup: Fails with clear error on invalid chars
   toInt =
     c: if builtins.hasAttr c hexMap then hexMap.${c} else throw "hexToRgb: Invalid hex digit '${c}'";
 
@@ -48,10 +47,8 @@ let
   ];
 in
 rec {
-  # 1. Helper: Convert "#RRGGBB" to "R,G,B"
   hexToRgb =
     hex:
-    # Guard Clause: Validiert Format vor weiterer Verarbeitung (deadnix clean)
     if (builtins.stringLength hex != 7 || builtins.substring 0 1 hex != "#") then
       throw "hexToRgb: Invalid hex color '${hex}' (expected #RRGGBB)"
     else
@@ -59,32 +56,18 @@ rec {
         r = builtins.substring 1 2 hex;
         g = builtins.substring 3 2 hex;
         b = builtins.substring 5 2 hex;
-
         pairVal = s: (toInt (builtins.substring 0 1 s)) * 16 + (toInt (builtins.substring 1 1 s));
       in
       "${toString (pairVal r)},${toString (pairVal g)},${toString (pairVal b)}";
 
-  # 2. Helper: Validate Palette Schema (Fail Fast)
-  # Hardening: Wir nehmen hexToRgb NICHT aus args für die Validierung,
-  # sondern nutzen explizit das lokale 'hexToRgb' (via rec oder Scope).
   mkPalette =
-    { name, colors, ... }@args:
-    # Type Safety Checks
-    if !builtins.isString name then
-      throw "mkPalette: 'name' must be a string"
-    else if !builtins.isAttrs colors then
-      throw "mkPalette: 'colors' must be an attrset"
+    { name, colors, ... }:
+    let
+      missing = builtins.filter (k: !(builtins.hasAttr k colors)) requiredKeys;
+      validate = builtins.map (k: hexToRgb colors.${k}) requiredKeys;
+    in
+    if missing != [ ] then
+      throw "Palette '${name}' missing keys: ${builtins.concatStringsSep ", " missing}"
     else
-      let
-        missing = builtins.filter (k: !(builtins.hasAttr k colors)) requiredKeys;
-
-        # Hardening: Nutze lokales hexToRgb für den Check.
-        # Selbst wenn 'args' eine falsche Funktion enthält, wird hier korrekt geprüft.
-        validate = builtins.map (k: hexToRgb colors.${k}) requiredKeys;
-      in
-      if missing != [ ] then
-        throw "Palette '${name}' invalid. Missing keys: ${builtins.concatStringsSep ", " missing}"
-      # deepSeq erzwingt die Ausführung von 'validate'
-      else
-        builtins.deepSeq validate args;
+      builtins.deepSeq validate { inherit name colors; };
 }

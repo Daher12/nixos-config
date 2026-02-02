@@ -127,18 +127,11 @@ in
           "kvm"
         ];
 
-        # Removed 'kvm-intel'/'kvm-amd' force-load.
-        # The kernel/hardware-configuration.nix handles this automatically based on CPU.
+        # Feature-level modules only. CPU KVM modules are loaded by hardware modules.
         boot.kernelModules = [
           "vhost-net"
           "vhost-vsock"
         ];
-
-        # Safe to leave these options; they only apply if the module is loaded.
-        boot.extraModprobeConfig = ''
-          options kvm_intel enable_apicv=1 ept=1
-          options kvm_amd avic=1 npt=1
-        '';
 
         environment.systemPackages =
           with pkgs;

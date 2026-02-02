@@ -1,13 +1,19 @@
-{ pkgs, lib, config, mainUser, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  mainUser,
+  ...
+}:
 
 let
   # --- HOST CONFIGURATION ---
-  renderGid = "303"; 
+  renderGid = "303";
   videoGid = "26";
-  
-  user = config.users.users.${mainUser} or {};
+
+  user = config.users.users.${mainUser} or { };
   groupName = user.group or mainUser;
-  group = config.users.groups.${groupName} or {};
+  group = config.users.groups.${groupName} or { };
 
   rawUid = user.uid or null;
   uid = builtins.toString (if rawUid != null then rawUid else 1001);
@@ -49,7 +55,10 @@ in
       enable = true;
       autoPrune = {
         enable = true;
-        flags = [ "--all" "--force" ];
+        flags = [
+          "--all"
+          "--force"
+        ];
       };
       daemon.settings."metrics-addr" = "127.0.0.1:9323";
     };
@@ -88,7 +97,8 @@ in
             "--health-interval=60s"
             "--health-retries=4"
             "--health-timeout=10s"
-          ] ++ lib.optional (videoGid != "REPLACE_ME") "--group-add=${videoGid}";
+          ]
+          ++ lib.optional (videoGid != "REPLACE_ME") "--group-add=${videoGid}";
         };
 
         audiobookshelf = {
@@ -142,7 +152,15 @@ in
   fileSystems."${jellyfinCachePath}" = {
     device = "tmpfs";
     fsType = "tmpfs";
-    options = [ "size=2G" "mode=0755" "uid=${uid}" "gid=${gid}" "noatime" "nosuid" "nodev" ];
+    options = [
+      "size=2G"
+      "mode=0755"
+      "uid=${uid}"
+      "gid=${gid}"
+      "noatime"
+      "nosuid"
+      "nodev"
+    ];
   };
 
   systemd.tmpfiles.rules = [
@@ -155,11 +173,23 @@ in
     services = {
       "docker-network-jellyfin" = {
         description = "Ensure Docker network '${dockerNetwork.name}' exists";
-        after = [ "docker.service" "docker.socket" ];
+        after = [
+          "docker.service"
+          "docker.socket"
+        ];
         requires = [ "docker.service" ];
-        before = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
-        requiredBy = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
-        serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
+        before = [
+          "docker-jellyfin.service"
+          "docker-audiobookshelf.service"
+        ];
+        requiredBy = [
+          "docker-jellyfin.service"
+          "docker-audiobookshelf.service"
+        ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
         path = [ pkgs.docker ];
         script = ''
           if ! docker network inspect "${dockerNetwork.name}" >/dev/null 2>&1; then
@@ -191,8 +221,14 @@ in
 
       "docker-image-refresh" = {
         description = "Pull latest Docker images and restart containers";
-        serviceConfig = { Type = "oneshot"; User = "root"; };
-        path = [ pkgs.docker pkgs.systemd ];
+        serviceConfig = {
+          Type = "oneshot";
+          User = "root";
+        };
+        path = [
+          pkgs.docker
+          pkgs.systemd
+        ];
         script = ''
           set -e
           docker pull ${images.jellyfin}

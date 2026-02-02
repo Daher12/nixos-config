@@ -17,7 +17,9 @@
   networking.hosts = {
     "100.123.189.29" = [ "nix-media" ];
   };
+
   hardware.amd-gpu.enable = true;
+  hardware.amd-kvm.enable = true;
 
   features = {
     nas.enable = true;
