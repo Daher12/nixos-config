@@ -2,16 +2,16 @@
   config,
   lib,
   pkgs,
-  palette,
   ...
 }:
 
 let
   cfg = config.features.kmscon;
 
+  palette = config.theme.palette;
   p = palette.colors;
 
-  paletteUtils = import ../../lib/palettes/utils.nix { inherit lib; };
+  paletteUtils = import ../../lib/palettes/utils.nix;
   toRgb = paletteUtils.hexToRgb;
 in
 {
@@ -64,4 +64,3 @@ in
     };
   };
 }
-

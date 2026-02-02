@@ -2,7 +2,6 @@
   nixpkgs,
   inputs,
   self,
-  palette,
   overlays,
 }:
 {
@@ -30,6 +29,7 @@ let
 
   baseModules = [
     (flakeRoot + "/modules/core")
+    (flakeRoot + "/modules/theme")
   ]
   ++ nixpkgs.lib.optional needsHardware (flakeRoot + "/modules/hardware")
   ++ nixpkgs.lib.optional needsFeatures (flakeRoot + "/modules/features");
@@ -39,7 +39,6 @@ let
       inputs
       self
       flakeRoot
-      palette
       mainUser
       ;
   }

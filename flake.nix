@@ -47,7 +47,6 @@
         inherit system;
         config.allowUnfree = true;
       };
-      palette = import ./lib/palette.nix;
 
       # Overlays configuration
       overlays = _system: [
@@ -59,7 +58,6 @@
           nixpkgs
           inputs
           self
-          palette
           overlays
           ;
       };

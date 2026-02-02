@@ -21,7 +21,6 @@ let
 in
 utils.mkPalette {
   name = "rose-pine";
-  inherit (utils) hexToRgb;
 
   colors = {
     # Backgrounds

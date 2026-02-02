@@ -3,7 +3,6 @@ let
 in
 utils.mkPalette {
   name = "nord";
-  inherit (utils) hexToRgb;
 
   colors = {
     # Polar Night (Backgrounds)
