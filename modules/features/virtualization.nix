@@ -9,23 +9,6 @@
 let
   cfg = config.features.virtualization;
   w11 = cfg.windows11;
-
-  # Extract XML to a file for validation and cleanliness
-  defaultNetworkXml = pkgs.writeText "libvirt-default-net.xml" ''
-    <network>
-      <name>default</name>
-      <forward mode='nat'>
-        <nat><port start='1024' end='65535'/></nat>
-      </forward>
-      <bridge name='virbr0' stp='on' delay='0'/>
-      <ip address='192.168.122.1' netmask='255.255.255.0'>
-        <dhcp>
-          <range start='192.168.122.100' end='192.168.122.254'/>
-          ${lib.optionalString w11.enable "<host mac='${w11.mac}' name='${w11.name}' ip='${w11.ip}'/>"}
-        </dhcp>
-      </ip>
-    </network>
-  '';
 in
 {
   options.features.virtualization = {
@@ -157,8 +140,7 @@ in
           SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
         '';
 
-        # [Optim] Set a finite timeout for guest shutdown to prevent the host from
-        # hanging indefinitely if a VM refuses to stop.
+        # Finite shutdown timeout to avoid hanging on stop.
         systemd.services.libvirt-guests.serviceConfig = {
           TimeoutStopSec = "30s";
         };
@@ -182,48 +164,68 @@ in
           "d /dev/hugepages 1755 root kvm - -"
         ];
 
-        # Ensure we *append* to the existing qemu verbatimConfig (don't clobber user/group).
+        # Append to existing qemu verbatimConfig.
         virtualisation.libvirtd.qemu.verbatimConfig = lib.mkAfter ''
           hugetlbfs_mount = "/dev/hugepages"
         '';
       })
 
-      (lib.mkIf w11.enable {
-        assertions = [
-          {
-            assertion = cfg.includeGuestTools && config.virtualisation.libvirtd.qemu.swtpm.enable;
-            message = "features.virtualization.windows11 requires includeGuestTools and swtpm.enable";
-          }
-        ];
+      (lib.mkIf w11.enable (
+        let
+          # Only create this derivation when Windows11 support is enabled.
+          defaultNetworkXml = pkgs.writeText "libvirt-default-net.xml" ''
+            <network>
+              <name>default</name>
+              <forward mode='nat'>
+                <nat><port start='1024' end='65535'/></nat>
+              </forward>
+              <bridge name='virbr0' stp='on' delay='0'/>
+              <ip address='192.168.122.1' netmask='255.255.255.0'>
+                <dhcp>
+                  <range start='192.168.122.100' end='192.168.122.254'/>
+                  ${lib.optionalString w11.enable "<host mac='${w11.mac}' name='${w11.name}' ip='${w11.ip}'/>"}
+                </dhcp>
+              </ip>
+            </network>
+          '';
+        in
+        {
+          assertions = [
+            {
+              assertion = cfg.includeGuestTools && config.virtualisation.libvirtd.qemu.swtpm.enable;
+              message = "features.virtualization.windows11 requires includeGuestTools and swtpm.enable";
+            }
+          ];
 
-        systemd.tmpfiles.rules = [
-          "d /var/lib/libvirt/images 0775 root libvirtd - -"
-        ]
-        ++ lib.optional (config.features.filesystem.type == "btrfs") "h /var/lib/libvirt/images - - - - +C";
+          systemd.tmpfiles.rules = [
+            "d /var/lib/libvirt/images 0775 root libvirtd - -"
+          ]
+          ++ lib.optional (config.features.filesystem.type == "btrfs") "h /var/lib/libvirt/images - - - - +C";
 
-        systemd.services.libvirt-network-default = {
-          description = "Configure libvirt default network";
-          after = [ "libvirtd.socket" ];
-          requires = [ "libvirtd.socket" ];
-          wantedBy = [ "multi-user.target" ];
-          serviceConfig = {
-            Type = "oneshot";
-            RemainAfterExit = true;
+          systemd.services.libvirt-network-default = {
+            description = "Configure libvirt default network";
+            after = [ "libvirtd.socket" ];
+            requires = [ "libvirtd.socket" ];
+            wantedBy = [ "multi-user.target" ];
+            serviceConfig = {
+              Type = "oneshot";
+              RemainAfterExit = true;
+            };
+            script =
+              let
+                virsh = "${pkgs.libvirt}/bin/virsh";
+              in
+              ''
+                if ! ${virsh} net-info default &>/dev/null; then
+                  ${virsh} net-define ${defaultNetworkXml}
+                  ${virsh} net-autostart default
+                fi
+                ${virsh} net-start default 2>/dev/null || true
+              '';
           };
-          script =
-            let
-              virsh = "${pkgs.libvirt}/bin/virsh";
-            in
-            ''
-              # Check if network exists, if not, define and start it.
-              if ! ${virsh} net-info default &>/dev/null; then
-                ${virsh} net-define ${defaultNetworkXml}
-                ${virsh} net-autostart default
-              fi
-              ${virsh} net-start default 2>/dev/null || true
-            '';
-        };
-      })
+        }
+      ))
     ]
   );
 }
+
