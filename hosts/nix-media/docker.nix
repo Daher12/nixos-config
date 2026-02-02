@@ -1,25 +1,14 @@
-{
-  pkgs,
-  lib,
-  config,
-  mainUser,
-  ...
-}:
+{ pkgs, lib, config, mainUser, ... }:
 
 let
   # --- HOST CONFIGURATION ---
-  # Hardware Transcoding Groups (Confirmed via `id`)
-  renderGid = "303";
+  renderGid = "303"; 
   videoGid = "26";
-
-  # Dynamic User Mapping (Robust)
-  # 1. Get the user/group config
-  user = config.users.users.${mainUser} or { };
+  
+  user = config.users.users.${mainUser} or {};
   groupName = user.group or mainUser;
-  group = config.users.groups.${groupName} or { };
+  group = config.users.groups.${groupName} or {};
 
-  # 2. Extract IDs safely (Handle nulls if option is unset)
-  #    Falls back to 1001 only if not explicitly set in default.nix.
   rawUid = user.uid or null;
   uid = builtins.toString (if rawUid != null then rawUid else 1001);
 
@@ -39,22 +28,19 @@ let
     subnet = "172.18.0.0/16";
   };
 
-  # Paths
   storagePath = "/mnt/storage";
   dockerPath = "/home/${mainUser}/docker";
   jellyfinCachePath = "/var/cache/jellyfin";
 in
 {
-  # Safety Rails
   assertions = [
     {
       assertion = renderGid != "REPLACE_ME";
       message = "Docker Config Error: Set 'renderGid' in hosts/nix-media/docker.nix";
     }
     {
-      # Ensures alignment with NFS exports (anonuid=1001)
       assertion = uid == "1001";
-      message = "Docker Config Warning: Expected ${mainUser} to have UID=1001 (Server Standard); got UID=${uid}";
+      message = "Docker Config Error: Expected ${mainUser} to have UID=1001 (Server Standard); got UID=${uid}";
     }
   ];
 
@@ -63,10 +49,7 @@ in
       enable = true;
       autoPrune = {
         enable = true;
-        flags = [
-          "--all"
-          "--force"
-        ];
+        flags = [ "--all" "--force" ];
       };
       daemon.settings."metrics-addr" = "127.0.0.1:9323";
     };
@@ -74,16 +57,16 @@ in
     oci-containers = {
       backend = "docker";
       containers = {
-        # 1. Jellyfin (Media Server)
         jellyfin = {
           autoStart = true;
           image = images.jellyfin;
           environment = {
             DOCKER_MODS = "ghcr.io/intro-skipper/intro-skipper-docker-mod";
-            PGID = gid; # Will now correctly resolve to 982
-            PUID = uid; # Will now correctly resolve to 1001
+            PGID = gid;
+            PUID = uid;
             TZ = tz;
             LIBVA_DRIVER_NAME = "iHD";
+            JELLYFIN_Network__BaseUrl = "/jellyfin";
           };
           volumes = [
             "${dockerPath}/jellyfin/config:/config"
@@ -101,15 +84,13 @@ in
             "--cpus=3.5"
             "--shm-size=256m"
             "--pids-limit=1000"
-            "--health-cmd=curl -fsS http://localhost:8096/health || exit 1"
+            "--health-cmd=curl -fsS http://localhost:8096/jellyfin/health || exit 1"
             "--health-interval=60s"
             "--health-retries=4"
             "--health-timeout=10s"
-          ]
-          ++ lib.optional (videoGid != "REPLACE_ME") "--group-add=${videoGid}";
+          ] ++ lib.optional (videoGid != "REPLACE_ME") "--group-add=${videoGid}";
         };
 
-        # 2. Audiobookshelf
         audiobookshelf = {
           autoStart = true;
           image = images.audiobookshelf;
@@ -136,7 +117,6 @@ in
           ];
         };
 
-        # 3. cAdvisor (Monitoring)
         cadvisor = {
           autoStart = true;
           image = images.cadvisor;
@@ -159,43 +139,27 @@ in
     };
   };
 
-  # Jellyfin Transcode/Cache on TMPFS
   fileSystems."${jellyfinCachePath}" = {
     device = "tmpfs";
     fsType = "tmpfs";
-    options = [
-      "size=2G"
-      "mode=0755"
-      "uid=${uid}"
-      "gid=${gid}"
-      "noatime"
-      "nosuid"
-      "nodev"
-    ];
+    options = [ "size=2G" "mode=0755" "uid=${uid}" "gid=${gid}" "noatime" "nosuid" "nodev" ];
   };
+
+  systemd.tmpfiles.rules = [
+    "d ${jellyfinCachePath} 0755 ${mainUser} ${groupName} - -"
+    "d ${jellyfinCachePath}/cache 0755 ${mainUser} ${groupName} - -"
+    "d ${jellyfinCachePath}/transcode 0755 ${mainUser} ${groupName} - -"
+  ];
 
   systemd = {
     services = {
-      # Ensure Network Exists (Idempotent)
       "docker-network-jellyfin" = {
         description = "Ensure Docker network '${dockerNetwork.name}' exists";
-        after = [
-          "docker.service"
-          "docker.socket"
-        ];
+        after = [ "docker.service" "docker.socket" ];
         requires = [ "docker.service" ];
-        before = [
-          "docker-jellyfin.service"
-          "docker-audiobookshelf.service"
-        ];
-        requiredBy = [
-          "docker-jellyfin.service"
-          "docker-audiobookshelf.service"
-        ];
-        serviceConfig = {
-          Type = "oneshot";
-          RemainAfterExit = true;
-        };
+        before = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
+        requiredBy = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
+        serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
         path = [ pkgs.docker ];
         script = ''
           if ! docker network inspect "${dockerNetwork.name}" >/dev/null 2>&1; then
@@ -204,46 +168,37 @@ in
         '';
       };
 
-      # Resource Prioritization
       "docker-jellyfin".serviceConfig = {
+        # FIX: Using string form so systemd correctly parses the '-' ignore-failure prefix
+        ExecStopPost = lib.mkForce "-${pkgs.docker}/bin/docker rm -f jellyfin";
         IOWeight = 8000;
         CPUWeight = 1000;
         OOMScoreAdjust = -500;
       };
 
       "docker-audiobookshelf".serviceConfig = {
+        ExecStopPost = lib.mkForce "-${pkgs.docker}/bin/docker rm -f audiobookshelf";
         IOWeight = 100;
         CPUWeight = 100;
         OOMScoreAdjust = 500;
       };
 
       "docker-cadvisor".serviceConfig = {
+        ExecStopPost = lib.mkForce "-${pkgs.docker}/bin/docker rm -f cadvisor";
         CPUWeight = 50;
         OOMScoreAdjust = 700;
       };
 
-      # Weekly Image Refresh
       "docker-image-refresh" = {
         description = "Pull latest Docker images and restart containers";
-        serviceConfig = {
-          Type = "oneshot";
-          User = "root";
-        };
-        path = [
-          pkgs.docker
-          pkgs.systemd
-        ];
+        serviceConfig = { Type = "oneshot"; User = "root"; };
+        path = [ pkgs.docker pkgs.systemd ];
         script = ''
           set -e
-          echo "Pulling images..."
           docker pull ${images.jellyfin}
           docker pull ${images.audiobookshelf}
           docker pull ${images.cadvisor}
-
-          echo "Restarting services..."
           systemctl restart docker-jellyfin.service docker-audiobookshelf.service docker-cadvisor.service
-
-          echo "Pruning..."
           docker image prune -f
         '';
       };
