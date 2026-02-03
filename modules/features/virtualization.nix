@@ -1,3 +1,4 @@
+# modules/features/virtualization.nix (lean, no hugepages; btrfs NoCOW; Win11 optional packages)
 {
   config,
   lib,
@@ -8,116 +9,23 @@
 
 let
   cfg = config.features.virtualization;
-  w11 = cfg.windows11;
-
-  waitForKvm = pkgs.writeShellScript "wait-for-kvm" ''
-    # Wait up to ~5s for /dev/kvm (covers early-boot / udev timing)
-    for i in $(seq 1 50); do
-      [ -c /dev/kvm ] && exit 0
-      sleep 0.1
-    done
-    echo "Timed out waiting for /dev/kvm" >&2
-    exit 1
-  '';
 in
 {
   options.features.virtualization = {
-    enable = lib.mkEnableOption "libvirt/QEMU virtualization";
+    enable = lib.mkEnableOption "libvirt/QEMU virtualization (lean)";
 
-    windows11 = {
-      enable = lib.mkEnableOption "Windows 11 VM with Office/iTunes optimizations";
-
-      name = lib.mkOption {
-        type = lib.types.str;
-        default = "windows11";
-        description = "Libvirt domain name";
-      };
-
-      mac = lib.mkOption {
-        type = lib.types.str;
-        default = "52:54:00:00:00:01";
-        description = "VM MAC address for DHCP reservation";
-      };
-
-      ip = lib.mkOption {
-        type = lib.types.str;
-        default = "192.168.122.10";
-        description = "Static IP assigned via DHCP";
-      };
-
-      vcpus = lib.mkOption {
-        type = lib.types.int;
-        default = 4;
-      };
-
-      memory = lib.mkOption {
-        type = lib.types.int;
-        default = 8192;
-        description = "Memory in MiB";
-      };
-
-      diskSize = lib.mkOption {
-        type = lib.types.int;
-        default = 80;
-        description = "Disk size in GiB";
-      };
-    };
-
-    performance = {
-      hugepages = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = false;
-          description = "Enable 2M hugepages for VM memory";
-        };
-
-        count = lib.mkOption {
-          type = lib.types.int;
-          default = 4096;
-          description = "Number of 2M hugepages (4096 = 8GB)";
-        };
-      };
-
-      ioThreads = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Recommend I/O threads in VM XML";
-      };
-    };
-
-    includeGuestTools = lib.mkOption {
+    spiceUSBRedirection = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Include virtio-win and libguestfs";
+      description = "Enable SPICE USB redirection";
     };
+
+    windows11.enable = lib.mkEnableOption "Windows 11 convenience (host-side packages only)";
   };
 
-  config = lib.mkIf cfg.enable (
-    let
-      virsh = "${pkgs.libvirt}/bin/virsh";
-
-      defaultNetworkXml = pkgs.writeText "libvirt-default-net.xml" ''
-        <network>
-          <name>default</name>
-          <forward mode='nat'>
-            <nat><port start='1024' end='65535'/></nat>
-          </forward>
-          <bridge name='virbr0' stp='on' delay='0'/>
-          <ip address='192.168.122.1' netmask='255.255.255.0'>
-            <dhcp>
-              <range start='192.168.122.100' end='192.168.122.254'/>
-              ${lib.optionalString w11.enable "<host mac='${w11.mac}' name='${w11.name}' ip='${w11.ip}'/>"}
-            </dhcp>
-          </ip>
-        </network>
-      '';
-
-      qemuVerbatimConfig = lib.optionalString cfg.performance.hugepages.enable ''
-        hugetlbfs_mount = "/dev/hugepages"
-      '';
-    in
-    {
-      virtualisation.libvirtd = {
+  config = lib.mkIf cfg.enable {
+    virtualisation = {
+      libvirtd = {
         enable = true;
         onBoot = "ignore";
         onShutdown = "shutdown";
@@ -127,121 +35,71 @@ in
           runAsRoot = false;
           swtpm.enable = true;
           vhostUserPackages = [ pkgs.virtiofsd ];
-
-          # Fix 2 strategy: do NOT fight libvirt's chosen user/group here.
-          # Only add hugepages-specific qemu.conf bits when enabled.
-          verbatimConfig = qemuVerbatimConfig;
         };
 
         extraConfig = ''
           unix_sock_group = "libvirtd"
-          unix_sock_ro_perms = "0777"
           unix_sock_rw_perms = "0770"
-          auth_unix_ro = "none"
-          auth_unix_rw = "none"
-          log_filters="3:qemu 1:libvirt"
-          log_outputs="2:file:/var/log/libvirt/libvirtd.log"
         '';
       };
 
-      users = {
-        users = {
-          ${mainUser}.extraGroups = lib.mkAfter [
-            "libvirtd"
-            "kvm"
-          ];
+      spiceUSBRedirection.enable = cfg.spiceUSBRedirection;
+    };
 
-          # Fix 2: allow the effective libvirt QEMU user to access /dev/kvm (root:kvm 0660)
-          qemu-libvirtd.extraGroups = lib.mkAfter [ "kvm" ];
-        };
-      };
+    programs.virt-manager.enable = true;
 
-      boot = {
-        # Feature-level modules only. CPU KVM modules remain in hardware modules.
-        kernelModules = [
-          "vhost-net"
-          "vhost-vsock"
-        ];
-
-        kernelParams = lib.mkIf cfg.performance.hugepages.enable [
-          "hugepagesz=2M"
-          "hugepages=${toString cfg.performance.hugepages.count}"
-          "transparent_hugepage=never"
-        ];
-      };
-
-      environment.systemPackages =
-        with pkgs;
-        [
-          virt-manager
-          virt-viewer
-          swtpm
-          OVMFFull
-          remmina
-          freerdp
-          adwaita-icon-theme
-        ]
-        ++ lib.optionals cfg.includeGuestTools [
-          libguestfs
-          libguestfs-with-appliance
-        ];
-
-      programs.virt-manager.enable = true;
-
-      services.udev.extraRules = ''
-        KERNEL=="kvm", GROUP="kvm", MODE="0660"
-        SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
-      '';
-
-      systemd = {
-        tmpfiles.rules =
-          lib.optionals w11.enable [
-            "d /var/lib/libvirt/images 0775 root libvirtd - -"
-          ]
-          ++ lib.optionals (w11.enable && config.features.filesystem.type == "btrfs") [
-            "h /var/lib/libvirt/images - - - - +C"
-          ]
-          ++ lib.optionals cfg.performance.hugepages.enable [
-            "d /dev/hugepages 1755 root kvm - -"
-          ];
-
-        services = {
-          # Avoid dev-kvm.device dependency (unreliable for misc devices); finite wait instead.
-          libvirtd.serviceConfig = {
-            ExecStartPre = lib.mkAfter [ waitForKvm ];
-            TimeoutStartSec = "10s";
-          };
-
-          libvirt-guests.serviceConfig = {
-            TimeoutStopSec = "30s";
-          };
-
-          libvirt-network-default = lib.mkIf w11.enable {
-            description = "Configure libvirt default network";
-            after = [ "libvirtd.socket" ];
-            requires = [ "libvirtd.socket" ];
-            wantedBy = [ "multi-user.target" ];
-            serviceConfig = {
-              Type = "oneshot";
-              RemainAfterExit = true;
-            };
-            script = ''
-              if ! ${virsh} net-info default &>/dev/null; then
-                ${virsh} net-define ${defaultNetworkXml}
-                ${virsh} net-autostart default
-              fi
-              ${virsh} net-start default 2>/dev/null || true
-            '';
-          };
-        };
-      };
-
-      assertions = lib.optionals w11.enable [
-        {
-          assertion = cfg.includeGuestTools && config.virtualisation.libvirtd.qemu.swtpm.enable;
-          message = "features.virtualization.windows11 requires includeGuestTools and swtpm.enable";
-        }
+    environment.systemPackages =
+      with pkgs;
+      [
+        virt-manager
+        virt-viewer
+        swtpm
+        OVMFFull
+        remmina
+        freerdp
+        adwaita-icon-theme
+      ]
+      ++ lib.optionals cfg.spiceUSBRedirection [
+        usbredir
+        spice-gtk
+      ]
+      ++ lib.optionals cfg.windows11.enable [
+        win-spice
       ];
-    }
-  );
+
+    users.users = {
+      ${mainUser}.extraGroups = lib.mkAfter [
+        "libvirtd"
+        "kvm"
+      ];
+
+      # Fix 2: effective QEMU user needs kvm for /dev/kvm 0660
+      qemu-libvirtd.extraGroups = lib.mkAfter [ "kvm" ];
+    };
+
+    services.udev.extraRules = ''
+      KERNEL=="kvm", GROUP="kvm", MODE="0660"
+      SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
+    '';
+
+    # Strategy B: no virt-manager prompts, only for active session
+    security.polkit.extraConfig = ''
+      polkit.addRule(function(action, subject) {
+        if ((action.id == "org.libvirt.unix.manage" ||
+             action.id == "org.libvirt.unix.monitor") &&
+            subject.user == "${mainUser}" &&
+            subject.active) {
+          return polkit.Result.YES;
+        }
+      });
+    '';
+
+    systemd.tmpfiles.rules = [
+      "d /var/lib/libvirt/images 0775 root libvirtd - -"
+    ]
+    ++ lib.optionals (config.features.filesystem.type == "btrfs") [
+      # btrfs NoCOW for VM images directory
+      "h /var/lib/libvirt/images - - - - +C"
+    ];
+  };
 }

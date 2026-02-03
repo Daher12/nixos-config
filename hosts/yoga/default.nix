@@ -69,7 +69,6 @@
 
     virtualization = {
       enable = true;
-      includeGuestTools = true;
       windows11.enable = true;
     };
 
