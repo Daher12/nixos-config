@@ -105,6 +105,12 @@ in
           '';
         };
 
+        # Ensure libvirtd starts only after /dev/kvm exists to avoid early-boot races.
+        systemd.services.libvirtd = {
+          after = [ "dev-kvm.device" ];
+          requires = [ "dev-kvm.device" ];
+        };
+
         users.users.${mainUser}.extraGroups = lib.mkAfter [
           "libvirtd"
           "kvm"
@@ -228,3 +234,4 @@ in
     ]
   );
 }
+
