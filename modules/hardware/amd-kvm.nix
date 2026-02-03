@@ -12,13 +12,14 @@ in
 
   config = lib.mkIf cfg.enable {
     boot = {
-      # Load KVM early to ensure /dev/kvm exists before libvirtd/QEMU starts.
+      # Ensure /dev/kvm exists early (initrd) and stays available.
       initrd.kernelModules = [
         "kvm"
         "kvm-amd"
       ];
 
-      kernelModules = [
+      # mkAfter to avoid clobbering other boot.kernelModules definitions
+      kernelModules = lib.mkAfter [
         "kvm"
         "kvm-amd"
       ];
