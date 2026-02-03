@@ -5,12 +5,11 @@
     ./filesystem.nix
     ./fonts.nix
     ./kernel.nix
-    ./kmscon.nix
     ./nas.nix
     ./network-optimization.nix
     ./oomd.nix
     ./power-tlp.nix
-    ./sops.nix # NEW
+    ./sops.nix
     ./virtualization.nix
     ./vpn.nix
     ./zram.nix

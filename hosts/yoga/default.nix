@@ -39,8 +39,6 @@
     };
   };
 
-  theme.paletteName = "rosePine";
-
   features = {
     nas.enable = true;
 
@@ -67,7 +65,6 @@
       "amdgpu.dcdebugmask=0x10"
     ];
 
-    kmscon.enable = true;
     oomd.enable = true;
 
     virtualization = {
