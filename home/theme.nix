@@ -1,209 +1,111 @@
-{
-  config,
-  lib,
-  pkgs,
-  ...
-}:
+{ pkgs, ... }:
 
 let
-  cfg = config.programs.theme;
+  themeDark = "Colloid-Dark-Nord";
+  themeLight = "Colloid-Light-Nord";
 
-  themeName = "Colloid-Dark-Nord";
-  themeNameLt = "Colloid-Light-Nord";
-  colloidTheme = pkgs.unstable.colloid-gtk-theme.override {
-    tweaks = [ "nord" ];
-  };
+  colloid = pkgs.unstable.colloid-gtk-theme.override { tweaks = [ "nord" ]; };
 
-  iconTheme = pkgs.unstable.fluent-icon-theme;
-  iconName = "Fluent-dark";
-  iconNameLt = "Fluent";
+  iconPkg = pkgs.unstable.fluent-icon-theme;
+  iconDark = "Fluent-dark";
+  iconLight = "Fluent";
 
-  cursorTheme = pkgs.posy-cursors;
+  cursorPkg = pkgs.posy-cursors;
   cursorName = "Posy_Cursor_Black";
   cursorSize = 32;
 
   switchTheme = pkgs.writeShellApplication {
     name = "switch-theme";
     runtimeInputs = with pkgs; [
-      coreutils
-      gnused
       glib
       dbus
       systemd
+      coreutils
     ];
     text = ''
       set -euo pipefail
+      mode="''${1:-}"
+      case "$mode" in
+        dark)  theme="${themeDark}";  icon="${iconDark}";  color="prefer-dark" ;;
+        light) theme="${themeLight}"; icon="${iconLight}"; color="prefer-light" ;;
+        *) echo "usage: switch-theme {dark|light}" >&2; exit 2 ;;
+      esac
 
-      MODE="''${1:-}"
-
-      if [[ "$MODE" != "dark" && "$MODE" != "light" ]]; then
-        echo "Usage: switch-theme {dark|light}" >&2
-        exit 1
-      fi
-
-      XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
-      GTK4_DIR="$XDG_CONFIG_HOME/gtk-4.0"
-      THEME_BASE="${colloidTheme}/share/themes"
-
-      if [ "$MODE" = "dark" ]; then
-        THEME="${themeName}"
-        ICON="${iconName}"
-        COLOR="prefer-dark"
-      else
-        THEME="${themeNameLt}"
-        ICON="${iconNameLt}"
-        COLOR="prefer-light"
-      fi
-
-      if [[ ! -d "$THEME_BASE/$THEME" ]]; then
-        echo "Error: Theme directory $THEME_BASE/$THEME not found" >&2
-        exit 1
-      fi
-
-      # GNOME / GTK: schema-aware updates (no X11 resources).
-      gsettings set org.gnome.desktop.interface color-scheme "$COLOR" || true
-      gsettings set org.gnome.desktop.interface gtk-theme "$THEME" || true
-      gsettings set org.gnome.desktop.interface icon-theme "$ICON" || true
+      gsettings set org.gnome.desktop.interface color-scheme "$color" || true
+      gsettings set org.gnome.desktop.interface gtk-theme "$theme" || true
+      gsettings set org.gnome.desktop.interface icon-theme "$icon" || true
       gsettings set org.gnome.desktop.interface cursor-theme "${cursorName}" || true
       gsettings set org.gnome.desktop.interface cursor-size ${toString cursorSize} || true
+      gsettings set org.gnome.shell.extensions.user-theme name "$theme" 2>/dev/null || true
 
-      # GNOME Shell "user-theme" extension (ignore if not installed).
-      gsettings set org.gnome.shell.extensions.user-theme name "$THEME" 2>/dev/null || true
-
-      # Propagate for newly-launched apps (Wayland/Xwayland cursor + GTK override).
       systemctl --user set-environment \
         XCURSOR_THEME="${cursorName}" \
         XCURSOR_SIZE="${toString cursorSize}" \
-        GTK_THEME="$THEME" || true
+        GTK_THEME="$theme" || true
 
       dbus-update-activation-environment --systemd \
         XCURSOR_THEME XCURSOR_SIZE GTK_THEME 2>/dev/null || true
-
-      # Force GTK4 theme assets (best-effort; mainly for apps reading gtk-4.0 at startup).
-      mkdir -p "$GTK4_DIR"
-      for item in gtk.css gtk-dark.css assets; do
-        src="$THEME_BASE/$THEME/gtk-4.0/$item"
-        dst="$GTK4_DIR/$item"
-        [ -e "$src" ] && ln -sfn "$src" "$dst"
-      done
-
-      echo "✓ Switched to $MODE mode"
     '';
+  };
+
+  switchDark = pkgs.writeShellApplication {
+    name = "switch-theme-dark";
+    runtimeInputs = [ switchTheme ];
+    text = "exec ${switchTheme}/bin/switch-theme dark";
+  };
+
+  switchLight = pkgs.writeShellApplication {
+    name = "switch-theme-light";
+    runtimeInputs = [ switchTheme ];
+    text = "exec ${switchTheme}/bin/switch-theme light";
   };
 in
 {
-  options.programs.theme = {
-    enable = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Enable theme management";
-    };
-
-    autoSwitch = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Automatically switch between light/dark based on time";
-    };
-
-    location = {
-      latitude = lib.mkOption {
-        type = lib.types.float;
-        default = 52.52;
-        description = "Latitude for sunrise/sunset calculation";
-      };
-
-      longitude = lib.mkOption {
-        type = lib.types.float;
-        default = 13.40;
-        description = "Longitude for sunrise/sunset calculation";
-      };
-    };
-  };
-
-  config = lib.mkIf cfg.enable {
+  config = {
     home = {
-      packages = with pkgs; [
-        colloidTheme
-        iconTheme
-        cursorTheme
+      packages = [
+        colloid
+        iconPkg
+        cursorPkg
         switchTheme
-        libsForQt5.qt5ct
-        kdePackages.qt6ct
+        switchDark
+        switchLight
       ];
 
-      pointerCursor = {
-        name = cursorName;
-        package = cursorTheme;
-        size = cursorSize;
-        gtk.enable = true;
-        # Keep enabled to avoid regressions for the remaining Xwayland surface area.
-        x11.enable = true;
-      };
-
-      activation = {
-        # Prevent "file exists" when HM wants to manage (symlink) gtk-3.0/settings.ini.
-        cleanupLegacyGtk3SettingsIni = lib.hm.dag.entryBefore [ "writeBoundary" ] ''
-          set -eu
-
-          SETTINGS_INI="${config.xdg.configHome}/gtk-3.0/settings.ini"
-
-          if [ -e "$SETTINGS_INI" ] && [ ! -L "$SETTINGS_INI" ]; then
-            ts="$(${pkgs.coreutils}/bin/date +%s)"
-            echo "Home Manager: moving pre-existing gtk-3.0/settings.ini aside (was not a symlink)"
-            ${pkgs.coreutils}/bin/mv "$SETTINGS_INI" "$SETTINGS_INI.backup.$ts"
-          fi
-        '';
-
-        applyTheme = lib.mkIf (!cfg.autoSwitch) (
-          lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-            $DRY_RUN_CMD ${switchTheme}/bin/switch-theme dark
-          ''
-        );
+      # GNOME Tweaks “Shell” theme (User Themes) scans ~/.themes
+      file = {
+        ".themes/${themeDark}".source = "${colloid}/share/themes/${themeDark}";
+        ".themes/${themeLight}".source = "${colloid}/share/themes/${themeLight}";
       };
     };
 
     gtk = {
       enable = true;
       theme = {
-        name = themeName;
-        package = colloidTheme;
+        name = themeDark;
+        package = colloid;
       };
       iconTheme = {
-        name = iconName;
-        package = iconTheme;
+        name = iconDark;
+        package = iconPkg;
       };
       cursorTheme = {
         name = cursorName;
-        package = cursorTheme;
+        package = cursorPkg;
         size = cursorSize;
       };
-      gtk3.extraConfig.gtk-application-prefer-dark-theme = 1;
-      gtk4.extraConfig.gtk-application-prefer-dark-theme = 1;
     };
 
-    # You are managing gtk-4.0/* via the switch script (symlinks); avoid HM trying to own them.
-    xdg.configFile = {
-      "gtk-4.0/gtk.css".enable = false;
-      "gtk-4.0/gtk-dark.css".enable = false;
-      "gtk-4.0/assets".enable = false;
-    };
-
-    qt = {
-      enable = true;
-      platformTheme.name = "gtk";
-      style.name = "adwaita";
-    };
-
-    services.darkman = lib.mkIf cfg.autoSwitch {
+    services.darkman = {
       enable = true;
       settings = {
-        lat = cfg.location.latitude;
-        lng = cfg.location.longitude;
-        usegeoclue = false;
         portal = true;
+        lat = 52.52;
+        lng = 13.40;
+        usegeoclue = false;
       };
-      darkModeScripts.gtk-theme = "${switchTheme}/bin/switch-theme dark";
-      lightModeScripts.gtk-theme = "${switchTheme}/bin/switch-theme light";
+      darkModeScripts.gtk-theme = "${switchDark}/bin/switch-theme-dark";
+      lightModeScripts.gtk-theme = "${switchLight}/bin/switch-theme-light";
     };
   };
 }

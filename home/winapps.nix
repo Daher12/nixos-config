@@ -10,8 +10,6 @@
 let
   cfg = config.programs.winapps;
 
-  # Safe attrpath access: osConfig may be {} when HM is used standalone.
-  # Provides a safe fallback object if the host config doesn't define the VM.
   vmCfg = lib.attrByPath [ "features" "virtualization" "windows11" ] {
     enable = false;
     ip = "192.168.122.10";
@@ -42,9 +40,14 @@ in
       description = "Windows domain/workgroup for RDP";
     };
 
+    # Lean defaults for local VM + Office:
+    # - gfx AVC 444: crisp text, good for Office
+    # - clipboard: must-have
+    # - cert-ignore: avoid friction
+    # - auto-reconnect: usability
     rdpFlags = lib.mkOption {
       type = lib.types.str;
-      default = "/gfx:avc444 /sound:sys:alsa /microphone:sys:alsa /clipboard /cert-ignore /dynamic-resolution +auto-reconnect";
+      default = "/gfx:avc444 /clipboard /cert-ignore +auto-reconnect";
       description = "FreeRDP flags";
     };
 
@@ -62,8 +65,6 @@ in
         message = "winappsPackages must be provided via extraSpecialArgs";
       }
       {
-        # Only enforce the host-side feature when that subtree actually exists in osConfig.
-        # This prevents errors in standalone Home Manager setups.
         assertion =
           !(lib.hasAttrByPath [ "features" "virtualization" "windows11" ] osConfig)
           || (vmCfg.enable or false);
@@ -75,29 +76,24 @@ in
       winappsPackages.winapps
       winappsPackages.winapps-launcher
       pkgs.freerdp
-      pkgs.netcat
     ];
 
     xdg.configFile."winapps/winapps.conf".text = ''
       RDP_IP="${cfg.vmIP}"
       RDP_DOMAIN="${cfg.windowsDomain}"
       RDP_FLAGS="${cfg.rdpFlags}"
-      FREERDP_COMMAND="xfreerdp"
+      FREERDP_COMMAND="${pkgs.freerdp}/bin/xfreerdp"
       VM_NAME="${cfg.vmName}"
       MULTIMON="false"
       DEBUG="false"
 
-      # Source credentials if available
       [ -f "${cfg.credentialsFile}" ] && . "${cfg.credentialsFile}"
     '';
 
     home.activation.winappsSecrets = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       SECRETS="${cfg.credentialsFile}"
       if [ ! -f "$SECRETS" ]; then
-        # Fix: Use $DRY_RUN_CMD to respect dry-run mode (avoiding shell redirection '>')
         $DRY_RUN_CMD mkdir -p "$(dirname "$SECRETS")"
-        
-        # 'tee' allows us to write to the file as a command, which $DRY_RUN_CMD can guard.
         $DRY_RUN_CMD tee "$SECRETS" > /dev/null << 'EOF'
       # WinApps Credentials (not tracked in git)
       RDP_USER="your-windows-username"
