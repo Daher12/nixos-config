@@ -2,13 +2,21 @@
   config,
   lib,
   pkgs,
-  palette,
   ...
 }:
 
 let
   cfg = config.programs.terminal;
-  p = palette.colors;
+
+  # Nord subset — only the 5 values actually consumed by ghostty + fzf.
+  # No palette module, no hexToRgb, no validation machinery.
+  nord = {
+    nord0 = "#2E3440";
+    nord1 = "#3B4252";
+    nord3 = "#4C566A";
+    nord4 = "#D8DEE9";
+    nord9 = "#81A1C1";
+  };
 in
 {
   options.programs.terminal = {
@@ -82,8 +90,8 @@ in
 
         settings = {
           theme = "Nord";
-          background = p.nord0;
-          foreground = p.nord4;
+          background = nord.nord0;
+          foreground = nord.nord4;
           font-family = cfg.ghostty.fontFamily;
           font-size = cfg.ghostty.fontSize;
           window-decoration = "auto";
@@ -103,9 +111,9 @@ in
             --color=bg+:%s,bg:%s,spinner:%s,hl:%s \
             --color=fg:%s,header:%s,info:%s,pointer:%s \
             --color=marker:%s,fg+:%s,prompt:%s,hl+:%s" \
-            "${p.nord1}" "${p.nord0}" "${p.nord9}" "${p.nord3}" \
-            "${p.nord4}" "${p.nord3}" "${p.nord9}" "${p.nord9}" \
-            "${p.nord9}" "${p.nord4}" "${p.nord9}" "${p.nord9}")
+            "${nord.nord1}" "${nord.nord0}" "${nord.nord9}" "${nord.nord3}" \
+            "${nord.nord4}" "${nord.nord3}" "${nord.nord9}" "${nord.nord9}" \
+            "${nord.nord9}" "${nord.nord4}" "${nord.nord9}" "${nord.nord9}")
         '';
 
         plugins = [
