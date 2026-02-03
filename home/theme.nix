@@ -25,10 +25,11 @@ let
   switchTheme = pkgs.writeShellApplication {
     name = "switch-theme";
     runtimeInputs = with pkgs; [
-      dconf
       coreutils
       gnused
       glib
+      dbus
+      systemd
     ];
     text = ''
       set -euo pipefail
@@ -40,7 +41,8 @@ let
         exit 1
       fi
 
-      GTK4_DIR="${config.home.homeDirectory}/.config/gtk-4.0"
+      XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
+      GTK4_DIR="$XDG_CONFIG_HOME/gtk-4.0"
       THEME_BASE="${colloidTheme}/share/themes"
 
       if [ "$MODE" = "dark" ]; then
@@ -58,33 +60,32 @@ let
         exit 1
       fi
 
-      {
-        systemctl --user is-active dconf.service || systemctl --user start dconf.service
-        sleep 1
-        dconf write /org/gnome/desktop/interface/color-scheme "'$COLOR'"
-        dconf write /org/gnome/desktop/interface/gtk-theme "'$THEME'"
-        dconf write /org/gnome/desktop/interface/icon-theme "'$ICON'"
-        dconf write /org/gnome/desktop/interface/cursor-theme "'${cursorName}'"
-        dconf write /org/gnome/desktop/interface/cursor-size "${toString cursorSize}"
-        dconf write /org/gnome/shell/extensions/user-theme/name "'$THEME'"
-      } || {
-        echo "Error: Failed to update dconf settings" >&2
-        exit 1
-      }
+      # GNOME / GTK: schema-aware updates (no X11 resources).
+      gsettings set org.gnome.desktop.interface color-scheme "$COLOR" || true
+      gsettings set org.gnome.desktop.interface gtk-theme "$THEME" || true
+      gsettings set org.gnome.desktop.interface icon-theme "$ICON" || true
+      gsettings set org.gnome.desktop.interface cursor-theme "${cursorName}" || true
+      gsettings set org.gnome.desktop.interface cursor-size ${toString cursorSize} || true
 
+      # GNOME Shell "user-theme" extension (ignore if not installed).
+      gsettings set org.gnome.shell.extensions.user-theme name "$THEME" 2>/dev/null || true
+
+      # Propagate for newly-launched apps (Wayland/Xwayland cursor + GTK override).
+      systemctl --user set-environment \
+        XCURSOR_THEME="${cursorName}" \
+        XCURSOR_SIZE="${toString cursorSize}" \
+        GTK_THEME="$THEME" || true
+
+      dbus-update-activation-environment --systemd \
+        XCURSOR_THEME XCURSOR_SIZE GTK_THEME 2>/dev/null || true
+
+      # Force GTK4 theme assets (best-effort; mainly for apps reading gtk-4.0 at startup).
       mkdir -p "$GTK4_DIR"
       for item in gtk.css gtk-dark.css assets; do
         src="$THEME_BASE/$THEME/gtk-4.0/$item"
         dst="$GTK4_DIR/$item"
         [ -e "$src" ] && ln -sfn "$src" "$dst"
       done
-
-      XRESOURCES="${config.home.homeDirectory}/.Xresources"
-      if [ -f "$XRESOURCES" ]; then
-        sed -i "s/^Xcursor.theme:.*/Xcursor.theme: ${cursorName}/" "$XRESOURCES" || true
-        sed -i "s/^Xcursor.size:.*/Xcursor.size: ${toString cursorSize}/" "$XRESOURCES" || true
-        command -v xrdb >/dev/null 2>&1 && xrdb -merge "$XRESOURCES" 2>/dev/null || true
-      fi
 
       echo "✓ Switched to $MODE mode"
     '';
@@ -135,15 +136,21 @@ in
         package = cursorTheme;
         size = cursorSize;
         gtk.enable = true;
+        # Keep enabled to avoid regressions for the remaining Xwayland surface area.
         x11.enable = true;
       };
 
       activation = {
-        cleanupLegacyGtkSettings = lib.hm.dag.entryBefore [ "writeBoundary" ] ''
+        # Prevent "file exists" when HM wants to manage (symlink) gtk-3.0/settings.ini.
+        cleanupLegacyGtk3SettingsIni = lib.hm.dag.entryBefore [ "writeBoundary" ] ''
+          set -eu
+
           SETTINGS_INI="${config.xdg.configHome}/gtk-3.0/settings.ini"
-          if [ -f "$SETTINGS_INI" ] && [ ! -L "$SETTINGS_INI" ]; then
-            echo "Backing up legacy mutable gtk-3.0/settings.ini to avoid conflict..."
-            mv "$SETTINGS_INI" "$SETTINGS_INI.backup"
+
+          if [ -e "$SETTINGS_INI" ] && [ ! -L "$SETTINGS_INI" ]; then
+            ts="$(${pkgs.coreutils}/bin/date +%s)"
+            echo "Home Manager: moving pre-existing gtk-3.0/settings.ini aside (was not a symlink)"
+            ${pkgs.coreutils}/bin/mv "$SETTINGS_INI" "$SETTINGS_INI.backup.$ts"
           fi
         '';
 
@@ -174,6 +181,7 @@ in
       gtk4.extraConfig.gtk-application-prefer-dark-theme = 1;
     };
 
+    # You are managing gtk-4.0/* via the switch script (symlinks); avoid HM trying to own them.
     xdg.configFile = {
       "gtk-4.0/gtk.css".enable = false;
       "gtk-4.0/gtk-dark.css".enable = false;
@@ -199,3 +207,4 @@ in
     };
   };
 }
+
