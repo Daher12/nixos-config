@@ -46,25 +46,6 @@ in
         default = true;
         description = "Enable Fish shell";
       };
-
-      plugins = lib.mkOption {
-        type = lib.types.listOf (
-          lib.types.submodule {
-            options = {
-              name = lib.mkOption {
-                type = lib.types.str;
-                description = "Plugin name";
-              };
-              src = lib.mkOption {
-                type = lib.types.package;
-                description = "Plugin source";
-              };
-            };
-          }
-        );
-        default = [ ];
-        description = "Fish plugins to install";
-      };
     };
 
     utilities = {
@@ -129,8 +110,7 @@ in
             name = "done";
             inherit (pkgs.fishPlugins.done) src;
           }
-        ]
-        ++ cfg.fish.plugins;
+        ];
       };
     })
 
@@ -167,3 +147,4 @@ in
     }
   ];
 }
+
