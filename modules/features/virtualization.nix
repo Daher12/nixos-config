@@ -1,4 +1,5 @@
-# modules/features/virtualization.nix (lean, no hugepages; btrfs NoCOW; Win11 optional packages)
+# modules/features/virtualization.nix (lean, no hugepages; btrfs NoCOW; Win11 optional packages;
+# ensures libvirt 'default' network is active)
 {
   config,
   lib,
@@ -101,5 +102,21 @@ in
       # btrfs NoCOW for VM images directory
       "h /var/lib/libvirt/images - - - - +C"
     ];
+
+    # Keep libvirt's default NAT network active for VMs that reference network='default'
+    systemd.services.libvirt-network-default = {
+      description = "Ensure libvirt default network is active";
+      after = [ "libvirtd.socket" ];
+      requires = [ "libvirtd.socket" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      script = ''
+        ${pkgs.libvirt}/bin/virsh -c qemu:///system net-start default 2>/dev/null || true
+        ${pkgs.libvirt}/bin/virsh -c qemu:///system net-autostart default 2>/dev/null || true
+      '';
+    };
   };
 }
