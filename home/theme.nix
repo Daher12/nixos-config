@@ -1,4 +1,8 @@
-{ config, lib, pkgs, ... }:
+{
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   themeDark = "Colloid-Dark-Nord";
@@ -16,7 +20,13 @@ let
 
   switchTheme = pkgs.writeShellApplication {
     name = "switch-theme";
-    runtimeInputs = with pkgs; [ coreutils glib dbus systemd ];
+    runtimeInputs = with pkgs; [
+      coreutils
+      glib
+      dbus
+      systemd
+      dconf
+    ];
     text = ''
       set -euo pipefail
 
@@ -38,15 +48,16 @@ let
           ;;
       esac
 
-      # GNOME / GTK settings
+      # GNOME interface keys: gsettings (schema-aware)
       gsettings set org.gnome.desktop.interface color-scheme "$color" || true
       gsettings set org.gnome.desktop.interface gtk-theme "$theme" || true
       gsettings set org.gnome.desktop.interface icon-theme "$icon" || true
       gsettings set org.gnome.desktop.interface cursor-theme "${cursorName}" || true
       gsettings set org.gnome.desktop.interface cursor-size ${toString cursorSize} || true
 
-      # GNOME Tweaks → Appearance → Shell (User Themes extension)
-      gsettings set org.gnome.shell.extensions.user-theme name "$theme" 2>/dev/null || true
+      # GNOME Tweaks → Appearance → Shell (User Themes extension):
+      # Use dconf to avoid schema/path visibility issues.
+      dconf write /org/gnome/shell/extensions/user-theme/name "'$theme'" || true
 
       # Ensure newly launched apps inherit overrides
       systemctl --user set-environment \
@@ -57,7 +68,7 @@ let
       dbus-update-activation-environment --systemd \
         XCURSOR_THEME XCURSOR_SIZE GTK_THEME 2>/dev/null || true
 
-      # Model A: runtime owns ~/.config/gtk-4.0/*
+      # Runtime owns ~/.config/gtk-4.0/*
       XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
       GTK4_DIR="$XDG_CONFIG_HOME/gtk-4.0"
       THEME_BASE="${colloid}/share/themes"
@@ -66,29 +77,27 @@ let
       for item in gtk.css gtk-dark.css assets; do
         src="$THEME_BASE/$theme/gtk-4.0/$item"
         dst="$GTK4_DIR/$item"
-        if [ -e "$src" ]; then
-          ln -sfn "$src" "$dst"
-        fi
+        [ -e "$src" ] && ln -sfn "$src" "$dst"
       done
     '';
   };
 
-  # darkman expects executable paths (no arguments)
+  # darkman wants executable paths (no args)
   switchDark = pkgs.writeShellApplication {
     name = "switch-theme-dark";
     runtimeInputs = [ switchTheme ];
-    text = ''exec ${switchTheme}/bin/switch-theme dark'';
+    text = "exec ${switchTheme}/bin/switch-theme dark";
   };
 
   switchLight = pkgs.writeShellApplication {
     name = "switch-theme-light";
     runtimeInputs = [ switchTheme ];
-    text = ''exec ${switchTheme}/bin/switch-theme light'';
+    text = "exec ${switchTheme}/bin/switch-theme light";
   };
 in
 {
   config = {
-    # Ensure HM does not try to own these GTK4 override paths (runtime does).
+    # Prevent HM from trying to own these (your script owns them).
     xdg.configFile = {
       "gtk-4.0/gtk.css".enable = lib.mkForce false;
       "gtk-4.0/gtk-dark.css".enable = lib.mkForce false;
@@ -105,26 +114,28 @@ in
         switchLight
       ];
 
-      # Make themes discoverable to User Themes (GNOME Shell scans ~/.themes)
+      # Required for GNOME Shell theme discovery by User Themes: expose in ~/.themes
       file = {
         ".themes/${themeDark}".source = "${colloid}/share/themes/${themeDark}";
         ".themes/${themeLight}".source = "${colloid}/share/themes/${themeLight}";
-      };
-
-      pointerCursor = {
-        name = cursorName;
-        package = cursorPkg;
-        size = cursorSize;
-        gtk.enable = true;
-        x11.enable = true;
       };
     };
 
     gtk = {
       enable = true;
-      theme = { name = themeDark; package = colloid; };
-      iconTheme = { name = iconDark; package = iconPkg; };
-      cursorTheme = { name = cursorName; package = cursorPkg; size = cursorSize; };
+      theme = {
+        name = themeDark;
+        package = colloid;
+      };
+      iconTheme = {
+        name = iconDark;
+        package = iconPkg;
+      };
+      cursorTheme = {
+        name = cursorName;
+        package = cursorPkg;
+        size = cursorSize;
+      };
     };
 
     services.darkman = {
@@ -140,4 +151,3 @@ in
     };
   };
 }
-
