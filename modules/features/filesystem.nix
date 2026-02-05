@@ -8,7 +8,6 @@
 let
   cfg = config.features.filesystem;
 
-  # Detect if any Btrfs mount uses async discard (makes periodic fstrim redundant)
   hasAsyncDiscard =
     cfg.type == "btrfs"
     && lib.any (lib.hasInfix "discard=async") (lib.flatten (lib.attrValues cfg.mountOptions));
@@ -91,7 +90,6 @@ in
     })
 
     {
-      # Apply mount options via fileSystems attribute set
       fileSystems = lib.mapAttrs (_: opts: {
         options = lib.mkAfter opts;
       }) cfg.mountOptions;
@@ -116,12 +114,13 @@ in
         description = "Monthly Btrfs balance";
         serviceConfig = {
           Type = "oneshot";
-          # FIX: Use a list of commands. Systemd runs them sequentially.
-          # Concatenating them into one string fails because 'btrfs balance' only accepts one path.
-          ExecStart = map (
-            fs: "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 ${fs}"
-          ) cfg.btrfs.scrubFilesystems;
         };
+        script = ''
+          set -euo pipefail
+          ${lib.concatMapStringsSep "\n" (
+            fs: "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 ${fs}"
+          ) cfg.btrfs.scrubFilesystems}
+        '';
       };
 
       systemd.timers.btrfs-balance = {
