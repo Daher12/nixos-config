@@ -400,7 +400,9 @@ in
           User = "root";
           StateDirectory = "prometheus-node-exporter";
           StateDirectoryMode = "0755";
-          ExecStartPre = [ "${pkgs.coreutils}/bin/chown prometheus:prometheus /var/lib/prometheus-node-exporter" ];
+          ExecStartPre = [
+            "${pkgs.coreutils}/bin/chown prometheus:prometheus /var/lib/prometheus-node-exporter"
+          ];
           TimeoutStartSec = "8s";
           MemoryMax = "32M";
           CPUQuota = "10%";
@@ -421,5 +423,6 @@ in
     };
   };
 
-  environment.etc."grafana/dashboards/system-overview.json".source = ./dashboards/system-overview.json;
+  environment.etc."grafana/dashboards/system-overview.json".source =
+    ./dashboards/system-overview.json;
 }
