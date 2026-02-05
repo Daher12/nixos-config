@@ -7,19 +7,15 @@
 }:
 
 let
-  # --- HOST CONFIGURATION ---
-  renderGid = "303";
-  videoGid = "26";
-
   user = config.users.users.${mainUser} or { };
   groupName = user.group or mainUser;
   group = config.users.groups.${groupName} or { };
 
   rawUid = user.uid or null;
-  uid = builtins.toString (if rawUid != null then rawUid else 1001);
-
   rawGid = group.gid or null;
-  gid = builtins.toString (if rawGid != null then rawGid else 1001);
+
+  uid = builtins.toString rawUid;
+  gid = builtins.toString rawGid;
 
   tz = "Europe/Berlin";
 
@@ -41,12 +37,12 @@ in
 {
   assertions = [
     {
-      assertion = renderGid != "REPLACE_ME";
-      message = "Docker Config Error: Set 'renderGid' in hosts/nix-media/docker.nix";
+      assertion = rawUid == 1001;
+      message = "Expected ${mainUser} UID=1001; got ${toString rawUid}";
     }
     {
-      assertion = uid == "1001";
-      message = "Docker Config Error: Expected ${mainUser} to have UID=1001 (Server Standard); got UID=${uid}";
+      assertion = rawGid == 1001;
+      message = "Expected ${groupName} GID=1001; got ${toString rawGid}";
     }
   ];
 
@@ -84,12 +80,15 @@ in
             "${storagePath}/movies:/data/movies:ro"
             "${storagePath}/shows:/data/shows:ro"
             "${storagePath}/kinder:/data/kinder:ro"
+            "/etc/group:/etc/group:ro"
+            "/etc/passwd:/etc/passwd:ro"
           ];
           ports = [ "8096:8096" ];
           extraOptions = [
             "--network=${dockerNetwork.name}"
             "--device=/dev/dri:/dev/dri"
-            "--group-add=${renderGid}"
+            "--group-add=render"
+            "--group-add=video"
             "--cpus=3.5"
             "--shm-size=256m"
             "--pids-limit=1000"
@@ -97,8 +96,7 @@ in
             "--health-interval=60s"
             "--health-retries=4"
             "--health-timeout=10s"
-          ]
-          ++ lib.optional (videoGid != "REPLACE_ME") "--group-add=${videoGid}";
+          ];
         };
 
         audiobookshelf = {
@@ -164,7 +162,6 @@ in
   };
 
   systemd.tmpfiles.rules = [
-    "d ${jellyfinCachePath} 0755 ${mainUser} ${groupName} - -"
     "d ${jellyfinCachePath}/cache 0755 ${mainUser} ${groupName} - -"
     "d ${jellyfinCachePath}/transcode 0755 ${mainUser} ${groupName} - -"
   ];
@@ -199,7 +196,6 @@ in
       };
 
       "docker-jellyfin".serviceConfig = {
-        # FIX: Using string form so systemd correctly parses the '-' ignore-failure prefix
         ExecStopPost = lib.mkForce "-${pkgs.docker}/bin/docker rm -f jellyfin";
         IOWeight = 8000;
         CPUWeight = 1000;
