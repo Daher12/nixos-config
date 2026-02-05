@@ -14,8 +14,11 @@ let
   rawUid = user.uid or null;
   rawGid = group.gid or null;
 
-  uid = builtins.toString rawUid;
-  gid = builtins.toString rawGid;
+  # --- boring minimal fix: hardcode IDs (strings) ---
+  uid = "1001";
+  gid = "982";
+  renderGid = "303";
+  videoGid = "26";
 
   tz = "Europe/Berlin";
 
@@ -80,15 +83,14 @@ in
             "${storagePath}/movies:/data/movies:ro"
             "${storagePath}/shows:/data/shows:ro"
             "${storagePath}/kinder:/data/kinder:ro"
-            "/etc/group:/etc/group:ro"
-            "/etc/passwd:/etc/passwd:ro"
+            # removed: /etc/group and /etc/passwd mounts
           ];
           ports = [ "8096:8096" ];
           extraOptions = [
             "--network=${dockerNetwork.name}"
             "--device=/dev/dri:/dev/dri"
-            "--group-add=render"
-            "--group-add=video"
+            "--group-add=${renderGid}"
+            "--group-add=${videoGid}"
             "--cpus=3.5"
             "--shm-size=256m"
             "--pids-limit=1000"
