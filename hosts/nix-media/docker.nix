@@ -41,8 +41,8 @@ in
       message = "Expected ${mainUser} UID=1001; got ${toString rawUid}";
     }
     {
-      assertion = rawGid == 1001;
-      message = "Expected ${groupName} GID=1001; got ${toString rawGid}";
+      assertion = rawGid == 982;
+      message = "Expected ${groupName} GID=982; got ${toString rawGid}";
     }
   ];
 
