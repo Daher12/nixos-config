@@ -1,17 +1,6 @@
 { config, pkgs, ... }:
 
-# Monitoring Stack
-#
-# Components:
-#   - Prometheus :9090 (localhost)
-#   - Alertmanager :9093 (localhost)
-#   - Node Exporter :9100 (localhost)
-#   - Grafana :3001 (localhost, via Caddy)
-#   - Intel GPU metrics (custom script)
-
 let
-  # FIX: Use correct YAML generator for Prometheus rules
-  # Prevents JSON-as-YAML ambiguity and validates structure at build time.
   alertRulesFile = (pkgs.formats.yaml { }).generate "alert-rules.yaml" {
     groups = [
       {
@@ -65,18 +54,13 @@ let
     ];
   };
 
-  # Intel GPU Metrics Script
   gpuMetricsScript = pkgs.writeShellScript "collect-gpu-metrics" ''
+    set -euo pipefail
     export LC_ALL=C
-
-    # HARDENING: Ensure directory exists with correct ownership (matches tmpfiles)
-    # Prevents race conditions or root-owned artifacts preventing node-exporter reads.
-    ${pkgs.coreutils}/bin/install -d -m 0755 -o prometheus -g prometheus /var/lib/prometheus-node-exporter
 
     TMPFILE=/var/lib/prometheus-node-exporter/intel_gpu.prom.tmp
     OUTFILE=/var/lib/prometheus-node-exporter/intel_gpu.prom
 
-    # Capture ~4 seconds of output for smoothing
     OUTPUT=$(${pkgs.coreutils}/bin/timeout 4s ${pkgs.intel-gpu-tools}/bin/intel_gpu_top -s 1000 | tr -d '\r')
 
     echo "$OUTPUT" | ${pkgs.gawk}/bin/awk '
@@ -111,20 +95,16 @@ let
   '';
 in
 {
-  # --- Secrets Definition ---
   sops = {
     secrets = {
       "grafana_admin_password" = {
-        # No specific owner needed for the raw file, as we use a template
         restartUnits = [ "grafana.service" ];
       };
       "ntfy_url" = {
-        # Accessed via LoadCredential, no specific owner needed
         restartUnits = [ "alertmanager-ntfy-bridge.service" ];
       };
     };
 
-    # TEMPLATE: Format the password as an EnvironmentFile for Grafana
     templates."grafana-env" = {
       content = ''
         GF_SECURITY_ADMIN_PASSWORD=${config.sops.placeholder.grafana_admin_password}
@@ -132,7 +112,6 @@ in
     };
   };
 
-  # --- Services (Grouped) ---
   services = {
     prometheus = {
       enable = true;
@@ -212,7 +191,6 @@ in
         ];
       };
 
-      # Alertmanager Config
       alertmanager = {
         enable = true;
         port = 9093;
@@ -305,10 +283,8 @@ in
     };
   };
 
-  # --- Systemd Grouping ---
   systemd = {
     services = {
-      # Webhook bridge: Alertmanager -> ntfy
       alertmanager-ntfy-bridge = {
         description = "Alertmanager to ntfy webhook bridge";
         wantedBy = [ "multi-user.target" ];
@@ -330,7 +306,6 @@ in
           import sys
 
           try:
-              # Use double quotes to avoid Nix single-quote escape issues
               cred_path = os.path.join(os.environ.get('CREDENTIALS_DIRECTORY', ""), 'ntfy_url')
               with open(cred_path, 'r') as f:
                   NTFY_URL = f.read().strip()
@@ -344,7 +319,6 @@ in
                       length = int(self.headers.get('Content-Length', 0))
                       body = json.loads(self.rfile.read(length)) if length else {}
                   except Exception:
-                      # HARDENING: Handle malformed JSON safely without crashing
                       body = {}
 
                   for alert in body.get('alerts', []):
@@ -388,7 +362,6 @@ in
         '';
       };
 
-      # Resource Limits & Configs
       prometheus.serviceConfig = {
         MemoryMax = "512M";
         MemoryHigh = "384M";
@@ -420,12 +393,14 @@ in
         TasksMax = 256;
         Nice = 5;
       };
-      # Intel GPU Metrics
       intel-gpu-metrics = {
         description = "Intel GPU Metrics Collector";
         serviceConfig = {
           Type = "oneshot";
           User = "root";
+          StateDirectory = "prometheus-node-exporter";
+          StateDirectoryMode = "0755";
+          ExecStartPre = [ "${pkgs.coreutils}/bin/chown prometheus:prometheus /var/lib/prometheus-node-exporter" ];
           TimeoutStartSec = "8s";
           MemoryMax = "32M";
           CPUQuota = "10%";
@@ -435,7 +410,6 @@ in
       };
     };
 
-    # Timers
     timers = {
       intel-gpu-metrics = {
         wantedBy = [ "timers.target" ];
@@ -445,299 +419,7 @@ in
         };
       };
     };
-
-    # Tmpfiles
-    tmpfiles.rules = [
-      "d /var/lib/prometheus-node-exporter 0755 prometheus prometheus - -"
-    ];
   };
 
-  # --- Dashboard (Unchanged) ---
-  environment.etc."grafana/dashboards/system-overview.json".text = builtins.toJSON {
-    title = "NixOS Media Server";
-    uid = "nixos-overview";
-    tags = [ "nixos" ];
-    timezone = "browser";
-    schemaVersion = 38;
-    refresh = "1m";
-    time = {
-      from = "now-6h";
-      to = "now";
-    };
-    panels = [
-      {
-        id = 1;
-        gridPos = {
-          x = 0;
-          y = 0;
-          w = 12;
-          h = 8;
-        };
-        type = "timeseries";
-        title = "CPU Usage";
-        targets = [
-          {
-            expr = ''100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)'';
-            legendFormat = "CPU Usage";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "percent";
-          min = 0;
-          max = 100;
-          custom.lineWidth = 2;
-          thresholds = {
-            mode = "absolute";
-            steps = [
-              {
-                value = 0;
-                color = "green";
-              }
-              {
-                value = 70;
-                color = "yellow";
-              }
-              {
-                value = 90;
-                color = "red";
-              }
-            ];
-          };
-        };
-      }
-      {
-        id = 2;
-        gridPos = {
-          x = 12;
-          y = 0;
-          w = 12;
-          h = 8;
-        };
-        type = "timeseries";
-        title = "Memory Usage";
-        targets = [
-          {
-            expr = "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))";
-            legendFormat = "RAM Used";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "percent";
-          min = 0;
-          max = 100;
-          custom.lineWidth = 2;
-          thresholds = {
-            mode = "absolute";
-            steps = [
-              {
-                value = 0;
-                color = "green";
-              }
-              {
-                value = 70;
-                color = "yellow";
-              }
-              {
-                value = 90;
-                color = "red";
-              }
-            ];
-          };
-        };
-      }
-      {
-        id = 3;
-        gridPos = {
-          x = 0;
-          y = 8;
-          w = 12;
-          h = 8;
-        };
-        type = "timeseries";
-        title = "Storage Usage";
-        targets = [
-          {
-            expr = ''100 - ((node_filesystem_avail_bytes{mountpoint="/mnt/storage"} * 100) / node_filesystem_size_bytes{mountpoint="/mnt/storage"})'';
-            legendFormat = "Storage Used";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "percent";
-          min = 0;
-          max = 100;
-          custom.lineWidth = 2;
-          thresholds = {
-            mode = "absolute";
-            steps = [
-              {
-                value = 0;
-                color = "green";
-              }
-              {
-                value = 80;
-                color = "yellow";
-              }
-              {
-                value = 90;
-                color = "red";
-              }
-            ];
-          };
-        };
-      }
-      {
-        id = 4;
-        gridPos = {
-          x = 12;
-          y = 8;
-          w = 12;
-          h = 8;
-        };
-        type = "timeseries";
-        title = "Network Traffic";
-        targets = [
-          {
-            expr = ''irate(node_network_receive_bytes_total{device="enp1s0"}[5m])'';
-            legendFormat = "RX";
-          }
-          {
-            expr = ''irate(node_network_transmit_bytes_total{device="enp1s0"}[5m])'';
-            legendFormat = "TX";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "Bps";
-          custom.lineWidth = 2;
-        };
-      }
-      {
-        id = 5;
-        gridPos = {
-          x = 0;
-          y = 16;
-          w = 12;
-          h = 8;
-        };
-        type = "timeseries";
-        title = "Container CPU";
-        targets = [
-          {
-            expr = ''rate(container_cpu_usage_seconds_total{name=~"jellyfin|audiobookshelf"}[5m]) * 100'';
-            legendFormat = "{{name}}";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "percent";
-          min = 0;
-          custom.lineWidth = 2;
-        };
-      }
-      {
-        id = 6;
-        gridPos = {
-          x = 12;
-          y = 16;
-          w = 12;
-          h = 8;
-        };
-        type = "timeseries";
-        title = "Container Memory";
-        targets = [
-          {
-            expr = ''container_memory_usage_bytes{name=~"jellyfin|audiobookshelf"}'';
-            legendFormat = "{{name}}";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "bytes";
-          custom.lineWidth = 2;
-        };
-      }
-      {
-        id = 8;
-        gridPos = {
-          x = 0;
-          y = 24;
-          w = 12;
-          h = 8;
-        };
-        type = "timeseries";
-        title = "Intel GPU (N100)";
-        targets = [
-          {
-            expr = "intel_gpu_busy_percent";
-            legendFormat = "GPU Overall";
-          }
-          {
-            expr = ''intel_gpu_engine_busy_percent{engine="render"}'';
-            legendFormat = "Render/3D";
-          }
-          {
-            expr = ''intel_gpu_engine_busy_percent{engine="video"}'';
-            legendFormat = "Video (Transcoding)";
-          }
-          {
-            expr = ''intel_gpu_engine_busy_percent{engine="videoenhance"}'';
-            legendFormat = "Video Enhancement";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "percent";
-          min = 0;
-          max = 100;
-          custom.lineWidth = 2;
-          thresholds = {
-            mode = "absolute";
-            steps = [
-              {
-                value = 0;
-                color = "green";
-              }
-              {
-                value = 70;
-                color = "yellow";
-              }
-              {
-                value = 90;
-                color = "red";
-              }
-            ];
-          };
-        };
-      }
-      {
-        id = 7;
-        gridPos = {
-          x = 12;
-          y = 24;
-          w = 12;
-          h = 8;
-        };
-        type = "timeseries";
-        title = "Disk I/O";
-        targets = [
-          {
-            expr = ''irate(node_disk_read_bytes_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+"}[5m])'';
-            legendFormat = "{{device}} read";
-          }
-          {
-            expr = ''irate(node_disk_written_bytes_total{device=~"sd[a-z]+|nvme[0-9]+n[0-9]+"}[5m]) * -1'';
-            legendFormat = "{{device}} write";
-          }
-        ];
-        fieldConfig.defaults = {
-          unit = "binBps";
-          custom = {
-            lineWidth = 2;
-            fillOpacity = 10;
-            gradientMode = "opacity";
-          };
-          thresholds = {
-            mode = "absolute";
-            steps = [ ];
-          };
-        };
-      }
-    ];
-  };
+  environment.etc."grafana/dashboards/system-overview.json".source = ./dashboards/system-overview.json;
 }
