@@ -7,18 +7,19 @@
 }:
 
 let
+  # --- HOST CONFIGURATION ---
+  renderGid = "303";
+  videoGid = "26";
+
   user = config.users.users.${mainUser} or { };
   groupName = user.group or mainUser;
   group = config.users.groups.${groupName} or { };
 
   rawUid = user.uid or null;
-  rawGid = group.gid or null;
+  uid = builtins.toString (if rawUid != null then rawUid else 1001);
 
-  # --- boring minimal fix: hardcode IDs (strings) ---
-  uid = "1001";
-  gid = "982";
-  renderGid = "303";
-  videoGid = "26";
+  rawGid = group.gid or null;
+  gid = builtins.toString (if rawGid != null then rawGid else 1001);
 
   tz = "Europe/Berlin";
 
@@ -40,12 +41,12 @@ in
 {
   assertions = [
     {
-      assertion = rawUid == 1001;
-      message = "Expected ${mainUser} UID=1001; got ${toString rawUid}";
+      assertion = renderGid != "REPLACE_ME";
+      message = "Docker Config Error: Set 'renderGid' in hosts/nix-media/docker.nix";
     }
     {
-      assertion = rawGid == 982;
-      message = "Expected ${groupName} GID=982; got ${toString rawGid}";
+      assertion = uid == "1001";
+      message = "Docker Config Error: Expected ${mainUser} to have UID=1001 (Server Standard); got UID=${uid}";
     }
   ];
 
@@ -83,14 +84,12 @@ in
             "${storagePath}/movies:/data/movies:ro"
             "${storagePath}/shows:/data/shows:ro"
             "${storagePath}/kinder:/data/kinder:ro"
-            # removed: /etc/group and /etc/passwd mounts
           ];
           ports = [ "8096:8096" ];
           extraOptions = [
             "--network=${dockerNetwork.name}"
             "--device=/dev/dri:/dev/dri"
             "--group-add=${renderGid}"
-            "--group-add=${videoGid}"
             "--cpus=3.5"
             "--shm-size=256m"
             "--pids-limit=1000"
@@ -98,7 +97,8 @@ in
             "--health-interval=60s"
             "--health-retries=4"
             "--health-timeout=10s"
-          ];
+          ]
+          ++ lib.optional (videoGid != "REPLACE_ME") "--group-add=${videoGid}";
         };
 
         audiobookshelf = {
@@ -164,6 +164,7 @@ in
   };
 
   systemd.tmpfiles.rules = [
+    "d ${jellyfinCachePath} 0755 ${mainUser} ${groupName} - -"
     "d ${jellyfinCachePath}/cache 0755 ${mainUser} ${groupName} - -"
     "d ${jellyfinCachePath}/transcode 0755 ${mainUser} ${groupName} - -"
   ];
@@ -197,22 +198,20 @@ in
         '';
       };
 
+      # Resource limits only - cleanup handled by oci-containers
       "docker-jellyfin".serviceConfig = {
-        ExecStopPost = lib.mkForce "-${pkgs.docker}/bin/docker rm -f jellyfin";
         IOWeight = 8000;
         CPUWeight = 1000;
         OOMScoreAdjust = -500;
       };
 
       "docker-audiobookshelf".serviceConfig = {
-        ExecStopPost = lib.mkForce "-${pkgs.docker}/bin/docker rm -f audiobookshelf";
         IOWeight = 100;
         CPUWeight = 100;
         OOMScoreAdjust = 500;
       };
 
       "docker-cadvisor".serviceConfig = {
-        ExecStopPost = lib.mkForce "-${pkgs.docker}/bin/docker rm -f cadvisor";
         CPUWeight = 50;
         OOMScoreAdjust = 700;
       };
