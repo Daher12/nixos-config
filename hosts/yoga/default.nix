@@ -111,6 +111,8 @@
   fileSystems."/persist".neededForBoot = true;
   fileSystems."/nix".neededForBoot = true;
 
+  programs.fuse.userAllowOther = true;
+  environment.etc."machine-id".source = "/persist/etc/machine-id";
   home-manager.sharedModules = [ inputs.impermanence.homeManagerModules.impermanence ];
 
   boot.initrd.systemd.services.wipe-root = {
@@ -169,7 +171,6 @@
       "/var/lib/sops-nix"
       "/var/lib/sbctl"
     ];
-    files = [ "/etc/machine-id" ];
   };
 
   systemd.tmpfiles.rules = [
