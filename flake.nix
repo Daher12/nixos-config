@@ -7,28 +7,39 @@
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     lanzaboote = {
-      url = "github:nix-community/lanzaboote/v0.4.3";
+      url = "github:nix-community/lanzaboote/v1.0.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     lix-module = {
       url = "git+https://git.lix.systems/lix-project/nixos-module?ref=release-2.93";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Secret Management
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Declarative partitioning + mounts
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # Persistent state bindings for ephemeral root
+    impermanence.url = "github:nix-community/impermanence";
+
     winapps = {
       url = "github:winapps-org/winapps/44342c34b839547be0b2ea4f94ed00293fa7cc38";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     preload-ng = {
       url = "github:miguel-b-p/preload-ng/eb3c66a20d089ab2e3b8ff34c45c3d527584ed38";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -36,23 +47,14 @@
   };
 
   outputs =
-    inputs@{
-      self,
-      nixpkgs,
-      ...
-    }:
+    inputs@{ self, nixpkgs, ... }:
     let
       system = "x86_64-linux";
       pkgs-unstable = import inputs.nixpkgs-unstable {
         inherit system;
         config.allowUnfree = true;
       };
-
-      # Overlays configuration
-      overlays = _system: [
-        (_: _: { unstable = pkgs-unstable; })
-      ];
-
+      overlays = _system: [ (_: _: { unstable = pkgs-unstable; }) ];
       mkHost = import ./lib/mkHost.nix {
         inherit
           nixpkgs
@@ -61,8 +63,6 @@
           overlays
           ;
       };
-
-      # Only used for formatter/checks
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;
@@ -71,30 +71,9 @@
     {
       formatter.${system} = pkgs.nixfmt-rfc-style;
       checks.${system} = {
-        statix =
-          pkgs.runCommand "statix-check"
-            {
-              buildInputs = [ pkgs.statix ];
-            }
-            ''
-              statix check ${self} && touch $out
-            '';
-        deadnix =
-          pkgs.runCommand "deadnix-check"
-            {
-              buildInputs = [ pkgs.deadnix ];
-            }
-            ''
-              deadnix --fail ${self} && touch $out
-            '';
-        nixfmt =
-          pkgs.runCommand "nixfmt-check"
-            {
-              buildInputs = [ pkgs.nixfmt-rfc-style ];
-            }
-            ''
-              find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out
-            '';
+        statix = pkgs.runCommand "statix-check" { buildInputs = [ pkgs.statix ]; } "statix check ${self} && touch $out";
+        deadnix = pkgs.runCommand "deadnix-check" { buildInputs = [ pkgs.deadnix ]; } "deadnix --fail ${self} && touch $out";
+        nixfmt = pkgs.runCommand "nixfmt-check" { buildInputs = [ pkgs.nixfmt-rfc-style ]; } "find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out";
       };
 
       nixosConfigurations = {
@@ -114,45 +93,45 @@
             winappsPackages = inputs.winapps.packages.${system};
           };
         };
-
-        "latitude" = mkHost {
-          hostname = "latitude";
-          mainUser = "dk";
-          profiles = [
-            "laptop"
-            "desktop-gnome"
-          ];
-          extraModules = [
-            inputs.preload-ng.nixosModules.default
-            ./hosts/latitude/default.nix
-          ];
-          hmModules = [ ./hosts/latitude/home.nix ];
-          extraSpecialArgs = {
-            winappsPackages = null;
+  
+          "latitude" = mkHost {
+            hostname = "latitude";
+            mainUser = "dk";
+            profiles = [
+              "laptop"
+              "desktop-gnome"
+            ];
+            extraModules = [
+              inputs.preload-ng.nixosModules.default
+              ./hosts/latitude/default.nix
+            ];
+            hmModules = [ ./hosts/latitude/home.nix ];
+            extraSpecialArgs = {
+              winappsPackages = null;
+            };
           };
-        };
-
-        # NEW: Media Server
-        "nix-media" = mkHost {
-          hostname = "nix-media";
-          mainUser = "dk";
-
-          # Server Mode: Empty profiles list prevents auto-import of
-          # desktop/laptop/hardware modules defined in mkHost logic.
-          profiles = [ ];
-
-          extraModules = [
-            ./hosts/nix-media/default.nix
-          ];
-
-          # Minimal Home Manager config to satisfy the module requirement
-          # regarding 'home.stateVersion' without installing full user environment.
-          hmModules = [ ./hosts/nix-media/home.nix ];
-
-          extraSpecialArgs = {
-            winappsPackages = null;
+  
+          # NEW: Media Server
+          "nix-media" = mkHost {
+            hostname = "nix-media";
+            mainUser = "dk";
+  
+            # Server Mode: Empty profiles list prevents auto-import of
+            # desktop/laptop/hardware modules defined in mkHost logic.
+            profiles = [ ];
+  
+            extraModules = [
+              ./hosts/nix-media/default.nix
+            ];
+  
+            # Minimal Home Manager config to satisfy the module requirement
+            # regarding 'home.stateVersion' without installing full user environment.
+            hmModules = [ ./hosts/nix-media/home.nix ];
+  
+            extraSpecialArgs = {
+              winappsPackages = null;
+            };
           };
         };
       };
-    };
-}
+  }
