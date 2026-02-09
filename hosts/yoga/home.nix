@@ -18,6 +18,13 @@
       ".gnupg"
       ".mozilla"
       ".local/share/keyrings"
+      ".config/dconf"
+      ".local/share/fish"
+      ".local/share/zoxide
+      ".local/share/direnv"
+    ];
+    files = [
+      ".bash_history"          # Bash history
     ];
     allowOther = true;
   };
