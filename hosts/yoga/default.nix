@@ -170,6 +170,9 @@
       "/var/lib/tailscale"
       "/var/lib/sops-nix"
       "/var/lib/sbctl"
+      "/var/lib/upower"       
+      "/var/lib/colord"        
+      "/var/db/sudo/lectured"  
     ];
   };
 
