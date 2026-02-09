@@ -22,6 +22,7 @@
       ".local/share/fish"
       ".local/share/zoxide
       ".local/share/direnv"
+      "nixos-config"
     ];
     files = [
       ".bash_history"          # Bash history
