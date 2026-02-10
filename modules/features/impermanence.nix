@@ -20,17 +20,14 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # ... Btrfs wipe scripts ...
-    # (Rest of module content remains inside this mkIf block)
     assertions = [
       {
         assertion = config.fileSystems."/".fsType == "btrfs";
         message = "Impermanence module requires a Btrfs root filesystem.";
       }
     ];
-    # ...
+
     boot.initrd.systemd.services.wipe-root = {
-      # ... script content ...
       description = "Wipe Btrfs @ subvolume";
       wantedBy = [ "initrd-root-fs.target" ];
       before = [ "sysroot.mount" ];
