@@ -10,7 +10,7 @@ in
     enable = lib.mkEnableOption "Lanzaboote Secure Boot support";
     pkiBundle = lib.mkOption {
       type = lib.types.str;
-      default = "/etc/secureboot";
+      default = "/var/lib/sbctl";
     };
   };
 
