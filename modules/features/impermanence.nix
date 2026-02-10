@@ -1,4 +1,5 @@
 { config, lib, pkgs, ... }:
+
 let
   cfg = config.features.impermanence;
 in
@@ -34,8 +35,11 @@ in
         if [ -d /btrfs/@ ]; then delete_subvolume_recursively /btrfs/@; fi
 
         btrfs subvolume create /btrfs/@
+        
+        # Mount new root and create ALL directories required for persistence bind-mounts
         mount -t btrfs -o subvol=@ "${cfg.device}" /newroot
-        mkdir -p /newroot/{nix,persist,boot,home,var/lib/sops-nix}
+        mkdir -p /newroot/{nix,persist,boot,home,etc,var/lib/sops-nix}
+        
         umount /newroot
         umount /btrfs
       '';
