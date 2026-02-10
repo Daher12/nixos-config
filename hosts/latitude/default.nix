@@ -39,7 +39,7 @@ in
   };
 
   hardware.intel-gpu.enable = true;
-  # Matches the nested namespace in your modules/hardware/nvidia-disable.nix
+  hardware.isPhysical = true
   hardware.nvidia.disable.enable = true;
 
   features = {
@@ -65,9 +65,6 @@ in
       "mem_sleep_default=deep"
       "zswap.enabled=0"
     ];
-
-    # Required: oomd is NOT enabled by the laptop profile
-    oomd.enable = true;
 
     power-tlp.settings = {
       CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
