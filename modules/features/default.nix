@@ -4,7 +4,7 @@
     ./desktop-gnome.nix
     ./filesystem.nix
     ./fonts.nix
-   # ./impermanence.nix
+    ./impermanence.nix
     ./kernel.nix
     ./nas.nix
     ./network-optimization.nix
