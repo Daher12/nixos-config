@@ -10,12 +10,18 @@ in
     silent = lib.mkEnableOption "silent boot with Plymouth";
     plymouth.theme = lib.mkOption {
       type = lib.types.enum [ "bgrt" "spinner" "script" "text" ];
-      default = "bgrt";
       description = "Plymouth theme to use";
     };
     tmpfs = {
-      enable = lib.mkOption { type = lib.types.bool; default = true; description = "Mount /tmp in RAM"; };
-      size = lib.mkOption { type = lib.types.str; default = "80%"; description = "Size of tmpfs"; };
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Mount /tmp in RAM";
+      };
+      size = lib.mkOption {
+        type = lib.types.str;
+        description = "Size of tmpfs";
+      };
     };
   };
 
@@ -38,7 +44,6 @@ in
         "quiet" "splash" "vt.global_cursor_default=0" "systemd.show_status=false"
         "udev.log_level=3" "loglevel=3" "systemd.log_level=warning" "nowatchdog" "nmi_watchdog=0"
       ];
-
       loader = {
         # Standard boot only enabled if Secure Boot feature is OFF
         systemd-boot = {
@@ -48,7 +53,6 @@ in
         };
         efi.canTouchEfiVariables = true;
       };
-
       tmp = lib.mkIf cfg.tmpfs.enable {
         useTmpfs = true;
         tmpfsSize = cfg.tmpfs.size;
