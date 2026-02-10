@@ -1,31 +1,39 @@
-{ inputs, config, lib, pkgs, ... }:
+{
+  inputs,
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.features.impermanence;
-  # Extract the mapper name for systemd dependency tracking
   luksName = lib.last (lib.splitString "/" cfg.device);
 in
 {
+  # Import upstream unconditionally so options always exist
+  imports = [ inputs.impermanence.nixosModules.impermanence ];
+
   options.features.impermanence = {
     enable = lib.mkEnableOption "Btrfs root wipe on boot";
     device = lib.mkOption { type = lib.types.str; description = "The mapped device"; };
   };
 
   config = lib.mkIf cfg.enable {
-    imports = [ inputs.impermanence.nixosModules.impermanence ];
-
+    # ... Btrfs wipe scripts ...
+    # (Rest of module content remains inside this mkIf block)
     assertions = [
       {
         assertion = config.fileSystems."/".fsType == "btrfs";
         message = "Impermanence module requires a Btrfs root filesystem.";
       }
     ];
-
+    # ...
     boot.initrd.systemd.services.wipe-root = {
+      # ... script content ...
       description = "Wipe Btrfs @ subvolume";
       wantedBy = [ "initrd-root-fs.target" ];
       before = [ "sysroot.mount" ];
-      # Explicit dependency on the LUKS mapping service if using dm-crypt
       after = lib.optional (lib.hasPrefix "/dev/mapper/" cfg.device) "systemd-cryptsetup@${luksName}.service";
       unitConfig.DefaultDependencies = "no";
       serviceConfig.Type = "oneshot";
@@ -48,7 +56,6 @@ in
 
         btrfs subvolume create /btrfs/@
         
-        # Mount new root and create ALL directories required for persistence bind-mounts
         mount -t btrfs -o subvol=@ "${cfg.device}" /newroot
         mkdir -p /newroot/{nix,persist,boot,home,etc,var/lib/sops-nix}
         
