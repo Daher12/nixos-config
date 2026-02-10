@@ -12,7 +12,6 @@
     ./disks.nix
   ];
 
-  # Preserve initrd essentials from old hardware-configuration
   boot.initrd.availableKernelModules = [
     "nvme"
     "xhci_pci"
@@ -108,12 +107,11 @@
     sbctl
   ];
 
-  # --- Impermanence & Disko Configuration ---
   fileSystems."/persist".neededForBoot = true;
   fileSystems."/nix".neededForBoot = true;
 
   programs.fuse.userAllowOther = true;
-  environment.etc."machine-id".source = "/persist/etc/machine-id";
+
   home-manager.sharedModules = [ inputs.impermanence.homeManagerModules.impermanence ];
 
   boot.initrd.systemd.services.wipe-root = {
@@ -125,7 +123,7 @@
       "systemd-cryptsetup@cryptroot.service"
       "systemd-udev-settle.service"
     ];
-    requires = [ "systemd-cryptsetup@cryptroot.service" ]; # Fix Issue 1
+    requires = [ "systemd-cryptsetup@cryptroot.service" ];
     unitConfig.DefaultDependencies = "no";
     serviceConfig.Type = "oneshot";
     path = [
@@ -139,7 +137,6 @@
       mkdir -p /btrfs /newroot
       mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /btrfs
 
-      # Fix Issue 2: Verify mount success
       if ! mountpoint -q /btrfs; then
         echo "Failed to mount btrfs root"
         exit 1
@@ -158,7 +155,9 @@
         delete_subvolume_recursively /btrfs/@
       fi
 
-      btrfs subvolume create /btrfs/@
+      # FAIL-FAST: Ensure root subvolume creation succeeds
+      btrfs subvolume create /btrfs/@ || { echo "Failed to create @ subvolume"; exit 1; }
+
       mount -t btrfs -o subvol=@ /dev/mapper/cryptroot /newroot
       mkdir -p /newroot/{nix,persist,boot,home}
       umount /newroot
@@ -170,7 +169,6 @@
     hideMounts = true;
     directories = [
       "/etc/NetworkManager/system-connections"
-      "/etc/ssh"
       "/var/log"
       "/var/lib/bluetooth"
       "/var/lib/iwd"
@@ -184,8 +182,16 @@
       "/var/db/sudo/lectured"
       "/var/lib/libvirt"
       "/var/lib/gdm"
-      "/var/lib/AccountsService" # Fix Issue 3
-      "/var/lib/fwupd"           # Fix Issue 3
+      "/var/lib/AccountsService"
+      "/var/lib/fwupd"
+    ];
+
+    files = [
+      "/etc/machine-id"
+      { file = "/etc/ssh/ssh_host_ed25519_key"; parentDirectory = { mode = "0755"; }; }
+      "/etc/ssh/ssh_host_ed25519_key.pub"
+      { file = "/etc/ssh/ssh_host_rsa_key"; parentDirectory = { mode = "0755"; }; }
+      "/etc/ssh/ssh_host_rsa_key.pub"
     ];
   };
 
@@ -193,7 +199,7 @@
     "d /persist 0755 root root - -"
     "d /persist/system 0755 root root - -"
     "d /persist/home 0755 root root - -"
-    "d /persist/etc 0755 root root - -" # Fix Issue 4
+    "d /persist/etc 0755 root root - -"
     "Z /persist/home/dk 0700 dk dk - -"
   ];
 }
