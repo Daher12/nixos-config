@@ -11,13 +11,14 @@ let
   disableUsbWakeups = pkgs.writeShellScript "disable-usb-wakeups" ''
     set -euo pipefail
     wake=/proc/acpi/wakeup
-    [[ -w "$wake" ]] || exit 0
+    [[ -w "$wake" ]] ||
+    exit 0
 
     disable_dev() {
       local dev="$1"
       # Toggle only if currently enabled (idempotent safe-guard)
-      # FIX: Used $dev instead of ''${dev} to prevent Nix interpolation error
-      if grep -qE "^$dev[[:space:]].*enabled" "$wake"; then
+      if grep -qE "^$dev[[:space:]].*enabled" "$wake";
+      then
         echo "Disabling wakeup for $dev"
         echo "$dev" > "$wake"
       fi
@@ -34,13 +35,16 @@ in
   system.stateVersion = "25.05";
   core.users.description = "David";
   core.locale.timeZone = "Europe/Berlin";
+
   networking.hosts = {
     "100.123.189.29" = [ "nix-media" ];
   };
 
-  hardware.intel-gpu.enable = true;
-  hardware.isPhysical = true;
-  hardware.nvidia.disable.enable = true;
+  hardware = {
+    intel-gpu.enable = true;
+    isPhysical = true;
+    nvidia.disable.enable = true;
+  };
 
   features = {
     filesystem = {
@@ -80,7 +84,6 @@ in
     after = [ "systemd-udev-settle.service" ];
     serviceConfig = {
       Type = "oneshot";
-      # Removed RemainAfterExit=true to allow re-execution on udev changes
       ExecStart = disableUsbWakeups;
     };
   };
@@ -89,7 +92,6 @@ in
     udev.extraRules = ''
       ACTION=="add|change", SUBSYSTEM=="usb", TAG+="systemd", ENV{SYSTEMD_WANTS}+="disable-wakeup-sources.service"
     '';
-
     thermald.enable = true;
 
     preload-ng = {
