@@ -57,7 +57,7 @@
       type = "btrfs";
       btrfs = {
         autoScrub = true;
-        scrubFilesystems = [ "/persist" ]; # Scrub the persistent layer
+        scrubFilesystems = [ "/persist" ];
         autoBalance = true;
       };
     };
@@ -121,6 +121,7 @@
     before = [ "sysroot.mount" ];
     after = [
       "cryptsetup.target"
+      "systemd-cryptsetup@cryptroot.service"
       "systemd-udev-settle.service"
     ];
     unitConfig.DefaultDependencies = "no";
@@ -170,9 +171,11 @@
       "/var/lib/tailscale"
       "/var/lib/sops-nix"
       "/var/lib/sbctl"
-      "/var/lib/upower"       
-      "/var/lib/colord"        
-      "/var/db/sudo/lectured"  
+      "/var/lib/upower"
+      "/var/lib/colord"
+      "/var/db/sudo/lectured"
+      "/var/lib/libvirt"
+      "/var/lib/gdm"
     ];
   };
 
@@ -180,6 +183,6 @@
     "d /persist 0755 root root - -"
     "d /persist/system 0755 root root - -"
     "d /persist/home 0755 root root - -"
-    "d /persist/home/dk 0700 dk dk - -"
+    "Z /persist/home/dk 0700 dk dk - -"
   ];
 }
