@@ -114,7 +114,7 @@
 
   home-manager.sharedModules = [ inputs.impermanence.homeManagerModules.impermanence ];
 
-  boot.initrd.systemd.services.wipe-root = {
+boot.initrd.systemd.services.wipe-root = {
     description = "Wipe Btrfs @ subvolume (impermanent root)";
     wantedBy = [ "initrd-root-fs.target" ];
     before = [ "sysroot.mount" ];
@@ -123,7 +123,6 @@
       "systemd-cryptsetup@cryptroot.service"
       "systemd-udev-settle.service"
     ];
-    requires = [ "systemd-cryptsetup@cryptroot.service" ];
     unitConfig.DefaultDependencies = "no";
     serviceConfig.Type = "oneshot";
     path = [
@@ -134,11 +133,15 @@
     ];
     script = ''
       set -euo pipefail
+      
+      # Parameterized device variable
+      CRYPT_DEV="/dev/mapper/cryptroot"
+
       mkdir -p /btrfs /newroot
-      mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /btrfs
+      mount -t btrfs -o subvolid=5 "$CRYPT_DEV" /btrfs
 
       if ! mountpoint -q /btrfs; then
-        echo "Failed to mount btrfs root"
+        echo "Failed to mount btrfs root on $CRYPT_DEV"
         exit 1
       fi
 
@@ -155,10 +158,10 @@
         delete_subvolume_recursively /btrfs/@
       fi
 
-      # FAIL-FAST: Ensure root subvolume creation succeeds
+      # Ensure root subvolume creation succeeds
       btrfs subvolume create /btrfs/@ || { echo "Failed to create @ subvolume"; exit 1; }
 
-      mount -t btrfs -o subvol=@ /dev/mapper/cryptroot /newroot
+      mount -t btrfs -o subvol=@ "$CRYPT_DEV" /newroot
       mkdir -p /newroot/{nix,persist,boot,home}
       umount /newroot
       umount /btrfs
