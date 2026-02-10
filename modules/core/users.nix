@@ -32,7 +32,7 @@ in
       description = "Default shell for main user";
     };
 
-    # Explicit nesting to ensure 'config.core.users.zsh' attribute set exists
+    # Fix: Explicitly define the zsh options structure so 'cfg.zsh' exists
     zsh = {
       theme = lib.mkOption {
         type = lib.types.str;
