@@ -51,6 +51,8 @@ lib.mkMerge [
       zram.enable = lib.mkDefault true;
       network-optimization.enable = lib.mkDefault true;
       kernel.variant = lib.mkDefault "zen";
+      oomd.enable = lib.mkDefault true;
+      secureboot.enable = lib.mkDefault true;
 
       vpn.tailscale = {
         enable = lib.mkDefault true;
@@ -75,7 +77,6 @@ lib.mkMerge [
     core = {
       boot.silent = lib.mkDefault true;
       nix.gc.automatic = lib.mkDefault true;
-      secureboot.enable = lib.mkDefault true;
     };
 
     hardware.enableRedistributableFirmware = lib.mkDefault true;
