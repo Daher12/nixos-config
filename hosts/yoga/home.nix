@@ -1,3 +1,4 @@
+# daher12/nixos-config/nixos-config-impermanence/hosts/yoga/home.nix
 { ... }:
 {
   imports = [ ../../home ];
@@ -9,6 +10,7 @@
     firefox.enable = true;
     brave.enable = true;
   };
+
   home.persistence."/persist/home/dk" = {
     directories = [
       "Documents"
@@ -19,6 +21,7 @@
       ".local/share/keyrings"
       ".config/dconf"
       ".local/share/fish"
+      ".config/fish" 
       ".local/share/zoxide"
       ".local/share/direnv"
       "nixos-config"
