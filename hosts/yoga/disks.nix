@@ -1,4 +1,4 @@
-{ ... }: # No lib arg needed
+_: # No arguments used in this module
 let
   btrfsOpts = [
     "compress-force=zstd:1"
