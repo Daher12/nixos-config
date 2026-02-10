@@ -29,7 +29,6 @@ nixpkgs.lib.nixosSystem {
     inputs.sops-nix.nixosModules.sops
     inputs.home-manager.nixosModules.home-manager
     inputs.disko.nixosModules.disko
-    inputs.impermanence.nixosModules.impermanence
     {
       nixpkgs.overlays = overlays system;
       nixpkgs.config.allowUnfree = true;
