@@ -9,25 +9,30 @@
   imports = [
     inputs.disko.nixosModules.disko
     inputs.impermanence.nixosModules.impermanence
+    ../../modules/features/secureboot.nix 
     ./disks.nix
   ];
 
+  # --- Hardware & Boot ---
   boot.initrd.availableKernelModules = [
     "nvme"
     "xhci_pci"
     "usb_storage"
     "sd_mod"
   ];
+  
+  # Robust, declarative root wipe
+  features.impermanence = {
+    enable = true;
+    device = "/dev/mapper/cryptroot";
+  };
+  
+  # Opt-in to Secure Boot (config managed by module)
+  features.secureboot.enable = true;
 
   hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
-
-  system.stateVersion = "25.11";
-  core.locale.timeZone = "Europe/Berlin";
-  core.users.description = "David";
-
-  networking.hosts = {
-    "100.123.189.29" = [ "nix-media" ];
-  };
+  boot.kernelModules = [ "ryzen_smu" ];
+  boot.extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
 
   hardware = {
     amd-gpu.enable = true;
@@ -49,10 +54,20 @@
     };
   };
 
+  # --- System Core ---
+  system.stateVersion = "25.11";
+  core.locale.timeZone = "Europe/Berlin";
+  core.users.description = "David";
+  networking.hosts = {
+    "100.123.189.29" = [ "nix-media" ];
+  };
+
+  # --- Features ---
   features = {
     nas.enable = true;
     desktop-gnome.autoLogin = true;
     sops.enable = true;
+    
     filesystem = {
       type = "btrfs";
       btrfs = {
@@ -61,17 +76,21 @@
         autoBalance = true;
       };
     };
+
     kernel.extraParams = [
       "zswap.enabled=0"
       "amd_pstate=active"
       "amdgpu.ppfeaturemask=0xffffffff"
       "amdgpu.dcdebugmask=0x10"
     ];
+
     oomd.enable = true;
+    
     virtualization = {
       enable = true;
       windows11.enable = true;
     };
+
     power-tlp.settings = {
       TLP_DEFAULT_MODE = "BAT";
       TLP_PERSISTENT_DEFAULT = 1;
@@ -89,9 +108,7 @@
     };
   };
 
-  boot.kernelModules = [ "ryzen_smu" ];
-  boot.extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
-
+  # --- Services & Environment ---
   systemd.services.nix-daemon.serviceConfig =
     let
       cores = config.nix.settings.cores or 0;
@@ -104,7 +121,7 @@
   environment.systemPackages = with pkgs; [
     libva-utils
     vulkan-tools
-    sbctl
+    # sbctl REMOVED: Managed by features.secureboot
   ];
 
   fileSystems."/persist".neededForBoot = true;
@@ -112,61 +129,8 @@
 
   programs.fuse.userAllowOther = true;
 
+  # --- Persistence Configuration ---
   home-manager.sharedModules = [ inputs.impermanence.homeManagerModules.impermanence ];
-
-boot.initrd.systemd.services.wipe-root = {
-    description = "Wipe Btrfs @ subvolume (impermanent root)";
-    wantedBy = [ "initrd-root-fs.target" ];
-    before = [ "sysroot.mount" ];
-    after = [
-      "cryptsetup.target"
-      "systemd-cryptsetup@cryptroot.service"
-      "systemd-udev-settle.service"
-    ];
-    unitConfig.DefaultDependencies = "no";
-    serviceConfig.Type = "oneshot";
-    path = [
-      pkgs.bash
-      pkgs.btrfs-progs
-      pkgs.coreutils
-      pkgs.util-linux
-    ];
-    script = ''
-      set -euo pipefail
-      
-      # Parameterized device variable
-      CRYPT_DEV="/dev/mapper/cryptroot"
-
-      mkdir -p /btrfs /newroot
-      mount -t btrfs -o subvolid=5 "$CRYPT_DEV" /btrfs
-
-      if ! mountpoint -q /btrfs; then
-        echo "Failed to mount btrfs root on $CRYPT_DEV"
-        exit 1
-      fi
-
-      delete_subvolume_recursively() {
-        local target="$1"
-        local child
-        while read -r child; do
-          delete_subvolume_recursively "/btrfs/$child"
-        done < <(btrfs subvolume list -o "$target" | cut -f 9- -d ' ')
-        btrfs subvolume delete "$target" || true
-      }
-
-      if [ -d /btrfs/@ ]; then
-        delete_subvolume_recursively /btrfs/@
-      fi
-
-      # Ensure root subvolume creation succeeds
-      btrfs subvolume create /btrfs/@ || { echo "Failed to create @ subvolume"; exit 1; }
-
-      mount -t btrfs -o subvol=@ "$CRYPT_DEV" /newroot
-      mkdir -p /newroot/{nix,persist,boot,home}
-      umount /newroot
-      umount /btrfs
-    '';
-  };
 
   environment.persistence."/persist/system" = {
     hideMounts = true;
@@ -179,7 +143,7 @@ boot.initrd.systemd.services.wipe-root = {
       "/var/lib/systemd"
       "/var/lib/tailscale"
       "/var/lib/sops-nix"
-      "/var/lib/sbctl"
+      # "/var/lib/sbctl" REMOVED: Managed by features.secureboot (pkiBundle)
       "/var/lib/upower"
       "/var/lib/colord"
       "/var/db/sudo/lectured"
