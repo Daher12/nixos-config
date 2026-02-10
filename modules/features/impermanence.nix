@@ -2,6 +2,8 @@
 
 let
   cfg = config.features.impermanence;
+  # Extract the mapper name for systemd dependency tracking
+  luksName = lib.last (lib.splitString "/" cfg.device);
 in
 {
   options.features.impermanence = {
@@ -10,11 +12,19 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = config.fileSystems."/".fsType == "btrfs";
+        message = "Impermanence module requires a Btrfs root filesystem.";
+      }
+    ];
+
     boot.initrd.systemd.services.wipe-root = {
       description = "Wipe Btrfs @ subvolume";
       wantedBy = [ "initrd-root-fs.target" ];
       before = [ "sysroot.mount" ];
-      after = [ "systemd-cryptsetup@${lib.last (lib.splitString "/" cfg.device)}.service" ];
+      # Explicit dependency on the LUKS mapping service if using dm-crypt
+      after = lib.optional (lib.hasPrefix "/dev/mapper/" cfg.device) "systemd-cryptsetup@${luksName}.service";
       unitConfig.DefaultDependencies = "no";
       serviceConfig.Type = "oneshot";
       path = with pkgs; [ btrfs-progs coreutils util-linux bash ];
