@@ -5,6 +5,7 @@ let
   braveProfile = ".config/BraveSoftware/Brave-Browser/Default";
 in
 {
+  home.stateVersion = "25.11";
   home.persistence."/persist/home/dk" = {
     allowOther = true;
     directories = [
