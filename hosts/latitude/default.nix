@@ -39,7 +39,7 @@ in
   };
 
   hardware.intel-gpu.enable = true;
-  hardware.isPhysical = true
+  hardware.isPhysical = true;
   hardware.nvidia.disable.enable = true;
 
   features = {
