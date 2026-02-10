@@ -1,7 +1,7 @@
-# hosts/nix-media/default.nix
 {
   pkgs,
   lib,
+  config,
   mainUser,
   ...
 }:
@@ -10,12 +10,10 @@ let
   lanIf = "enp1s0";
   sshPort = 26;
   nfsPort = 2049;
-  tailscaleCidr = "100.64.0.0/10";
 in
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/hardware/intel-gpu.nix
     ../../modules/roles/media.nix
 
     ./docker.nix
@@ -23,20 +21,30 @@ in
     ./caddy.nix
     ./ntfy.nix
     ./maintenance.nix
-
-    ../../modules/features/sops.nix
-    ../../modules/features/vpn.nix
   ];
+
+  # --- Core Configuration ---
+  core = {
+    locale = {
+      timeZone = "Europe/Berlin";
+      defaultLocale = "de_DE.UTF-8";
+    };
+    boot.tmpfs = {
+      enable = true;
+      size = "80%";
+    };
+    users.defaultShell = "zsh";
+    sysctl.optimizeForServer = true;
+  };
 
   roles.media = {
     enable = true;
-    dockerUid = 1001;
+    nfsAnonUid = 1001;
+    nfsAnonGid = 982;
   };
 
-  core.users.defaultShell = "zsh";
-  core.sysctl.optimizeForServer = true;
-
   system.stateVersion = "24.05";
+  hardware.isPhysical = true;
 
   boot = {
     loader.systemd-boot = {
@@ -46,6 +54,15 @@ in
 
     kernelParams = [ "transparent_hugepage=madvise" ];
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
+    tmp.cleanOnBoot = true;
+  };
+
+  # Features enabled via standardized options
+  features.sops.enable = true;
+  features.vpn.tailscale = {
+    enable = true;
+    trustInterface = true;
+    routingFeatures = "server";
   };
 
   hardware.intel-gpu = {
@@ -76,7 +93,11 @@ in
     networkmanager.enable = false;
     useNetworkd = true;
     interfaces.${lanIf}.useDHCP = lib.mkForce false;
-    firewall.allowedTCPPorts = [ nfsPort ];
+    firewall = {
+      allowedTCPPorts = [ ];
+      # Close global access; roles.media handles exports, we allow traffic here
+      interfaces."tailscale0".allowedTCPPorts = [ nfsPort ];
+    };
   };
 
   systemd.network = {
@@ -84,7 +105,6 @@ in
       matchConfig.Name = lanIf;
       linkConfig.WakeOnLan = "magic";
     };
-
     networks."10-lan" = {
       matchConfig.Name = lanIf;
       networkConfig = {
@@ -93,7 +113,6 @@ in
         LinkLocalAddressing = "no";
       };
     };
-
     wait-online = {
       enable = true;
       timeout = 30;
@@ -101,18 +120,12 @@ in
     };
   };
 
-  features.vpn.tailscale = {
-    enable = true;
-    trustInterface = true;
-    routingFeatures = "server";
-  };
-
   users.users.${mainUser} = {
-    uid = 1001;
+    uid = config.roles.media.nfsAnonUid;
     extraGroups = [ "docker" ];
   };
 
-  users.groups.${mainUser}.gid = 982;
+  users.groups.${mainUser}.gid = config.roles.media.nfsAnonGid;
 
   services = {
     journald.extraConfig = ''
@@ -124,9 +137,7 @@ in
       RateLimitInterval=30s
       RateLimitBurst=1000
     '';
-
     logrotate.enable = true;
-
     openssh = {
       enable = true;
       ports = [ sshPort ];
@@ -137,37 +148,13 @@ in
         UseDns = false;
       };
     };
-
-    rpcbind.enable = lib.mkForce false;
-
-    nfs = {
-      server = {
-        enable = true;
-        exports = ''
-          /mnt/storage ${tailscaleCidr}(rw,async,crossmnt,fsid=0,no_subtree_check,no_root_squash,all_squash,anonuid=1001,anongid=982)
-        '';
-      };
-      settings.nfsd = {
-        vers3 = "n";
-        udp = "n";
-      };
-    };
-
     fstrim = {
       enable = true;
       interval = "weekly";
     };
-
     thermald.enable = true;
-
     pipewire.enable = false;
     pulseaudio.enable = false;
-    libinput.enable = false;
-    udisks2.enable = false;
-    flatpak.enable = false;
-    fwupd.enable = false;
   };
-
-  features.sops.enable = true;
   security.rtkit.enable = false;
 }

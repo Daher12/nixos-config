@@ -12,13 +12,11 @@ in
   options.core.locale = {
     timeZone = lib.mkOption {
       type = lib.types.str;
-      default = "Europe/Berlin";
       description = "System timezone";
     };
 
     defaultLocale = lib.mkOption {
       type = lib.types.str;
-      default = "de_DE.UTF-8";
       description = "System locale";
     };
 
@@ -28,7 +26,6 @@ in
         default = true;
         description = "Setup console early in boot";
       };
-
       font = lib.mkOption {
         type = lib.types.str;
         default = "ter-v16n";
@@ -40,7 +37,6 @@ in
   config = {
     time.timeZone = cfg.timeZone;
     i18n.defaultLocale = cfg.defaultLocale;
-
     console = {
       inherit (cfg.console) earlySetup font;
       packages = [ pkgs.terminus_font ];

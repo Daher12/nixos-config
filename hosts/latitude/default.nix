@@ -1,4 +1,9 @@
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  mainUser,
+  ...
+}:
 
 let
   # Firmware-defined ACPI tokens from /proc/acpi/wakeup
@@ -7,7 +12,6 @@ let
     "EHC1"
     "XHC"
   ];
-
   disableUsbWakeups = pkgs.writeShellScript "disable-usb-wakeups" ''
     set -euo pipefail
     wake=/proc/acpi/wakeup
@@ -16,7 +20,6 @@ let
     disable_dev() {
       local dev="$1"
       # Toggle only if currently enabled (idempotent safe-guard)
-      # FIX: Used $dev instead of ''${dev} to prevent Nix interpolation error
       if grep -qE "^$dev[[:space:]].*enabled" "$wake"; then
         echo "Disabling wakeup for $dev"
         echo "$dev" > "$wake"
@@ -32,16 +35,35 @@ in
   ];
 
   system.stateVersion = "25.05";
-  core.users.description = "David";
-  core.locale.timeZone = "Europe/Berlin";
+  users.users.${mainUser}.uid = 1000;
+
+  # --- Core Configuration ---
+  core = {
+    users = {
+      description = "David";
+      defaultShell = "fish";
+    };
+    locale = {
+      timeZone = "Europe/Berlin";
+      defaultLocale = "de_DE.UTF-8";
+    };
+    boot = {
+      plymouth.theme = "bgrt";
+      tmpfs = {
+        enable = true;
+        size = "80%";
+      };
+    };
+  };
+
   networking.hosts = {
     "100.123.189.29" = [ "nix-media" ];
   };
-
-  hardware.intel-gpu.enable = true;
-  # Matches the nested namespace in your modules/hardware/nvidia-disable.nix
-  hardware.nvidia.disable.enable = true;
-
+  hardware = {
+    intel-gpu.enable = true;
+    isPhysical = true;
+    nvidia.disable.enable = true;
+  };
   features = {
     filesystem = {
       type = "ext4";
@@ -57,7 +79,6 @@ in
     desktop-gnome = {
       autoLogin = true;
     };
-
     kernel.extraParams = [
       "i915.enable_fbc=1"
       "i915.fastboot=1"
@@ -65,17 +86,12 @@ in
       "mem_sleep_default=deep"
       "zswap.enabled=0"
     ];
-
-    # Required: oomd is NOT enabled by the laptop profile
-    oomd.enable = true;
-
     power-tlp.settings = {
       CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
       CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
       USB_EXCLUDE_BTUSB = 0;
     };
   };
-
   # Host-specific quirk: Disable spurious wakeups from USB to save power
   systemd.services.disable-wakeup-sources = {
     description = "Disable spurious wakeups from USB (EHC1/XHC)";
@@ -83,16 +99,13 @@ in
     after = [ "systemd-udev-settle.service" ];
     serviceConfig = {
       Type = "oneshot";
-      # Removed RemainAfterExit=true to allow re-execution on udev changes
       ExecStart = disableUsbWakeups;
     };
   };
-
   services = {
     udev.extraRules = ''
       ACTION=="add|change", SUBSYSTEM=="usb", TAG+="systemd", ENV{SYSTEMD_WANTS}+="disable-wakeup-sources.service"
     '';
-
     thermald.enable = true;
 
     preload-ng = {
