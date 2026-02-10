@@ -47,14 +47,22 @@
   };
 
   outputs =
-    inputs@{ self, nixpkgs, ... }:
+    inputs@{
+      self,
+      nixpkgs,
+      ...
+    }:
     let
       system = "x86_64-linux";
       pkgs-unstable = import inputs.nixpkgs-unstable {
         inherit system;
         config.allowUnfree = true;
       };
-      overlays = _system: [ (_: _: { unstable = pkgs-unstable; }) ];
+      
+      overlays = _system: [
+        (_: _: { unstable = pkgs-unstable; })
+      ];
+
       mkHost = import ./lib/mkHost.nix {
         inherit
           nixpkgs
@@ -63,6 +71,7 @@
           overlays
           ;
       };
+
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;
@@ -70,16 +79,41 @@
     in
     {
       formatter.${system} = pkgs.nixfmt-rfc-style;
+
       checks.${system} = {
-        statix = pkgs.runCommand "statix-check" { buildInputs = [ pkgs.statix ]; } "statix check ${self} && touch $out";
-        deadnix = pkgs.runCommand "deadnix-check" { buildInputs = [ pkgs.deadnix ]; } "deadnix --fail ${self} && touch $out";
-        nixfmt = pkgs.runCommand "nixfmt-check" { buildInputs = [ pkgs.nixfmt-rfc-style ]; } "find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out";
+        statix =
+          pkgs.runCommand "statix-check"
+            {
+              buildInputs = [ pkgs.statix ];
+            }
+            ''
+              statix check ${self} && touch $out
+            '';
+
+        deadnix =
+          pkgs.runCommand "deadnix-check"
+            {
+              buildInputs = [ pkgs.deadnix ];
+            }
+            ''
+              deadnix --fail ${self} && touch $out
+            '';
+
+        nixfmt =
+          pkgs.runCommand "nixfmt-check"
+            {
+              buildInputs = [ pkgs.nixfmt-rfc-style ];
+            }
+            ''
+              find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out
+            '';
       };
 
       nixosConfigurations = {
         yoga = mkHost {
           hostname = "yoga";
           mainUser = "dk";
+          withHardware = true; # Enabled for hardware support
           profiles = [
             "laptop"
             "desktop-gnome"
@@ -93,45 +127,47 @@
             winappsPackages = inputs.winapps.packages.${system};
           };
         };
-  
-          "latitude" = mkHost {
-            hostname = "latitude";
-            mainUser = "dk";
-            profiles = [
-              "laptop"
-              "desktop-gnome"
-            ];
-            extraModules = [
-              inputs.preload-ng.nixosModules.default
-              ./hosts/latitude/default.nix
-            ];
-            hmModules = [ ./hosts/latitude/home.nix ];
-            extraSpecialArgs = {
-              winappsPackages = null;
-            };
+
+        "latitude" = mkHost {
+          hostname = "latitude";
+          mainUser = "dk";
+          withHardware = true; # Enabled for hardware support
+          profiles = [
+            "laptop"
+            "desktop-gnome"
+          ];
+          extraModules = [
+            inputs.preload-ng.nixosModules.default
+            ./hosts/latitude/default.nix
+          ];
+          hmModules = [ ./hosts/latitude/home.nix ];
+          extraSpecialArgs = {
+            winappsPackages = null;
           };
-  
-          # NEW: Media Server
-          "nix-media" = mkHost {
-            hostname = "nix-media";
-            mainUser = "dk";
-  
-            # Server Mode: Empty profiles list prevents auto-import of
-            # desktop/laptop/hardware modules defined in mkHost logic.
-            profiles = [ ];
-  
-            extraModules = [
-              ./hosts/nix-media/default.nix
-            ];
-  
-            # Minimal Home Manager config to satisfy the module requirement
-            # regarding 'home.stateVersion' without installing full user environment.
-            hmModules = [ ./hosts/nix-media/home.nix ];
-  
-            extraSpecialArgs = {
-              winappsPackages = null;
-            };
+        };
+
+        # NEW: Media Server
+        "nix-media" = mkHost {
+          hostname = "nix-media";
+          mainUser = "dk";
+          withHardware = true; # Required for Intel GPU/QuickSync
+
+          # Server Mode: Empty profiles list prevents auto-import of
+          # desktop/laptop/hardware modules defined in mkHost logic.
+          profiles = [ ];
+
+          extraModules = [
+            ./hosts/nix-media/default.nix
+          ];
+
+          # Minimal Home Manager config to satisfy the module requirement
+          # regarding 'home.stateVersion' without installing full user environment.
+          hmModules = [ ./hosts/nix-media/home.nix ];
+
+          extraSpecialArgs = {
+            winappsPackages = null;
           };
         };
       };
-  }
+    };
+}
