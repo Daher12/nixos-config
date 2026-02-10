@@ -14,7 +14,6 @@ in
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/hardware/intel-gpu.nix
     ../../modules/roles/media.nix
 
     ./docker.nix
@@ -32,6 +31,8 @@ in
   core.users.defaultShell = "zsh";
   core.sysctl.optimizeForServer = true;
   system.stateVersion = "24.05";
+
+  hardware.isPhysical = true
 
   boot = {
     loader.systemd-boot = {
