@@ -16,7 +16,6 @@ in
       default = 30;
       description = "Sudo password timeout in minutes";
     };
-
     description = lib.mkOption {
       type = lib.types.str;
       default = "User";
@@ -29,8 +28,13 @@ in
         "zsh"
         "bash"
       ];
-      default = "fish";
       description = "Default shell for main user";
+    };
+
+    zsh.theme = lib.mkOption {
+      type = lib.types.str;
+      default = "agnoster";
+      description = "Oh-My-Zsh theme";
     };
   };
 
@@ -74,13 +78,12 @@ in
         histSize = 10000;
         ohMyZsh = {
           enable = true;
-          theme = "agnoster";
+          theme = cfg.zsh.theme;
         };
       };
       zoxide.enable = lib.mkDefault true;
       adb.enable = lib.mkDefault true;
     };
-
     services = {
       pipewire = {
         enable = lib.mkDefault true;
@@ -124,7 +127,6 @@ in
       info.enable = false;
       doc.enable = false;
     };
-
     # Priority 900: nixpkgs sets this at default priority (1000), causing merge conflicts
     boot.kernel.sysctl = {
       "vm.max_map_count" = lib.mkOverride 900 1048576;
