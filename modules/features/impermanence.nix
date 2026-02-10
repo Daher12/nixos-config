@@ -11,7 +11,6 @@ let
   luksName = lib.last (lib.splitString "/" cfg.device);
 in
 {
-  # Import upstream unconditionally so options always exist
   imports = [ inputs.impermanence.nixosModules.impermanence ];
 
   options.features.impermanence = {
