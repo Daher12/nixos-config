@@ -1,6 +1,7 @@
 {
   pkgs,
   lib,
+  config,
   mainUser,
   ...
 }:
@@ -22,15 +23,26 @@ in
     ./ntfy.nix
     ./maintenance.nix
   ];
-  roles.media = {
-    enable = true;
-    dockerUid = 1001;
-  };
 
+  # --- Core Configuration ---
+  core.locale = {
+    timeZone = "Europe/Berlin";
+    defaultLocale = "de_DE.UTF-8";
+  };
+  core.boot.tmpfs = {
+    enable = true;
+    size = "80%";
+  };
   core.users.defaultShell = "zsh";
   core.sysctl.optimizeForServer = true;
-  system.stateVersion = "24.05";
 
+  roles.media = {
+    enable = true;
+    nfsAnonUid = 1001;
+    nfsAnonGid = 982;
+  };
+
+  system.stateVersion = "24.05";
   hardware.isPhysical = true;
 
   boot = {
@@ -41,8 +53,9 @@ in
 
     kernelParams = [ "transparent_hugepage=madvise" ];
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
-    tmp.cleanOnBoot = true; 
+    tmp.cleanOnBoot = true;
   };
+
   # Features enabled via standardized options
   features.sops.enable = true;
   features.vpn.tailscale = {
@@ -58,15 +71,18 @@ in
     enableGuc = true;
   };
 
-  environment.systemPackages = with pkgs; [
+  environment.systemPackages = with pkgs;
+  [
     mergerfs xfsprogs nvme-cli smartmontools ethtool mosh wget aria2 trash-cli unrar unzip ox btop fastfetchMinimal
   ];
+
   networking = {
     networkmanager.enable = false;
     useNetworkd = true;
     interfaces.${lanIf}.useDHCP = lib.mkForce false;
     firewall = {
-      allowedTCPPorts = []; # Close global access
+      allowedTCPPorts = [];
+      # Close global access; roles.media handles exports, we allow traffic here
       interfaces."tailscale0".allowedTCPPorts = [ nfsPort ];
     };
   };
@@ -92,11 +108,12 @@ in
   };
 
   users.users.${mainUser} = {
-    uid = 1001;
+    uid = config.roles.media.nfsAnonUid;
     extraGroups = [ "docker" ];
   };
 
-  users.groups.${mainUser}.gid = 982;
+  users.groups.${mainUser}.gid = config.roles.media.nfsAnonGid;
+
   services = {
     journald.extraConfig = ''
       Storage=persistent
@@ -117,12 +134,6 @@ in
         PermitRootLogin = "no";
         UseDns = false;
       };
-    };
-    nfs.server = {
-      enable = true;
-      exports = ''
-        /mnt/storage ${tailscaleCidr}(rw,async,crossmnt,fsid=0,no_subtree_check,no_root_squash,all_squash,anonuid=1001,anongid=982)
-      '';
     };
     fstrim = {
       enable = true;
