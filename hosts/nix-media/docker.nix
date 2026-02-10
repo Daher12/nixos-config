@@ -18,13 +18,13 @@ let
 
   # Service Configuration
   tz = config.core.locale.timeZone; # Use system timezone
-  
+
   images = {
     jellyfin = "lscr.io/linuxserver/jellyfin:latest";
     audiobookshelf = "ghcr.io/advplyr/audiobookshelf:latest";
     cadvisor = "gcr.io/cadvisor/cadvisor:latest";
   };
-  
+
   dockerNetwork = {
     name = "jellyfin";
     subnet = "172.18.0.0/16";
@@ -48,7 +48,10 @@ in
       enable = true;
       autoPrune = {
         enable = true;
-        flags = [ "--all" "--force" ];
+        flags = [
+          "--all"
+          "--force"
+        ];
       };
       daemon.settings."metrics-addr" = "127.0.0.1:9323";
     };
@@ -164,10 +167,19 @@ in
     services = {
       "docker-network-jellyfin" = {
         description = "Ensure Docker network '${dockerNetwork.name}' exists";
-        after = [ "docker.service" "docker.socket" ];
+        after = [
+          "docker.service"
+          "docker.socket"
+        ];
         requires = [ "docker.service" ];
-        before = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
-        requiredBy = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
+        before = [
+          "docker-jellyfin.service"
+          "docker-audiobookshelf.service"
+        ];
+        requiredBy = [
+          "docker-jellyfin.service"
+          "docker-audiobookshelf.service"
+        ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
@@ -204,7 +216,10 @@ in
           Type = "oneshot";
           User = "root";
         };
-        path = [ pkgs.docker pkgs.systemd ];
+        path = [
+          pkgs.docker
+          pkgs.systemd
+        ];
         script = ''
           set -e
           docker pull ${images.jellyfin}

@@ -1,4 +1,9 @@
-{ pkgs, lib, mainUser, ... }:
+{
+  pkgs,
+  lib,
+  mainUser,
+  ...
+}:
 
 let
   # Firmware-defined ACPI tokens from /proc/acpi/wakeup
@@ -31,7 +36,7 @@ in
 
   system.stateVersion = "25.05";
   users.users.${mainUser}.uid = 1000;
-  
+
   # --- Core Configuration ---
   core = {
     users = {
@@ -44,7 +49,10 @@ in
     };
     boot = {
       plymouth.theme = "bgrt";
-      tmpfs = { enable = true; size = "80%"; };
+      tmpfs = {
+        enable = true;
+        size = "80%";
+      };
     };
   };
 

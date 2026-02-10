@@ -1,4 +1,9 @@
-{ nixpkgs, inputs, self, overlays }:
+{
+  nixpkgs,
+  inputs,
+  self,
+  overlays,
+}:
 {
   hostname,
   mainUser,
@@ -16,10 +21,18 @@ let
   baseModules = [
     (flakeRoot + "/modules/core")
     (flakeRoot + "/modules/features")
-  ] 
+  ]
   ++ nixpkgs.lib.optional withHardware (flakeRoot + "/modules/hardware");
 
-  commonArgs = { inherit inputs self flakeRoot mainUser; } // extraSpecialArgs;
+  commonArgs = {
+    inherit
+      inputs
+      self
+      flakeRoot
+      mainUser
+      ;
+  }
+  // extraSpecialArgs;
 in
 nixpkgs.lib.nixosSystem {
   inherit system;

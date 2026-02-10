@@ -7,7 +7,7 @@ let
 in
 {
   home.stateVersion = "25.11";
-  
+
   home.persistence."/persist" = {
     # Fix: Removed deprecated allowOther
     directories = [
@@ -16,7 +16,7 @@ in
       "nixos-config"
       ".ssh"
       ".gnupg"
-      ".local/share/keyrings" 
+      ".local/share/keyrings"
       "${firefoxProfile}/storage"
       "${braveProfile}/Local Extension Settings"
       ".local/state/wireplumber"

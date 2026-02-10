@@ -1,4 +1,11 @@
-{ config, lib, pkgs, inputs, options, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  inputs,
+  options,
+  ...
+}:
 
 let
   cfg = config.features.secureboot;
@@ -22,9 +29,10 @@ in
     };
 
     environment.systemPackages = [ pkgs.sbctl ];
-    
+
     # Only configure persistence if the feature is active
-    environment.persistence."/persist/system".directories = 
-      lib.mkIf (impermanenceEnabled && options ? environment.persistence) [ cfg.pkiBundle ];
+    environment.persistence."/persist/system".directories = lib.mkIf (
+      impermanenceEnabled && options ? environment.persistence
+    ) [ cfg.pkiBundle ];
   };
 }

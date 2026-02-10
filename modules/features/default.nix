@@ -10,7 +10,7 @@
     ./network-optimization.nix
     ./oomd.nix
     ./power-tlp.nix
-    ./secureboot.nix 
+    ./secureboot.nix
     ./sops.nix
     ./virtualization.nix
     ./vpn.nix

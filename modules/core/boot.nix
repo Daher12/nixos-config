@@ -9,7 +9,12 @@ in
   options.core.boot = {
     silent = lib.mkEnableOption "silent boot with Plymouth";
     plymouth.theme = lib.mkOption {
-      type = lib.types.enum [ "bgrt" "spinner" "script" "text" ];
+      type = lib.types.enum [
+        "bgrt"
+        "spinner"
+        "script"
+        "text"
+      ];
       description = "Plymouth theme to use";
     };
     tmpfs = {
@@ -32,7 +37,10 @@ in
         verbose = !cfg.silent;
         systemd.enable = true;
         compressor = "zstd";
-        compressorArgs = [ "-3" "-T0" ];
+        compressorArgs = [
+          "-3"
+          "-T0"
+        ];
       };
 
       plymouth = lib.mkIf cfg.silent {
@@ -41,8 +49,15 @@ in
       };
 
       kernelParams = lib.mkIf cfg.silent [
-        "quiet" "splash" "vt.global_cursor_default=0" "systemd.show_status=false"
-        "udev.log_level=3" "loglevel=3" "systemd.log_level=warning" "nowatchdog" "nmi_watchdog=0"
+        "quiet"
+        "splash"
+        "vt.global_cursor_default=0"
+        "systemd.show_status=false"
+        "udev.log_level=3"
+        "loglevel=3"
+        "systemd.log_level=warning"
+        "nowatchdog"
+        "nmi_watchdog=0"
       ];
       loader = {
         # Standard boot only enabled if Secure Boot feature is OFF

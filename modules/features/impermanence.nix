@@ -16,7 +16,10 @@ in
 
   options.features.impermanence = {
     enable = lib.mkEnableOption "Btrfs root wipe on boot";
-    device = lib.mkOption { type = lib.types.str; description = "The mapped device"; };
+    device = lib.mkOption {
+      type = lib.types.str;
+      description = "The mapped device";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -34,7 +37,12 @@ in
       after = lib.optional (lib.hasPrefix "/dev/mapper/" cfg.device) "systemd-cryptsetup@${luksName}.service";
       unitConfig.DefaultDependencies = "no";
       serviceConfig.Type = "oneshot";
-      path = with pkgs; [ btrfs-progs coreutils util-linux bash ];
+      path = with pkgs; [
+        btrfs-progs
+        coreutils
+        util-linux
+        bash
+      ];
       script = ''
         set -euo pipefail
         mkdir -p /btrfs /newroot
@@ -52,10 +60,10 @@ in
         if [ -d /btrfs/@ ]; then delete_subvolume_recursively /btrfs/@; fi
 
         btrfs subvolume create /btrfs/@
-        
+
         mount -t btrfs -o subvol=@ "${cfg.device}" /newroot
         mkdir -p /newroot/{nix,persist,boot,home,etc,var/lib/sops-nix}
-        
+
         umount /newroot
         umount /btrfs
       '';

@@ -54,7 +54,7 @@ in
 
     kernelParams = [ "transparent_hugepage=madvise" ];
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
-    tmp.cleanOnBoot = true; 
+    tmp.cleanOnBoot = true;
   };
 
   # Features enabled via standardized options
@@ -72,9 +72,21 @@ in
     enableGuc = true;
   };
 
-  environment.systemPackages = with pkgs;
-  [
-    mergerfs xfsprogs nvme-cli smartmontools ethtool mosh wget aria2 trash-cli unrar unzip ox btop fastfetchMinimal
+  environment.systemPackages = with pkgs; [
+    mergerfs
+    xfsprogs
+    nvme-cli
+    smartmontools
+    ethtool
+    mosh
+    wget
+    aria2
+    trash-cli
+    unrar
+    unzip
+    ox
+    btop
+    fastfetchMinimal
   ];
 
   networking = {
@@ -82,7 +94,7 @@ in
     useNetworkd = true;
     interfaces.${lanIf}.useDHCP = lib.mkForce false;
     firewall = {
-      allowedTCPPorts = [];
+      allowedTCPPorts = [ ];
       # Close global access; roles.media handles exports, we allow traffic here
       interfaces."tailscale0".allowedTCPPorts = [ nfsPort ];
     };
