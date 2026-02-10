@@ -7,18 +7,15 @@ let
     "EHC1"
     "XHC"
   ];
-
   disableUsbWakeups = pkgs.writeShellScript "disable-usb-wakeups" ''
     set -euo pipefail
     wake=/proc/acpi/wakeup
-    [[ -w "$wake" ]] ||
-    exit 0
+    [[ -w "$wake" ]] || exit 0
 
     disable_dev() {
       local dev="$1"
       # Toggle only if currently enabled (idempotent safe-guard)
-      if grep -qE "^$dev[[:space:]].*enabled" "$wake";
-      then
+      if grep -qE "^$dev[[:space:]].*enabled" "$wake"; then
         echo "Disabling wakeup for $dev"
         echo "$dev" > "$wake"
       fi
@@ -33,20 +30,28 @@ in
   ];
 
   system.stateVersion = "25.05";
-  users.users.${mainUser}.uid = 1000
-  core.users.description = "David";
-  core.locale.timeZone = "Europe/Berlin";
+  users.users.${mainUser}.uid = 1000;
+  
+  # --- Core Configuration ---
+  core.users = {
+    description = "David";
+    defaultShell = "fish";
+  };
+  core.locale = {
+    timeZone = "Europe/Berlin";
+    defaultLocale = "de_DE.UTF-8";
+  };
+  core.boot.plymouth.theme = "bgrt";
+  core.boot.tmpfs = { enable = true; size = "80%"; };
 
   networking.hosts = {
     "100.123.189.29" = [ "nix-media" ];
   };
-
   hardware = {
     intel-gpu.enable = true;
     isPhysical = true;
     nvidia.disable.enable = true;
   };
-
   features = {
     filesystem = {
       type = "ext4";
@@ -62,7 +67,6 @@ in
     desktop-gnome = {
       autoLogin = true;
     };
-
     kernel.extraParams = [
       "i915.enable_fbc=1"
       "i915.fastboot=1"
@@ -70,14 +74,12 @@ in
       "mem_sleep_default=deep"
       "zswap.enabled=0"
     ];
-
     power-tlp.settings = {
       CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
       CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
       USB_EXCLUDE_BTUSB = 0;
     };
   };
-
   # Host-specific quirk: Disable spurious wakeups from USB to save power
   systemd.services.disable-wakeup-sources = {
     description = "Disable spurious wakeups from USB (EHC1/XHC)";
@@ -88,7 +90,6 @@ in
       ExecStart = disableUsbWakeups;
     };
   };
-
   services = {
     udev.extraRules = ''
       ACTION=="add|change", SUBSYSTEM=="usb", TAG+="systemd", ENV{SYSTEMD_WANTS}+="disable-wakeup-sources.service"
