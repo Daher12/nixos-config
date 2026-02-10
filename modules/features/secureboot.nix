@@ -1,4 +1,5 @@
-{ config, lib, pkgs, inputs, ... }:
+{ config, lib, pkgs, inputs, options, ... }:
+
 let
   cfg = config.features.secureboot;
 in
@@ -14,7 +15,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # Systemd-boot disablement is now handled in modules/core/boot.nix via sbActive
+    # Hand-off to systemd-boot is managed by modules/core/boot.nix via sbActive check
     boot.lanzaboote = {
       enable = true;
       inherit (cfg) pkiBundle;
@@ -22,7 +23,8 @@ in
 
     environment.systemPackages = [ pkgs.sbctl ];
     
-    # Persist keys automatically
-    environment.persistence."/persist/system".directories = [ cfg.pkiBundle ];
+    # Guard persistence config to prevent evaluation errors on non-impermanent hosts
+    environment.persistence."/persist/system".directories = 
+      lib.mkIf (options ? environment.persistence) [ cfg.pkiBundle ];
   };
 }
