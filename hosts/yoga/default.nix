@@ -7,9 +7,6 @@
 }:
 {
   imports = [
-    inputs.disko.nixosModules.disko
-    inputs.impermanence.nixosModules.impermanence
-    ../../modules/features/secureboot.nix
     ./disks.nix
   ];
 
