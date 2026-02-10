@@ -14,17 +14,21 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
-    # Hand-off to systemd-boot is managed by modules/core/boot.nix via sbActive check
-    boot.lanzaboote = {
-      enable = true;
-      inherit (cfg) pkiBundle;
-    };
+  config = lib.mkMerge [
+    (lib.mkIf cfg.enable {
+      # Hand-off to systemd-boot is managed by modules/core/boot.nix via sbActive check
+      boot.lanzaboote = {
+        enable = true;
+        inherit (cfg) pkiBundle;
+      };
 
-    environment.systemPackages = [ pkgs.sbctl ];
-    
-    # Guard persistence config to prevent evaluation errors on non-impermanent hosts
-    environment.persistence."/persist/system".directories = 
-      lib.mkIf (options ? environment.persistence) [ cfg.pkiBundle ];
-  };
+      environment.systemPackages = [ pkgs.sbctl ];
+    })
+
+    # Guard persistence config: Use optionalAttrs so the 'environment.persistence'
+    # key is not even defined if the option doesn't exist.
+    (lib.mkIf cfg.enable (lib.optionalAttrs (options ? environment.persistence) {
+      environment.persistence."/persist/system".directories = [ cfg.pkiBundle ];
+    }))
+  ];
 }
