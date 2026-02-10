@@ -20,12 +20,15 @@
       ".local/share/keyrings"
       ".config/dconf"
       ".local/share/fish"
-      ".local/share/zoxide
+      ".local/share/zoxide"
       ".local/share/direnv"
       "nixos-config"
+      ".local/state"
+      ".config/BraveSoftware"
+      ".cache/nix-index"
     ];
     files = [
-      ".bash_history"          # Bash history
+      ".bash_history"
     ];
     allowOther = true;
   };
