@@ -33,9 +33,7 @@ in
   ];
 
   system.stateVersion = "25.05";
-  users.users.${mainUser} = {
-    uid = 1000; 
-  };
+  users.users.${mainUser}.uid = 1000
   core.users.description = "David";
   core.locale.timeZone = "Europe/Berlin";
 
