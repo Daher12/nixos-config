@@ -2,7 +2,6 @@
 
 let
   cfg = config.features.secureboot;
-  # Critical: Check if impermanence is actually enabled, not just if the option exists
   impermanenceEnabled = config.features.impermanence.enable or false;
 in
 {
