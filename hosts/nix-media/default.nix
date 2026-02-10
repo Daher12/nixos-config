@@ -10,7 +10,6 @@ let
   lanIf = "enp1s0";
   sshPort = 26;
   nfsPort = 2049;
-  tailscaleCidr = "100.64.0.0/10";
 in
 {
   imports = [
@@ -25,16 +24,18 @@ in
   ];
 
   # --- Core Configuration ---
-  core.locale = {
-    timeZone = "Europe/Berlin";
-    defaultLocale = "de_DE.UTF-8";
+  core = {
+    locale = {
+      timeZone = "Europe/Berlin";
+      defaultLocale = "de_DE.UTF-8";
+    };
+    boot.tmpfs = {
+      enable = true;
+      size = "80%";
+    };
+    users.defaultShell = "zsh";
+    sysctl.optimizeForServer = true;
   };
-  core.boot.tmpfs = {
-    enable = true;
-    size = "80%";
-  };
-  core.users.defaultShell = "zsh";
-  core.sysctl.optimizeForServer = true;
 
   roles.media = {
     enable = true;
@@ -53,7 +54,7 @@ in
 
     kernelParams = [ "transparent_hugepage=madvise" ];
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
-    tmp.cleanOnBoot = true;
+    tmp.cleanOnBoot = true; 
   };
 
   # Features enabled via standardized options
