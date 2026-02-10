@@ -1,4 +1,3 @@
-# hosts/nix-media/default.nix
 {
   pkgs,
   lib,
@@ -23,9 +22,6 @@ in
     ./caddy.nix
     ./ntfy.nix
     ./maintenance.nix
-
-    ../../modules/features/sops.nix
-    ../../modules/features/vpn.nix
   ];
 
   roles.media = {
@@ -35,7 +31,6 @@ in
 
   core.users.defaultShell = "zsh";
   core.sysctl.optimizeForServer = true;
-
   system.stateVersion = "24.05";
 
   boot = {
@@ -46,6 +41,15 @@ in
 
     kernelParams = [ "transparent_hugepage=madvise" ];
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
+    tmp.cleanOnBoot = true; 
+  };
+
+  # Features enabled via standardized options
+  features.sops.enable = true;
+  features.vpn.tailscale = {
+    enable = true;
+    trustInterface = true;
+    routingFeatures = "server";
   };
 
   hardware.intel-gpu = {
@@ -56,20 +60,7 @@ in
   };
 
   environment.systemPackages = with pkgs; [
-    mergerfs
-    xfsprogs
-    nvme-cli
-    smartmontools
-    ethtool
-    mosh
-    wget
-    aria2
-    trash-cli
-    unrar
-    unzip
-    ox
-    btop
-    fastfetchMinimal
+    mergerfs xfsprogs nvme-cli smartmontools ethtool mosh wget aria2 trash-cli unrar unzip ox btop fastfetchMinimal
   ];
 
   networking = {
@@ -84,7 +75,6 @@ in
       matchConfig.Name = lanIf;
       linkConfig.WakeOnLan = "magic";
     };
-
     networks."10-lan" = {
       matchConfig.Name = lanIf;
       networkConfig = {
@@ -93,18 +83,11 @@ in
         LinkLocalAddressing = "no";
       };
     };
-
     wait-online = {
       enable = true;
       timeout = 30;
       extraArgs = [ "--interface=${lanIf}:routable" ];
     };
-  };
-
-  features.vpn.tailscale = {
-    enable = true;
-    trustInterface = true;
-    routingFeatures = "server";
   };
 
   users.users.${mainUser} = {
@@ -124,9 +107,7 @@ in
       RateLimitInterval=30s
       RateLimitBurst=1000
     '';
-
     logrotate.enable = true;
-
     openssh = {
       enable = true;
       ports = [ sshPort ];
@@ -137,37 +118,19 @@ in
         UseDns = false;
       };
     };
-
-    rpcbind.enable = lib.mkForce false;
-
-    nfs = {
-      server = {
-        enable = true;
-        exports = ''
-          /mnt/storage ${tailscaleCidr}(rw,async,crossmnt,fsid=0,no_subtree_check,no_root_squash,all_squash,anonuid=1001,anongid=982)
-        '';
-      };
-      settings.nfsd = {
-        vers3 = "n";
-        udp = "n";
-      };
+    nfs.server = {
+      enable = true;
+      exports = ''
+        /mnt/storage ${tailscaleCidr}(rw,async,crossmnt,fsid=0,no_subtree_check,no_root_squash,all_squash,anonuid=1001,anongid=982)
+      '';
     };
-
     fstrim = {
       enable = true;
       interval = "weekly";
     };
-
     thermald.enable = true;
-
     pipewire.enable = false;
     pulseaudio.enable = false;
-    libinput.enable = false;
-    udisks2.enable = false;
-    flatpak.enable = false;
-    fwupd.enable = false;
   };
-
-  features.sops.enable = true;
   security.rtkit.enable = false;
 }
