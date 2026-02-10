@@ -26,13 +26,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Declarative partitioning + mounts
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Persistent state bindings for ephemeral root
     impermanence.url = "github:nix-community/impermanence";
 
     winapps = {
@@ -47,22 +45,16 @@
   };
 
   outputs =
-    inputs@{
-      self,
-      nixpkgs,
-      ...
-    }:
+    inputs@{ self, nixpkgs, ... }:
     let
       system = "x86_64-linux";
       pkgs-unstable = import inputs.nixpkgs-unstable {
         inherit system;
         config.allowUnfree = true;
       };
+      overlays = _system: [ (_: _: { unstable = pkgs-unstable; }) ];
       
-      overlays = _system: [
-        (_: _: { unstable = pkgs-unstable; })
-      ];
-
+      # mkHost refactored to handle the withHardware toggle
       mkHost = import ./lib/mkHost.nix {
         inherit
           nixpkgs
@@ -80,40 +72,19 @@
     {
       formatter.${system} = pkgs.nixfmt-rfc-style;
 
+      # CI/Lint Checks
       checks.${system} = {
-        statix =
-          pkgs.runCommand "statix-check"
-            {
-              buildInputs = [ pkgs.statix ];
-            }
-            ''
-              statix check ${self} && touch $out
-            '';
-
-        deadnix =
-          pkgs.runCommand "deadnix-check"
-            {
-              buildInputs = [ pkgs.deadnix ];
-            }
-            ''
-              deadnix --fail ${self} && touch $out
-            '';
-
-        nixfmt =
-          pkgs.runCommand "nixfmt-check"
-            {
-              buildInputs = [ pkgs.nixfmt-rfc-style ];
-            }
-            ''
-              find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out
-            '';
+        statix = pkgs.runCommand "statix-check" { buildInputs = [ pkgs.statix ]; } "statix check ${self} && touch $out";
+        deadnix = pkgs.runCommand "deadnix-check" { buildInputs = [ pkgs.deadnix ]; } "deadnix --fail ${self} && touch $out";
+        nixfmt = pkgs.runCommand "nixfmt-check" { buildInputs = [ pkgs.nixfmt-rfc-style ]; } "find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out";
       };
 
       nixosConfigurations = {
+        # Physical Laptop: Yoga (AMD)
         yoga = mkHost {
           hostname = "yoga";
           mainUser = "dk";
-          withHardware = true; # Enabled for hardware support
+          withHardware = true; # Enables /modules/hardware evaluation
           profiles = [
             "laptop"
             "desktop-gnome"
@@ -128,10 +99,11 @@
           };
         };
 
-        "latitude" = mkHost {
+        # Physical Laptop: Latitude (Intel)
+        latitude = mkHost {
           hostname = "latitude";
           mainUser = "dk";
-          withHardware = true; # Enabled for hardware support
+          withHardware = true;
           profiles = [
             "laptop"
             "desktop-gnome"
@@ -146,24 +118,16 @@
           };
         };
 
-        # NEW: Media Server
-        "nix-media" = mkHost {
+        # Physical Media Server (Intel)
+        nix-media = mkHost {
           hostname = "nix-media";
           mainUser = "dk";
-          withHardware = true; # Required for Intel GPU/QuickSync
-
-          # Server Mode: Empty profiles list prevents auto-import of
-          # desktop/laptop/hardware modules defined in mkHost logic.
+          withHardware = true; # Enabled to support the physical Intel GPU for transcoding
           profiles = [ ];
-
           extraModules = [
             ./hosts/nix-media/default.nix
           ];
-
-          # Minimal Home Manager config to satisfy the module requirement
-          # regarding 'home.stateVersion' without installing full user environment.
           hmModules = [ ./hosts/nix-media/home.nix ];
-
           extraSpecialArgs = {
             winappsPackages = null;
           };
