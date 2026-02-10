@@ -1,6 +1,120 @@
 {
-  # ... imports
-  # ... inputs
+  inputs,
+  config,
+  pkgs,
+  lib,
+  ...
+}:
+{
+  imports = [
+    inputs.disko.nixosModules.disko
+    inputs.impermanence.nixosModules.impermanence
+    ./disks.nix
+  ];
+
+  # Preserve initrd essentials from old hardware-configuration
+  boot.initrd.availableKernelModules = [
+    "nvme"
+    "xhci_pci"
+    "usb_storage"
+    "sd_mod"
+  ];
+
+  hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+
+  system.stateVersion = "25.11";
+  core.locale.timeZone = "Europe/Berlin";
+  core.users.description = "David";
+
+  networking.hosts = {
+    "100.123.189.29" = [ "nix-media" ];
+  };
+
+  hardware = {
+    amd-gpu.enable = true;
+    amd-kvm.enable = true;
+    ryzen-tdp = {
+      enable = true;
+      ac = {
+        stapm = 54;
+        fast = 60;
+        slow = 54;
+        temp = 95;
+      };
+      battery = {
+        stapm = 18;
+        fast = 25;
+        slow = 18;
+        temp = 75;
+      };
+    };
+  };
+
+  features = {
+    nas.enable = true;
+    desktop-gnome.autoLogin = true;
+    sops.enable = true;
+    filesystem = {
+      type = "btrfs";
+      btrfs = {
+        autoScrub = true;
+        scrubFilesystems = [ "/persist" ];
+        autoBalance = true;
+      };
+    };
+    kernel.extraParams = [
+      "zswap.enabled=0"
+      "amd_pstate=active"
+      "amdgpu.ppfeaturemask=0xffffffff"
+      "amdgpu.dcdebugmask=0x10"
+    ];
+    oomd.enable = true;
+    virtualization = {
+      enable = true;
+      windows11.enable = true;
+    };
+    power-tlp.settings = {
+      TLP_DEFAULT_MODE = "BAT";
+      TLP_PERSISTENT_DEFAULT = 1;
+      CPU_DRIVER_OPMODE_ON_AC = "active";
+      CPU_DRIVER_OPMODE_ON_BAT = "active";
+      CPU_SCALING_GOVERNOR_ON_AC = "performance";
+      CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
+      CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
+      CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
+      CPU_SCALING_MIN_FREQ_ON_AC = 403730;
+      CPU_SCALING_MIN_FREQ_ON_BAT = 403730;
+      PLATFORM_PROFILE_ON_AC = "performance";
+      PLATFORM_PROFILE_ON_BAT = "balanced";
+      PCIE_ASPM_ON_BAT = "powersupersave";
+    };
+  };
+
+  boot.kernelModules = [ "ryzen_smu" ];
+  boot.extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
+
+  systemd.services.nix-daemon.serviceConfig =
+    let
+      cores = config.nix.settings.cores or 0;
+    in
+    lib.mkIf (cores > 0) { CPUQuota = "${toString (cores * 100)}%"; };
+
+  services.irqbalance.enable = true;
+  services.journald.extraConfig = "SystemMaxUse=200M";
+
+  environment.systemPackages = with pkgs; [
+    libva-utils
+    vulkan-tools
+    sbctl
+  ];
+
+  # --- Impermanence & Disko Configuration ---
+  fileSystems."/persist".neededForBoot = true;
+  fileSystems."/nix".neededForBoot = true;
+
+  programs.fuse.userAllowOther = true;
+  environment.etc."machine-id".source = "/persist/etc/machine-id";
+  home-manager.sharedModules = [ inputs.impermanence.homeManagerModules.impermanence ];
 
   boot.initrd.systemd.services.wipe-root = {
     description = "Wipe Btrfs @ subvolume (impermanent root)";
@@ -11,9 +125,7 @@
       "systemd-cryptsetup@cryptroot.service"
       "systemd-udev-settle.service"
     ];
-    # ISSUE 1: Ensure crypt device is active before attempting mount
-    requires = [ "systemd-cryptsetup@cryptroot.service" ];
-    
+    requires = [ "systemd-cryptsetup@cryptroot.service" ]; # Fix Issue 1
     unitConfig.DefaultDependencies = "no";
     serviceConfig.Type = "oneshot";
     path = [
@@ -27,9 +139,9 @@
       mkdir -p /btrfs /newroot
       mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /btrfs
 
-      # ISSUE 2: Verify mount success before destructive operations
+      # Fix Issue 2: Verify mount success
       if ! mountpoint -q /btrfs; then
-        echo "Failed to mount /btrfs, halting wipe to prevent data loss."
+        echo "Failed to mount btrfs root"
         exit 1
       fi
 
@@ -72,9 +184,8 @@
       "/var/db/sudo/lectured"
       "/var/lib/libvirt"
       "/var/lib/gdm"
-      # ISSUE 3: Critical desktop state state
-      "/var/lib/AccountsService"
-      "/var/lib/fwupd"
+      "/var/lib/AccountsService" # Fix Issue 3
+      "/var/lib/fwupd"           # Fix Issue 3
     ];
   };
 
@@ -82,7 +193,7 @@
     "d /persist 0755 root root - -"
     "d /persist/system 0755 root root - -"
     "d /persist/home 0755 root root - -"
-    "d /persist/etc 0755 root root - -"
+    "d /persist/etc 0755 root root - -" # Fix Issue 4
     "Z /persist/home/dk 0700 dk dk - -"
   ];
 }
