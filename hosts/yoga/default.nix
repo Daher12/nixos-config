@@ -9,6 +9,7 @@
   imports = [
     ./disks.nix
   ];
+
   # --- Hardware & Boot ---
   boot = {
     initrd.availableKernelModules = [
@@ -20,6 +21,7 @@
     kernelModules = [ "ryzen_smu" ];
     extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
   };
+
   hardware = {
     cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
     isPhysical = true;
@@ -62,6 +64,7 @@
   networking.hosts = {
     "100.123.189.29" = [ "nix-media" ];
   };
+
   # --- Features ---
   features = {
     impermanence = {
@@ -108,6 +111,7 @@
       PCIE_ASPM_ON_BAT = "powersupersave";
     };
   };
+
   # --- Services & Systemd ---
   systemd = {
     services.nix-daemon.serviceConfig =
@@ -125,6 +129,7 @@
     irqbalance.enable = true;
     journald.extraConfig = "SystemMaxUse=200M";
   };
+
   # --- Environment & Filesystems ---
   environment = {
     systemPackages = with pkgs;
@@ -168,5 +173,4 @@
   };
 
   programs.fuse.userAllowOther = true;
-  home-manager.sharedModules = [ inputs.impermanence.homeManagerModules.impermanence ];
 }
