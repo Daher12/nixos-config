@@ -2,6 +2,8 @@
 
 let
   cfg = config.features.secureboot;
+  # Critical: Check if impermanence is actually enabled, not just if the option exists
+  impermanenceEnabled = config.features.impermanence.enable or false;
 in
 {
   imports = [ inputs.lanzaboote.nixosModules.lanzaboote ];
@@ -14,21 +16,16 @@ in
     };
   };
 
-  config = lib.mkMerge [
-    (lib.mkIf cfg.enable {
-      # Hand-off to systemd-boot is managed by modules/core/boot.nix via sbActive check
-      boot.lanzaboote = {
-        enable = true;
-        inherit (cfg) pkiBundle;
-      };
+  config = lib.mkIf cfg.enable {
+    boot.lanzaboote = {
+      enable = true;
+      inherit (cfg) pkiBundle;
+    };
 
-      environment.systemPackages = [ pkgs.sbctl ];
-    })
-
-    # Guard persistence config: Use optionalAttrs so the 'environment.persistence'
-    # key is not even defined if the option doesn't exist.
-    (lib.mkIf cfg.enable (lib.optionalAttrs (options ? environment.persistence) {
-      environment.persistence."/persist/system".directories = [ cfg.pkiBundle ];
-    }))
-  ];
+    environment.systemPackages = [ pkgs.sbctl ];
+    
+    # Only configure persistence if the feature is active
+    environment.persistence."/persist/system".directories = 
+      lib.mkIf (impermanenceEnabled && options ? environment.persistence) [ cfg.pkiBundle ];
+  };
 }
