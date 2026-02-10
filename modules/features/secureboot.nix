@@ -1,15 +1,9 @@
-{
-  config,
-  lib,
-  pkgs,
-  inputs,
-  options,
-  ...
-}:
+{ config, lib, pkgs, inputs, options, ... }:
 
 let
   cfg = config.features.secureboot;
-  impermanenceEnabled = config.features.impermanence.enable or false;
+  # Safe check: if features.impermanence doesn't exist, default to false
+  impermanenceEnabled = (config.features.impermanence or { }).enable or false;
 in
 {
   imports = [ inputs.lanzaboote.nixosModules.lanzaboote ];
@@ -29,10 +23,9 @@ in
     };
 
     environment.systemPackages = [ pkgs.sbctl ];
-
-    # Only configure persistence if the feature is active
-    environment.persistence."/persist/system".directories = lib.mkIf (
-      impermanenceEnabled && options ? environment.persistence
-    ) [ cfg.pkiBundle ];
+    
+    # Only configure persistence if the feature is active AND the option exists
+    environment.persistence."/persist/system".directories = 
+      lib.mkIf (impermanenceEnabled && options ? environment.persistence) [ cfg.pkiBundle ];
   };
 }
