@@ -7,6 +7,7 @@
 {
   imports = [
     ./disks.nix
+    ../../modules/features/impermanence.nix # Explicitly enable feature
   ];
 
   # --- Hardware & Boot ---
@@ -52,10 +53,7 @@
     };
     boot = {
       plymouth.theme = "bgrt";
-      tmpfs = {
-        enable = true;
-        size = "80%";
-      };
+      tmpfs = { enable = true; size = "80%"; };
     };
     users = {
       description = "David";
@@ -134,7 +132,8 @@
 
   # --- Environment & Filesystems ---
   environment = {
-    systemPackages = with pkgs; [
+    systemPackages = with pkgs;
+    [
       libva-utils
       vulkan-tools
     ];
@@ -159,15 +158,11 @@
       ];
       files = [
         "/etc/machine-id"
-        {
-          file = "/etc/ssh/ssh_host_ed25519_key";
-          parentDirectory.mode = "0755";
-        }
+        { file = "/etc/ssh/ssh_host_ed25519_key";
+        parentDirectory.mode = "0755"; }
         "/etc/ssh/ssh_host_ed25519_key.pub"
-        {
-          file = "/etc/ssh/ssh_host_rsa_key";
-          parentDirectory.mode = "0755";
-        }
+        { file = "/etc/ssh/ssh_host_rsa_key";
+        parentDirectory.mode = "0755"; }
         "/etc/ssh/ssh_host_rsa_key.pub"
       ];
     };
