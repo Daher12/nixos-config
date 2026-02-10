@@ -33,16 +33,20 @@ in
   users.users.${mainUser}.uid = 1000;
   
   # --- Core Configuration ---
-  core.users = {
-    description = "David";
-    defaultShell = "fish";
+  core = {
+    users = {
+      description = "David";
+      defaultShell = "fish";
+    };
+    locale = {
+      timeZone = "Europe/Berlin";
+      defaultLocale = "de_DE.UTF-8";
+    };
+    boot = {
+      plymouth.theme = "bgrt";
+      tmpfs = { enable = true; size = "80%"; };
+    };
   };
-  core.locale = {
-    timeZone = "Europe/Berlin";
-    defaultLocale = "de_DE.UTF-8";
-  };
-  core.boot.plymouth.theme = "bgrt";
-  core.boot.tmpfs = { enable = true; size = "80%"; };
 
   networking.hosts = {
     "100.123.189.29" = [ "nix-media" ];
