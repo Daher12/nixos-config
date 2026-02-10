@@ -1,23 +1,18 @@
 { config, lib, pkgs, ... }:
-
 let
   cfg = config.features.impermanence;
 in
 {
   options.features.impermanence = {
     enable = lib.mkEnableOption "Btrfs root wipe on boot";
-    device = lib.mkOption {
-      type = lib.types.str;
-      description = "The mapped device (e.g. /dev/mapper/cryptroot)";
-    };
+    device = lib.mkOption { type = lib.types.str; description = "The mapped device"; };
   };
 
   config = lib.mkIf cfg.enable {
     boot.initrd.systemd.services.wipe-root = {
-      description = "Wipe Btrfs @ subvolume (impermanent root)";
+      description = "Wipe Btrfs @ subvolume";
       wantedBy = [ "initrd-root-fs.target" ];
       before = [ "sysroot.mount" ];
-      # Dynamically waits for cryptsetup based on device name
       after = [ "systemd-cryptsetup@${lib.last (lib.splitString "/" cfg.device)}.service" ];
       unitConfig.DefaultDependencies = "no";
       serviceConfig.Type = "oneshot";
@@ -36,16 +31,11 @@ in
           btrfs subvolume delete "$target" || true
         }
 
-        if [ -d /btrfs/@ ]; then
-          delete_subvolume_recursively /btrfs/@
-        fi
+        if [ -d /btrfs/@ ]; then delete_subvolume_recursively /btrfs/@; fi
 
         btrfs subvolume create /btrfs/@
-        
-        # Ensure mountpoints exist for nix/persist to avoid initrd mount failures
         mount -t btrfs -o subvol=@ "${cfg.device}" /newroot
         mkdir -p /newroot/{nix,persist,boot,home,var/lib/sops-nix}
-        
         umount /newroot
         umount /btrfs
       '';
