@@ -22,7 +22,6 @@ in
     ./ntfy.nix
     ./maintenance.nix
   ];
-
   roles.media = {
     enable = true;
     dockerUid = 1001;
@@ -32,7 +31,7 @@ in
   core.sysctl.optimizeForServer = true;
   system.stateVersion = "24.05";
 
-  hardware.isPhysical = true
+  hardware.isPhysical = true;
 
   boot = {
     loader.systemd-boot = {
@@ -44,7 +43,6 @@ in
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
     tmp.cleanOnBoot = true; 
   };
-
   # Features enabled via standardized options
   features.sops.enable = true;
   features.vpn.tailscale = {
@@ -63,12 +61,14 @@ in
   environment.systemPackages = with pkgs; [
     mergerfs xfsprogs nvme-cli smartmontools ethtool mosh wget aria2 trash-cli unrar unzip ox btop fastfetchMinimal
   ];
-
   networking = {
     networkmanager.enable = false;
     useNetworkd = true;
     interfaces.${lanIf}.useDHCP = lib.mkForce false;
-    firewall.allowedTCPPorts = [ nfsPort ];
+    firewall = {
+      allowedTCPPorts = []; # Close global access
+      interfaces."tailscale0".allowedTCPPorts = [ nfsPort ];
+    };
   };
 
   systemd.network = {
@@ -97,7 +97,6 @@ in
   };
 
   users.groups.${mainUser}.gid = 982;
-
   services = {
     journald.extraConfig = ''
       Storage=persistent
