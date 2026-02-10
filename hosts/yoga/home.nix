@@ -8,8 +8,8 @@ in
 {
   home.stateVersion = "25.11";
   
-  home.persistence."/persist/home/dk" = {
-    # allowOther = true; # Removed: deprecated/no-op in newer impermanence versions
+  home.persistence."/persist" = {
+    # Fix: Removed deprecated allowOther
     directories = [
       "Documents"
       "Downloads"
