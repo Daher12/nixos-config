@@ -25,13 +25,13 @@ let
   profileModules = map (p: flakeRoot + "/profiles/${p}.nix") profiles;
 
   needsHardware = builtins.any (p: p == "laptop" || p == "desktop-gnome") profiles;
-  needsFeatures = profiles != [ ];
 
   baseModules = [
     (flakeRoot + "/modules/core")
+    # Features are now always available to all hosts; enabled via config options
+    (flakeRoot + "/modules/features")
   ]
-  ++ nixpkgs.lib.optional needsHardware (flakeRoot + "/modules/hardware")
-  ++ nixpkgs.lib.optional needsFeatures (flakeRoot + "/modules/features");
+  ++ nixpkgs.lib.optional needsHardware (flakeRoot + "/modules/hardware");
 
   commonArgs = {
     inherit
