@@ -1,9 +1,7 @@
-{ config, lib, pkgs, inputs, options, ... }:
+{ config, lib, pkgs, inputs, ... }:
 
 let
   cfg = config.features.secureboot;
-  # Safe check: if features.impermanence doesn't exist, default to false
-  impermanenceEnabled = (config.features.impermanence or { }).enable or false;
 in
 {
   imports = [ inputs.lanzaboote.nixosModules.lanzaboote ];
@@ -18,19 +16,15 @@ in
 
   config = lib.mkIf cfg.enable (lib.mkMerge [
     {
-      # Hand-off to systemd-boot is managed by modules/core/boot.nix via sbActive check
       boot.lanzaboote = {
         enable = true;
         inherit (cfg) pkiBundle;
       };
-
       environment.systemPackages = [ pkgs.sbctl ];
     }
 
-    # CRITICAL FIX: Use optionalAttrs to ensure the 'environment.persistence' key 
-    # is NOT defined at all if the option doesn't exist.
-    # mkIf alone is insufficient because it creates the key with a null value or assertion.
-    (lib.optionalAttrs (impermanenceEnabled && options ? environment.persistence) {
+    # Lazy evaluation: only activates when impermanence is enabled
+    (lib.mkIf (config.features.impermanence.enable or false) {
       environment.persistence."/persist/system".directories = [ cfg.pkiBundle ];
     })
   ]);
