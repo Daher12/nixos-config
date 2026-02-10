@@ -31,6 +31,15 @@ in
       default = "fish";
       description = "Default shell for main user";
     };
+
+    # Explicit nesting to ensure 'config.core.users.zsh' attribute set exists
+    zsh = {
+      theme = lib.mkOption {
+        type = lib.types.str;
+        default = "agnoster";
+        description = "Oh-My-Zsh theme";
+      };
+    };
   };
 
   config = {
@@ -73,7 +82,7 @@ in
         histSize = 10000;
         ohMyZsh = {
           enable = true;
-          inherit (cfg.zsh) theme; # statix: fix assignment to inherit
+          inherit (cfg.zsh) theme;
         };
       };
       zoxide.enable = lib.mkDefault true;
