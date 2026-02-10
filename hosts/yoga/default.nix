@@ -9,7 +9,6 @@
   imports = [
     ./disks.nix
   ];
-
   # --- Hardware & Boot ---
   boot = {
     initrd.availableKernelModules = [
@@ -21,7 +20,6 @@
     kernelModules = [ "ryzen_smu" ];
     extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
   };
-
   hardware = {
     cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
     isPhysical = true;
@@ -46,16 +44,24 @@
 
   # --- System Core ---
   system.stateVersion = "25.11";
-
   core = {
-    locale.timeZone = "Europe/Berlin";
-    users.description = "David";
+    locale = {
+      timeZone = "Europe/Berlin";
+      defaultLocale = "de_DE.UTF-8";
+    };
+    boot = {
+      plymouth.theme = "bgrt";
+      tmpfs = { enable = true; size = "80%"; };
+    };
+    users = {
+      description = "David";
+      defaultShell = "fish";
+    };
   };
 
   networking.hosts = {
     "100.123.189.29" = [ "nix-media" ];
   };
-
   # --- Features ---
   features = {
     impermanence = {
@@ -82,12 +88,10 @@
       "amdgpu.ppfeaturemask=0xffffffff"
       "amdgpu.dcdebugmask=0x10"
     ];
-
     virtualization = {
       enable = true;
       windows11.enable = true;
     };
-
     power-tlp.settings = {
       TLP_DEFAULT_MODE = "BAT";
       TLP_PERSISTENT_DEFAULT = 1;
@@ -104,7 +108,6 @@
       PCIE_ASPM_ON_BAT = "powersupersave";
     };
   };
-
   # --- Services & Systemd ---
   systemd = {
     services.nix-daemon.serviceConfig =
@@ -112,7 +115,6 @@
         cores = config.nix.settings.cores or 0;
       in
       lib.mkIf (cores > 0) { CPUQuota = "${toString (cores * 100)}%"; };
-
     tmpfiles.rules = [
       "d /persist 0755 root root - -"
       "Z /persist/home/dk 0700 dk dk - -"
@@ -123,14 +125,13 @@
     irqbalance.enable = true;
     journald.extraConfig = "SystemMaxUse=200M";
   };
-
   # --- Environment & Filesystems ---
   environment = {
-    systemPackages = with pkgs; [
+    systemPackages = with pkgs;
+    [
       libva-utils
       vulkan-tools
     ];
-
     persistence."/persist/system" = {
       hideMounts = true;
       directories = [
@@ -152,20 +153,20 @@
       ];
       files = [
         "/etc/machine-id"
-        { file = "/etc/ssh/ssh_host_ed25519_key"; parentDirectory.mode = "0755"; }
+        { file = "/etc/ssh/ssh_host_ed25519_key";
+        parentDirectory.mode = "0755"; }
         "/etc/ssh/ssh_host_ed25519_key.pub"
-        { file = "/etc/ssh/ssh_host_rsa_key"; parentDirectory.mode = "0755"; }
+        { file = "/etc/ssh/ssh_host_rsa_key";
+        parentDirectory.mode = "0755"; }
         "/etc/ssh/ssh_host_rsa_key.pub"
       ];
     };
   };
-
   fileSystems = {
     "/persist".neededForBoot = true;
     "/nix".neededForBoot = true;
   };
 
   programs.fuse.userAllowOther = true;
-
   home-manager.sharedModules = [ inputs.impermanence.homeManagerModules.impermanence ];
 }
