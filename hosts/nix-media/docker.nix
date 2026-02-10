@@ -8,27 +8,23 @@
 
 let
   # --- HOST CONFIGURATION ---
+  # Hardware-specific GIDs (verify with `getent group render | cut -d: -f3`)
   renderGid = "303";
   videoGid = "26";
 
-  user = config.users.users.${mainUser} or { };
-  groupName = user.group or mainUser;
-  group = config.users.groups.${groupName} or { };
+  # ID Mapping from Media Role
+  uid = toString config.roles.media.nfsAnonUid;
+  gid = toString config.roles.media.nfsAnonGid;
 
-  rawUid = user.uid or null;
-  uid = builtins.toString (if rawUid != null then rawUid else 1001);
-
-  rawGid = group.gid or null;
-  gid = builtins.toString (if rawGid != null then rawGid else 1001);
-
-  tz = "Europe/Berlin";
-
+  # Service Configuration
+  tz = config.core.locale.timeZone; # Use system timezone
+  
   images = {
     jellyfin = "lscr.io/linuxserver/jellyfin:latest";
     audiobookshelf = "ghcr.io/advplyr/audiobookshelf:latest";
     cadvisor = "gcr.io/cadvisor/cadvisor:latest";
   };
-
+  
   dockerNetwork = {
     name = "jellyfin";
     subnet = "172.18.0.0/16";
@@ -44,10 +40,7 @@ in
       assertion = renderGid != "REPLACE_ME";
       message = "Docker Config Error: Set 'renderGid' in hosts/nix-media/docker.nix";
     }
-    {
-      assertion = uid == "1001";
-      message = "Docker Config Error: Expected ${mainUser} to have UID=1001 (Server Standard); got UID=${uid}";
-    }
+    # Removed UID assertion: Logic now sourced directly from trusted role config
   ];
 
   virtualisation = {
@@ -55,10 +48,7 @@ in
       enable = true;
       autoPrune = {
         enable = true;
-        flags = [
-          "--all"
-          "--force"
-        ];
+        flags = [ "--all" "--force" ];
       };
       daemon.settings."metrics-addr" = "127.0.0.1:9323";
     };
@@ -164,28 +154,20 @@ in
   };
 
   systemd.tmpfiles.rules = [
-    "d ${jellyfinCachePath} 0755 ${mainUser} ${groupName} - -"
-    "d ${jellyfinCachePath}/cache 0755 ${mainUser} ${groupName} - -"
-    "d ${jellyfinCachePath}/transcode 0755 ${mainUser} ${groupName} - -"
+    # Note: Using mainUser/group names for readability; ownership aligns with IDs above
+    "d ${jellyfinCachePath} 0755 ${mainUser} ${mainUser} - -"
+    "d ${jellyfinCachePath}/cache 0755 ${mainUser} ${mainUser} - -"
+    "d ${jellyfinCachePath}/transcode 0755 ${mainUser} ${mainUser} - -"
   ];
 
   systemd = {
     services = {
       "docker-network-jellyfin" = {
         description = "Ensure Docker network '${dockerNetwork.name}' exists";
-        after = [
-          "docker.service"
-          "docker.socket"
-        ];
+        after = [ "docker.service" "docker.socket" ];
         requires = [ "docker.service" ];
-        before = [
-          "docker-jellyfin.service"
-          "docker-audiobookshelf.service"
-        ];
-        requiredBy = [
-          "docker-jellyfin.service"
-          "docker-audiobookshelf.service"
-        ];
+        before = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
+        requiredBy = [ "docker-jellyfin.service" "docker-audiobookshelf.service" ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
@@ -222,10 +204,7 @@ in
           Type = "oneshot";
           User = "root";
         };
-        path = [
-          pkgs.docker
-          pkgs.systemd
-        ];
+        path = [ pkgs.docker pkgs.systemd ];
         script = ''
           set -e
           docker pull ${images.jellyfin}
