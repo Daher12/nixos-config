@@ -1,13 +1,15 @@
 _: # No arguments used in this module
 let
-  # NOTE: Check your actual firefox profile name. It might be 'default' or a hash.
+  # NOTE: Check your actual firefox profile name.
+  # It might be 'default' or a hash.
   firefoxProfile = ".mozilla/firefox/default";
   braveProfile = ".config/BraveSoftware/Brave-Browser/Default";
 in
 {
   home.stateVersion = "25.11";
+  
   home.persistence."/persist/home/dk" = {
-    allowOther = true;
+    # allowOther = true; # Removed: deprecated/no-op in newer impermanence versions
     directories = [
       "Documents"
       "Downloads"
