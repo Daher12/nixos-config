@@ -28,13 +28,8 @@ in
         "zsh"
         "bash"
       ];
+      default = "fish";
       description = "Default shell for main user";
-    };
-
-    zsh.theme = lib.mkOption {
-      type = lib.types.str;
-      default = "agnoster";
-      description = "Oh-My-Zsh theme";
     };
   };
 
@@ -78,7 +73,7 @@ in
         histSize = 10000;
         ohMyZsh = {
           enable = true;
-          theme = cfg.zsh.theme;
+          inherit (cfg.zsh) theme; # statix: fix assignment to inherit
         };
       };
       zoxide.enable = lib.mkDefault true;
