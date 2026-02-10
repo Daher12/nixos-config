@@ -1,4 +1,4 @@
-{ pkgs, lib, ... }:
+{ pkgs, lib, mainUser, ... }:
 
 let
   # Firmware-defined ACPI tokens from /proc/acpi/wakeup
@@ -33,6 +33,9 @@ in
   ];
 
   system.stateVersion = "25.05";
+  users.users.${mainUser} = {
+    uid = 1000; 
+  };
   core.users.description = "David";
   core.locale.timeZone = "Europe/Berlin";
 
