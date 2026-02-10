@@ -20,8 +20,8 @@
     "usb_storage"
     "sd_mod"
   ];
-  
-  # Robust, declarative root wipe
+
+  hardware.isPhysical = true;
   features.impermanence = {
     enable = true;
     device = "/dev/mapper/cryptroot";
@@ -83,8 +83,6 @@
       "amdgpu.ppfeaturemask=0xffffffff"
       "amdgpu.dcdebugmask=0x10"
     ];
-
-    oomd.enable = true;
     
     virtualization = {
       enable = true;
