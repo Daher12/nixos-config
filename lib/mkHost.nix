@@ -28,7 +28,8 @@ nixpkgs.lib.nixosSystem {
     inputs.lix-module.nixosModules.default
     inputs.sops-nix.nixosModules.sops
     inputs.home-manager.nixosModules.home-manager
-    # inputs.lanzaboote removed: Now opt-in via features/secureboot.nix
+    inputs.disko.nixosModules.disko
+    inputs.impermanence.nixosModules.impermanence
     {
       nixpkgs.overlays = overlays system;
       nixpkgs.config.allowUnfree = true;
