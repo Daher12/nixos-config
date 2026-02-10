@@ -12,6 +12,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    imports = [ inputs.impermanence.nixosModules.impermanence ];
+
     assertions = [
       {
         assertion = config.fileSystems."/".fsType == "btrfs";
