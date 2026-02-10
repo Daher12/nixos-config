@@ -9,7 +9,6 @@
     firefox.enable = true;
     brave.enable = true;
   };
-
   home.persistence."/persist/home/dk" = {
     directories = [
       "Documents"
@@ -30,6 +29,6 @@
     files = [
       ".bash_history"
     ];
-    allowOther = true;
+    allowOther = true; 
   };
 }
