@@ -117,7 +117,7 @@
       lib.mkIf (cores > 0) { CPUQuota = "${toString (cores * 100)}%"; };
     tmpfiles.rules = [
       "d /persist 0755 root root - -"
-      "Z /persist/home/dk 0700 dk dk - -"
+      "d /persist/home/dk 0700 dk dk - -"
     ];
   };
 
