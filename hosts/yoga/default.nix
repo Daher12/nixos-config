@@ -47,10 +47,6 @@
   # --- System Core ---
   system.stateVersion = "25.11";
   core = {
-    locale = {
-      timeZone = "Europe/Berlin";
-      defaultLocale = "de_DE.UTF-8";
-    };
     boot = {
       plymouth.theme = "bgrt";
       tmpfs = { enable = true; size = "80%"; };
