@@ -47,7 +47,6 @@ in
         enable = true;
         inherit (cfg.plymouth) theme;
       };
-
       kernelParams = lib.mkIf cfg.silent [
         "quiet"
         "splash"
@@ -67,6 +66,9 @@ in
           consoleMode = lib.mkDefault "max";
         };
         efi.canTouchEfiVariables = true;
+        # Keep ESP mountpoint consistent with Disko (ESP mounted at /boot)
+        # and with the installer script's strict /mnt/boot mountpoint check.
+        efi.efiSysMountPoint = lib.mkDefault "/boot";
       };
       tmp = lib.mkIf cfg.tmpfs.enable {
         useTmpfs = true;
