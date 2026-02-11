@@ -25,10 +25,6 @@ in
 
   # --- Core Configuration ---
   core = {
-    locale = {
-      timeZone = "Europe/Berlin";
-      defaultLocale = "de_DE.UTF-8";
-    };
     boot.tmpfs = {
       enable = true;
       size = "80%";
