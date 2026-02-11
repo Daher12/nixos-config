@@ -35,9 +35,8 @@ read -rp "Backup USB path (e.g. /mnt/usb): " BACKUP_PATH
 [[ -d "$BACKUP_PATH" ]] || die "Path not found: $BACKUP_PATH"
 
 # Restore Strict Validation (Fail Early)
+# REMOVED: ssh/ssh_host_* keys from strict requirement
 req_files=(
-    "ssh/ssh_host_ed25519_key"
-    "ssh/ssh_host_rsa_key"
     "sops/age.key"
     "system/machine-id"
 )
@@ -68,7 +67,7 @@ nix run --extra-experimental-features "nix-command flakes" \
     --mode destroy,format,mount \
     --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Disko failed"
 
-# Verify Mounts (Added)
+# Verify Mounts
 for m in /mnt /mnt/boot /mnt/persist; do
     mountpoint -q "$m" || die "Mount point failed: $m is not a mountpoint"
 done
@@ -76,11 +75,17 @@ done
 # --- State Restoration (System) ---
 info "Restoring system identity..."
 
-mkdir -p /mnt/persist/system/etc/ssh
-cp -a "$BACKUP_PATH"/ssh/ssh_host_* /mnt/persist/system/etc/ssh/
-chmod 600 /mnt/persist/system/etc/ssh/*_key
-chmod 644 /mnt/persist/system/etc/ssh/*.pub 2>/dev/null || true
-chown -R 0:0 /mnt/persist/system/etc/ssh
+# SSH Keys (Optional)
+if [[ -f "$BACKUP_PATH/ssh/ssh_host_ed25519_key" ]]; then
+    info "Restoring SSH host keys..."
+    mkdir -p /mnt/persist/system/etc/ssh
+    cp -a "$BACKUP_PATH"/ssh/ssh_host_* /mnt/persist/system/etc/ssh/
+    chmod 600 /mnt/persist/system/etc/ssh/*_key
+    chmod 644 /mnt/persist/system/etc/ssh/*.pub 2>/dev/null || true
+    chown -R 0:0 /mnt/persist/system/etc/ssh
+else
+    echo "WARNING: No SSH host keys found in backup. New keys will be generated on boot."
+fi
 
 install -D -m 400 -o 0 -g 0 \
     "$BACKUP_PATH/sops/age.key" /mnt/persist/system/var/lib/sops-nix/key.txt
@@ -115,11 +120,13 @@ info "Fixing user permissions..."
 chown -R "$USER_UID:$USER_GID" "$USER_HOME"
 
 # Recursive Security Fixes (SSH)
-[[ -d "$USER_HOME/.ssh" ]] && chmod 700 "$USER_HOME/.ssh"
-find "$USER_HOME/.ssh" -type f -exec chmod 600 {} + 2>/dev/null || true
-find "$USER_HOME/.ssh" -name "*.pub" -exec chmod 644 {} + 2>/dev/null || true
+if [[ -d "$USER_HOME/.ssh" ]]; then
+    chmod 700 "$USER_HOME/.ssh"
+    find "$USER_HOME/.ssh" -type f -exec chmod 600 {} + 2>/dev/null || true
+    find "$USER_HOME/.ssh" -name "*.pub" -exec chmod 644 {} + 2>/dev/null || true
+fi
 
-# Recursive Security Fixes (GPG - Added)
+# Recursive Security Fixes (GPG)
 if [[ -d "$USER_HOME/.gnupg" ]]; then
     chmod 700 "$USER_HOME/.gnupg"
     find "$USER_HOME/.gnupg" -type d -exec chmod 700 {} + 2>/dev/null || true
