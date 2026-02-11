@@ -153,6 +153,7 @@
       ];
       files = [
         "/etc/machine-id"
+        "/etc/shadow"
         { file = "/etc/ssh/ssh_host_ed25519_key";
         parentDirectory.mode = "0755"; }
         "/etc/ssh/ssh_host_ed25519_key.pub"
