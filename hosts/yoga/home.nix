@@ -6,7 +6,16 @@ let
   braveProfile = ".config/BraveSoftware/Brave-Browser/Default";
 in
 {
+  imports = [
+    ../../home
+  ];
+
   home.stateVersion = "25.11";
+
+  browsers = {
+    firefox.enable = true;
+    brave.enable = true;
+  };
 
   home.persistence."/persist" = {
     # Fix: Removed deprecated allowOther
