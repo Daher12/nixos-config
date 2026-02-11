@@ -7,7 +7,6 @@
 {
   imports = [
     ./disks.nix
-    ../../modules/features/impermanence.nix # Explicitly enable feature
   ];
 
   # --- Hardware & Boot ---
@@ -47,10 +46,6 @@
   # --- System Core ---
   system.stateVersion = "25.11";
   core = {
-    locale = {
-      timeZone = "Europe/Berlin";
-      defaultLocale = "de_DE.UTF-8";
-    };
     boot = {
       plymouth.theme = "bgrt";
       tmpfs = { enable = true; size = "80%"; };
@@ -121,7 +116,7 @@
       lib.mkIf (cores > 0) { CPUQuota = "${toString (cores * 100)}%"; };
     tmpfiles.rules = [
       "d /persist 0755 root root - -"
-      "Z /persist/home/dk 0700 dk dk - -"
+      "d /persist/home/dk 0700 dk dk - -"
     ];
   };
 

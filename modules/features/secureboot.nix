@@ -5,7 +5,6 @@ let
 in
 {
   imports = [ inputs.lanzaboote.nixosModules.lanzaboote ];
-
   options.features.secureboot = {
     enable = lib.mkEnableOption "Lanzaboote Secure Boot support";
     pkiBundle = lib.mkOption {
@@ -13,9 +12,9 @@ in
       default = "/var/lib/sbctl";
     };
   };
-
   config = lib.mkIf cfg.enable (lib.mkMerge [
     {
+      boot.loader.systemd-boot.enable = lib.mkForce false;
       boot.lanzaboote = {
         enable = true;
         inherit (cfg) pkiBundle;

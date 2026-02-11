@@ -12,7 +12,6 @@ let
 in
 {
   imports = [ inputs.impermanence.nixosModules.impermanence ];
-
   options.features.impermanence = {
     enable = lib.mkEnableOption "Btrfs root wipe on boot";
     device = lib.mkOption {
@@ -20,7 +19,6 @@ in
       description = "The mapped device";
     };
   };
-
   config = lib.mkIf cfg.enable {
     assertions = [
       {
@@ -28,7 +26,6 @@ in
         message = "Impermanence module requires a Btrfs root filesystem.";
       }
     ];
-
     boot.initrd.systemd.services.wipe-root = {
       description = "Wipe Btrfs @ subvolume";
       wantedBy = [ "initrd-root-fs.target" ];
@@ -50,18 +47,21 @@ in
         delete_subvolume_recursively() {
           local target="$1"
           local child
-          while read -r child; do
+          while read -r child;
+            do
             delete_subvolume_recursively "/btrfs/$child"
           done < <(btrfs subvolume list -o "$target" | cut -f 9- -d ' ')
-          btrfs subvolume delete "$target" || true
+          btrfs subvolume delete "$target" ||
+            true
         }
 
-        if [ -d /btrfs/@ ]; then delete_subvolume_recursively /btrfs/@; fi
+        if [ -d /btrfs/@ ];
+          then delete_subvolume_recursively /btrfs/@; fi
 
         btrfs subvolume create /btrfs/@
 
         mount -t btrfs -o subvol=@ "${cfg.device}" /newroot
-        mkdir -p /newroot/{nix,persist,boot,home,etc,var/lib/sops-nix}
+        mkdir -p /newroot/{nix,persist,boot,home,etc,var/lib/sops-nix,var/lib/sbctl}
 
         umount /newroot
         umount /btrfs

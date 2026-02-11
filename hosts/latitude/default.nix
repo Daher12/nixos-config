@@ -43,10 +43,6 @@ in
       description = "David";
       defaultShell = "fish";
     };
-    locale = {
-      timeZone = "Europe/Berlin";
-      defaultLocale = "de_DE.UTF-8";
-    };
     boot = {
       plymouth.theme = "bgrt";
       tmpfs = {
