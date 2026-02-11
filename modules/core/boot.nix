@@ -57,6 +57,7 @@ in
         "systemd.log_level=warning"
         "nowatchdog"
         "nmi_watchdog=0"
+        "plymouth.use-simpledrm"
       ];
       loader = {
         # Standard boot only enabled if Secure Boot feature is OFF
