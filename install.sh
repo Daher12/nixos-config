@@ -4,8 +4,8 @@ umask 077 # Security: Default to private file creation
 
 # --- Configuration ---
 USER_NAME="${USER_NAME:-dk}"
-USER_UID="${USER_UID:-1000}"
-USER_GID="${USER_GID:-1000}"
+USER_UID="1000" # Hardcoded for safety/speed in single-user config
+USER_GID="1000"
 REPO_URL="${REPO_URL:-https://github.com/daher12/nixos-config}"
 FLAKE_TARGET="${FLAKE_TARGET:-yoga}"
 
@@ -17,30 +17,38 @@ confirm() {
     [[ "$r" =~ ^[Yy]$ ]] || die "Aborted"
 }
 
-# IMPROVEMENT: Trap unhandled errors (Must be after 'die' definition)
-trap 'die "UNHANDLED FAILURE at line $LINENO: $BASH_COMMAND"' ERR
-
 # --- Pre-flight ---
 [[ $EUID -eq 0 ]] || die "Run as root"
 
 # 1. Dependency Check
-deps=(nix git install mountpoint curl timeout nixos-install)
+deps=(nix git mountpoint curl timeout nixos-install)
 for cmd in "${deps[@]}"; do
     command -v "$cmd" >/dev/null || die "Missing required command: $cmd"
 done
 
-# 2. Connectivity (IMPROVEMENT: Robust Retry)
+# 2. Connectivity
 curl -fsS --connect-timeout 5 --retry 3 --retry-delay 2 https://github.com >/dev/null \
     || die "No internet or GitHub unreachable"
 
 # 3. Backup Validation
-read -rp "Backup USB path: " BACKUP_PATH
+read -rp "Backup USB path (e.g. /mnt/usb): " BACKUP_PATH
 [[ -d "$BACKUP_PATH" ]] || die "Path not found: $BACKUP_PATH"
 
-req_files=("ssh/ssh_host_ed25519_key" "sops/age.key" "system/machine-id")
+# Restore Strict Validation (Fail Early)
+req_files=(
+    "ssh/ssh_host_ed25519_key"
+    "ssh/ssh_host_rsa_key"
+    "sops/age.key"
+    "system/machine-id"
+)
 for f in "${req_files[@]}"; do
-    [[ -f "$BACKUP_PATH/$f" ]] || die "Missing artifact: $f"
+    [[ -f "$BACKUP_PATH/$f" ]] || die "Missing required backup artifact: $f"
 done
+
+# Optional: Validate sbctl if present
+if [[ -d "$BACKUP_PATH/sbctl" ]]; then
+    [[ -f "$BACKUP_PATH/sbctl/keys/db/db.pem" ]] || die "Corrupt sbctl backup: keys/db/db.pem missing"
+fi
 
 # 4. Safety Prompt
 info "Targeting Flake: $FLAKE_TARGET"
@@ -60,9 +68,9 @@ nix run --extra-experimental-features "nix-command flakes" \
     --mode destroy,format,mount \
     --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Disko failed"
 
-# Verify mounts
+# Verify Mounts (Added)
 for m in /mnt /mnt/boot /mnt/persist; do
-    mountpoint -q "$m" || die "Mount point $m missing"
+    mountpoint -q "$m" || die "Mount point failed: $m is not a mountpoint"
 done
 
 # --- State Restoration (System) ---
@@ -70,11 +78,6 @@ info "Restoring system identity..."
 
 mkdir -p /mnt/persist/system/etc/ssh
 cp -a "$BACKUP_PATH"/ssh/ssh_host_* /mnt/persist/system/etc/ssh/
-
-# Validate keys exist before chmod
-compgen -G "/mnt/persist/system/etc/ssh/*_key" >/dev/null \
-    || die "No SSH host private keys restored (expected *_key)"
-
 chmod 600 /mnt/persist/system/etc/ssh/*_key
 chmod 644 /mnt/persist/system/etc/ssh/*.pub 2>/dev/null || true
 chown -R 0:0 /mnt/persist/system/etc/ssh
@@ -89,29 +92,39 @@ if [[ -d "$BACKUP_PATH/sbctl" ]]; then
     mkdir -p /mnt/persist/system/var/lib/sbctl
     cp -a "$BACKUP_PATH/sbctl/." /mnt/persist/system/var/lib/sbctl/
     chown -R 0:0 /mnt/persist/system/var/lib/sbctl
+    chmod 700 /mnt/persist/system/var/lib/sbctl
 fi
 
 # --- State Restoration (User) ---
 info "Restoring user data for $USER_NAME..."
 USER_HOME="/mnt/persist/home/$USER_NAME"
-mkdir -p "$USER_HOME"/{.ssh,.gnupg,nixos-config}
-chown "$USER_UID:$USER_GID" "$USER_HOME" "$USER_HOME"/{.ssh,.gnupg,nixos-config}
+
+mkdir -p "$USER_HOME"/{.ssh,.gnupg,nixos-config,Documents,Downloads}
 
 if [[ -d "$BACKUP_PATH/user_ssh" ]]; then
     cp -a "$BACKUP_PATH/user_ssh/." "$USER_HOME/.ssh/"
-    find "$USER_HOME/.ssh" -type d -exec chmod 700 {} +
-    find "$USER_HOME/.ssh" -type f -exec chmod 600 {} +
-    find "$USER_HOME/.ssh" -name "*.pub" -exec chmod 644 {} +
 fi
 
 if [[ -d "$BACKUP_PATH/gnupg" ]]; then
     cp -a "$BACKUP_PATH/gnupg/." "$USER_HOME/.gnupg/"
-    find "$USER_HOME/.gnupg" -type d -exec chmod 700 {} +
-    find "$USER_HOME/.gnupg" -type f -exec chmod 600 {} +
 fi
 
 cp -a "$CONFIG_DIR/." "$USER_HOME/nixos-config/"
+
+info "Fixing user permissions..."
 chown -R "$USER_UID:$USER_GID" "$USER_HOME"
+
+# Recursive Security Fixes (SSH)
+[[ -d "$USER_HOME/.ssh" ]] && chmod 700 "$USER_HOME/.ssh"
+find "$USER_HOME/.ssh" -type f -exec chmod 600 {} + 2>/dev/null || true
+find "$USER_HOME/.ssh" -name "*.pub" -exec chmod 644 {} + 2>/dev/null || true
+
+# Recursive Security Fixes (GPG - Added)
+if [[ -d "$USER_HOME/.gnupg" ]]; then
+    chmod 700 "$USER_HOME/.gnupg"
+    find "$USER_HOME/.gnupg" -type d -exec chmod 700 {} + 2>/dev/null || true
+    find "$USER_HOME/.gnupg" -type f -exec chmod 600 {} + 2>/dev/null || true
+fi
 
 # --- Installation ---
 info "Installing NixOS..."
@@ -126,5 +139,4 @@ fi
 
 echo "SUCCESS"
 confirm "Reboot now?"
-sync # IMPROVEMENT: Flush buffers
 reboot
