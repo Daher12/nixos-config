@@ -7,7 +7,6 @@
 {
   imports = [
     ./disks.nix
-    ../../modules/features/impermanence.nix # Explicitly enable feature
   ];
 
   # --- Hardware & Boot ---
