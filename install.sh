@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-umask 077 # Security: Default to private file creation
+umask 077
 
 # --- Configuration ---
 USER_NAME="${USER_NAME:-dk}"
-USER_UID="1000" # Hardcoded for safety/speed in single-user config
+USER_UID="1000"
 USER_GID="1000"
 REPO_URL="${REPO_URL:-https://github.com/daher12/nixos-config}"
 FLAKE_TARGET="${FLAKE_TARGET:-yoga}"
@@ -20,22 +20,17 @@ confirm() {
 # --- Pre-flight ---
 [[ $EUID -eq 0 ]] || die "Run as root"
 
-# 1. Dependency Check
 deps=(nix git mountpoint curl timeout nixos-install)
 for cmd in "${deps[@]}"; do
     command -v "$cmd" >/dev/null || die "Missing required command: $cmd"
 done
 
-# 2. Connectivity
 curl -fsS --connect-timeout 5 --retry 3 --retry-delay 2 https://github.com >/dev/null \
     || die "No internet or GitHub unreachable"
 
-# 3. Backup Validation
 read -rp "Backup USB path (e.g. /mnt/usb): " BACKUP_PATH
 [[ -d "$BACKUP_PATH" ]] || die "Path not found: $BACKUP_PATH"
 
-# Restore Strict Validation (Fail Early)
-# REMOVED: ssh/ssh_host_* keys from strict requirement
 req_files=(
     "sops/age.key"
     "system/machine-id"
@@ -44,12 +39,10 @@ for f in "${req_files[@]}"; do
     [[ -f "$BACKUP_PATH/$f" ]] || die "Missing required backup artifact: $f"
 done
 
-# Optional: Validate sbctl if present
 if [[ -d "$BACKUP_PATH/sbctl" ]]; then
     [[ -f "$BACKUP_PATH/sbctl/keys/db/db.pem" ]] || die "Corrupt sbctl backup: keys/db/db.pem missing"
 fi
 
-# 4. Safety Prompt
 info "Targeting Flake: $FLAKE_TARGET"
 echo "WARNING: This will DESTROY the disks defined in the '$FLAKE_TARGET' disko config."
 confirm "Proceed with wipe and install?"
@@ -67,7 +60,6 @@ nix run --extra-experimental-features "nix-command flakes" \
     --mode destroy,format,mount \
     --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Disko failed"
 
-# Verify Mounts
 for m in /mnt /mnt/boot /mnt/persist; do
     mountpoint -q "$m" || die "Mount point failed: $m is not a mountpoint"
 done
@@ -75,7 +67,6 @@ done
 # --- State Restoration (System) ---
 info "Restoring system identity..."
 
-# SSH Keys (Optional)
 if [[ -f "$BACKUP_PATH/ssh/ssh_host_ed25519_key" ]]; then
     info "Restoring SSH host keys..."
     mkdir -p /mnt/persist/system/etc/ssh
@@ -87,17 +78,26 @@ else
     echo "WARNING: No SSH host keys found in backup. New keys will be generated on boot."
 fi
 
+# SOPS key - persist AND ephemeral for install activation
 install -D -m 400 -o 0 -g 0 \
     "$BACKUP_PATH/sops/age.key" /mnt/persist/system/var/lib/sops-nix/key.txt
+install -D -m 400 -o 0 -g 0 \
+    "$BACKUP_PATH/sops/age.key" /mnt/var/lib/sops-nix/key.txt
 
 install -D -m 444 -o 0 -g 0 \
     "$BACKUP_PATH/system/machine-id" /mnt/persist/system/etc/machine-id
 
+# sbctl keys - persist AND ephemeral for lanzaboote install
 if [[ -d "$BACKUP_PATH/sbctl" ]]; then
     mkdir -p /mnt/persist/system/var/lib/sbctl
     cp -a "$BACKUP_PATH/sbctl/." /mnt/persist/system/var/lib/sbctl/
     chown -R 0:0 /mnt/persist/system/var/lib/sbctl
     chmod 700 /mnt/persist/system/var/lib/sbctl
+    
+    mkdir -p /mnt/var/lib/sbctl
+    cp -a "$BACKUP_PATH/sbctl/." /mnt/var/lib/sbctl/
+    chown -R 0:0 /mnt/var/lib/sbctl
+    chmod 700 /mnt/var/lib/sbctl
 fi
 
 # --- State Restoration (User) ---
@@ -119,14 +119,12 @@ cp -a "$CONFIG_DIR/." "$USER_HOME/nixos-config/"
 info "Fixing user permissions..."
 chown -R "$USER_UID:$USER_GID" "$USER_HOME"
 
-# Recursive Security Fixes (SSH)
 if [[ -d "$USER_HOME/.ssh" ]]; then
     chmod 700 "$USER_HOME/.ssh"
     find "$USER_HOME/.ssh" -type f -exec chmod 600 {} + 2>/dev/null || true
     find "$USER_HOME/.ssh" -name "*.pub" -exec chmod 644 {} + 2>/dev/null || true
 fi
 
-# Recursive Security Fixes (GPG)
 if [[ -d "$USER_HOME/.gnupg" ]]; then
     chmod 700 "$USER_HOME/.gnupg"
     find "$USER_HOME/.gnupg" -type d -exec chmod 700 {} + 2>/dev/null || true
