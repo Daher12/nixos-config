@@ -27,7 +27,7 @@ in
       ".gnupg"
       ".local/share/keyrings"
       "${firefoxProfile}/storage"
-      "${braveProfile}/Local Extension Settings"
+      ".config/BraveSoftware/Brave-Browser/Default"
       ".local/state/wireplumber"
     ];
     files = [
@@ -35,10 +35,6 @@ in
       "${firefoxProfile}/places.sqlite"
       "${firefoxProfile}/favicons.sqlite"
       "${firefoxProfile}/prefs.js"
-      "${braveProfile}/History"
-      "${braveProfile}/Bookmarks"
-      "${braveProfile}/Login Data"
-      "${braveProfile}/Preferences"
     ];
   };
 }
