@@ -12,6 +12,7 @@ let
 in
 {
   imports = [ inputs.impermanence.nixosModules.impermanence ];
+
   options.features.impermanence = {
     enable = lib.mkEnableOption "Btrfs root wipe on boot";
     device = lib.mkOption {
@@ -19,6 +20,7 @@ in
       description = "The mapped device";
     };
   };
+
   config = lib.mkIf cfg.enable {
     assertions = [
       {
@@ -26,19 +28,21 @@ in
         message = "Impermanence module requires a Btrfs root filesystem.";
       }
     ];
+
+    boot.initrd.systemd.storePaths = [
+      "${pkgs.btrfs-progs}/bin/btrfs"
+      "${pkgs.util-linux}/bin/mount"
+      "${pkgs.util-linux}/bin/umount"
+    ];
+
     boot.initrd.systemd.services.wipe-root = {
       description = "Wipe Btrfs @ subvolume";
       wantedBy = [ "initrd-root-fs.target" ];
-      before = [ "sysroot.mount" ];
-      after = lib.optional (lib.hasPrefix "/dev/mapper/" cfg.device) "systemd-cryptsetup@${luksName}.service";
+      before = [ "sysroot.mount" "initrd-root-fs.target" ];
+      after = [ "dev-mapper-${luksName}.device" ];
+      requires = [ "dev-mapper-${luksName}.device" ];
       unitConfig.DefaultDependencies = "no";
       serviceConfig.Type = "oneshot";
-      path = with pkgs; [
-        btrfs-progs
-        coreutils
-        util-linux
-        bash
-      ];
       script = ''
         set -euo pipefail
         mkdir -p /btrfs /newroot
@@ -48,15 +52,15 @@ in
           local target="$1"
           local child
           while read -r child;
-            do
+          do
             delete_subvolume_recursively "/btrfs/$child"
           done < <(btrfs subvolume list -o "$target" | cut -f 9- -d ' ')
           btrfs subvolume delete "$target" ||
-            true
+          true
         }
 
         if [ -d /btrfs/@ ];
-          then delete_subvolume_recursively /btrfs/@; fi
+        then delete_subvolume_recursively /btrfs/@; fi
 
         btrfs subvolume create /btrfs/@
 
