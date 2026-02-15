@@ -1,8 +1,7 @@
-{
-  pkgs,
-  lib,
-  mainUser,
-  ...
+{ pkgs
+, lib
+, mainUser
+, ...
 }:
 
 let
@@ -34,6 +33,8 @@ in
     ./hardware-configuration.nix
   ];
 
+  users.mutableUsers = lib.mkForce true;
+
   system.stateVersion = "25.05";
   users.users.${mainUser}.uid = 1000;
 
@@ -61,6 +62,7 @@ in
     nvidia.disable.enable = true;
   };
   features = {
+    #    sops.enable = true; 
     filesystem = {
       type = "ext4";
       mountOptions."/" = [

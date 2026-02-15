@@ -3,7 +3,6 @@ let
   # NOTE: Check your actual firefox profile name.
   # It might be 'default' or a hash.
   firefoxProfile = ".mozilla/firefox/default";
-  braveProfile = ".config/BraveSoftware/Brave-Browser/Default";
 in
 {
   imports = [

@@ -1,11 +1,10 @@
 # modules/features/virtualization.nix (lean, no hugepages; btrfs NoCOW; Win11 optional packages;
 # ensures libvirt 'default' network is active)
-{
-  config,
-  lib,
-  pkgs,
-  mainUser,
-  ...
+{ config
+, lib
+, pkgs
+, mainUser
+, ...
 }:
 
 let

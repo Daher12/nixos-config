@@ -9,7 +9,8 @@
   mainUser,
   system ? "x86_64-linux",
   profiles ? [ ],
-  withHardware ? false, # Explicit toggle replacing 'needsHardware' heuristic
+  withHardware ? false,
+  # Explicit toggle replacing 'needsHardware' heuristic
   extraModules ? [ ],
   hmModules ? [ ],
   extraSpecialArgs ? { },

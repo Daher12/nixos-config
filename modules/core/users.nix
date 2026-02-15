@@ -1,9 +1,9 @@
-{
-  config,
-  lib,
-  mainUser,
-  pkgs,
-  ...
+# modules/core/users.nix
+{ config
+, lib
+, mainUser
+, pkgs
+, ...
 }:
 
 let
@@ -32,7 +32,6 @@ in
       description = "Default shell for main user";
     };
 
-    # Explicit nesting ensures cfg.zsh exists
     zsh = {
       theme = lib.mkOption {
         type = lib.types.str;
@@ -43,37 +42,38 @@ in
   };
 
   config = {
-    # CRITICAL: Enforce purely declarative user management
-    users.mutableUsers = false;
-
     # SOPS password secret (conditional on features.sops.enable)
     sops.secrets."${mainUser}_password_hash" = lib.mkIf (config.features.sops.enable or false) {
       neededForUsers = true;
       sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
     };
 
-    users.users.${mainUser} = {
-      isNormalUser = true;
-      inherit (cfg) description;
-      group = mainUser;
+    # Consolidated users block
+    users = {
+      mutableUsers = false;
 
-      # Wire SOPS password hash
-      hashedPasswordFile = lib.mkIf (config.features.sops.enable or false)
-        config.sops.secrets."${mainUser}_password_hash".path;
+      users.${mainUser} = {
+        isNormalUser = true;
+        inherit (cfg) description;
+        group = mainUser;
 
-      shell = pkgs.${cfg.defaultShell};
-      extraGroups = [
-        "networkmanager"
-        "wheel"
-        "video"
-        "audio"
-        "input"
-        "adbusers"
-        "render"
-      ];
+        hashedPasswordFile = lib.mkIf (config.features.sops.enable or false)
+          config.sops.secrets."${mainUser}_password_hash".path;
+
+        shell = pkgs.${cfg.defaultShell};
+        extraGroups = [
+          "networkmanager"
+          "wheel"
+          "video"
+          "audio"
+          "input"
+          "adbusers"
+          "render"
+        ];
+      };
+
+      groups.${mainUser} = { };
     };
-
-    users.groups.${mainUser} = { };
 
     security = {
       sudo = {
@@ -147,7 +147,6 @@ in
       doc.enable = false;
     };
 
-    # Priority 900: nixpkgs sets this at default priority (1000), causing merge conflicts
     boot.kernel.sysctl = {
       "vm.max_map_count" = lib.mkOverride 900 1048576;
       "vm.dirty_ratio" = lib.mkDefault 10;

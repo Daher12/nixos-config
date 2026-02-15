@@ -1,9 +1,8 @@
-{
-  pkgs,
-  lib,
-  config,
-  mainUser,
-  ...
+{ pkgs
+, lib
+, config
+, mainUser
+, ...
 }:
 
 let
@@ -17,7 +16,7 @@ let
   gid = toString config.roles.media.nfsAnonGid;
 
   # Service Configuration
-  tz = config.core.locale.timeZone; # Use system timezone
+  tz = config.time.timeZone;
 
   images = {
     jellyfin = "lscr.io/linuxserver/jellyfin:latest";

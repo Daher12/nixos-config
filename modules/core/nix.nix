@@ -1,11 +1,10 @@
-{
-  config,
-  lib,
-  pkgs,
-  inputs,
-  self,
-  mainUser,
-  ...
+{ config
+, lib
+, pkgs
+, inputs
+, self
+, mainUser
+, ...
 }:
 
 let

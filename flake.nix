@@ -53,7 +53,7 @@
         config.allowUnfree = true;
       };
       overlays = _system: [ (_: _: { unstable = pkgs-unstable; }) ];
-      
+
       # mkHost refactored to handle the withHardware toggle
       mkHost = import ./lib/mkHost.nix {
         inherit
