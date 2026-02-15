@@ -38,15 +38,14 @@ in
     sops = {
       defaultSopsFormat = "yaml";
       defaultSopsFile = secretsPath;
-      # Type-stable: only define keys for the active method (avoids relying on nullOr).
-      # This effectively unsets 'keyFile' when method is 'ssh', falling back to safe defaults.
-      age = lib.mkMerge [
-        (lib.mkIf (cfg.method == "age") {
-          keyFile = "/var/lib/sops-nix/key.txt";
-        })
-        (lib.mkIf (cfg.method == "ssh") {
-          sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
-        })
+      
+      # Direct paths: bypass impermanence bind mount timing
+      age = lib.mkIf (cfg.method == "age") {
+        keyFile = "/persist/system/var/lib/sops-nix/key.txt";
+      };
+      
+      age.sshKeyPaths = lib.mkIf (cfg.method == "ssh") [
+        "/persist/system/etc/ssh/ssh_host_ed25519_key"
       ];
     };
 

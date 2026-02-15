@@ -43,10 +43,24 @@ in
   };
 
   config = {
+    # CRITICAL: Enforce purely declarative user management
+    users.mutableUsers = false;
+
+    # SOPS password secret (conditional on features.sops.enable)
+    sops.secrets."${mainUser}_password_hash" = lib.mkIf (config.features.sops.enable or false) {
+      neededForUsers = true;
+      sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
+    };
+
     users.users.${mainUser} = {
       isNormalUser = true;
       inherit (cfg) description;
       group = mainUser;
+
+      # Wire SOPS password hash
+      hashedPasswordFile = lib.mkIf (config.features.sops.enable or false)
+        config.sops.secrets."${mainUser}_password_hash".path;
+
       shell = pkgs.${cfg.defaultShell};
       extraGroups = [
         "networkmanager"
@@ -88,6 +102,7 @@ in
       zoxide.enable = lib.mkDefault true;
       adb.enable = lib.mkDefault true;
     };
+
     services = {
       pipewire = {
         enable = lib.mkDefault true;
@@ -131,6 +146,7 @@ in
       info.enable = false;
       doc.enable = false;
     };
+
     # Priority 900: nixpkgs sets this at default priority (1000), causing merge conflicts
     boot.kernel.sysctl = {
       "vm.max_map_count" = lib.mkOverride 900 1048576;

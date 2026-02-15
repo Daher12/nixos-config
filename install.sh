@@ -78,11 +78,9 @@ else
     echo "WARNING: No SSH host keys found in backup. New keys will be generated on boot."
 fi
 
-# SOPS key - persist AND ephemeral for install activation
+# SOPS key - persist only (direct path eliminates race)
 install -D -m 400 -o 0 -g 0 \
     "$BACKUP_PATH/sops/age.key" /mnt/persist/system/var/lib/sops-nix/key.txt
-install -D -m 400 -o 0 -g 0 \
-    "$BACKUP_PATH/sops/age.key" /mnt/var/lib/sops-nix/key.txt
 
 install -D -m 444 -o 0 -g 0 \
     "$BACKUP_PATH/system/machine-id" /mnt/persist/system/etc/machine-id
@@ -145,3 +143,5 @@ fi
 echo "SUCCESS"
 confirm "Reboot now?"
 reboot
+```
+
