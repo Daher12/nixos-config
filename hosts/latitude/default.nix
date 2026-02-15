@@ -63,7 +63,7 @@ in
     nvidia.disable.enable = true;
   };
   features = {
-    #    sops.enable = true;
+    sops.enable = true;
     filesystem = {
       type = "ext4";
       mountOptions."/" = [
