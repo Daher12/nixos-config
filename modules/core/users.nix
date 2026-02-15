@@ -1,122 +1,161 @@
+# modules/core/users.nix
 {
   config,
   lib,
-  pkgs,
-  inputs,
-  self,
   mainUser,
+  pkgs,
   ...
 }:
 
 let
-  cfg = config.core.nix;
+  cfg = config.core.users;
 in
 {
-  options.core.nix = {
-    gc = {
-      automatic = lib.mkEnableOption "automatic garbage collection";
-
-      dates = lib.mkOption {
-        type = lib.types.str;
-        default = "weekly";
-        description = "When to run garbage collection";
-      };
-
-      flags = lib.mkOption {
-        type = lib.types.str;
-        default = "--delete-older-than 30d";
-        description = "Options passed to nix-collect-garbage";
-      };
+  options.core.users = {
+    sudoTimeout = lib.mkOption {
+      type = lib.types.int;
+      default = 30;
+      description = "Sudo password timeout in minutes";
+    };
+    description = lib.mkOption {
+      type = lib.types.str;
+      default = "User";
+      description = "User full name";
     };
 
-    optimise.automatic = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Automatically optimize Nix store";
+    defaultShell = lib.mkOption {
+      type = lib.types.enum [
+        "fish"
+        "zsh"
+        "bash"
+      ];
+      default = "fish";
+      description = "Default shell for main user";
+    };
+
+    zsh = {
+      theme = lib.mkOption {
+        type = lib.types.str;
+        default = "agnoster";
+        description = "Oh-My-Zsh theme";
+      };
     };
   };
 
   config = {
-    nix = {
-      settings = {
-        experimental-features = [
-          "nix-command"
-          "flakes"
-        ];
-
-        auto-optimise-store = lib.mkDefault true;
-        max-jobs = lib.mkDefault "auto";
-        cores = lib.mkDefault 0;
-
-        trusted-users = [
-          "root"
-          mainUser
-        ];
-
-        sandbox = lib.mkDefault true;
-        sandbox-fallback = false;
-
-        min-free = 5368709120;
-        # 5GB
-        max-free = 21474836480;
-        # 20GB
-
-        substituters = [
-          "https://cache.nixos.org"
-          "https://cache.lix.systems"
-          "https://nix-community.cachix.org"
-        ];
-
-        trusted-public-keys = [
-          "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-          "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-          "cache.lix.systems:aBnZUw8zA7H35Cz2RyKFVs3H4PlGTLawyY5KRbvJR8o="
-        ];
-
-        fallback = lib.mkDefault true;
-        http-connections = 128;
-        connect-timeout = 5;
-        download-attempts = 3;
-        stalled-download-timeout = 300;
-
-        keep-derivations = false;
-        keep-outputs = false;
-
-        builders-use-substitutes = true;
-        log-lines = lib.mkDefault 25;
-        accept-flake-config = true;
-        narinfo-cache-negative-ttl = 3600;
-        narinfo-cache-positive-ttl = 2592000;
-        flake-registry = "";
-      };
-
-      registry = lib.mkDefault {
-        nixpkgs.flake = inputs.nixpkgs;
-        self.flake = self;
-      };
-
-      nixPath = [ "nixpkgs=${inputs.nixpkgs.outPath}" ];
-
-      gc = lib.mkIf cfg.gc.automatic {
-        automatic = true;
-        # FIX: Use inherit to satisfy linter (assignment match)
-        inherit (cfg.gc) dates;
-        # Note: 'options' maps to 'flags', so it cannot be inherited.
-        options = cfg.gc.flags;
-      };
-
-      optimise = lib.mkIf cfg.optimise.automatic {
-        automatic = true;
-        dates = [ "weekly" ];
-      };
-
-      # Rationale: Idiomatic upstream abstraction ensures compatibility with future unit updates.
-      daemonCPUSchedPolicy = lib.mkDefault "idle";
-      daemonIOSchedClass = lib.mkDefault "idle";
+    # SOPS password secret (conditional on features.sops.enable)
+    sops.secrets."${mainUser}_password_hash" = lib.mkIf (config.features.sops.enable or false) {
+      neededForUsers = true;
+      sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
     };
 
-    systemd.services.NetworkManager-wait-online.wantedBy = lib.mkForce [ ];
+    # Consolidated users block
+    users = {
+      mutableUsers = false;
 
-    environment.systemPackages = [ pkgs.cachix ];
+      users.${mainUser} = {
+        isNormalUser = true;
+        inherit (cfg) description;
+        group = mainUser;
+
+        hashedPasswordFile = lib.mkIf (config.features.sops.enable or false
+        ) config.sops.secrets."${mainUser}_password_hash".path;
+
+        shell = pkgs.${cfg.defaultShell};
+        extraGroups = [
+          "networkmanager"
+          "wheel"
+          "video"
+          "audio"
+          "input"
+          "adbusers"
+          "render"
+        ];
+      };
+
+      groups.${mainUser} = { };
+    };
+
+    security = {
+      sudo = {
+        wheelNeedsPassword = true;
+        extraConfig = ''
+          Defaults timestamp_timeout=${toString cfg.sudoTimeout}
+          Defaults !tty_tickets
+        '';
+      };
+      rtkit.enable = lib.mkDefault true;
+    };
+
+    programs = {
+      fish.enable = lib.mkDefault (cfg.defaultShell == "fish");
+      zsh = lib.mkIf (cfg.defaultShell == "zsh") {
+        enable = true;
+        enableCompletion = true;
+        autosuggestions.enable = true;
+        syntaxHighlighting.enable = true;
+        histSize = 10000;
+        ohMyZsh = {
+          enable = true;
+          inherit (cfg.zsh) theme;
+        };
+      };
+      zoxide.enable = lib.mkDefault true;
+      adb.enable = lib.mkDefault true;
+    };
+
+    services = {
+      pipewire = {
+        enable = lib.mkDefault true;
+        alsa.enable = lib.mkDefault true;
+        alsa.support32Bit = lib.mkDefault true;
+        pulse.enable = lib.mkDefault true;
+        jack.enable = lib.mkDefault true;
+        extraConfig.pipewire = {
+          "10-clock-rate" = {
+            "context.properties" = {
+              "default.clock.rate" = 48000;
+              "default.clock.quantum" = 1024;
+              "default.clock.min-quantum" = 512;
+              "default.clock.max-quantum" = 2048;
+            };
+          };
+        };
+      };
+
+      libinput.enable = lib.mkDefault true;
+      fwupd.enable = lib.mkDefault true;
+      logind.settings.Login = {
+        HandleLidSwitch = "suspend";
+        HandleLidSwitchExternalPower = "ignore";
+        HandleLidSwitchDocked = "ignore";
+      };
+    };
+
+    systemd = {
+      settings.Manager = {
+        DefaultTimeoutStopSec = lib.mkDefault "30s";
+        DefaultTimeoutStartSec = lib.mkDefault "90s";
+      };
+      coredump.enable = false;
+    };
+
+    documentation = {
+      enable = false;
+      nixos.enable = false;
+      man.enable = false;
+      info.enable = false;
+      doc.enable = false;
+    };
+
+    boot.kernel.sysctl = {
+      "vm.max_map_count" = lib.mkOverride 900 1048576;
+      "vm.dirty_ratio" = lib.mkDefault 10;
+      "vm.dirty_background_ratio" = lib.mkDefault 5;
+      "vm.dirty_writeback_centisecs" = lib.mkDefault 1500;
+      "vm.dirty_expire_centisecs" = lib.mkDefault 3000;
+      "fs.file-max" = lib.mkDefault 2097152;
+      "fs.inotify.max_user_watches" = lib.mkOverride 900 524288;
+    };
   };
 }
