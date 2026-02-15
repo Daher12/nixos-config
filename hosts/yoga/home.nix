@@ -31,6 +31,7 @@ in
     ];
     files = [
       ".config/fish/fish_variables"
+      ".config/sops/age/keys.txt"
       "${firefoxProfile}/places.sqlite"
       "${firefoxProfile}/favicons.sqlite"
       "${firefoxProfile}/prefs.js"
