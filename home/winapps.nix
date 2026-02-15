@@ -1,21 +1,20 @@
-{ config
-, lib
-, pkgs
-, osConfig ? { }
-, winappsPackages
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  osConfig ? { },
+  winappsPackages,
+  ...
 }:
 
 let
   cfg = config.programs.winapps;
 
-  vmCfg = lib.attrByPath [ "features" "virtualization" "windows11" ]
-    {
-      enable = false;
-      ip = "192.168.122.10";
-      name = "windows11";
-    }
-    osConfig;
+  vmCfg = lib.attrByPath [ "features" "virtualization" "windows11" ] {
+    enable = false;
+    ip = "192.168.122.10";
+    name = "windows11";
+  } osConfig;
 
   secretsFile = "${config.xdg.configHome}/winapps/secrets.conf";
 in

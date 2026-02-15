@@ -1,8 +1,9 @@
 # modules/hardware/ryzen-tdp.nix
-{ config
-, lib
-, pkgs
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  ...
 }:
 
 let

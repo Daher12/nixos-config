@@ -28,13 +28,11 @@ let
   landingPage = pkgs.replaceVars ./landing.html {
     # Generate JSON for the frontend
     servicesJson = builtins.toJSON (
-      lib.mapAttrsToList
-        (name: cfg: {
-          inherit name;
-          inherit (cfg) icon title description;
-          url = "/${name}/";
-        })
-        services
+      lib.mapAttrsToList (name: cfg: {
+        inherit name;
+        inherit (cfg) icon title description;
+        url = "/${name}/";
+      }) services
     );
   };
 

@@ -1,7 +1,8 @@
-{ pkgs
-, lib
-, mainUser
-, ...
+{
+  pkgs,
+  lib,
+  mainUser,
+  ...
 }:
 
 let

@@ -1,7 +1,8 @@
-{ config
-, lib
-, pkgs
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  ...
 }:
 
 let
@@ -89,11 +90,9 @@ in
     })
 
     {
-      fileSystems = lib.mapAttrs
-        (_: opts: {
-          options = lib.mkAfter opts;
-        })
-        cfg.mountOptions;
+      fileSystems = lib.mapAttrs (_: opts: {
+        options = lib.mkAfter opts;
+      }) cfg.mountOptions;
     }
 
     {

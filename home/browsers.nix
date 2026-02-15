@@ -1,6 +1,7 @@
-{ config
-, lib
-, ...
+{
+  config,
+  lib,
+  ...
 }:
 
 let
@@ -55,15 +56,13 @@ in
           DisableFirefoxStudies = true;
 
           ExtensionSettings = builtins.listToAttrs (
-            map
-              (ext: {
-                name = ext;
-                value = {
-                  install_url = "https://addons.mozilla.org/firefox/downloads/latest/${ext}/latest.xpi";
-                  installation_mode = "force_installed";
-                };
-              })
-              cfg.firefox.extensions
+            map (ext: {
+              name = ext;
+              value = {
+                install_url = "https://addons.mozilla.org/firefox/downloads/latest/${ext}/latest.xpi";
+                installation_mode = "force_installed";
+              };
+            }) cfg.firefox.extensions
           );
         };
 
