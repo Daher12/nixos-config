@@ -1,7 +1,8 @@
-{ config
-, lib
-, pkgs
-, ...
+{
+  config,
+  lib,
+  pkgs,
+  ...
 }:
 
 let
@@ -12,20 +13,22 @@ let
   useImpermanence = config.features.impermanence.enable or false;
 
   keyPath =
-    if useImpermanence
-    then "/persist/system/var/lib/sops-nix/key.txt"
-    else "/var/lib/sops-nix/key.txt";
+    if useImpermanence then "/persist/system/var/lib/sops-nix/key.txt" else "/var/lib/sops-nix/key.txt";
 
   sshKeyPath =
-    if useImpermanence
-    then "/persist/system/etc/ssh/ssh_host_ed25519_key"
-    else "/etc/ssh/ssh_host_ed25519_key";
+    if useImpermanence then
+      "/persist/system/etc/ssh/ssh_host_ed25519_key"
+    else
+      "/etc/ssh/ssh_host_ed25519_key";
 in
 {
   options.features.sops = {
     enable = lib.mkEnableOption "SOPS Secret Management";
     method = lib.mkOption {
-      type = lib.types.enum [ "age" "ssh" ];
+      type = lib.types.enum [
+        "age"
+        "ssh"
+      ];
       default = "age";
       description = "Decryption method: 'age' uses a static key file, 'ssh' derives it from host keys";
     };
@@ -54,7 +57,6 @@ in
       };
     };
 
-    environment.systemPackages = [ pkgs.sops ]
-      ++ lib.optional (cfg.method == "ssh") pkgs.ssh-to-age;
+    environment.systemPackages = [ pkgs.sops ] ++ lib.optional (cfg.method == "ssh") pkgs.ssh-to-age;
   };
 }

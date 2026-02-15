@@ -1,8 +1,9 @@
-{ inputs
-, config
-, lib
-, pkgs
-, ...
+{
+  inputs,
+  config,
+  lib,
+  pkgs,
+  ...
 }:
 
 let
@@ -37,7 +38,10 @@ in
     boot.initrd.systemd.services.wipe-root = {
       description = "Wipe Btrfs @ subvolume";
       wantedBy = [ "initrd-root-fs.target" ];
-      before = [ "sysroot.mount" "initrd-root-fs.target" ];
+      before = [
+        "sysroot.mount"
+        "initrd-root-fs.target"
+      ];
       after = [ "dev-mapper-${luksName}.device" ];
       requires = [ "dev-mapper-${luksName}.device" ];
       unitConfig.DefaultDependencies = "no";

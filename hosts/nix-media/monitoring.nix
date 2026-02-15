@@ -134,7 +134,7 @@ in
       ruleFiles = [ alertRulesFile ];
       alertmanagers = [
         {
-          static_configs = [{ targets = [ "127.0.0.1:9093" ]; }];
+          static_configs = [ { targets = [ "127.0.0.1:9093" ]; } ];
         }
       ];
       scrapeConfigs = [
