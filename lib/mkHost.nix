@@ -1,19 +1,19 @@
-{
-  nixpkgs,
-  inputs,
-  self,
-  overlays,
+{ nixpkgs
+, inputs
+, self
+, overlays
+,
 }:
-{
-  hostname,
-  mainUser,
-  system ? "x86_64-linux",
-  profiles ? [ ],
-  withHardware ? false,
-  # Explicit toggle replacing 'needsHardware' heuristic
-  extraModules ? [ ],
-  hmModules ? [ ],
-  extraSpecialArgs ? { },
+{ hostname
+, mainUser
+, system ? "x86_64-linux"
+, profiles ? [ ]
+, withHardware ? false
+, # Explicit toggle replacing 'needsHardware' heuristic
+  extraModules ? [ ]
+, hmModules ? [ ]
+, extraSpecialArgs ? { }
+,
 }:
 let
   flakeRoot = self.outPath;
