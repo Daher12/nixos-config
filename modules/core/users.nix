@@ -1,10 +1,9 @@
 # modules/core/users.nix
-{
-  config,
-  lib,
-  mainUser,
-  pkgs,
-  ...
+{ config
+, lib
+, mainUser
+, pkgs
+, ...
 }:
 
 let
@@ -58,8 +57,11 @@ in
         inherit (cfg) description;
         group = mainUser;
 
-        hashedPasswordFile = lib.mkIf (config.features.sops.enable or false
-        ) config.sops.secrets."${mainUser}_password_hash".path;
+        hashedPasswordFile = lib.mkIf
+          (
+            config.features.sops.enable or false
+          )
+          config.sops.secrets."${mainUser}_password_hash".path;
 
         shell = pkgs.${cfg.defaultShell};
         extraGroups = [

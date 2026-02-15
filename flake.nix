@@ -74,15 +74,18 @@
 
       # CI/Lint Checks
       checks.${system} = {
-        statix = pkgs.runCommand "statix-check" {
-          buildInputs = [ pkgs.statix ];
-        } "statix check ${self} && touch $out";
-        deadnix = pkgs.runCommand "deadnix-check" {
-          buildInputs = [ pkgs.deadnix ];
-        } "deadnix --fail ${self} && touch $out";
-        nixfmt = pkgs.runCommand "nixfmt-check" {
-          buildInputs = [ pkgs.nixfmt-rfc-style ];
-        } "find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out";
+        statix = pkgs.runCommand "statix-check"
+          {
+            buildInputs = [ pkgs.statix ];
+          } "statix check ${self} && touch $out";
+        deadnix = pkgs.runCommand "deadnix-check"
+          {
+            buildInputs = [ pkgs.deadnix ];
+          } "deadnix --fail ${self} && touch $out";
+        nixfmt = pkgs.runCommand "nixfmt-check"
+          {
+            buildInputs = [ pkgs.nixfmt-rfc-style ];
+          } "find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out";
       };
 
       nixosConfigurations = {
