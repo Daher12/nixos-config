@@ -126,7 +126,6 @@
   };
 
   services = {
-    irqbalance.enable = true;
     journald.extraConfig = "SystemMaxUse=200M";
   };
 

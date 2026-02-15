@@ -10,34 +10,28 @@
       url = "github:nix-community/lanzaboote/v1.0.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
     lix-module = {
       url = "git+https://git.lix.systems/lix-project/nixos-module?ref=release-2.93";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     impermanence.url = "github:nix-community/impermanence";
-
     winapps = {
       url = "github:winapps-org/winapps/44342c34b839547be0b2ea4f94ed00293fa7cc38";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
     preload-ng = {
       url = "github:miguel-b-p/preload-ng/eb3c66a20d089ab2e3b8ff34c45c3d527584ed38";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -47,20 +41,15 @@
   outputs =
     inputs@{ self, nixpkgs, ... }:
     let
+      # Kept locally only to satisfy formatter and check derivations
       system = "x86_64-linux";
-      pkgs-unstable = import inputs.nixpkgs-unstable {
-        inherit system;
-        config.allowUnfree = true;
-      };
-      overlays = _system: [ (_: _: { unstable = pkgs-unstable; }) ];
 
-      # mkHost refactored to handle the withHardware toggle
+      # Rationale: Defer architecture binding to per-host evaluation. Avoids breaking non-x86 builds.
       mkHost = import ./lib/mkHost.nix {
         inherit
           nixpkgs
           inputs
           self
-          overlays
           ;
       };
 

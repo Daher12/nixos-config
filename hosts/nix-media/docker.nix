@@ -32,7 +32,7 @@ let
 
   storagePath = "/mnt/storage";
   dockerPath = "/home/${mainUser}/docker";
-  jellyfinCachePath = "/var/cache/jellyfin";
+  jellyfinCachePath = "/var/cache/jellyfin"; # Now 6GB tmpfs
 in
 {
   assertions = [
@@ -69,6 +69,11 @@ in
             TZ = tz;
             LIBVA_DRIVER_NAME = "iHD";
             JELLYFIN_Network__BaseUrl = "/jellyfin";
+            # N100 QSV tuning for 4K transcodes
+            JELLYFIN_FFmpeg__probesize = "100000000";
+            JELLYFIN_FFmpeg__analyzeduration = "100000000";
+            # Force tone mapping via OpenCL (N100 has limited 10-bit support)
+            NEOReadDebugKeys = "1";
           };
           volumes = [
             "${dockerPath}/jellyfin/config:/config"
@@ -82,9 +87,10 @@ in
           extraOptions = [
             "--network=${dockerNetwork.name}"
             "--device=/dev/dri:/dev/dri"
+            "--device=/dev/dri/renderD128:/dev/dri/renderD128"
             "--group-add=${renderGid}"
-            "--cpus=3.5"
-            "--shm-size=256m"
+            "--cpus=3.9"
+            "--shm-size=2g"
             "--pids-limit=1000"
             "--health-cmd=curl -fsS http://localhost:8096/jellyfin/health || exit 1"
             "--health-interval=60s"
@@ -146,7 +152,7 @@ in
     device = "tmpfs";
     fsType = "tmpfs";
     options = [
-      "size=2G"
+      "size=6G" # 4K transcodes need ~2-3GB per session
       "mode=0755"
       "uid=${uid}"
       "gid=${gid}"

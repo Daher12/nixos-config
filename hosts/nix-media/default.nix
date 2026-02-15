@@ -63,7 +63,7 @@ in
 
   hardware.intel-gpu = {
     enable = true;
-    enableOpenCL = true;
+    enableOpenCL = true; # Critical for HDR→SDR tone mapping
     enableVpl = true;
     enableGuc = true;
   };
@@ -89,6 +89,7 @@ in
     networkmanager.enable = false;
     useNetworkd = true;
     interfaces.${lanIf}.useDHCP = lib.mkForce false;
+
     firewall = {
       allowedTCPPorts = [ ];
       # Close global access; roles.media handles exports, we allow traffic here
@@ -133,6 +134,7 @@ in
       RateLimitInterval=30s
       RateLimitBurst=1000
     '';
+
     logrotate.enable = true;
     openssh = {
       enable = true;
@@ -148,6 +150,7 @@ in
       enable = true;
       interval = "weekly";
     };
+
     thermald.enable = true;
     pipewire.enable = false;
     pulseaudio.enable = false;
