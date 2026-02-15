@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  pkgsUnstable,
   ...
 }:
 
@@ -67,7 +68,7 @@ in
     (lib.mkIf cfg.ghostty.enable {
       programs.ghostty = {
         enable = true;
-        package = pkgs.unstable.ghostty;
+        package = pkgsUnstable.ghostty;
 
         settings = {
           theme = "Nord";
