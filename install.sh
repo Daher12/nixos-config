@@ -78,9 +78,11 @@ else
     echo "WARNING: No SSH host keys found in backup. New keys will be generated on boot."
 fi
 
-# SOPS key - persist only (direct path eliminates race)
+# SOPS key - persist AND ephemeral for install activation
 install -D -m 400 -o 0 -g 0 \
     "$BACKUP_PATH/sops/age.key" /mnt/persist/system/var/lib/sops-nix/key.txt
+install -D -m 400 -o 0 -g 0 \
+    "$BACKUP_PATH/sops/age.key" /mnt/var/lib/sops-nix/key.txt
 
 install -D -m 444 -o 0 -g 0 \
     "$BACKUP_PATH/system/machine-id" /mnt/persist/system/etc/machine-id
@@ -129,6 +131,12 @@ if [[ -d "$USER_HOME/.gnupg" ]]; then
     find "$USER_HOME/.gnupg" -type f -exec chmod 600 {} + 2>/dev/null || true
 fi
 
+# User SOPS key setup (for editing secrets with sops command)
+info "Setting up user SOPS key..."
+mkdir -p "$USER_HOME/.config/sops/age"
+install -D -m 600 -o "$USER_UID" -g "$USER_GID" \
+    "$BACKUP_PATH/sops/age.key" "$USER_HOME/.config/sops/age/keys.txt"
+
 # --- Installation ---
 info "Installing NixOS..."
 nixos-install --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Install failed"
@@ -143,5 +151,3 @@ fi
 echo "SUCCESS"
 confirm "Reboot now?"
 reboot
-```
-
