@@ -1,4 +1,3 @@
-# modules/core/users.nix
 {
   config,
   lib,
@@ -32,7 +31,7 @@ in
       default = "fish";
       description = "Default shell for main user";
     };
-
+    # Explicit nesting ensures cfg.zsh exists
     zsh = {
       theme = lib.mkOption {
         type = lib.types.str;
@@ -41,7 +40,7 @@ in
       };
     };
   };
-
+  
   config = {
     # SOPS password secret (conditional on features.sops.enable)
     sops.secrets."${mainUser}_password_hash" = lib.mkIf (config.features.sops.enable or false) {
@@ -49,17 +48,26 @@ in
       sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
     };
 
-    # Consolidated users block
     users = {
       mutableUsers = false;
+
+      # Explicit lock: no interactive prompt surface; shadow state unambiguous
+      users.root.hashedPassword = "!";
+
+      # Emergency fallback: root SSH if SOPS decryption fails entirely.
+      # Declared in Nix store — immune to runtime state failures.
+      users.root.openssh.authorizedKeys.keys = [
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKnjF7oAcgBgKQWU/JKFf2Pa+23APKg1ELceDMEgewiu emergency-root@nixos" # REPLACE
+      ];
 
       users.${mainUser} = {
         isNormalUser = true;
         inherit (cfg) description;
         group = mainUser;
-
-        hashedPasswordFile = lib.mkIf (config.features.sops.enable or false
-        ) config.sops.secrets."${mainUser}_password_hash".path;
+        
+        # Reads SOPS secret directly; activation guaranteed by neededForUsers = true
+        hashedPasswordFile = lib.mkIf (config.features.sops.enable or false)
+          config.sops.secrets."${mainUser}_password_hash".path;
 
         shell = pkgs.${cfg.defaultShell};
         extraGroups = [
@@ -103,7 +111,7 @@ in
       zoxide.enable = lib.mkDefault true;
       adb.enable = lib.mkDefault true;
     };
-
+    
     services = {
       pipewire = {
         enable = lib.mkDefault true;
@@ -147,7 +155,8 @@ in
       info.enable = false;
       doc.enable = false;
     };
-
+    
+    # Priority 900: nixpkgs sets this at default priority (1000), causing merge conflicts
     boot.kernel.sysctl = {
       "vm.max_map_count" = lib.mkOverride 900 1048576;
       "vm.dirty_ratio" = lib.mkDefault 10;

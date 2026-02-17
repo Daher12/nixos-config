@@ -39,9 +39,6 @@ for f in "${req_files[@]}"; do
     [[ -f "$BACKUP_PATH/$f" ]] || die "Missing required backup artifact: $f"
 done
 
-# ADDED: Verify SOPS key is readable
-[[ -r "$BACKUP_PATH/sops/age.key" ]] || die "SOPS key exists but is not readable"
-
 if [[ -d "$BACKUP_PATH/sbctl" ]]; then
     [[ -f "$BACKUP_PATH/sbctl/keys/db/db.pem" ]] || die "Corrupt sbctl backup: keys/db/db.pem missing"
 fi
@@ -67,11 +64,6 @@ for m in /mnt /mnt/boot /mnt/persist; do
     mountpoint -q "$m" || die "Mount point failed: $m is not a mountpoint"
 done
 
-# ADDED: Verify mounts are writable
-touch /mnt/.write_test 2>/dev/null || die "/mnt is not writable"
-touch /mnt/persist/.write_test 2>/dev/null || die "/mnt/persist is not writable"
-rm -f /mnt/.write_test /mnt/persist/.write_test
-
 # --- State Restoration (System) ---
 info "Restoring system identity..."
 
@@ -87,26 +79,21 @@ else
 fi
 
 # SOPS key - persist AND ephemeral for install activation
-info "Installing SOPS keys..."
 install -D -m 400 -o 0 -g 0 \
-    "$BACKUP_PATH/sops/age.key" /mnt/persist/system/var/lib/sops-nix/key.txt \
-    || die "Failed to install persistent SOPS key"
-
+    "$BACKUP_PATH/sops/age.key" /mnt/persist/system/var/lib/sops-nix/key.txt
 install -D -m 400 -o 0 -g 0 \
-    "$BACKUP_PATH/sops/age.key" /mnt/var/lib/sops-nix/key.txt \
-    || die "Failed to install ephemeral SOPS key"
+    "$BACKUP_PATH/sops/age.key" /mnt/var/lib/sops-nix/key.txt
 
-# ADDED: Verify SOPS keys were installed
-[[ -f /mnt/persist/system/var/lib/sops-nix/key.txt ]] \
-    || die "Persistent SOPS key verification failed"
+# Verify SOPS Keys for Chroot Activation
 [[ -f /mnt/var/lib/sops-nix/key.txt ]] \
-    || die "Ephemeral SOPS key verification failed"
+    || die "Ephemeral SOPS key missing at /mnt/var/lib/sops-nix/key.txt — activation will fail"
+[[ "$(stat -c '%a' /mnt/var/lib/sops-nix/key.txt)" == "400" ]] \
+    || die "Ephemeral SOPS key has wrong permissions (expected 400)"
 
-# ADDED: Verify permissions
-PERM=$(stat -c "%a" /mnt/persist/system/var/lib/sops-nix/key.txt)
-[[ "$PERM" == "400" ]] || die "SOPS key has wrong permissions: $PERM (expected 400)"
-
-info "✓ SOPS keys installed and verified"
+[[ -f /mnt/persist/system/var/lib/sops-nix/key.txt ]] \
+    || die "SOPS key missing at /mnt/persist/system/var/lib/sops-nix/key.txt — neededForUsers will fail"
+[[ "$(stat -c '%a' /mnt/persist/system/var/lib/sops-nix/key.txt)" == "400" ]] \
+    || die "SOPS key has wrong permissions (expected 400)"
 
 install -D -m 444 -o 0 -g 0 \
     "$BACKUP_PATH/system/machine-id" /mnt/persist/system/etc/machine-id
@@ -155,22 +142,20 @@ if [[ -d "$USER_HOME/.gnupg" ]]; then
     find "$USER_HOME/.gnupg" -type f -exec chmod 600 {} + 2>/dev/null || true
 fi
 
-# User SOPS key setup (for editing secrets with sops command)
-info "Setting up user SOPS key..."
-mkdir -p "$USER_HOME/.config/sops/age"
-install -D -m 600 -o "$USER_UID" -g "$USER_GID" \
-    "$BACKUP_PATH/sops/age.key" "$USER_HOME/.config/sops/age/keys.txt" \
-    || die "Failed to install user SOPS key"
-
-# ADDED: Verify user SOPS key
-[[ -f "$USER_HOME/.config/sops/age/keys.txt" ]] \
-    || die "User SOPS key verification failed"
-
-info "✓ User SOPS key installed and verified"
-
 # --- Installation ---
 info "Installing NixOS..."
-nixos-install --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Install failed"
+# --no-root-passwd: mutableUsers=false manages root declaratively; interactive prompt
+# would be overwritten by activation anyway and causes non-interactive install to hang.
+nixos-install --no-root-passwd --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Install failed"
+
+# --- Verify shadow post-install ---
+info "Verifying ${USER_NAME} account is not locked..."
+SHADOW=$(nixos-enter --root /mnt -- getent shadow "${USER_NAME}" 2>/dev/null || true)
+if echo "$SHADOW" | grep -qE "^${USER_NAME}:!"; then
+    die "CRITICAL: ${USER_NAME} is locked. SOPS failed during activation.
+  Debug: nixos-enter --root /mnt -- journalctl | grep -i sops"
+fi
+info "✓ ${USER_NAME} account is active"
 
 # --- Verification ---
 info "Verifying bootloader..."
@@ -179,19 +164,6 @@ if [[ -z "$(ls -A /mnt/boot/EFI 2>/dev/null)" ]]; then
     die "Build success but /mnt/boot/EFI is empty. Bootloader install failed?"
 fi
 
-# ADDED: Final SOPS verification
-info "Final system verification..."
-[[ -f /mnt/persist/system/var/lib/sops-nix/key.txt ]] \
-    || echo "WARNING: Persistent SOPS key missing after install!"
-
-echo "═══════════════════════════════════════════"
-echo "SUCCESS - Installation Complete"
-echo "═══════════════════════════════════════════"
-echo ""
-echo "Installed files:"
-echo "  ✓ SOPS system key: /persist/system/var/lib/sops-nix/key.txt"
-echo "  ✓ SOPS user key:   /persist/home/$USER_NAME/.config/sops/age/keys.txt"
-echo "  ✓ Config repo:     /persist/home/$USER_NAME/nixos-config"
-echo ""
+echo "SUCCESS"
 confirm "Reboot now?"
 reboot
