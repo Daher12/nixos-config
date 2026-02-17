@@ -8,7 +8,6 @@
   imports = [
     ./disks.nix
   ];
-
   # --- Hardware & Boot ---
   boot = {
     initrd.availableKernelModules = [
@@ -20,7 +19,6 @@
     kernelModules = [ "ryzen_smu" ];
     extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
   };
-
   hardware = {
     cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
     isPhysical = true;
@@ -48,25 +46,18 @@
   core = {
     boot = {
       plymouth.theme = "bgrt";
-      tmpfs = {
-        enable = true;
-        size = "80%";
-      };
+      tmpfs = { enable = true; size = "80%"; };
     };
     users = {
       description = "David";
       defaultShell = "fish";
     };
   };
-
   networking.hosts = {
     "100.123.189.29" = [ "nix-media" ];
   };
-
   # --- Features ---
   features = {
-    sops.enable = true;
-
     impermanence = {
       enable = true;
       device = "/dev/mapper/cryptroot";
@@ -75,6 +66,13 @@
 
     nas.enable = true;
     desktop-gnome.autoLogin = true;
+    
+    sops = {
+      enable = true;
+      method = "age";
+      # Direct absolute path to bypass local-fs.target bind-mount unit ordering
+      keyFile = "/persist/system/var/lib/sops-nix/key.txt";
+    };
 
     filesystem = {
       type = "btrfs";
@@ -111,7 +109,6 @@
       PCIE_ASPM_ON_BAT = "powersupersave";
     };
   };
-
   # --- Services & Systemd ---
   systemd = {
     services.nix-daemon.serviceConfig =
@@ -121,17 +118,18 @@
       lib.mkIf (cores > 0) { CPUQuota = "${toString (cores * 100)}%"; };
     tmpfiles.rules = [
       "d /persist 0755 root root - -"
-      "Z /persist/home/dk 0700 dk dk - -"
+      "d /persist/home/dk 0700 dk dk - -"
     ];
   };
 
   services = {
+    irqbalance.enable = true;
     journald.extraConfig = "SystemMaxUse=200M";
   };
-
   # --- Environment & Filesystems ---
   environment = {
-    systemPackages = with pkgs; [
+    systemPackages = with pkgs;
+    [
       libva-utils
       vulkan-tools
     ];
@@ -156,15 +154,12 @@
       ];
       files = [
         "/etc/machine-id"
-        {
-          file = "/etc/ssh/ssh_host_ed25519_key";
-          parentDirectory.mode = "0755";
-        }
+        #"/etc/shadow"
+        { file = "/etc/ssh/ssh_host_ed25519_key";
+        parentDirectory.mode = "0755"; }
         "/etc/ssh/ssh_host_ed25519_key.pub"
-        {
-          file = "/etc/ssh/ssh_host_rsa_key";
-          parentDirectory.mode = "0755";
-        }
+        { file = "/etc/ssh/ssh_host_rsa_key";
+        parentDirectory.mode = "0755"; }
         "/etc/ssh/ssh_host_rsa_key.pub"
       ];
     };
