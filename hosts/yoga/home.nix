@@ -15,7 +15,7 @@ in
     brave.enable = true;
   };
   
-  home.persistence."/persist/home/dk" = {
+  home.persistence."/persist" = {
     # Only app-state dotfiles remain here; XDG dirs moved to system
     # persistence for hideMounts + allowTrash support
     directories = [
