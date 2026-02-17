@@ -66,14 +66,12 @@
 
     nas.enable = true;
     desktop-gnome.autoLogin = true;
-    
     sops = {
       enable = true;
       method = "age";
       # Direct absolute path to bypass local-fs.target bind-mount unit ordering
       keyFile = "/persist/system/var/lib/sops-nix/key.txt";
     };
-
     filesystem = {
       type = "btrfs";
       btrfs = {
@@ -162,6 +160,19 @@
         parentDirectory.mode = "0755"; }
         "/etc/ssh/ssh_host_rsa_key.pub"
       ];
+    };
+    
+    # System-level: kernel bind mounts, hideMounts suppresses Nautilus sidebar
+    # entries, allowTrash enables GIO trash for these directories.
+    persistence."/persist" = {
+      hideMounts = true;
+      allowTrash = true;
+      users.dk = {
+        directories = [
+          "Documents"
+          "Downloads"
+        ];
+      };
     };
   };
   fileSystems = {
