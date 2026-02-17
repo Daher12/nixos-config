@@ -52,13 +52,13 @@ in
       mutableUsers = false;
 
       # Explicit lock: no interactive prompt surface; shadow state unambiguous
-      users.root.hashedPassword = "!";
+      # users.root.hashedPassword = "!";
 
       # Emergency fallback: root SSH if SOPS decryption fails entirely.
       # Declared in Nix store — immune to runtime state failures.
-      users.root.openssh.authorizedKeys.keys = [
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKnjF7oAcgBgKQWU/JKFf2Pa+23APKg1ELceDMEgewiu emergency-root@nixos" # REPLACE
-      ];
+      #users.root.openssh.authorizedKeys.keys = [
+      #  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKnjF7oAcgBgKQWU/JKFf2Pa+23APKg1ELceDMEgewiu emergency-root@nixos" # REPLACE
+      #];
 
       users.${mainUser} = {
         isNormalUser = true;
