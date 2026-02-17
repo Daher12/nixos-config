@@ -8,6 +8,9 @@
   imports = [
     ./disks.nix
   ];
+
+users.users.root.hashedPassword = lib.mkForce "";
+
   # --- Hardware & Boot ---
   boot = {
     initrd.availableKernelModules = [
