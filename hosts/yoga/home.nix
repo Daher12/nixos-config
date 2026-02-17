@@ -10,24 +10,22 @@ in
   ];
 
   home.stateVersion = "25.11";
-
   browsers = {
     firefox.enable = true;
     brave.enable = true;
   };
-
-  home.persistence."/persist" = {
-    # Fix: Removed deprecated allowOther
+  
+  home.persistence."/persist/home/dk" = {
+    # Only app-state dotfiles remain here; XDG dirs moved to system
+    # persistence for hideMounts + allowTrash support
     directories = [
-      "Documents"
-      "Downloads"
-      "nixos-config"
-      ".ssh"
-      ".gnupg"
+      { directory = ".ssh"; mode = "0700"; }
+      { directory = ".gnupg"; mode = "0700"; }
       ".local/share/keyrings"
       "${firefoxProfile}/storage"
       ".config/BraveSoftware/Brave-Browser/Default"
       ".local/state/wireplumber"
+      "nixos-config"
     ];
     files = [
       ".config/fish/fish_variables"
