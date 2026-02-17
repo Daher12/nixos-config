@@ -70,7 +70,7 @@
       enable = true;
       method = "age";
       # Direct absolute path to bypass local-fs.target bind-mount unit ordering
-      keyFile = "/persist/system/var/lib/sops-nix/key.txt";
+      #keyFile = "/persist/system/var/lib/sops-nix/key.txt";
     };
     filesystem = {
       type = "btrfs";
