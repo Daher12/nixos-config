@@ -38,11 +38,11 @@ in
         message = "SOPS enabled for host '${hostname}' but no secrets file found at: secrets/hosts/${hostname}.yaml";
       }
     ];
-    
+
     sops = {
       defaultSopsFormat = "yaml";
       defaultSopsFile = secretsPath;
-      
+
       # Type-stable: only define keys for the active method (avoids relying on nullOr).
       # This effectively unsets 'keyFile' when method is 'ssh', falling back to safe defaults.
       age = lib.mkMerge [

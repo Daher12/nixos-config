@@ -9,7 +9,7 @@
     ./disks.nix
   ];
 
-users.users.root.hashedPassword = lib.mkForce "";
+  users.users.root.hashedPassword = lib.mkForce "";
 
   # --- Hardware & Boot ---
   boot = {
@@ -49,7 +49,10 @@ users.users.root.hashedPassword = lib.mkForce "";
   core = {
     boot = {
       plymouth.theme = "bgrt";
-      tmpfs = { enable = true; size = "80%"; };
+      tmpfs = {
+        enable = true;
+        size = "80%";
+      };
     };
     users = {
       description = "David";
@@ -129,8 +132,7 @@ users.users.root.hashedPassword = lib.mkForce "";
   };
   # --- Environment & Filesystems ---
   environment = {
-    systemPackages = with pkgs;
-    [
+    systemPackages = with pkgs; [
       libva-utils
       vulkan-tools
     ];
@@ -156,15 +158,19 @@ users.users.root.hashedPassword = lib.mkForce "";
       files = [
         "/etc/machine-id"
         #"/etc/shadow"
-        { file = "/etc/ssh/ssh_host_ed25519_key";
-        parentDirectory.mode = "0755"; }
+        {
+          file = "/etc/ssh/ssh_host_ed25519_key";
+          parentDirectory.mode = "0755";
+        }
         "/etc/ssh/ssh_host_ed25519_key.pub"
-        { file = "/etc/ssh/ssh_host_rsa_key";
-        parentDirectory.mode = "0755"; }
+        {
+          file = "/etc/ssh/ssh_host_rsa_key";
+          parentDirectory.mode = "0755";
+        }
         "/etc/ssh/ssh_host_rsa_key.pub"
       ];
     };
-    
+
     # System-level: kernel bind mounts, hideMounts suppresses Nautilus sidebar
     # entries, allowTrash enables GIO trash for these directories.
     persistence."/persist" = {
