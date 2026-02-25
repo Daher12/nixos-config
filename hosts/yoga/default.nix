@@ -9,7 +9,10 @@
     ./disks.nix
   ];
 
-  users.users.root.hashedPassword = lib.mkForce "";
+  # Locked: console login disabled, access via SSH only.
+  # Hash pre-computed before install: mkpasswd -m sha-512 > /mnt/usb/system/root_password_hash
+  # Bind-mounted from /persist/system/etc/root_password_hash via impermanence (see files list below).
+  users.users.root.hashedPasswordFile = "/etc/root_password_hash";
 
   # --- Hardware & Boot ---
   boot = {
@@ -157,6 +160,11 @@
       ];
       files = [
         "/etc/machine-id"
+        # Root password hash — bind-mounted into /etc/root_password_hash.
+        # hashedPasswordFile reads this during users activation.
+        # VERIFY: confirm impermanence bind-mounts complete before users activation:
+        #   nixos-enter --root /mnt -- cat /etc/system/activation-scripts | grep -A5 impermanence
+        "/etc/root_password_hash"
         #"/etc/shadow"
         {
           file = "/etc/ssh/ssh_host_ed25519_key";
