@@ -34,6 +34,7 @@ read -rp "Backup USB path (e.g. /mnt/usb): " BACKUP_PATH
 req_files=(
     "sops/age.key"
     "system/machine-id"
+    "system/root_password_hash"
 )
 for f in "${req_files[@]}"; do
     [[ -f "$BACKUP_PATH/$f" ]] || die "Missing required backup artifact: $f"
@@ -54,13 +55,22 @@ rm -rf "$CONFIG_DIR"
 info "Cloning configuration..."
 timeout 120 git clone "$REPO_URL" "$CONFIG_DIR" || die "Clone failed"
 
-info "Running Disko..."
+# Pin disko to the exact rev recorded in flake.lock — avoids schema drift from latest
+info "Resolving disko revision from flake.lock..."
+DISKO_REV="$(nix eval --raw \
+  --argstr lockFile "$CONFIG_DIR/flake.lock" \
+  --expr 'let lock = builtins.fromJSON (builtins.readFile (builtins.toPath lockFile));
+          in lock.nodes.disko.locked.rev')" \
+  || die "Failed to read disko rev from flake.lock"
+
+info "Running Disko (rev: ${DISKO_REV:0:7})..."
 nix run --extra-experimental-features "nix-command flakes" \
-    github:nix-community/disko -- \
+    "github:nix-community/disko/$DISKO_REV" -- \
     --mode destroy,format,mount \
     --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Disko failed"
 
-for m in /mnt /mnt/boot /mnt/persist; do
+# /mnt/nix is a separate btrfs subvolume (@nix), neededForBoot — verify it mounted
+for m in /mnt /mnt/boot /mnt/persist /mnt/nix; do
     mountpoint -q "$m" || die "Mount point failed: $m is not a mountpoint"
 done
 
@@ -98,13 +108,19 @@ install -D -m 400 -o 0 -g 0 \
 install -D -m 444 -o 0 -g 0 \
     "$BACKUP_PATH/system/machine-id" /mnt/persist/system/etc/machine-id
 
+# Root password hash — read by users activation script via /etc/root_password_hash
+# (impermanence bind-mounts /persist/system/etc/root_password_hash → /etc/root_password_hash)
+# Pre-compute on backup USB with: mkpasswd -m sha-512 > /mnt/usb/system/root_password_hash
+install -D -m 400 -o 0 -g 0 \
+    "$BACKUP_PATH/system/root_password_hash" /mnt/persist/system/etc/root_password_hash
+
 # sbctl keys - persist AND ephemeral for lanzaboote install
 if [[ -d "$BACKUP_PATH/sbctl" ]]; then
     mkdir -p /mnt/persist/system/var/lib/sbctl
     cp -a "$BACKUP_PATH/sbctl/." /mnt/persist/system/var/lib/sbctl/
     chown -R 0:0 /mnt/persist/system/var/lib/sbctl
     chmod 700 /mnt/persist/system/var/lib/sbctl
-    
+
     mkdir -p /mnt/var/lib/sbctl
     cp -a "$BACKUP_PATH/sbctl/." /mnt/var/lib/sbctl/
     chown -R 0:0 /mnt/var/lib/sbctl
@@ -113,6 +129,8 @@ fi
 
 # --- State Restoration (User) ---
 info "Restoring user data for $USER_NAME..."
+# HM impermanence (home.persistence."/persist") appends home.homeDirectory automatically:
+# home.persistence."/persist" → bind sources at /persist/home/$USER
 USER_HOME="/mnt/persist/home/$USER_NAME"
 
 mkdir -p "$USER_HOME"/{.ssh,.gnupg,nixos-config,Documents,Downloads}
@@ -126,6 +144,11 @@ if [[ -d "$BACKUP_PATH/gnupg" ]]; then
 fi
 
 cp -a "$CONFIG_DIR/." "$USER_HOME/nixos-config/"
+
+# User age key — required at first login for user-level sops CLI operations
+mkdir -p "$USER_HOME/.config/sops/age"
+install -D -m 600 -o "$USER_UID" -g "$USER_GID" \
+    "$BACKUP_PATH/sops/age.key" "$USER_HOME/.config/sops/age/keys.txt"
 
 info "Fixing user permissions..."
 chown -R "$USER_UID:$USER_GID" "$USER_HOME"
