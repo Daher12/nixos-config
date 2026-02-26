@@ -68,7 +68,14 @@ in
         btrfs subvolume create /btrfs/@
 
         mount -t btrfs -o subvol=@ "${cfg.device}" /newroot
-        mkdir -p /newroot/{nix,persist,boot,home,etc,var/lib/sops-nix,var/lib/sbctl}
+
+        # Create required top-level directories on the fresh subvolume.
+        # /tmp: programs expect this to exist with sticky bit; without it
+        #   early-boot services fail unpredictably.
+        # /var/log: systemd journal and other services write here before
+        #   tmpfiles/impermanence stage-2 runs; absence silently loses first-boot logs.
+        mkdir -p /newroot/{nix,persist,boot,home,etc,tmp,var/log,var/lib/sops-nix,var/lib/sbctl}
+        chmod 1777 /newroot/tmp
 
         umount /newroot
         umount /btrfs
