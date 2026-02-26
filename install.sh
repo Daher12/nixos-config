@@ -20,11 +20,11 @@ confirm() {
 # --- Pre-flight ---
 [[ $EUID -eq 0 ]] || die "Run as root"
 
-# Ensure flakes + nix-command are available for this session.
-# NixOS ISOs often ship without these enabled in /etc/nix/nix.conf.
-mkdir -p /etc/nix
-grep -qF "experimental-features" /etc/nix/nix.conf 2>/dev/null \
-  || echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
+# Ensure flakes + nix-command are available for the entire session.
+# NIX_CONFIG is inherited by all nix subprocesses including nixos-install.
+# Avoids needing --extra-experimental-features on every call and requires
+# no writes to /etc/nix/nix.conf (read-only on NixOS ISOs).
+export NIX_CONFIG="experimental-features = nix-command flakes"
 
 deps=(nix git mountpoint curl timeout nixos-install openssl)
 for cmd in "${deps[@]}"; do
@@ -85,8 +85,7 @@ info "Cloning configuration..."
 timeout 120 git clone "$REPO_URL" "$CONFIG_DIR" || die "Clone failed"
 
 info "Running Disko..."
-nix run --extra-experimental-features "nix-command flakes" \
-    "github:nix-community/disko" -- \
+nix run "github:nix-community/disko" -- \
     --mode destroy,format,mount \
     --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Disko failed"
 
