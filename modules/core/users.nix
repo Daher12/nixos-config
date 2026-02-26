@@ -8,6 +8,7 @@
 
 let
   cfg = config.core.users;
+  sopsEnabled = config.features.sops.enable or false;
 in
 {
   options.core.users = {
@@ -42,23 +43,32 @@ in
   };
 
   config = {
-    # SOPS password secret (conditional on features.sops.enable)
-    sops.secrets."${mainUser}_password_hash" = lib.mkIf (config.features.sops.enable or false) {
-      neededForUsers = true;
-      sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
+    sops.secrets = lib.mkIf sopsEnabled {
+      # Main user password — available before users activation via neededForUsers
+      "${mainUser}_password_hash" = {
+        neededForUsers = true;
+        sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
+      };
+      # Root password — neededForUsers = true guarantees the secret is decrypted
+      # before users and groups are created and placed under /run/secrets-for-users,
+      # avoiding bind-mount timing issues entirely.
+      "root_password_hash" = {
+        neededForUsers = true;
+        sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
+      };
     };
 
     users = {
       mutableUsers = false;
 
-      # Explicit lock: no interactive prompt surface; shadow state unambiguous
-      # users.root.hashedPassword = "!";
-
-      # Emergency fallback: root SSH if SOPS decryption fails entirely.
-      # Declared in Nix store — immune to runtime state failures.
-      #users.root.openssh.authorizedKeys.keys = [
-      #  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKnjF7oAcgBgKQWU/JKFf2Pa+23APKg1ELceDMEgewiu emergency-root@nixos" # REPLACE
-      #];
+      users.root = {
+        # Primary: SOPS-managed; neededForUsers ordering guarantees availability.
+        # Fallback: deterministic locked state when SOPS is disabled (e.g. nix-media).
+        # Emergency access via SSH keys or another wheel user — "!" is intentional.
+        hashedPasswordFile = lib.mkIf sopsEnabled
+          config.sops.secrets."root_password_hash".path;
+        hashedPassword = lib.mkIf (!sopsEnabled) "!";
+      };
 
       users.${mainUser} = {
         isNormalUser = true;
@@ -66,8 +76,8 @@ in
         group = mainUser;
 
         # Reads SOPS secret directly; activation guaranteed by neededForUsers = true
-        hashedPasswordFile = lib.mkIf (config.features.sops.enable or false
-        ) config.sops.secrets."${mainUser}_password_hash".path;
+        hashedPasswordFile = lib.mkIf sopsEnabled
+          config.sops.secrets."${mainUser}_password_hash".path;
 
         shell = pkgs.${cfg.defaultShell};
         extraGroups = [
