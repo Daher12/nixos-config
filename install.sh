@@ -20,6 +20,12 @@ confirm() {
 # --- Pre-flight ---
 [[ $EUID -eq 0 ]] || die "Run as root"
 
+# Ensure flakes + nix-command are available for this session.
+# NixOS ISOs often ship without these enabled in /etc/nix/nix.conf.
+mkdir -p /etc/nix
+grep -qF "experimental-features" /etc/nix/nix.conf 2>/dev/null \
+  || echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
+
 deps=(nix git mountpoint curl timeout nixos-install openssl)
 for cmd in "${deps[@]}"; do
     command -v "$cmd" >/dev/null || die "Missing required command: $cmd"
@@ -78,17 +84,9 @@ rm -rf "$CONFIG_DIR"
 info "Cloning configuration..."
 timeout 120 git clone "$REPO_URL" "$CONFIG_DIR" || die "Clone failed"
 
-# Pin disko to the exact rev recorded in flake.lock — avoids schema drift from latest
-info "Resolving disko revision from flake.lock..."
-DISKO_REV="$(nix eval --raw \
-  --argstr lockFile "$CONFIG_DIR/flake.lock" \
-  --expr 'let lock = builtins.fromJSON (builtins.readFile (builtins.toPath lockFile));
-          in lock.nodes.disko.locked.rev')" \
-  || die "Failed to read disko rev from flake.lock"
-
-info "Running Disko (rev: ${DISKO_REV:0:7})..."
+info "Running Disko..."
 nix run --extra-experimental-features "nix-command flakes" \
-    "github:nix-community/disko/$DISKO_REV" -- \
+    "github:nix-community/disko" -- \
     --mode destroy,format,mount \
     --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Disko failed"
 
