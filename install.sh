@@ -20,7 +20,7 @@ confirm() {
 # --- Pre-flight ---
 [[ $EUID -eq 0 ]] || die "Run as root"
 
-deps=(nix git mountpoint curl timeout nixos-install)
+deps=(nix git mountpoint curl timeout nixos-install openssl)
 for cmd in "${deps[@]}"; do
     command -v "$cmd" >/dev/null || die "Missing required command: $cmd"
 done
@@ -31,17 +31,40 @@ curl -fsS --connect-timeout 5 --retry 3 --retry-delay 2 https://github.com >/dev
 read -rp "Backup USB path (e.g. /mnt/usb): " BACKUP_PATH
 [[ -d "$BACKUP_PATH" ]] || die "Path not found: $BACKUP_PATH"
 
+# Only the age key is strictly required — it decrypts all secrets at activation.
+# machine-id: optional; systemd generates a new one if absent. Consequence: some
+#   app state tied to machine identity (journald cursor, some licensing) is reset.
+#   Restore from backup when available to preserve continuity.
+# root_password_hash: removed — now managed via SOPS neededForUsers, not a file install.
+# sbctl: optional — handled separately below.
 req_files=(
     "sops/age.key"
-    "system/machine-id"
-    "system/root_password_hash"
 )
 for f in "${req_files[@]}"; do
     [[ -f "$BACKUP_PATH/$f" ]] || die "Missing required backup artifact: $f"
 done
 
+if [[ ! -f "$BACKUP_PATH/system/machine-id" ]]; then
+    echo "WARNING: system/machine-id not found in backup."
+    echo "  A new machine-id will be generated on first boot."
+    echo "  Impact: journald cursor reset, some app state tied to machine identity lost."
+    MACHINE_ID_AVAILABLE=0
+else
+    MACHINE_ID_AVAILABLE=1
+fi
+
 if [[ -d "$BACKUP_PATH/sbctl" ]]; then
-    [[ -f "$BACKUP_PATH/sbctl/keys/db/db.pem" ]] || die "Corrupt sbctl backup: keys/db/db.pem missing"
+    # Validate presence of all three Secure Boot key roles
+    for key_file in keys/db/db.pem keys/KEK/KEK.pem keys/PK/PK.pem; do
+        [[ -f "$BACKUP_PATH/sbctl/$key_file" ]] \
+            || die "Corrupt sbctl backup: $key_file missing"
+    done
+    # Validate certificates are parseable — catches silent corruption before install
+    for key_file in keys/db/db.pem keys/KEK/KEK.pem keys/PK/PK.pem; do
+        openssl x509 -noout -in "$BACKUP_PATH/sbctl/$key_file" \
+            || die "sbctl $key_file is not a valid X509 certificate"
+    done
+    info "sbctl backup integrity verified (PK, KEK, db)"
 fi
 
 info "Targeting Flake: $FLAKE_TARGET"
@@ -105,14 +128,18 @@ install -D -m 400 -o 0 -g 0 \
 [[ "$(stat -c '%a' /mnt/persist/system/var/lib/sops-nix/key.txt)" == "400" ]] \
     || die "SOPS key has wrong permissions (expected 400)"
 
-install -D -m 444 -o 0 -g 0 \
-    "$BACKUP_PATH/system/machine-id" /mnt/persist/system/etc/machine-id
+# machine-id: restore if available, otherwise systemd generates one on first boot
+if [[ "$MACHINE_ID_AVAILABLE" -eq 1 ]]; then
+    install -D -m 444 -o 0 -g 0 \
+        "$BACKUP_PATH/system/machine-id" /mnt/persist/system/etc/machine-id
+    info "Restored machine-id from backup"
+else
+    info "Skipping machine-id restore — systemd will generate on first boot"
+fi
 
-# Root password hash — read by users activation script via /etc/root_password_hash
-# (impermanence bind-mounts /persist/system/etc/root_password_hash → /etc/root_password_hash)
-# Pre-compute on backup USB with: mkpasswd -m sha-512 > /mnt/usb/system/root_password_hash
-install -D -m 400 -o 0 -g 0 \
-    "$BACKUP_PATH/system/root_password_hash" /mnt/persist/system/etc/root_password_hash
+# root_password_hash: managed via SOPS neededForUsers — not installed as a file.
+# If SOPS decryption fails on first boot, root is locked ("!").
+# Recover via SSH keys or dk wheel account.
 
 # sbctl keys - persist AND ephemeral for lanzaboote install
 if [[ -d "$BACKUP_PATH/sbctl" ]]; then
@@ -179,6 +206,17 @@ if echo "$SHADOW" | grep -qE "^${USER_NAME}:!"; then
   Debug: nixos-enter --root /mnt -- journalctl | grep -i sops"
 fi
 info "✓ ${USER_NAME} account is active"
+
+# Verify root is not locked (SOPS neededForUsers should have set the password)
+info "Verifying root account has a password set..."
+ROOT_SHADOW=$(nixos-enter --root /mnt -- getent shadow root 2>/dev/null || true)
+ROOT_HASH=$(echo "$ROOT_SHADOW" | cut -d: -f2)
+if [[ "$ROOT_HASH" == "!" || "$ROOT_HASH" == "*" || -z "$ROOT_HASH" ]]; then
+    echo "WARNING: root account is locked or has no password."
+    echo "  This is expected only if SOPS decryption succeeded but root_password_hash"
+    echo "  is intentionally absent from secrets/hosts/${FLAKE_TARGET}.yaml."
+    echo "  If unintentional: nixos-enter --root /mnt -- journalctl | grep -i sops"
+fi
 
 # --- Verification ---
 info "Verifying bootloader..."
