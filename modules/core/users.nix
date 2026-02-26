@@ -44,15 +44,8 @@ in
 
   config = {
     sops.secrets = lib.mkIf sopsEnabled {
-      # Main user password — available before users activation via neededForUsers
+      # Main user password -- available before users activation via neededForUsers
       "${mainUser}_password_hash" = {
-        neededForUsers = true;
-        sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
-      };
-      # Root password — neededForUsers = true guarantees the secret is decrypted
-      # before users and groups are created and placed under /run/secrets-for-users,
-      # avoiding bind-mount timing issues entirely.
-      "root_password_hash" = {
         neededForUsers = true;
         sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
       };
@@ -62,12 +55,9 @@ in
       mutableUsers = false;
 
       users.root = {
-        # Primary: SOPS-managed; neededForUsers ordering guarantees availability.
-        # Fallback: deterministic locked state when SOPS is disabled (e.g. nix-media).
-        # Emergency access via SSH keys or another wheel user — "!" is intentional.
-        hashedPasswordFile = lib.mkIf sopsEnabled
-          config.sops.secrets."root_password_hash".path;
-        hashedPassword = lib.mkIf (!sopsEnabled) "!";
+        # Empty password: allows direct root login after install to run passwd.
+        # TODO: replace with hashedPasswordFile via SOPS once system is stable.
+        hashedPassword = "";
       };
 
       users.${mainUser} = {
