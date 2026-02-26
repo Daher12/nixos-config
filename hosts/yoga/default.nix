@@ -2,6 +2,7 @@
   config,
   pkgs,
   lib,
+  mainUser,
   ...
 }:
 {
@@ -9,10 +10,16 @@
     ./disks.nix
   ];
 
-  # Locked: console login disabled, access via SSH only.
-  # Hash pre-computed before install: mkpasswd -m sha-512 > /mnt/usb/system/root_password_hash
-  # Bind-mounted from /persist/system/etc/root_password_hash via impermanence (see files list below).
-  users.users.root.hashedPasswordFile = "/etc/root_password_hash";
+  # --- Identity ---
+  # Pinned: install.sh hardcodes USER_UID=1000/USER_GID=1000 for chown.
+  # Auto-assignment is non-deterministic across module composition changes.
+  users.users.${mainUser}.uid = 1000;
+  users.groups.${mainUser}.gid = 1000;
+
+  # Root password managed via SOPS (see modules/core/users.nix).
+  # hashedPasswordFile bind removed: impermanence bind-mount timing is not
+  # guaranteed before 'users' activation; neededForUsers = true is the
+  # correct ordering contract.
 
   # --- Hardware & Boot ---
   boot = {
@@ -62,9 +69,14 @@
       defaultShell = "fish";
     };
   };
+
   networking.hosts = {
+    # Static entry: MagicDNS unreliable in our environment for NFS mounts
+    # (observed resolution failures). Update if nix-media is re-enrolled:
+    #   tailscale status | grep nix-media
     "100.123.189.29" = [ "nix-media" ];
   };
+
   # --- Features ---
   features = {
     impermanence = {
@@ -78,8 +90,6 @@
     sops = {
       enable = true;
       method = "age";
-      # Direct absolute path to bypass local-fs.target bind-mount unit ordering
-      #keyFile = "/persist/system/var/lib/sops-nix/key.txt";
     };
     filesystem = {
       type = "btrfs";
@@ -116,6 +126,7 @@
       PCIE_ASPM_ON_BAT = "powersupersave";
     };
   };
+
   # --- Services & Systemd ---
   systemd = {
     services.nix-daemon.serviceConfig =
@@ -133,12 +144,14 @@
     irqbalance.enable = true;
     journald.extraConfig = "SystemMaxUse=200M";
   };
+
   # --- Environment & Filesystems ---
   environment = {
     systemPackages = with pkgs; [
       libva-utils
       vulkan-tools
     ];
+
     persistence."/persist/system" = {
       hideMounts = true;
       directories = [
@@ -149,6 +162,9 @@
         "/var/lib/nixos"
         "/var/lib/systemd"
         "/var/lib/tailscale"
+        # Kept deliberately: if sops.age.keyFile is ever reverted to the
+        # sops-nix default (/var/lib/sops-nix/key.txt), this bind ensures
+        # the key survives root wipes.
         "/var/lib/sops-nix"
         "/var/lib/upower"
         "/var/lib/colord"
@@ -160,12 +176,6 @@
       ];
       files = [
         "/etc/machine-id"
-        # Root password hash — bind-mounted into /etc/root_password_hash.
-        # hashedPasswordFile reads this during users activation.
-        # VERIFY: confirm impermanence bind-mounts complete before users activation:
-        #   nixos-enter --root /mnt -- cat /etc/system/activation-scripts | grep -A5 impermanence
-        "/etc/root_password_hash"
-        #"/etc/shadow"
         {
           file = "/etc/ssh/ssh_host_ed25519_key";
           parentDirectory.mode = "0755";
@@ -179,8 +189,6 @@
       ];
     };
 
-    # System-level: kernel bind mounts, hideMounts suppresses Nautilus sidebar
-    # entries, allowTrash enables GIO trash for these directories.
     persistence."/persist" = {
       hideMounts = true;
       allowTrash = true;
@@ -192,6 +200,7 @@
       };
     };
   };
+
   fileSystems = {
     "/persist".neededForBoot = true;
     "/nix".neededForBoot = true;
