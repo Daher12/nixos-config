@@ -13,8 +13,8 @@
   # --- Identity ---
   # Pinned: install.sh hardcodes USER_UID=1000/USER_GID=1000 for chown.
   # Auto-assignment is non-deterministic across module composition changes.
-  users.users.${mainUser}.uid = 1000;
-  users.groups.${mainUser}.gid = 1000;
+  #users.users.${mainUser}.uid = 1000;
+  #users.groups.${mainUser}.gid = 1000;
 
   # Root password managed via SOPS (see modules/core/users.nix).
   # hashedPasswordFile bind removed: impermanence bind-mount timing is not
