@@ -71,7 +71,7 @@ in
 
         # Create required top-level directories on the fresh subvolume.
         # /tmp: programs expect this to exist with sticky bit; without it
-        #   early-boot services fail unpredictably.
+        #   early-boot services fail unpredictably before tmpfiles runs.
         # /var/log: systemd journal and other services write here before
         #   tmpfiles/impermanence stage-2 runs; absence silently loses first-boot logs.
         mkdir -p /newroot/{nix,persist,boot,home,etc,tmp,var/log,var/lib/sops-nix,var/lib/sbctl}
