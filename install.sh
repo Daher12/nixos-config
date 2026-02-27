@@ -124,9 +124,9 @@ if [[ "$SBCTL_FROM_BACKUP" -eq 1 ]]; then
 else
     info "Generating fresh sbctl Secure Boot PKI..."
     mkdir -p /mnt/var/lib/sbctl
-    # VERIFY: --database-path flag available in sbctl version in nixpkgs/nixos-25.11
-    nix shell nixpkgs#sbctl --command \
-        sbctl create-keys --database-path /mnt/var/lib/sbctl \
+    chmod 700 /mnt/var/lib/sbctl
+    # nix run preserves the calling uid; nix shell --command drops to build user
+    nix run nixpkgs#sbctl -- create-keys --database-path /mnt/var/lib/sbctl \
         || die "sbctl create-keys failed"
     chown -R 0:0 /mnt/var/lib/sbctl
     chmod 700 /mnt/var/lib/sbctl
