@@ -125,8 +125,11 @@ else
     info "Generating fresh sbctl Secure Boot PKI..."
     mkdir -p /mnt/var/lib/sbctl
     chmod 700 /mnt/var/lib/sbctl
-    # nix run preserves the calling uid; nix shell --command drops to build user
-    nix run nixpkgs#sbctl -- create-keys --database-path /mnt/var/lib/sbctl \
+    # Build to store and exec binary directly -- nix run/shell wrappers both
+    # trigger sbctl's internal root uid check and fail.
+    SBCTL_BIN=$(nix build --no-link --print-out-paths nixpkgs#sbctl)/bin/sbctl
+    [[ -x "$SBCTL_BIN" ]] || die "Failed to build sbctl from nixpkgs"
+    "$SBCTL_BIN" create-keys --database-path /mnt/var/lib/sbctl \
         || die "sbctl create-keys failed"
     chown -R 0:0 /mnt/var/lib/sbctl
     chmod 700 /mnt/var/lib/sbctl
