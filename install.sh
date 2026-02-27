@@ -48,24 +48,9 @@ else
     MACHINE_ID_AVAILABLE=0
 fi
 
-# sbctl: validate backup if present, otherwise generate fresh PKI
+# Secure Boot: keys managed post-boot via sbctl on the live system.
+# secureboot.enable = false during initial install — see hosts/yoga/default.nix.
 SBCTL_FROM_BACKUP=0
-if [[ "$USE_BACKUP" -eq 1 ]] && [[ -d "$BACKUP_PATH/sbctl" ]]; then
-    for key_file in keys/db/db.pem keys/KEK/KEK.pem keys/PK/PK.pem; do
-        [[ -f "$BACKUP_PATH/sbctl/$key_file" ]] \
-            || die "Corrupt sbctl backup: $key_file missing"
-    done
-    for key_file in keys/db/db.pem keys/KEK/KEK.pem keys/PK/PK.pem; do
-        openssl x509 -noout -in "$BACKUP_PATH/sbctl/$key_file" 2>/dev/null \
-            || die "sbctl $key_file is not a valid X509 certificate"
-    done
-    info "sbctl backup integrity verified (PK, KEK, db)"
-    SBCTL_FROM_BACKUP=1
-else
-    echo "WARNING: No sbctl backup — fresh Secure Boot PKI will be generated."
-    echo "  POST-BOOT REQUIRED: sudo sbctl enroll-keys --microsoft"
-    echo "  Then: reboot -> UEFI firmware -> enable Secure Boot"
-fi
 
 info "Targeting Flake: $FLAKE_TARGET"
 echo "WARNING: This will DESTROY the disks defined in the '$FLAKE_TARGET' disko config."
@@ -111,40 +96,8 @@ else
 fi
 
 # --- sbctl PKI ---
-if [[ "$SBCTL_FROM_BACKUP" -eq 1 ]]; then
-    info "Restoring sbctl PKI from backup..."
-    mkdir -p /mnt/persist/system/var/lib/sbctl
-    cp -a "$BACKUP_PATH/sbctl/." /mnt/persist/system/var/lib/sbctl/
-    chown -R 0:0 /mnt/persist/system/var/lib/sbctl
-    chmod 700 /mnt/persist/system/var/lib/sbctl
-    mkdir -p /mnt/var/lib/sbctl
-    cp -a "$BACKUP_PATH/sbctl/." /mnt/var/lib/sbctl/
-    chown -R 0:0 /mnt/var/lib/sbctl
-    chmod 700 /mnt/var/lib/sbctl
-else
-    info "Generating fresh sbctl Secure Boot PKI..."
-    mkdir -p /mnt/var/lib/sbctl
-    chmod 700 /mnt/var/lib/sbctl
-    # Build to store and exec binary directly -- nix run/shell wrappers both
-    # trigger sbctl's internal root uid check and fail.
-    SBCTL_BIN=$(nix build --no-link --print-out-paths nixpkgs#sbctl)/bin/sbctl
-    [[ -x "$SBCTL_BIN" ]] || die "Failed to build sbctl from nixpkgs"
-    "$SBCTL_BIN" create-keys --database-path /mnt/var/lib/sbctl \
-        || die "sbctl create-keys failed"
-    chown -R 0:0 /mnt/var/lib/sbctl
-    chmod 700 /mnt/var/lib/sbctl
-    mkdir -p /mnt/persist/system/var/lib/sbctl
-    cp -a /mnt/var/lib/sbctl/. /mnt/persist/system/var/lib/sbctl/
-    chown -R 0:0 /mnt/persist/system/var/lib/sbctl
-    chmod 700 /mnt/persist/system/var/lib/sbctl
-fi
-
-for key_file in /mnt/var/lib/sbctl/keys/db/db.pem \
-                /mnt/var/lib/sbctl/keys/KEK/KEK.pem \
-                /mnt/var/lib/sbctl/keys/PK/PK.pem; do
-    [[ -f "$key_file" ]] || die "sbctl PKI incomplete: $key_file missing"
-done
-info "sbctl PKI validated"
+# Skipped: secureboot.enable = false for initial install.
+# Post-boot: sudo sbctl create-keys && sudo sbctl enroll-keys --microsoft
 
 # --- State Restoration (User) ---
 info "Restoring user data for $USER_NAME..."
@@ -204,13 +157,13 @@ echo ""
 echo "=============================="
 echo "       INSTALL SUCCESS        "
 echo "=============================="
-if [[ "$SBCTL_FROM_BACKUP" -eq 0 ]]; then
-    echo ""
-    echo "POST-BOOT (fresh sbctl PKI):"
-    echo "  1. sudo sbctl enroll-keys --microsoft"
-    echo "  2. Reboot -> UEFI -> enable Secure Boot"
-    echo "  3. sudo sbctl verify"
-fi
+echo ""
+echo "POST-BOOT: Set up Secure Boot once running:"
+echo "  1. sudo sbctl create-keys"
+echo "  2. sudo sbctl enroll-keys --microsoft"
+echo "  3. Reboot -> UEFI firmware -> enable Secure Boot"
+echo "  4. Edit hosts/yoga/default.nix: secureboot.enable = true"
+echo "  5. sudo nixos-rebuild switch --flake .#yoga"
 
 confirm "Reboot now?"
 reboot
