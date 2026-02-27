@@ -21,7 +21,7 @@
   # guaranteed before 'users' activation; neededForUsers = true is the
   # correct ordering contract.
 
- users.users.dk.hashedPassword = lib.mkForce "$y$j9T$TXEIF4hc2wEPlZF.cI5Zl0$LqzAXinbsvA9MoaTbXJ1eBNxmXChpin9pbbSP3FKiCD"
+ users.users.dk.hashedPassword = lib.mkForce "$y$j9T$TXEIF4hc2wEPlZF.cI5Zl0$LqzAXinbsvA9MoaTbXJ1eBNxmXChpin9pbbSP3FKiCD";
 
 
   # --- Hardware & Boot ---
