@@ -1,4 +1,9 @@
 _: # No arguments used in this module
+let
+  # NOTE: Check your actual firefox profile name.
+  # It might be 'default' or a hash.
+  firefoxProfile = ".mozilla/firefox/default";
+in
 {
   imports = [
     ../../home
@@ -23,18 +28,18 @@ _: # No arguments used in this module
         mode = "0700";
       }
       ".local/share/keyrings"
-      # Persist entire Firefox directory: avoids profile-name fragility.
-      # HM creates profiles at .mozilla/firefox/<attr-name> but Firefox itself
-      # can create hashed-prefix dirs (e.g. abcdef12.default-release) on first
-      # launch before HM activation; granular file persistence would silently miss these.
-      ".mozilla/firefox"
+      "${firefoxProfile}/storage"
       ".config/BraveSoftware/Brave-Browser/Default"
       ".local/state/wireplumber"
       "nixos-config"
     ];
     files = [
       ".config/fish/fish_variables"
-      ".config/sops/age/keys.txt"
+      # TEMPORARY: removed while sops is disabled — re-add when sops is restored
+      # ".config/sops/age/keys.txt"
+      "${firefoxProfile}/places.sqlite"
+      "${firefoxProfile}/favicons.sqlite"
+      "${firefoxProfile}/prefs.js"
     ];
   };
 }
