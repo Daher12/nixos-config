@@ -2,7 +2,6 @@
   config,
   pkgs,
   lib,
-  mainUser,
   ...
 }:
 {
@@ -11,18 +10,18 @@
   ];
 
   # --- Identity ---
-  # Pinned: install.sh hardcodes USER_UID=1000/USER_GID=1000 for chown.
-  # Auto-assignment is non-deterministic across module composition changes.
-  #users.users.${mainUser}.uid = 1000;
-  #users.groups.${mainUser}.gid = 1000;
+  users.users.root.hashedPassword = lib.mkForce "";
+  # TEMPORARY: SOPS disabled — replace hash after key rotation, then re-enable sops.
+  # Hash is injected by install.sh at install time using mkpasswd -m yescrypt.
+  # Do NOT commit REPLACE_WITH_YESCRYPT_HASH — the assertion below will catch it.
+  users.users.dk.hashedPassword = lib.mkForce "REPLACE_WITH_YESCRYPT_HASH";
 
-  # Root password managed via SOPS (see modules/core/users.nix).
-  # hashedPasswordFile bind removed: impermanence bind-mount timing is not
-  # guaranteed before 'users' activation; neededForUsers = true is the
-  # correct ordering contract.
-
- users.users.dk.hashedPassword = lib.mkForce "$y$j9T$TXEIF4hc2wEPlZF.cI5Zl0$LqzAXinbsvA9MoaTbXJ1eBNxmXChpin9pbbSP3FKiCD";
-
+  assertions = [
+    {
+      assertion = config.users.users.dk.hashedPassword != "REPLACE_WITH_YESCRYPT_HASH";
+      message = "users.users.dk.hashedPassword is still the placeholder — run install.sh or set a real yescrypt hash";
+    }
+  ];
 
   # --- Hardware & Boot ---
   boot = {
@@ -74,9 +73,6 @@
   };
 
   networking.hosts = {
-    # Static entry: MagicDNS unreliable in our environment for NFS mounts
-    # (observed resolution failures). Update if nix-media is re-enrolled:
-    #   tailscale status | grep nix-media
     "100.123.189.29" = [ "nix-media" ];
   };
 
@@ -86,14 +82,14 @@
       enable = true;
       device = "/dev/mapper/cryptroot";
     };
-    secureboot.enable = false;
+    secureboot.enable = false; # TEMPORARY: setup post-boot via sbctl
 
     nas.enable = true;
     desktop-gnome.autoLogin = true;
-    sops = {
-      enable = true;
-      method = "age";
-    };
+
+    # TEMPORARY: disabled until new admin key is generated and secrets re-encrypted
+    sops.enable = false;
+
     filesystem = {
       type = "btrfs";
       btrfs = {
@@ -165,9 +161,6 @@
         "/var/lib/nixos"
         "/var/lib/systemd"
         "/var/lib/tailscale"
-        # Kept deliberately: if sops.age.keyFile is ever reverted to the
-        # sops-nix default (/var/lib/sops-nix/key.txt), this bind ensures
-        # the key survives root wipes.
         "/var/lib/sops-nix"
         "/var/lib/upower"
         "/var/lib/colord"
