@@ -62,6 +62,35 @@ rm -rf "$CONFIG_DIR"
 info "Cloning configuration..."
 timeout 120 git clone "$REPO_URL" "$CONFIG_DIR" || die "Clone failed"
 
+# --- Password hash ---
+# Generate hash interactively NOW — before disko so we can abort cleanly if needed.
+# Python writes the hash to avoid $y$... yescrypt dollar signs being mangled by sed/bash.
+# mutableUsers=false means activation rewrites shadow from the store on every boot —
+# the hash MUST be correct in the closure or the account is locked after every wipe.
+info "Setting password for ${USER_NAME}..."
+echo "Enter password for ${USER_NAME} (input hidden):"
+PW_HASH=$(nix run nixpkgs#mkpasswd -- -m yescrypt 2>/dev/null)     || die "mkpasswd failed — is nixpkgs available?"
+[[ "$PW_HASH" == '$y$'* ]]     || die "Hash does not look like a yescrypt hash: $PW_HASH"
+
+# Write hash into local clone safely — Python avoids all shell escaping issues
+python3 -c "
+import sys, re
+hash = sys.argv[1]
+path = sys.argv[2]
+content = open(path).read()
+assert 'REPLACE_WITH_YESCRYPT_HASH' in content,     'Placeholder REPLACE_WITH_YESCRYPT_HASH not found in ' + path + ' — already patched?'
+content = content.replace('REPLACE_WITH_YESCRYPT_HASH', hash)
+open(path, 'w').write(content)
+" "$PW_HASH" "$CONFIG_DIR/hosts/${FLAKE_TARGET}/default.nix"     || die "Failed to write password hash into config"
+
+# Verify the file still parses as valid Nix
+nix-instantiate --parse "$CONFIG_DIR/hosts/${FLAKE_TARGET}/default.nix" > /dev/null     || die "Nix parse error after writing hash — aborting before install"
+
+# Confirm hash is not the placeholder
+grep "hashedPassword" "$CONFIG_DIR/hosts/${FLAKE_TARGET}/default.nix"     | grep -q "REPLACE_WITH_YESCRYPT_HASH"     && die "Placeholder still present — hash write failed"
+
+info "Password hash written and verified"
+
 # --- Partitioning ---
 info "Running Disko..."
 nix run "github:nix-community/disko" -- \
