@@ -22,7 +22,9 @@ confirm() {
 
 export NIX_CONFIG="experimental-features = nix-command flakes"
 
-deps=(nix git mountpoint curl timeout nixos-install openssl)
+# Only check tools present on the NixOS ISO.
+# python3, mkpasswd (whois pkg), openssl pulled via nix shell when needed.
+deps=(nix git mountpoint curl timeout nixos-install)
 for cmd in "${deps[@]}"; do
     command -v "$cmd" >/dev/null || die "Missing required command: $cmd"
 done
@@ -48,10 +50,7 @@ else
     MACHINE_ID_AVAILABLE=0
 fi
 
-# Secure Boot: keys managed post-boot via sbctl on the live system.
-# secureboot.enable = false during initial install — see hosts/yoga/default.nix.
-SBCTL_FROM_BACKUP=0
-
+# Secure Boot: managed post-boot via sbctl. secureboot.enable = false for initial install.
 info "Targeting Flake: $FLAKE_TARGET"
 echo "WARNING: This will DESTROY the disks defined in the '$FLAKE_TARGET' disko config."
 confirm "Proceed with wipe and install?"
@@ -61,33 +60,50 @@ CONFIG_DIR="/tmp/nixos-config"
 rm -rf "$CONFIG_DIR"
 info "Cloning configuration..."
 timeout 120 git clone "$REPO_URL" "$CONFIG_DIR" || die "Clone failed"
+# Remove .git so Nix evaluates working directory files, not the git index.
+# Without this, uncommitted changes (injected hash) are invisible to nixos-install.
+rm -rf "$CONFIG_DIR/.git"
 
 # --- Password hash ---
-# Generate hash interactively NOW — before disko so we can abort cleanly if needed.
-# Python writes the hash to avoid $y$... yescrypt dollar signs being mangled by sed/bash.
-# mutableUsers=false means activation rewrites shadow from the store on every boot —
-# the hash MUST be correct in the closure or the account is locked after every wipe.
+# Pull mkpasswd + python3 via nix shell — neither is on the NixOS ISO.
+# whois package provides mkpasswd on nixpkgs.
+# mutableUsers=false rewrites /etc/shadow from the Nix store on every boot.
+# The hash must be correct in the closure or dk is locked after every impermanence wipe.
+NX="nix shell nixpkgs#whois nixpkgs#python3 --command"
+
 info "Setting password for ${USER_NAME}..."
-echo "Enter password for ${USER_NAME} (input hidden):"
-PW_HASH=$(nix run nixpkgs#mkpasswd -- -m yescrypt 2>/dev/null)     || die "mkpasswd failed — is nixpkgs available?"
-[[ "$PW_HASH" == '$y$'* ]]     || die "Hash does not look like a yescrypt hash: $PW_HASH"
+echo "(input hidden — type password and press Enter)"
+PW_HASH=$($NX mkpasswd -m yescrypt) \
+    || die "mkpasswd failed"
+[[ "$PW_HASH" == '$y$'* ]] \
+    || die "Unexpected hash format: $PW_HASH"
 
-# Write hash into local clone safely — Python avoids all shell escaping issues
-python3 -c "
-import sys, re
-hash = sys.argv[1]
-path = sys.argv[2]
+# Write hash via python3 reading from a temp file.
+# Avoids all shell expansion of $y$j9T$... dollar signs.
+TARGET_NIX="$CONFIG_DIR/hosts/${FLAKE_TARGET}/default.nix"
+printf '%s' "$PW_HASH" > /tmp/pw_hash.txt
+
+grep -q "REPLACE_WITH_YESCRYPT_HASH" "$TARGET_NIX" \
+    || die "Placeholder not found in $TARGET_NIX — already patched?"
+
+$NX python3 - "$TARGET_NIX" <<'PY'
+import sys
+path = sys.argv[1]
+hash_val = open('/tmp/pw_hash.txt').read()
 content = open(path).read()
-assert 'REPLACE_WITH_YESCRYPT_HASH' in content,     'Placeholder REPLACE_WITH_YESCRYPT_HASH not found in ' + path + ' — already patched?'
-content = content.replace('REPLACE_WITH_YESCRYPT_HASH', hash)
-open(path, 'w').write(content)
-" "$PW_HASH" "$CONFIG_DIR/hosts/${FLAKE_TARGET}/default.nix"     || die "Failed to write password hash into config"
+assert 'REPLACE_WITH_YESCRYPT_HASH' in content, f'Placeholder missing in {path}'
+open(path, 'w').write(content.replace('REPLACE_WITH_YESCRYPT_HASH', hash_val))
+PY
 
-# Verify the file still parses as valid Nix
-nix-instantiate --parse "$CONFIG_DIR/hosts/${FLAKE_TARGET}/default.nix" > /dev/null     || die "Nix parse error after writing hash — aborting before install"
+rm -f /tmp/pw_hash.txt
 
-# Confirm hash is not the placeholder
-grep "hashedPassword" "$CONFIG_DIR/hosts/${FLAKE_TARGET}/default.nix"     | grep -q "REPLACE_WITH_YESCRYPT_HASH"     && die "Placeholder still present — hash write failed"
+# Verify Nix syntax still valid after substitution
+nix-instantiate --parse "$TARGET_NIX" > /dev/null \
+    || die "Nix parse error after hash injection — aborting before disko"
+
+# Confirm placeholder is gone
+grep -q "REPLACE_WITH_YESCRYPT_HASH" "$TARGET_NIX" \
+    && die "Placeholder still present — hash write failed"
 
 info "Password hash written and verified"
 
@@ -156,30 +172,26 @@ fi
 # --- Installation ---
 info "Installing NixOS..."
 nixos-install --no-root-passwd --flake "$CONFIG_DIR#$FLAKE_TARGET" \
-    || die "nixos-install failed.
-  Debug: nixos-enter --root /mnt -- journalctl -b | grep -iE 'lanzaboote|error'"
+    || die "nixos-install failed"
 
 # --- Post-install verification ---
 info "Verifying ${USER_NAME} account is not locked..."
 SHADOW=$(nixos-enter --root /mnt -- getent shadow "${USER_NAME}" 2>/dev/null || true)
 [[ -n "$SHADOW" ]] || die "Could not read shadow entry for ${USER_NAME}"
-if echo "$SHADOW" | grep -qE "^${USER_NAME}:!"; then
-    die "CRITICAL: ${USER_NAME} is locked.
-  Check users.users.dk.hashedPassword is set in hosts/yoga/default.nix"
-fi
+echo "$SHADOW" | grep -qE "^${USER_NAME}:!" \
+    && die "CRITICAL: ${USER_NAME} is locked — hash not baked into closure correctly"
 info "${USER_NAME} account is active"
 
 info "Verifying root account..."
 ROOT_HASH=$(nixos-enter --root /mnt -- getent shadow root 2>/dev/null | cut -d: -f2)
-if [[ "$ROOT_HASH" == "!" || "$ROOT_HASH" == "*" ]]; then
-    die "CRITICAL: root is hard-locked — TTY recovery impossible"
-fi
+[[ "$ROOT_HASH" == "!" || "$ROOT_HASH" == "*" ]] \
+    && die "CRITICAL: root is hard-locked — TTY recovery impossible"
 info "root account accessible"
 
 info "Verifying bootloader..."
 [[ -d /mnt/boot/EFI ]] || die "/mnt/boot/EFI missing"
 [[ -n "$(ls -A /mnt/boot/EFI 2>/dev/null)" ]] \
-    || die "/mnt/boot/EFI is empty — lanzaboote install failed"
+    || die "/mnt/boot/EFI is empty — bootloader install failed"
 info "Bootloader installed"
 
 echo ""
