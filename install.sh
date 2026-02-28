@@ -101,9 +101,10 @@ rm -f /tmp/pw_hash.txt
 nix-instantiate --parse "$TARGET_NIX" > /dev/null \
     || die "Nix parse error after hash injection — aborting before disko"
 
-# Confirm placeholder is gone
-grep -q "REPLACE_WITH_YESCRYPT_HASH" "$TARGET_NIX" \
-    && die "Placeholder still present — hash write failed"
+# Confirm placeholder is gone (if grep finds it → die; exit 1 from grep = success)
+if grep -q "REPLACE_WITH_YESCRYPT_HASH" "$TARGET_NIX"; then
+    die "Placeholder still present — hash write failed"
+fi
 
 info "Password hash written and verified"
 
