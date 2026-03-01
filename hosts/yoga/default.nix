@@ -13,13 +13,17 @@
   users.users.root.hashedPassword = lib.mkForce "";
   # TEMPORARY: SOPS disabled — replace hash after key rotation, then re-enable sops.
   # Hash is injected by install.sh at install time using mkpasswd -m yescrypt.
-  # Do NOT commit REPLACE_WITH_YESCRYPT_HASH — the assertion below will catch it.
+  # install.sh enforces exactly one occurrence of this placeholder before injecting.
   users.users.dk.hashedPassword = lib.mkForce "REPLACE_WITH_YESCRYPT_HASH";
 
   assertions = [
     {
-      assertion = config.users.users.dk.hashedPassword != "REPLACE_WITH_YESCRYPT_HASH";
-      message = "users.users.dk.hashedPassword is still the placeholder — run install.sh or set a real yescrypt hash";
+      # Validates hash format rather than placeholder literal.
+      # Placeholder-equality assertions are destroyed by the injector (which replaces
+      # all occurrences), making them always-false after injection.
+      # install.sh also guards: [[ "$PW_HASH" == '$y$'* ]] before writing.
+      assertion = lib.hasPrefix "$y$" config.users.users.dk.hashedPassword;
+      message = "users.users.dk.hashedPassword is not a yescrypt hash — run install.sh";
     }
   ];
 
