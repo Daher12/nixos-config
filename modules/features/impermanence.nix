@@ -30,12 +30,15 @@ in
 
   config = lib.mkIf cfg.enable {
     # initrd-nixos-activation chroots into /sysroot and executes binaries from
-    # /nix/store. With split subvolumes, sysroot-nix.mount and sysroot-persist.mount
-    # must be up before activation starts. neededForBoot = true generates the units
-    # but does not wire this ordering automatically.
+    # /nix/store. With split subvolumes, /sysroot/nix and /sysroot/persist must
+    # be mounted before activation starts. neededForBoot = true generates the
+    # mount units, but using RequiresMountsFor avoids guessing their exact names.
     boot.initrd.systemd.services.initrd-nixos-activation = {
-      after = [ "sysroot.mount" "sysroot-nix.mount" "sysroot-persist.mount" ];
-      requires = [ "sysroot-nix.mount" "sysroot-persist.mount" ];
+      after = [ "sysroot.mount" ];
+      unitConfig.RequiresMountsFor = [
+        "/sysroot/nix/store"
+        "/sysroot/persist"
+      ];
     };
 
     assertions = [
