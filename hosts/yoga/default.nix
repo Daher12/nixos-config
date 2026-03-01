@@ -11,21 +11,11 @@
 
   # --- Identity ---
   users.users.root.hashedPassword = lib.mkForce "";
-  # TEMPORARY: SOPS disabled — replace hash after key rotation, then re-enable sops.
-  # Hash is injected by install.sh at install time using mkpasswd -m yescrypt.
-  # install.sh enforces exactly one occurrence of this placeholder before injecting.
-  users.users.dk.hashedPassword = lib.mkForce "REPLACE_WITH_YESCRYPT_HASH";
 
-  assertions = [
-    {
-      # Validates hash format rather than placeholder literal.
-      # Placeholder-equality assertions are destroyed by the injector (which replaces
-      # all occurrences), making them always-false after injection.
-      # install.sh also guards: [[ "$PW_HASH" == '$y$'* ]] before writing.
-      assertion = lib.hasPrefix "$y$" config.users.users.dk.hashedPassword;
-      message = "users.users.dk.hashedPassword is not a yescrypt hash — run install.sh";
-    }
-  ];
+  # hashedPasswordFile is read on each activation. The file must exist on
+  # persist before first boot. install.sh is the hard guard for this.
+  users.users.dk.hashedPasswordFile =
+    lib.mkForce "/persist/system/var/lib/local-passwords/dk.yescrypt";
 
   # --- Hardware & Boot ---
   boot = {
@@ -38,6 +28,7 @@
     kernelModules = [ "ryzen_smu" ];
     extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
   };
+
   hardware = {
     cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
     isPhysical = true;
@@ -137,9 +128,11 @@
         cores = config.nix.settings.cores or 0;
       in
       lib.mkIf (cores > 0) { CPUQuota = "${toString (cores * 100)}%"; };
+
     tmpfiles.rules = [
       "d /persist 0755 root root - -"
       "d /persist/home/dk 0700 dk dk - -"
+      "d /persist/system/var/lib/local-passwords 0700 root root - -"
     ];
   };
 
