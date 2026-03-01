@@ -1,15 +1,10 @@
-_: # No arguments used in this module
-let
-  # NOTE: Check your actual firefox profile name.
-  # It might be 'default' or a hash.
-  firefoxProfile = ".mozilla/firefox/default";
-in
-{
+_: {
   imports = [
     ../../home
   ];
 
   home.stateVersion = "25.11";
+
   browsers = {
     firefox.enable = true;
     brave.enable = true;
@@ -17,7 +12,7 @@ in
 
   home.persistence."/persist" = {
     # Only app-state dotfiles remain here; XDG dirs moved to system
-    # persistence for hideMounts + allowTrash support
+    # persistence for hideMounts + allowTrash support.
     directories = [
       {
         directory = ".ssh";
@@ -28,18 +23,16 @@ in
         mode = "0700";
       }
       ".local/share/keyrings"
-      "${firefoxProfile}/storage"
+      ".mozilla/firefox"
       ".config/BraveSoftware/Brave-Browser/Default"
       ".local/state/wireplumber"
       "nixos-config"
     ];
+
     files = [
       ".config/fish/fish_variables"
       # TEMPORARY: removed while sops is disabled — re-add when sops is restored
       # ".config/sops/age/keys.txt"
-      "${firefoxProfile}/places.sqlite"
-      "${firefoxProfile}/favicons.sqlite"
-      "${firefoxProfile}/prefs.js"
     ];
   };
 }
