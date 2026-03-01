@@ -3,17 +3,18 @@
   config,
   lib,
   pkgs,
+  utils,
   ...
 }:
 
 let
   cfg = config.features.impermanence;
 
-  # Derive the systemd device-unit name using lib.escapeSystemdPath.
+  # Derive the systemd device-unit name using utils.escapeSystemdPath.
   # Hand-building "dev-mapper-${name}.device" from the path tail is fragile:
-  # systemd escapes slashes and special chars; lib.escapeSystemdPath matches
+  # systemd escapes slashes and special chars; utils.escapeSystemdPath matches
   # the actual unit name systemd generates for a given device path.
-  deviceUnit = "${lib.escapeSystemdPath cfg.device}.device";
+  deviceUnit = "${utils.escapeSystemdPath cfg.device}.device";
 in
 {
   imports = [ inputs.impermanence.nixosModules.impermanence ];
@@ -83,16 +84,16 @@ in
           }
 
           if btrfs subvolume show /btrfs/@ >/dev/null 2>&1; then
-            # @ is confirmed to be a subvolume â safe to recurse.
+            # @ is confirmed to be a subvolume - safe to recurse.
             delete_subvolume_recursively /btrfs/@
           elif [ -e /btrfs/@ ]; then
-            # @ exists but is not a subvolume â this is unexpected and dangerous.
+            # @ exists but is not a subvolume - this is unexpected and dangerous.
             # Bail out rather than risk deleting unrelated subvolumes via `list -o`.
             echo "ERROR: /btrfs/@ exists but is not a Btrfs subvolume" >&2
             umount /btrfs
             exit 1
           fi
-          # If /btrfs/@ does not exist at all, this is a first boot â skip deletion.
+          # If /btrfs/@ does not exist at all, this is a first boot - skip deletion.
 
           btrfs subvolume create /btrfs/@
 
