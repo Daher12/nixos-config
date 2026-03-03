@@ -71,7 +71,7 @@
       enable = true;
       device = "/dev/mapper/cryptroot";
     };
-    secureboot.enable = false; # TEMPORARY: setup post-boot via sbctl
+    secureboot.enable = true;
 
     nas.enable = true;
     desktop-gnome.autoLogin = true;
