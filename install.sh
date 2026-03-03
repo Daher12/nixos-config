@@ -33,7 +33,7 @@ trap cleanup EXIT
 
 export NIX_CONFIG="experimental-features = nix-command flakes"
 
-deps=(nix git mountpoint curl timeout nixos-install stat)
+deps=(nix git mountpoint curl timeout nixos-install stat mount umount)
 for cmd in "${deps[@]}"; do
   command -v "$cmd" >/dev/null || die "Missing required command: $cmd"
 done
@@ -73,11 +73,12 @@ info "Repo at commit: $PINNED_COMMIT"
 
 # --- Password hash ---
 
-NX="nix shell nixpkgs#whois --command"
+NX="nix shell nixpkgs#whois nixpkgs#jq --command"
 
 info "Setting password for ${USER_NAME}..."
 echo "(input hidden - type password and press Enter)"
-PW_HASH=$($NX mkpasswd -m yescrypt) || die "mkpasswd failed"
+PW_HASH=$(nix shell nixpkgs#whois --command mkpasswd -m yescrypt) \
+  || die "mkpasswd failed"
 [[ "$PW_HASH" == '$y$'* ]] || die "Unexpected hash format: $PW_HASH"
 
 printf '%s' "$PW_HASH" > "$PW_FILE"
@@ -99,6 +100,33 @@ nix run "github:nix-community/disko/$DISKO_REV" -- \
 for m in /mnt /mnt/boot /mnt/persist /mnt/nix; do
   mountpoint -q "$m" || die "Mount point not found: $m"
 done
+
+# --- Create @blank template snapshot ---
+
+info "Creating @blank template snapshot..."
+mkdir -p /tmp/btrfs-top
+mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /tmp/btrfs-top \
+  || die "Failed to mount Btrfs top-level subvolume"
+
+# Populate the root skeleton inside @ itself, not through /mnt, because /mnt/nix
+# and /mnt/persist are separate mounts and would otherwise hit @nix/@persist.
+mkdir -p /tmp/btrfs-top/@/{nix,persist,boot,home,etc,tmp,var/log,var/lib/sops-nix,var/lib/sbctl}
+chmod 1777 /tmp/btrfs-top/@/tmp
+
+if btrfs subvolume show /tmp/btrfs-top/@blank >/dev/null 2>&1; then
+  btrfs subvolume delete /tmp/btrfs-top/@blank \
+    || die "Failed to remove existing @blank snapshot"
+fi
+
+btrfs subvolume snapshot -r /tmp/btrfs-top/@ /tmp/btrfs-top/@blank \
+  || die "@blank snapshot creation failed"
+
+btrfs subvolume show /tmp/btrfs-top/@blank >/dev/null \
+  || die "@blank snapshot verification failed"
+
+umount /tmp/btrfs-top || die "Failed to unmount Btrfs top-level mount"
+rmdir /tmp/btrfs-top
+info "@blank snapshot created"
 
 # --- Persist password hash ---
 
