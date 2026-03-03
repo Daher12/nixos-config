@@ -11,12 +11,6 @@
 
   # --- Identity ---
   users.users.root.hashedPassword = lib.mkForce "";
-
-  # hashedPasswordFile is read on each activation. The file must exist on
-  # persist before first boot. install.sh is the hard guard for this.
-  users.users.dk.hashedPasswordFile =
-    lib.mkForce "/persist/system/var/lib/local-passwords/dk.yescrypt";
-
   # --- Hardware & Boot ---
   boot = {
     initrd.availableKernelModules = [
@@ -83,7 +77,10 @@
     desktop-gnome.autoLogin = true;
 
     # TEMPORARY: disabled until new admin key is generated and secrets re-encrypted
-    sops.enable = false;
+    sops = {
+      enable = true;
+      method = "age";
+    };
 
     filesystem = {
       type = "btrfs";
@@ -131,6 +128,7 @@
 
     tmpfiles.rules = [
       "d /persist 0755 root root - -"
+      "d /persist/home/ 0711 dk dk - -"
       "d /persist/home/dk 0700 dk dk - -"
       "d /persist/system/var/lib/local-passwords 0700 root root - -"
     ];

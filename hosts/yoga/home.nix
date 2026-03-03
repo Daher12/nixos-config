@@ -32,7 +32,7 @@ _: {
     files = [
       ".config/fish/fish_variables"
       # TEMPORARY: removed while sops is disabled — re-add when sops is restored
-      # ".config/sops/age/keys.txt"
+.config/sops/age/keys.txt
     ];
   };
 }
