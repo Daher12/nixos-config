@@ -34,7 +34,6 @@ _: {
       ".mozilla/firefox"
       ".config/BraveSoftware/Brave-Browser/Default"
       ".local/state/wireplumber"
-      "nixos-config"
     ];
 
     files = [ ];
