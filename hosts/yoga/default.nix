@@ -10,7 +10,13 @@
   ];
 
   # --- Identity ---
-  users.users.root.hashedPassword = lib.mkForce "";
+  sops.secrets.root_password_hash = {
+    neededForUsers = true;
+    sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
+  };
+
+  users.users.root.hashedPasswordFile = config.sops.secrets.root_password_hash.path;
+
   # --- Hardware & Boot ---
   boot = {
     initrd.availableKernelModules = [
@@ -73,7 +79,7 @@
     };
     secureboot.enable = true;
 
-    nas.enable = true;
+    nas.enable = false;
     desktop-gnome.autoLogin = true;
 
     # TEMPORARY: disabled until new admin key is generated and secrets re-encrypted
@@ -135,7 +141,6 @@
   };
 
   services = {
-    irqbalance.enable = true;
     journald.extraConfig = "SystemMaxUse=200M";
   };
 
