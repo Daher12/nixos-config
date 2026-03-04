@@ -54,12 +54,6 @@ in
     users = {
       mutableUsers = false;
 
-      users.root = {
-        # Empty password: allows direct root login after install to run passwd.
-        # TODO: replace with hashedPasswordFile via SOPS once system is stable.
-        hashedPassword = "";
-      };
-
       users.${mainUser} = {
         isNormalUser = true;
         inherit (cfg) description;
