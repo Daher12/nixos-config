@@ -187,6 +187,7 @@
         directories = [
           "Documents"
           "Downloads"
+          "nixos-config"
         ];
       };
     };
