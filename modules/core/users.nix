@@ -60,8 +60,7 @@ in
         group = mainUser;
 
         # Reads SOPS secret directly; activation guaranteed by neededForUsers = true
-        hashedPasswordFile = lib.mkIf sopsEnabled
-          config.sops.secrets."${mainUser}_password_hash".path;
+        hashedPasswordFile = lib.mkIf sopsEnabled config.sops.secrets."${mainUser}_password_hash".path;
 
         shell = pkgs.${cfg.defaultShell};
         extraGroups = [
