@@ -31,6 +31,10 @@ _: {
         mode = "0700";
       }
       {
+        directory = ".config/dconf";
+        mode = "0700";
+      }
+      {
         directory = ".local/share/fish";
         mode = "0700";
       }
