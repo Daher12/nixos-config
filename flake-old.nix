@@ -59,7 +59,7 @@
       };
     in
     {
-      formatter.${system} = pkgs.nixfmt;
+      formatter.${system} = pkgs.nixfmt-rfc-style;
 
       # CI/Lint Checks
       checks.${system} = {
@@ -70,7 +70,7 @@
           buildInputs = [ pkgs.deadnix ];
         } "deadnix --fail ${self} && touch $out";
         nixfmt = pkgs.runCommand "nixfmt-check" {
-          buildInputs = [ pkgs.nixfmt ];
+          buildInputs = [ pkgs.nixfmt-rfc-style ];
         } "find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out";
       };
 
