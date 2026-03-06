@@ -1,42 +1,32 @@
-{
-  config,
-  lib,
-  pkgs,
-  ...
-}:
+{ config, lib, pkgs, ... }:
 
 let
   cfg = config.features.filesystem;
 
-  hasAsyncDiscard =
-    cfg.type == "btrfs"
-    && lib.any (lib.hasInfix "discard=async") (lib.flatten (lib.attrValues cfg.mountOptions));
+  # Detect Btrfs from final merged filesystems (Disko-compatible)
+  btrfsFileSystems = lib.filterAttrs
+    (_: fs: (fs.fsType or null) == "btrfs")
+    config.fileSystems;
+
+  # Check actual mount options for discard=async
+  hasAsyncDiscard = lib.any
+    (fs: lib.elem "discard=async" (fs.options or []))
+    (lib.attrValues btrfsFileSystems);
 in
 {
   options.features.filesystem = {
     type = lib.mkOption {
-      type = lib.types.enum [
-        "ext4"
-        "btrfs"
-        "xfs"
-        "zfs"
-      ];
+      type = lib.types.enum [ "ext4" "btrfs" "xfs" "zfs" ];
       default = "ext4";
       description = "Primary filesystem type";
     };
 
     mountOptions = lib.mkOption {
       type = lib.types.attrsOf (lib.types.listOf lib.types.str);
-      default = { };
+      default = {};
       example = {
-        "/" = [
-          "noatime"
-          "compress=zstd:3"
-        ];
-        "/home" = [
-          "noatime"
-          "compress=zstd:1"
-        ];
+        "/" = [ "noatime" "compress=zstd:3" ];
+        "/home" = [ "noatime" "compress=zstd:1" ];
       };
       description = "Mount options per filesystem";
     };
@@ -65,23 +55,11 @@ in
         default = false;
         description = "Enable monthly Btrfs balance";
       };
-
-      defaultMountOptions = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [
-          "compress-force=zstd:1"
-          "noatime"
-          "nodiratime"
-          "discard=async"
-          "space_cache=v2"
-          "ssd"
-        ];
-        description = "Default mount options for Btrfs filesystems";
-      };
     };
   };
 
   config = lib.mkMerge [
+    # Btrfs defaults
     (lib.mkIf (cfg.type == "btrfs") {
       features.filesystem = {
         btrfs.autoScrub = lib.mkDefault true;
@@ -89,18 +67,24 @@ in
       };
     })
 
+    # Apply mount options
     {
       fileSystems = lib.mapAttrs (_: opts: {
         options = lib.mkAfter opts;
       }) cfg.mountOptions;
     }
 
+    # Fstrim auto-detection (fixed for Disko)
     {
-      services.fstrim.enable = if cfg.enableFstrim != null then cfg.enableFstrim else !hasAsyncDiscard;
+      services.fstrim.enable =
+        if cfg.enableFstrim != null
+        then cfg.enableFstrim
+        else (lib.attrNames btrfsFileSystems == []) || !hasAsyncDiscard;
 
       services.fstrim.interval = lib.mkIf config.services.fstrim.enable "weekly";
     }
 
+    # Btrfs scrub
     (lib.mkIf (cfg.type == "btrfs" && cfg.btrfs.autoScrub) {
       services.btrfs.autoScrub = {
         enable = true;
@@ -109,17 +93,16 @@ in
       };
     })
 
+    # Btrfs balance
     (lib.mkIf (cfg.type == "btrfs" && cfg.btrfs.autoBalance) {
       systemd.services.btrfs-balance = {
         description = "Monthly Btrfs balance";
-        serviceConfig = {
-          Type = "oneshot";
-        };
+        serviceConfig.Type = "oneshot";
         script = ''
           set -euo pipefail
-          ${lib.concatMapStringsSep "\n" (
-            fs: "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 ${fs}"
-          ) cfg.btrfs.scrubFilesystems}
+          ${lib.concatMapStringsSep "\n"
+            (fs: "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 ${fs}")
+            cfg.btrfs.scrubFilesystems}
         '';
       };
 

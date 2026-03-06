@@ -79,7 +79,6 @@
     };
     secureboot.enable = true;
 
-    nas.enable = false;
     desktop-gnome.autoLogin = true;
 
     # TEMPORARY: disabled until new admin key is generated and secrets re-encrypted
@@ -90,6 +89,9 @@
 
     filesystem = {
       type = "btrfs";
+      # PATCH: discard=async is set via Disko mount options; periodic fstrim is redundant
+      # and can cause latency spikes under workload overlap on this NVMe.
+      enableFstrim = false;
       btrfs = {
         autoScrub = true;
         scrubFilesystems = [ "/persist" ];

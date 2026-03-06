@@ -44,13 +44,17 @@ in
       defaultSopsFile = secretsPath;
 
       # Type-stable: only define keys for the active method (avoids relying on nullOr).
-      # This effectively unsets 'keyFile' when method is 'ssh', falling back to safe defaults.
       age = lib.mkMerge [
         (lib.mkIf (cfg.method == "age") {
           keyFile = "${persistPrefix}/var/lib/sops-nix/key.txt";
+          # PATCH: clear upstream sshKeyPaths default to prevent unintended combined-identity
+          # loading. sops-install-secrets merges all sources into one generated key file;
+          # leaving sshKeyPaths active in age mode loads an extra unintended identity.
+          sshKeyPaths = lib.mkForce [ ];
         })
         (lib.mkIf (cfg.method == "ssh") {
-          sshKeyPaths = [ "${persistPrefix}/etc/ssh/ssh_host_ed25519_key" ];
+          # PATCH: mkForce replaces upstream default rather than appending to it.
+          sshKeyPaths = lib.mkForce [ "${persistPrefix}/etc/ssh/ssh_host_ed25519_key" ];
         })
       ];
     };

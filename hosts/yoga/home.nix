@@ -30,12 +30,18 @@ _: {
         directory = ".config/fish";
         mode = "0700";
       }
+      {
+        directory = ".local/share/fish";
+        mode = "0700";
+      }
       ".local/share/keyrings"
       ".mozilla/firefox"
       ".config/BraveSoftware/Brave-Browser/Default"
       ".local/state/wireplumber"
     ];
 
-    files = [ ];
+    files = [
+      ".oxrc"
+    ];
   };
 }
