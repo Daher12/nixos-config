@@ -22,17 +22,30 @@ _: {
         directory = ".gnupg";
         mode = "0700";
       }
+      {
+        directory = ".config/sops/age";
+        mode = "0700";
+      }
+      {
+        directory = ".config/fish";
+        mode = "0700";
+      }
+      {
+        directory = ".config/dconf";
+        mode = "0700";
+      }
+      {
+        directory = ".local/share/fish";
+        mode = "0700";
+      }
       ".local/share/keyrings"
       ".mozilla/firefox"
       ".config/BraveSoftware/Brave-Browser/Default"
       ".local/state/wireplumber"
-      "nixos-config"
     ];
 
     files = [
-      ".config/fish/fish_variables"
-      # TEMPORARY: removed while sops is disabled — re-add when sops is restored
-      # ".config/sops/age/keys.txt"
+      ".oxrc"
     ];
   };
 }
