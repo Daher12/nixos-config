@@ -69,7 +69,7 @@ in
           # secureboot.nix still mkForce-disables this when active.
           enable = lib.mkDefault (!sbActive);
           configurationLimit = lib.mkDefault 10;
-          consoleMode = lib.mkDefault "max";
+          consoleMode = lib.mkDefault "keep";
         };
         efi.canTouchEfiVariables = true;
         # Keep ESP mountpoint consistent with Disko (ESP mounted at /boot)
