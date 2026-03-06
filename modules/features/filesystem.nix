@@ -1,32 +1,46 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.features.filesystem;
 
   # Detect Btrfs from final merged filesystems (Disko-compatible)
-  btrfsFileSystems = lib.filterAttrs
-    (_: fs: (fs.fsType or null) == "btrfs")
-    config.fileSystems;
+  btrfsFileSystems = lib.filterAttrs (_: fs: (fs.fsType or null) == "btrfs") config.fileSystems;
 
   # Check actual mount options for discard=async
-  hasAsyncDiscard = lib.any
-    (fs: lib.elem "discard=async" (fs.options or []))
-    (lib.attrValues btrfsFileSystems);
+  hasAsyncDiscard = lib.any (fs: lib.elem "discard=async" (fs.options or [ ])) (
+    lib.attrValues btrfsFileSystems
+  );
 in
 {
   options.features.filesystem = {
     type = lib.mkOption {
-      type = lib.types.enum [ "ext4" "btrfs" "xfs" "zfs" ];
+      type = lib.types.enum [
+        "ext4"
+        "btrfs"
+        "xfs"
+        "zfs"
+      ];
       default = "ext4";
       description = "Primary filesystem type";
     };
 
     mountOptions = lib.mkOption {
       type = lib.types.attrsOf (lib.types.listOf lib.types.str);
-      default = {};
+      default = { };
       example = {
-        "/" = [ "noatime" "compress=zstd:3" ];
-        "/home" = [ "noatime" "compress=zstd:1" ];
+        "/" = [
+          "noatime"
+          "compress=zstd:3"
+        ];
+        "/home" = [
+          "noatime"
+          "compress=zstd:1"
+        ];
       };
       description = "Mount options per filesystem";
     };
@@ -77,9 +91,10 @@ in
     # Fstrim auto-detection (fixed for Disko)
     {
       services.fstrim.enable =
-        if cfg.enableFstrim != null
-        then cfg.enableFstrim
-        else (lib.attrNames btrfsFileSystems == []) || !hasAsyncDiscard;
+        if cfg.enableFstrim != null then
+          cfg.enableFstrim
+        else
+          (lib.attrNames btrfsFileSystems == [ ]) || !hasAsyncDiscard;
 
       services.fstrim.interval = lib.mkIf config.services.fstrim.enable "weekly";
     }
@@ -100,9 +115,9 @@ in
         serviceConfig.Type = "oneshot";
         script = ''
           set -euo pipefail
-          ${lib.concatMapStringsSep "\n"
-            (fs: "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 ${fs}")
-            cfg.btrfs.scrubFilesystems}
+          ${lib.concatMapStringsSep "\n" (
+            fs: "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 ${fs}"
+          ) cfg.btrfs.scrubFilesystems}
         '';
       };
 
