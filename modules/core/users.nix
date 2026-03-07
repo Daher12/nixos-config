@@ -54,20 +54,13 @@ in
     users = {
       mutableUsers = false;
 
-      users.root = {
-        # Empty password: allows direct root login after install to run passwd.
-        # TODO: replace with hashedPasswordFile via SOPS once system is stable.
-        hashedPassword = "";
-      };
-
       users.${mainUser} = {
         isNormalUser = true;
         inherit (cfg) description;
         group = mainUser;
 
         # Reads SOPS secret directly; activation guaranteed by neededForUsers = true
-        hashedPasswordFile = lib.mkIf sopsEnabled
-          config.sops.secrets."${mainUser}_password_hash".path;
+        hashedPasswordFile = lib.mkIf sopsEnabled config.sops.secrets."${mainUser}_password_hash".path;
 
         shell = pkgs.${cfg.defaultShell};
         extraGroups = [

@@ -15,6 +15,8 @@ in
         "script"
         "text"
       ];
+      # PATCH: safe default prevents eval failure if silent = true without explicit theme
+      default = "spinner";
       description = "Plymouth theme to use";
     };
     tmpfs = {
@@ -60,11 +62,14 @@ in
         "plymouth.use-simpledrm"
       ];
       loader = {
-        # Standard boot only enabled if Secure Boot feature is OFF
         systemd-boot = {
-          enable = lib.mkIf (!sbActive) true;
+          # PATCH: lib.mkDefault (!sbActive) replaces lib.mkIf (!sbActive) true.
+          # The old pattern contributed {} (not false) when sbActive=true, making the
+          # result depend on other modules rather than expressing an explicit value.
+          # secureboot.nix still mkForce-disables this when active.
+          enable = lib.mkDefault (!sbActive);
           configurationLimit = lib.mkDefault 10;
-          consoleMode = lib.mkDefault "max";
+          consoleMode = lib.mkDefault "keep";
         };
         efi.canTouchEfiVariables = true;
         # Keep ESP mountpoint consistent with Disko (ESP mounted at /boot)

@@ -10,12 +10,12 @@
   ];
 
   # --- Identity ---
-  users.users.root.hashedPassword = lib.mkForce "";
+  sops.secrets.root_password_hash = {
+    neededForUsers = true;
+    sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
+  };
 
-  # hashedPasswordFile is read on each activation. The file must exist on
-  # persist before first boot. install.sh is the hard guard for this.
-  users.users.dk.hashedPasswordFile =
-    lib.mkForce "/persist/system/var/lib/local-passwords/dk.yescrypt";
+  users.users.root.hashedPasswordFile = config.sops.secrets.root_password_hash.path;
 
   # --- Hardware & Boot ---
   boot = {
@@ -77,16 +77,21 @@
       enable = true;
       device = "/dev/mapper/cryptroot";
     };
-    secureboot.enable = false; # TEMPORARY: setup post-boot via sbctl
+    secureboot.enable = true;
 
-    nas.enable = true;
     desktop-gnome.autoLogin = true;
 
     # TEMPORARY: disabled until new admin key is generated and secrets re-encrypted
-    sops.enable = false;
+    sops = {
+      enable = true;
+      method = "age";
+    };
 
     filesystem = {
       type = "btrfs";
+      # PATCH: discard=async is set via Disko mount options; periodic fstrim is redundant
+      # and can cause latency spikes under workload overlap on this NVMe.
+      enableFstrim = false;
       btrfs = {
         autoScrub = true;
         scrubFilesystems = [ "/persist" ];
@@ -131,13 +136,13 @@
 
     tmpfiles.rules = [
       "d /persist 0755 root root - -"
+      "d /persist/home/ 0711 dk dk - -"
       "d /persist/home/dk 0700 dk dk - -"
       "d /persist/system/var/lib/local-passwords 0700 root root - -"
     ];
   };
 
   services = {
-    irqbalance.enable = true;
     journald.extraConfig = "SystemMaxUse=200M";
   };
 
@@ -189,6 +194,7 @@
         directories = [
           "Documents"
           "Downloads"
+          "nixos-config"
         ];
       };
     };
