@@ -59,7 +59,7 @@ in
         "systemd.log_level=warning"
         "nowatchdog"
         "nmi_watchdog=0"
-#        "plymouth.use-simpledrm"
+        #        "plymouth.use-simpledrm"
       ];
       loader = {
         systemd-boot = {
