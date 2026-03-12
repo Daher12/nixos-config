@@ -14,7 +14,7 @@ in
 
     memoryPercent = lib.mkOption {
       type = lib.types.int;
-      default = 50;
+      default = 80;
       description = "Percentage of RAM to use for ZRAM";
     };
   };
