@@ -12,15 +12,23 @@ let
 
   vmCfg = lib.attrByPath [ "features" "virtualization" "windows11" ] {
     enable = false;
-    ip = "192.168.122.10";
     name = "windows11";
+    ip = null;
   } osConfig;
 
   secretsFile = "${config.xdg.configHome}/winapps/secrets.conf";
+
+  freerdpCommand = pkgs.writeShellScript "winapps-xfreerdp" ''
+    if [ -x "${pkgs.freerdp}/bin/xfreerdp3" ]; then
+      exec "${pkgs.freerdp}/bin/xfreerdp3" "$@"
+    fi
+
+    exec "${pkgs.freerdp}/bin/xfreerdp" "$@"
+  '';
 in
 {
   options.programs.winapps = {
-    enable = lib.mkEnableOption "WinApps integration";
+    enable = lib.mkEnableOption "WinApps integration over libvirt/RDP";
 
     vmName = lib.mkOption {
       type = lib.types.str;
@@ -29,32 +37,54 @@ in
     };
 
     vmIP = lib.mkOption {
-      type = lib.types.str;
+      type = with lib.types; nullOr str;
       default = vmCfg.ip;
-      description = "VM IP address";
+      description = ''
+        Optional guest IPv4 address.
+        Leave null for WinApps libvirt auto-detection.
+      '';
     };
 
     windowsDomain = lib.mkOption {
       type = lib.types.str;
-      default = "WORKGROUP";
-      description = "Windows domain/workgroup for RDP";
+      default = "";
+      description = "Windows domain; leave empty for local accounts";
     };
 
-    # Lean defaults for local VM + Office:
-    # - gfx AVC 444: crisp text, good for Office
-    # - clipboard: must-have
-    # - cert-ignore: avoid friction
-    # - auto-reconnect: usability
+    rdpScale = lib.mkOption {
+      type = lib.types.enum [ 100 140 180 ];
+      default = 100;
+      description = "WinApps display scaling factor";
+    };
+
     rdpFlags = lib.mkOption {
       type = lib.types.str;
-      default = "/gfx:avc444 /clipboard /cert-ignore +auto-reconnect";
-      description = "FreeRDP flags";
+      default = "/cert:tofu /clipboard +auto-reconnect /gfx:avc444 +home-drive";
+      description = "Base FreeRDP flags for WinApps sessions";
+    };
+
+    rdpFlagsNonWindows = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = "Extra FreeRDP flags for RemoteApp launches";
+    };
+
+    rdpFlagsWindows = lib.mkOption {
+      type = lib.types.str;
+      default = "/dynamic-resolution";
+      description = "Extra FreeRDP flags for full desktop sessions";
+    };
+
+    debug = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable WinApps debug logging";
     };
 
     credentialsFile = lib.mkOption {
       type = lib.types.str;
       default = secretsFile;
-      description = "Path to credentials file";
+      description = "Path to WinApps credentials file";
     };
   };
 
@@ -79,23 +109,30 @@ in
     ];
 
     xdg.configFile."winapps/winapps.conf".text = ''
-      RDP_IP="${cfg.vmIP}"
-      RDP_DOMAIN="${cfg.windowsDomain}"
-      RDP_FLAGS="${cfg.rdpFlags}"
-      FREERDP_COMMAND="${pkgs.freerdp}/bin/xfreerdp"
+      WAFLAVOR="libvirt"
       VM_NAME="${cfg.vmName}"
+      RDP_DOMAIN="${cfg.windowsDomain}"
+      RDP_SCALE="${toString cfg.rdpScale}"
+      REMOVABLE_MEDIA="/run/media"
+      RDP_FLAGS="${cfg.rdpFlags}"
+      RDP_FLAGS_NON_WINDOWS="${cfg.rdpFlagsNonWindows}"
+      RDP_FLAGS_WINDOWS="${cfg.rdpFlagsWindows}"
+      FREERDP_COMMAND="${freerdpCommand}"
       MULTIMON="false"
-      DEBUG="false"
+      DEBUG="${if cfg.debug then "true" else "false"}"
+      AUTOPAUSE="off"
+      ${lib.optionalString (cfg.vmIP != null) ''RDP_IP="${cfg.vmIP}"''}
 
       [ -f "${cfg.credentialsFile}" ] && . "${cfg.credentialsFile}"
     '';
 
     home.activation.winappsSecrets = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       SECRETS="${cfg.credentialsFile}"
+
       if [ ! -f "$SECRETS" ]; then
         $DRY_RUN_CMD mkdir -p "$(dirname "$SECRETS")"
-        $DRY_RUN_CMD tee "$SECRETS" > /dev/null << 'EOF'
-      # WinApps Credentials (not tracked in git)
+        $DRY_RUN_CMD tee "$SECRETS" > /dev/null <<'EOF'
+      # WinApps credentials
       RDP_USER="your-windows-username"
       RDP_PASS="your-windows-password"
       EOF
