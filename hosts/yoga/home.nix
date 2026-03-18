@@ -1,4 +1,4 @@
-_: {
+{
   imports = [
     ../../home
   ];
@@ -10,9 +10,14 @@ _: {
     brave.enable = true;
   };
 
+  programs.winapps = {
+    enable = true;
+    vmIP = "192.168.122.139";
+    windowsDomain = "DESKTOP-DVTRQ43";
+    rdpScale = 180;
+  };
+
   home.persistence."/persist" = {
-    # Only app-state dotfiles remain here; XDG dirs moved to system
-    # persistence for hideMounts + allowTrash support.
     directories = [
       {
         directory = ".ssh";
@@ -32,6 +37,14 @@ _: {
       }
       {
         directory = ".config/dconf";
+        mode = "0700";
+      }
+      {
+        directory = ".config/winapps";
+        mode = "0700";
+      }
+      {
+        directory = ".config/freerdp";
         mode = "0700";
       }
       {
