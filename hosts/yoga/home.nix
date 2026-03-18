@@ -1,9 +1,13 @@
+{ ... }:
+
 {
   imports = [
     ../../home
   ];
 
   home.stateVersion = "25.11";
+
+  home.sessionPath = [ "/home/dk/.local/bin" ];
 
   browsers = {
     firefox.enable = true;
@@ -60,6 +64,7 @@
     files = [
       ".oxrc"
       ".local/share/applications/windows.desktop"
+      ".local/bin/windows"
     ];
   };
 }
