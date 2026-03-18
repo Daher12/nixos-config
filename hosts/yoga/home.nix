@@ -59,6 +59,7 @@
 
     files = [
       ".oxrc"
+      ".local/share/applications/windows.desktop"
     ];
   };
 }
