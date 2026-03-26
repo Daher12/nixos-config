@@ -57,13 +57,16 @@
       }
       ".local/share/keyrings"
       ".mozilla/firefox"
-      ".config/BraveSoftware/Brave-Browser/Default"
+      ".config/BraveSoftware/Brave-Browser"
       ".local/state/wireplumber"
+      ".local/share/winapps/icons"
+      ".local/share/applications"
+      
+      
     ];
 
     files = [
       ".oxrc"
-      ".local/share/applications/windows.desktop"
       ".local/bin/windows"
     ];
   };
