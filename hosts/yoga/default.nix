@@ -78,6 +78,7 @@
       device = "/dev/mapper/cryptroot";
     };
     secureboot.enable = true;
+    nas.enable = true;
 
     desktop-gnome.autoLogin = true;
 
