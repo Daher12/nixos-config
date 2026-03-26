@@ -54,11 +54,43 @@ in
   };
 
   # Features enabled via standardized options
-  features.sops.enable = true;
-  features.vpn.tailscale = {
-    enable = true;
-    trustInterface = true;
-    routingFeatures = "server";
+  features = {
+    sops.enable = true;
+
+    vpn.tailscale = {
+      enable = true;
+      trustInterface = true;
+      routingFeatures = "server";
+    };
+
+    mnamer = {
+      enable = true;
+
+      paths = {
+        downloads = "/mnt/storage/downloads";
+        movies = "/mnt/storage/movies";
+        shows = "/mnt/storage/shows";
+      };
+
+      formats = {
+        movie = "{name} ({year})/{name} ({year}).{extension}";
+        episode = "{series}/Season {season:02}/{series} - S{season:02}E{episode:02} - {title}.{extension}";
+      };
+
+      ignore = [
+        ".*sample.*"
+        "^RARBG.*"
+        ".*\\.part[0-9]+.*"
+        ".*\\btrailer\\b.*"
+        ".*\\bnfo\\b.*"
+      ];
+
+      extraSettings = {
+        hits = 8;
+      };
+
+      extraCliArgs = [ "--no-style" ];
+    };
   };
 
   hardware.intel-gpu = {
@@ -155,5 +187,6 @@ in
     pipewire.enable = false;
     pulseaudio.enable = false;
   };
+
   security.rtkit.enable = false;
 }

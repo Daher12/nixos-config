@@ -6,6 +6,7 @@
     ./fonts.nix
     ./impermanence.nix
     ./kernel.nix
+	./mnamer.nix
     ./nas.nix
     ./network-optimization.nix
     ./oomd.nix
