@@ -52,7 +52,11 @@ in
     };
 
     rdpScale = lib.mkOption {
-      type = lib.types.enum [ 100 140 180 ];
+      type = lib.types.enum [
+        100
+        140
+        180
+      ];
       default = 100;
       description = "WinApps display scaling factor";
     };

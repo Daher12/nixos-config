@@ -22,10 +22,9 @@ let
       <ip address='192.168.122.1' netmask='255.255.255.0'>
         <dhcp>
           <range start='192.168.122.100' end='192.168.122.254'/>
-          ${
-            lib.optionalString (w11.ip != null && w11.mac != null)
-              "<host mac='${w11.mac}' name='${w11.name}' ip='${w11.ip}'/>"
-          }
+          ${lib.optionalString (
+            w11.ip != null && w11.mac != null
+          ) "<host mac='${w11.mac}' name='${w11.name}' ip='${w11.ip}'/>"}
         </dhcp>
       </ip>
     </network>
@@ -134,11 +133,12 @@ in
       });
     '';
 
-    systemd.tmpfiles.rules =
-      [ "d /var/lib/libvirt/images 0775 root libvirtd - -" ]
-      ++ lib.optionals (filesystemType == "btrfs") [
-        "h /var/lib/libvirt/images - - - - +C"
-      ];
+    systemd.tmpfiles.rules = [
+      "d /var/lib/libvirt/images 0775 root libvirtd - -"
+    ]
+    ++ lib.optionals (filesystemType == "btrfs") [
+      "h /var/lib/libvirt/images - - - - +C"
+    ];
 
     systemd.services.libvirt-default-network = {
       description = "Ensure libvirt default network exists and is active";

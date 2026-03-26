@@ -108,12 +108,12 @@
     virtualization = {
       enable = true;
       windows11 = {
-       enable = true;
-       name = "windows11";
-       ip = "192.168.122.139";
-       mac = "52:54:00:03:b9:49";
+        enable = true;
+        name = "windows11";
+        ip = "192.168.122.139";
+        mac = "52:54:00:03:b9:49";
       };
-     };
+    };
     power-tlp.settings = {
       TLP_DEFAULT_MODE = "BAT";
       TLP_PERSISTENT_DEFAULT = 1;
