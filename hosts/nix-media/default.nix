@@ -21,6 +21,7 @@ in
     ./caddy.nix
     ./ntfy.nix
     ./maintenance.nix
+    ./mnamer.nix
   ];
 
   # --- Core Configuration ---
