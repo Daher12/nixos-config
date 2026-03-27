@@ -3,6 +3,39 @@
 let
   cfg = config.features.mnamer;
 
+  inherit (cfg)
+    batch
+    recurse
+    lower
+    scene
+    verbose
+    language
+    ignore
+    mask
+    replaceBefore
+    replaceAfter
+    extraSettings
+    extraCliArgs
+    ;
+
+  inherit (cfg.paths)
+    downloads
+    movies
+    shows
+    ;
+
+  inherit (cfg.formats)
+    movie
+    episode
+    ;
+
+  inherit (cfg.apiKeys)
+    tmdb
+    omdb
+    tvdb
+    tvmaze
+    ;
+
   resolvedPackage =
     if cfg.package != null then
       cfg.package
@@ -19,40 +52,42 @@ let
 
   settingsFile = json.generate "mnamer-v2.json" (
     {
-      batch = cfg.batch;
-      recurse = cfg.recurse;
-      lower = cfg.lower;
-      scene = cfg.scene;
-      verbose = cfg.verbose;
+      inherit
+        batch
+        recurse
+        lower
+        scene
+        verbose
+        language
+        ignore
+        mask
+        ;
+
       no_overwrite = cfg.noOverwrite;
       no_guess = cfg.noGuess;
-      language = cfg.language;
 
-      movie_directory = cfg.paths.movies;
-      episode_directory = cfg.paths.shows;
+      movie_directory = movies;
+      episode_directory = shows;
 
-      movie_format = cfg.formats.movie;
-      episode_format = cfg.formats.episode;
+      movie_format = movie;
+      episode_format = episode;
 
-      ignore = cfg.ignore;
-      mask = cfg.mask;
-
-      replace_before = cfg.replaceBefore;
-      replace_after = cfg.replaceAfter;
+      replace_before = replaceBefore;
+      replace_after = replaceAfter;
     }
-    // lib.optionalAttrs (cfg.apiKeys.tmdb != null) {
-      api_key_tmdb = cfg.apiKeys.tmdb;
+    // lib.optionalAttrs (tmdb != null) {
+      api_key_tmdb = tmdb;
     }
-    // lib.optionalAttrs (cfg.apiKeys.omdb != null) {
-      api_key_omdb = cfg.apiKeys.omdb;
+    // lib.optionalAttrs (omdb != null) {
+      api_key_omdb = omdb;
     }
-    // lib.optionalAttrs (cfg.apiKeys.tvdb != null) {
-      api_key_tvdb = cfg.apiKeys.tvdb;
+    // lib.optionalAttrs (tvdb != null) {
+      api_key_tvdb = tvdb;
     }
-    // lib.optionalAttrs (cfg.apiKeys.tvmaze != null) {
-      api_key_tvmaze = cfg.apiKeys.tvmaze;
+    // lib.optionalAttrs (tvmaze != null) {
+      api_key_tvmaze = tvmaze;
     }
-    // cfg.extraSettings
+    // extraSettings
   );
 
   commonArgs =
@@ -60,7 +95,7 @@ let
       "--config-path"
       settingsFile
     ]
-    ++ cfg.extraCliArgs;
+    ++ extraCliArgs;
 
   mnamerTools = pkgs.writeShellApplication {
     name = "mnamer-tools";
@@ -68,7 +103,7 @@ let
     text = ''
       set -euo pipefail
 
-      downloads=${lib.escapeShellArg cfg.paths.downloads}
+      downloads=${lib.escapeShellArg downloads}
 
       run() {
         exec ${lib.getExe resolvedPackage} ${lib.escapeShellArgs commonArgs} "$@"
@@ -115,6 +150,10 @@ let
           run "$@"
           ;;
 
+        source)
+          printf '%s\n' "$downloads"
+          ;;
+
         path)
           printf '%s\n' ${lib.escapeShellArg settingsFile}
           ;;
@@ -134,6 +173,7 @@ Usage:
   mnamer-tools movies-safe
   mnamer-tools shows-safe
   mnamer-tools raw ...
+  mnamer-tools source
   mnamer-tools path
   mnamer-tools dump
 EOF
@@ -192,7 +232,7 @@ in
     noGuess = lib.mkOption {
       type = lib.types.bool;
       default = false;
-      description = "Default no-guess setting for generated config.";
+      description = "Default no-guess setting for the generated config.";
     };
 
     language = lib.mkOption {
@@ -327,13 +367,11 @@ in
         message = "features.mnamer.enable is true, but no mnamer package was found. Set features.mnamer.package explicitly.";
       }
       {
-        assertion =
-          cfg.paths.downloads != cfg.paths.movies
-          && cfg.paths.downloads != cfg.paths.shows;
+        assertion = downloads != movies && downloads != shows;
         message = "features.mnamer: downloads path must be separate from movies/shows destinations.";
       }
       {
-        assertion = cfg.paths.movies != cfg.paths.shows;
+        assertion = movies != shows;
         message = "features.mnamer: movie and show destination paths must differ.";
       }
     ];
