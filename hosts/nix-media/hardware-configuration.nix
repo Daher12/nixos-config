@@ -1,6 +1,7 @@
 { lib, modulesPath, ... }:
 
 # Hardware Configuration - Intel N100 Mini PC
+
 {
   imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
 
@@ -65,9 +66,9 @@
         "x-systemd.after=mnt-disk2.mount"
         "fsname=storage"
         "cache.files=auto-full"  # was partial
-#        "dropcacheonclose=true"
+##        "dropcacheonclose=true"
         "category.create=pfrd"
-        "func.getattr=first" # was: newest — eliminates multi-branch stat
+        "func.getattr=ff" # was: newest — eliminates multi-branch stat
         "moveonenospc=true"
         "minfreespace=20G"
         "allow_other"
