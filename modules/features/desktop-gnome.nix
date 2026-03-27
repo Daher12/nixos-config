@@ -119,6 +119,7 @@ in
         gnome-themes-extra
         gnomeExtensions.user-themes
         gnomeExtensions.blur-my-shell
+        gtk3
       ];
     };
 
