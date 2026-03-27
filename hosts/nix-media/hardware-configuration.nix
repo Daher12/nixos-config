@@ -64,10 +64,10 @@
         "x-systemd.after=mnt-disk1.mount"
         "x-systemd.after=mnt-disk2.mount"
         "fsname=storage"
-        "cache.files=partial"
-        "dropcacheonclose=true"
+        "cache.files=auto-full"  # was partial
+#        "dropcacheonclose=true"
         "category.create=pfrd"
-        "func.getattr=newest"
+        "func.getattr=first" # was: newest — eliminates multi-branch stat
         "moveonenospc=true"
         "minfreespace=20G"
         "allow_other"
