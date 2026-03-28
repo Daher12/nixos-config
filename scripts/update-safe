@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  update-safe <host> [test|boot|switch|build-only]
+
+Examples:
+  update-safe yoga
+  update-safe latitude test
+  update-safe yoga boot
+  update-safe nix-media switch
+EOF
+}
+
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  usage
+  exit 1
+fi
+
+host="$1"
+action="${2:-build-only}"
+
+case "$host" in
+  yoga|latitude|nix-media) ;;
+  *)
+    echo "Invalid host: $host" >&2
+    usage
+    exit 1
+    ;;
+esac
+
+case "$action" in
+  build-only|test|boot|switch) ;;
+  *)
+    echo "Invalid action: $action" >&2
+    usage
+    exit 1
+    ;;
+esac
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "==> Pull latest changes"
+git pull --ff-only
+
+echo "==> Update safe flake inputs"
+nix flake update \
+  nixpkgs nixpkgs-unstable nixos-hardware \
+  home-manager sops-nix disko impermanence \
+  winapps preload-ng
+
+echo "==> Run flake checks"
+nix flake check --impure --keep-going
+
+echo "==> Build host: $host"
+nix build ".#nixosConfigurations.${host}.config.system.build.toplevel"
+
+case "$action" in
+  build-only)
+    echo "==> Build completed. No activation performed."
+    ;;
+  test)
+    echo "==> Activating test configuration for $host"
+    sudo nixos-rebuild test --flake ".#${host}"
+    ;;
+  boot)
+    echo "==> Staging configuration for next boot on $host"
+    sudo nixos-rebuild boot --flake ".#${host}"
+    ;;
+  switch)
+    echo "==> Switching live system on $host"
+    sudo nixos-rebuild switch --flake ".#${host}"
+    ;;
+esac

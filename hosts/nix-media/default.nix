@@ -30,13 +30,13 @@ in
       enable = true;
       size = "80%";
     };
-    
+
     nix.gc = {
-     automatic = true;
-     dates = "Sun 03:15";
-     flags = "--delete-older-than 60d";
+      automatic = true;
+      dates = "Sun 03:15";
+      flags = "--delete-older-than 60d";
     };
-    
+
     users.defaultShell = "zsh";
     sysctl.optimizeForServer = true;
   };

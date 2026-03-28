@@ -56,6 +56,10 @@
     };
   };
 
+  programs.fish.functions.nus = ''
+    "$HOME/nixos-config/scripts/update-safe" $argv
+  '';
+
   browsers = {
     firefox.enable = true;
     brave.enable = true;

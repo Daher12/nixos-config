@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.features.mnamer;
@@ -43,10 +48,7 @@ let
       let
         rootPkg = lib.attrByPath [ "mnamer" ] null pkgs;
       in
-      if rootPkg != null then
-        rootPkg
-      else
-        lib.attrByPath [ "python3Packages" "mnamer" ] null pkgs;
+      if rootPkg != null then rootPkg else lib.attrByPath [ "python3Packages" "mnamer" ] null pkgs;
 
   json = pkgs.formats.json { };
 
@@ -90,96 +92,95 @@ let
     // extraSettings
   );
 
-  commonArgs =
-    [
-      "--config-path"
-      settingsFile
-    ]
-    ++ extraCliArgs;
+  commonArgs = [
+    "--config-path"
+    settingsFile
+  ]
+  ++ extraCliArgs;
 
   mnamerTools = pkgs.writeShellApplication {
     name = "mnamer-tools";
     runtimeInputs = [ resolvedPackage ];
     text = ''
-      set -euo pipefail
+            set -euo pipefail
 
-      downloads=${lib.escapeShellArg downloads}
+            downloads=${lib.escapeShellArg downloads}
 
-      run() {
-        exec ${lib.getExe resolvedPackage} ${lib.escapeShellArgs commonArgs} "$@"
-      }
+            run() {
+              exec ${lib.getExe resolvedPackage} ${lib.escapeShellArgs commonArgs} "$@"
+            }
 
-      case "''${1-}" in
-        import-test)
-          shift
-          run --test "$downloads" "$@"
-          ;;
+            case "''${1-}" in
+              import-test)
+                shift
+                run --test "$downloads" "$@"
+                ;;
 
-        movies-test)
-          shift
-          run --test --no-guess --media movie "$downloads" "$@"
-          ;;
+              movies-test)
+                shift
+                run --test --no-guess --media movie "$downloads" "$@"
+                ;;
 
-        shows-test)
-          shift
-          run --test --no-guess --media episode "$downloads" "$@"
-          ;;
+              shows-test)
+                shift
+                run --test --no-guess --media episode "$downloads" "$@"
+                ;;
 
-        import)
-          shift
-          run "$downloads" "$@"
-          ;;
+              import)
+                shift
+                run "$downloads" "$@"
+                ;;
 
-        import-safe)
-          shift
-          run --no-guess "$downloads" "$@"
-          ;;
+              import-safe)
+                shift
+                run --no-guess "$downloads" "$@"
+                ;;
 
-        movies-safe)
-          shift
-          run --no-guess --media movie "$downloads" "$@"
-          ;;
+              movies-safe)
+                shift
+                run --no-guess --media movie "$downloads" "$@"
+                ;;
 
-        shows-safe)
-          shift
-          run --no-guess --media episode "$downloads" "$@"
-          ;;
+              shows-safe)
+                shift
+                run --no-guess --media episode "$downloads" "$@"
+                ;;
 
-        raw)
-          shift
-          run "$@"
-          ;;
+              raw)
+                shift
+                run "$@"
+                ;;
 
-        source)
-          printf '%s\n' "$downloads"
-          ;;
+              source)
+                printf '%s\n' "$downloads"
+                ;;
 
-        path)
-          printf '%s\n' ${lib.escapeShellArg settingsFile}
-          ;;
+              path)
+                printf '%s\n' ${lib.escapeShellArg settingsFile}
+                ;;
 
-        dump)
-          exec cat ${lib.escapeShellArg settingsFile}
-          ;;
+              dump)
+                exec cat ${lib.escapeShellArg settingsFile}
+                ;;
 
-        *)
-          cat <<'EOF'
-Usage:
-  mnamer-tools import-test
-  mnamer-tools movies-test
-  mnamer-tools shows-test
-  mnamer-tools import
-  mnamer-tools import-safe
-  mnamer-tools movies-safe
-  mnamer-tools shows-safe
-  mnamer-tools raw ...
-  mnamer-tools source
-  mnamer-tools path
-  mnamer-tools dump
-EOF
-          exit 1
-          ;;
-      esac
+              *)
+                cat <<'EOF'
+      Usage:
+        mnamer-tools import-test
+        mnamer-tools movies-test
+        mnamer-tools shows-test
+        mnamer-tools import
+        mnamer-tools import-safe
+        mnamer-tools movies-safe
+        mnamer-tools shows-safe
+        mnamer-tools raw ...
+        mnamer-tools source
+        mnamer-tools path
+        mnamer-tools dump
+      EOF
+                exit 1
+                ;;
+            esac
     '';
   };
 in
