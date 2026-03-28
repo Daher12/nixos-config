@@ -19,6 +19,7 @@
 
   # --- Hardware & Boot ---
   boot = {
+    loader.timeout = 0;
     initrd.availableKernelModules = [
       "nvme"
       "xhci_pci"

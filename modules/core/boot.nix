@@ -61,7 +61,8 @@ in
         "nmi_watchdog=0"
         "plymouth.use-simpledrm"
       ];
-      loader = {
+      loader = {         
+        timeout = lib.mkDefault 3;
         systemd-boot = {
           # PATCH: lib.mkDefault (!sbActive) replaces lib.mkIf (!sbActive) true.
           # The old pattern contributed {} (not false) when sbActive=true, making the
