@@ -52,6 +52,10 @@
       files = [
         ".oxrc"
         ".local/bin/windows"
+        ".config/gtk-3.0/bookmarks"
+        ".config/gtk-4.0/bookmarks"
+        ".config/user-dirs.dirs"
+ 	   ".config/user-dirs.locale"
       ];
     };
   };

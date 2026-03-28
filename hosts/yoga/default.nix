@@ -199,7 +199,7 @@
       allowTrash = true;
       users.dk = {
         directories = [
-          "Documents"
+          "Dokumente"
           "Downloads"
           "nixos-config"
         ];
