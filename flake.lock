@@ -388,17 +388,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1767113149,
-        "narHash": "sha256-T4NvkU3N+2i41UENu9RuMYLJZSLE/CNuGGJEKsWXmrg=",
+        "lastModified": 1768356181,
+        "narHash": "sha256-lYx273nqNC1EslejL/yvf+ZJK+yApeUckibbpTyzxoM=",
         "owner": "miguel-b-p",
         "repo": "preload-ng",
-        "rev": "eb3c66a20d089ab2e3b8ff34c45c3d527584ed38",
+        "rev": "b2274bfa70f86c649ba4bddd5fd21c82ffccebe3",
         "type": "github"
       },
       "original": {
         "owner": "miguel-b-p",
         "repo": "preload-ng",
-        "rev": "eb3c66a20d089ab2e3b8ff34c45c3d527584ed38",
         "type": "github"
       }
     },
@@ -514,17 +513,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1765228041,
-        "narHash": "sha256-+h7yJqGfTbNy0xAUaGWtMxm8REcHG4SMucVSt3D6vZQ=",
+        "lastModified": 1773663236,
+        "narHash": "sha256-Koe4g44W9pGmVhVURM3n8r2po8vYXEPM9g5ntRuugJg=",
         "owner": "winapps-org",
         "repo": "winapps",
-        "rev": "44342c34b839547be0b2ea4f94ed00293fa7cc38",
+        "rev": "d5ea5d5a0b8ef28decb1f21e10b8290757e00693",
         "type": "github"
       },
       "original": {
         "owner": "winapps-org",
         "repo": "winapps",
-        "rev": "44342c34b839547be0b2ea4f94ed00293fa7cc38",
         "type": "github"
       }
     }
