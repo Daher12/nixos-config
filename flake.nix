@@ -10,28 +10,40 @@
       url = "github:nix-community/lanzaboote/v1.0.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    lix-module = {
-      url = "git+https://git.lix.systems/lix-project/nixos-module?ref=release-2.93";
-      inputs.nixpkgs.follows = "nixpkgs";
+
+    lix = {
+      url = "https://git.lix.systems/lix-project/lix/archive/main.tar.gz";
+      flake = false;
     };
+
+    lix-module = {
+      url = "https://git.lix.systems/lix-project/nixos-module/archive/main.tar.gz";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.lix.follows = "lix";
+    };
+
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     impermanence.url = "github:nix-community/impermanence";
+
     winapps = {
       url = "github:winapps-org/winapps/44342c34b839547be0b2ea4f94ed00293fa7cc38";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     preload-ng = {
       url = "github:miguel-b-p/preload-ng/eb3c66a20d089ab2e3b8ff34c45c3d527584ed38";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -66,9 +78,11 @@
         statix = pkgs.runCommand "statix-check" {
           buildInputs = [ pkgs.statix ];
         } "statix check ${self} && touch $out";
+
         deadnix = pkgs.runCommand "deadnix-check" {
           buildInputs = [ pkgs.deadnix ];
         } "deadnix --fail ${self} && touch $out";
+
         nixfmt = pkgs.runCommand "nixfmt-check" {
           buildInputs = [ pkgs.nixfmt-rfc-style ];
         } "find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out";
