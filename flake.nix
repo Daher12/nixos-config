@@ -40,12 +40,12 @@
     impermanence.url = "github:nix-community/impermanence";
 
     winapps = {
-      url = "github:winapps-org/winapps/44342c34b839547be0b2ea4f94ed00293fa7cc38";
+      url = "github:winapps-org/winapps";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     preload-ng = {
-      url = "github:miguel-b-p/preload-ng/eb3c66a20d089ab2e3b8ff34c45c3d527584ed38";
+      url = "github:miguel-b-p/preload-ng";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
