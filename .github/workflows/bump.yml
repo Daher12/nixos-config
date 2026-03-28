@@ -2,19 +2,30 @@ name: "Maintain: Update Flake Lock"
 
 on:
   schedule:
-    # 02:00 UTC is safe. It allows ~1-2 hours for this job to run 
-    # before your hosts auto-upgrade at 04:00 Local.
-    - cron: '0 2 * * *'
+    # 02:00 UTC is safe. It allows ~1-2 hours for this job to run
+    # before your hosts auto-upgrade at 04:00 local.
+    - cron: "0 2 * * *"
   workflow_dispatch:
+    inputs:
+      include_lix_module:
+        description: "Also update lix-module"
+        required: false
+        default: false
+        type: boolean
+      include_lanzaboote:
+        description: "Also update lanzaboote"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   update-and-verify:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to push the lockfile and formatting changes
-    
+      contents: write
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Nix
@@ -23,37 +34,55 @@ jobs:
           extra_nix_config: |
             accept-flake-config = true
             experimental-features = nix-command flakes
-            # Suppress cachix warnings by pre-allowing substituters
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
             substituters = https://cache.nixos.org https://nix-community.cachix.org
 
-      # 1. UPDATE: Update everything to ensure consistency
-      - name: Update Flake Inputs
+      - name: Update flake inputs
         id: update
+        shell: bash
         run: |
-          nix flake update --accept-flake-config
-          echo "nixpkgs_rev=$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev[0:7]')" >> $GITHUB_OUTPUT
+          set -euo pipefail
 
-      # 2. FORMAT: Auto-format the code before checking it
-      - name: Format Nix Code
+          extra_inputs=()
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.include_lix_module }}" == "true" ]]; then
+            extra_inputs+=(lix-module)
+          fi
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.include_lanzaboote }}" == "true" ]]; then
+            extra_inputs+=(lanzaboote)
+          fi
+
+          nix flake update \
+            nixpkgs nixpkgs-unstable nixos-hardware \
+            home-manager sops-nix disko impermanence \
+            winapps preload-ng \
+            "${extra_inputs[@]}" \
+            --accept-flake-config
+
+          echo "nixpkgs_rev=$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev[0:7]')" >> "$GITHUB_OUTPUT"
+
+      - name: Format Nix code
         run: find . -name '*.nix' -exec nix fmt -v {} +
 
-      # 3. VERIFY: Static Analysis & Dry Run Build
-      - name: Verify Configurations
+      - name: Verify configurations
+        shell: bash
         run: |
-          # Checks will now pass because 'nix fmt' ran above
+          set -euo pipefail
+
           nix flake check --all-systems --impure --keep-going
-          
-          # Dry-run build for all hosts to ensure the update didn't break the build graph
+
           for host in yoga latitude nix-media; do
             echo "::group::Verifying $host"
-            nix build .#nixosConfigurations.$host.config.system.build.toplevel --dry-run --impure
+            nix build ".#nixosConfigurations.${host}.config.system.build.toplevel" --dry-run --impure
             echo "::endgroup::"
           done
 
-      # 4. COMMIT: Save the lockfile AND the formatted nix files
-      - name: Commit Changes
+      - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(flake): update inputs & format\n\nnixpkgs: ${{ steps.update.outputs.nixpkgs_rev }}"
+          commit_message: |
+            chore(flake): update inputs & format
+
+            nixpkgs: ${{ steps.update.outputs.nixpkgs_rev }}
           file_pattern: flake.lock **/*.nix
