@@ -104,10 +104,6 @@ in
           directory = ".local/share/fish";
           mode = "0700";
         }
-        {
-          directory = ".config/libreoffice";
-          mode = "0700";
-        }
         ".local/share/keyrings"
         ".mozilla/firefox"
         ".config/BraveSoftware/Brave-Browser"
