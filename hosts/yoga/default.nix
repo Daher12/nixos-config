@@ -91,8 +91,6 @@
 
     filesystem = {
       type = "btrfs";
-      # PATCH: discard=async is set via Disko mount options; periodic fstrim is redundant
-      # and can cause latency spikes under workload overlap on this NVMe.
       enableFstrim = false;
       btrfs = {
         autoScrub = true;
@@ -107,6 +105,7 @@
       "amdgpu.ppfeaturemask=0xffffffff"
       "amdgpu.dcdebugmask=0x10"
     ];
+
     virtualization = {
       enable = true;
       windows11 = {
@@ -116,6 +115,7 @@
         mac = "52:54:00:03:b9:49";
       };
     };
+
     power-tlp.settings = {
       TLP_DEFAULT_MODE = "BAT";
       TLP_PERSISTENT_DEFAULT = 1;
@@ -199,8 +199,14 @@
       allowTrash = true;
       users.dk = {
         directories = [
+          "Schreibtisch"
           "Dokumente"
           "Downloads"
+          "Musik"
+          "Bilder"
+          "Öffentlich"
+          "Vorlagen"
+          "Videos"
           "nixos-config"
         ];
       };

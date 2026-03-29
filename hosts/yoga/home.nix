@@ -1,4 +1,67 @@
 {
+  lib,
+  ...
+}:
+let
+  homeDir = "/home/dk";
+
+  xdgDirs = {
+    desktop = "${homeDir}/Schreibtisch";
+    documents = "${homeDir}/Dokumente";
+    download = "${homeDir}/Downloads";
+    music = "${homeDir}/Musik";
+    pictures = "${homeDir}/Bilder";
+    publicShare = "${homeDir}/Öffentlich";
+    templates = "${homeDir}/Vorlagen";
+    videos = "${homeDir}/Videos";
+  };
+
+  extraBookmarks = [
+    {
+      path = "/mnt/nas";
+      label = "NAS";
+    }
+  ];
+
+  xdgBookmarks = [
+    {
+      path = xdgDirs.documents;
+      label = "Dokumente";
+    }
+    {
+      path = xdgDirs.download;
+      label = "Downloads";
+    }
+    {
+      path = xdgDirs.music;
+      label = "Musik";
+    }
+    {
+      path = xdgDirs.pictures;
+      label = "Bilder";
+    }
+    {
+      path = xdgDirs.videos;
+      label = "Videos";
+    }
+    {
+      path = "${homeDir}/nixos-config";
+      label = "nixos-config";
+    }
+  ];
+
+  allBookmarks = xdgBookmarks ++ extraBookmarks;
+
+  mkGtkBookmarkLine =
+    bookmark:
+    let
+      escapedPath = lib.replaceStrings [ " " ] [ "%20" ] bookmark.path;
+    in
+    "file://${escapedPath} ${bookmark.label}";
+
+  gtkBookmarksText = lib.concatStringsSep "\n" (map mkGtkBookmarkLine allBookmarks) + "\n";
+in
+{
   imports = [
     ../../home
   ];
@@ -52,13 +115,27 @@
       files = [
         ".oxrc"
         ".local/bin/windows"
-        ".config/gtk-3.0/bookmarks"
-        ".config/gtk-4.0/bookmarks"
-        ".config/user-dirs.dirs"
- 	   ".config/user-dirs.locale"
+        ".config/user-dirs.locale"
       ];
     };
   };
+
+  xdg.userDirs = {
+    enable = true;
+    createDirectories = true;
+
+    desktop = "$HOME/Schreibtisch";
+    documents = "$HOME/Dokumente";
+    download = "$HOME/Downloads";
+    music = "$HOME/Musik";
+    pictures = "$HOME/Bilder";
+    publicShare = "$HOME/Öffentlich";
+    templates = "$HOME/Vorlagen";
+    videos = "$HOME/Videos";
+  };
+
+  home.file.".config/gtk-3.0/bookmarks".text = gtkBookmarksText;
+  home.file.".config/gtk-4.0/bookmarks".text = gtkBookmarksText;
 
   programs.fish.functions.nus = ''
     "$HOME/nixos-config/scripts/update-safe" $argv
