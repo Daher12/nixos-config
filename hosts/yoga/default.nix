@@ -1,4 +1,4 @@
-{
+#{
   config,
   pkgs,
   lib,
@@ -84,11 +84,11 @@
 
     desktop-gnome.autoLogin = true;
 
-    office = {
-      enable = true;
-      profileSeed = ../../modules/features/office-profile;
-    };
-
+	onlyoffice = {
+	 enable = true;
+     installCompatibilityFonts = false;
+	};
+    
     # TEMPORARY: disabled until new admin key is generated and secrets re-encrypted
     sops = {
       enable = true;

@@ -105,9 +105,9 @@ in
           mode = "0700";
         }
         {
- 	 	directory = ".config/ONLYOFFICE";
-  		mode = "0700";
-		}
+          directory = ".config/ONLYOFFICE";
+          mode = "0700";
+        }
         ".local/share/keyrings"
         ".mozilla/firefox"
         ".config/BraveSoftware/Brave-Browser"
