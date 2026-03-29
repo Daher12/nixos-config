@@ -8,6 +8,7 @@
     ./kernel.nix
     ./nas.nix
     ./network-optimization.nix
+    ./office.nix
     ./oomd.nix
     ./power-tlp.nix
     ./secureboot.nix

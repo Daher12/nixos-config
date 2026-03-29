@@ -78,10 +78,16 @@
       enable = true;
       device = "/dev/mapper/cryptroot";
     };
+
     secureboot.enable = true;
     nas.enable = true;
 
     desktop-gnome.autoLogin = true;
+
+    office = {
+      enable = true;
+      profileSeed = ../../modules/features/office-profile;
+    };
 
     # TEMPORARY: disabled until new admin key is generated and secrets re-encrypted
     sops = {
