@@ -116,6 +116,7 @@ in
         ".oxrc"
         ".local/bin/windows"
         ".config/user-dirs.locale"
+        ".config/monitors.xml"
       ];
     };
   };
