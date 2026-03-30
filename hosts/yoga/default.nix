@@ -199,6 +199,7 @@
           parentDirectory.mode = "0755";
         }
         "/etc/ssh/ssh_host_rsa_key.pub"
+        "/etc/brave/policies/managed/bloat.json"
       ];
     };
 
