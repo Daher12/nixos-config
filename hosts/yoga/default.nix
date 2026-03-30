@@ -84,13 +84,13 @@
 
     desktop-gnome.autoLogin = true;
 
-	onlyoffice = {
-	 enable = true;
-     installCompatibilityFonts = false;
-     cursorSize = 64;
-     setGlobalCursorSize = true;
-	};
-    
+    onlyoffice = {
+      enable = true;
+      installCompatibilityFonts = false;
+      cursorSize = 64;
+      setGlobalCursorSize = true;
+    };
+
     # TEMPORARY: disabled until new admin key is generated and secrets re-encrypted
     sops = {
       enable = true;
