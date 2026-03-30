@@ -105,7 +105,7 @@ in
           mode = "0700";
         }
         {
-          directory = ".config/ONLYOFFICE";
+          directory = ".config/onlyoffice";
           mode = "0700";
         }
         ".local/share/keyrings"
