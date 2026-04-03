@@ -156,5 +156,12 @@ in
     vmIP = "192.168.122.139";
     windowsDomain = "DESKTOP-DVTRQ43";
     rdpScale = 180;
+
+    # Optimal for loopback VM: no codec overhead, full quality, audio + USB
+    rdpFlags = "/cert:tofu +auto-reconnect /network:lan /audio-mode:1 /bpp:32 /gfx-";
+
+    # Full desktop only
+    rdpFlagsWindows = "/dynamic-resolution";
+
   };
 }
