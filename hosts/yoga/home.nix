@@ -159,13 +159,13 @@ in
     debug = true;
 
     # Maximum responsiveness:
-    #rdpFlags = "/cert:tofu /clipboard +auto-reconnect /network:lan /audio-mode:1 /bpp:16 -gfx +relax-order-checks +async-update +async-channels /frame-ack:0 /size:2048x1240";
+    #rdpFlags = "/cert:tofu /usb:auto /clipboard +auto-reconnect /network:lan /audio-mode:1 /bpp:16 -gfx +relax-order-checks +async-update +async-channels /frame-ack:0 /size:2048x1240";
 
     # Balanced:
-    rdpFlags = "/cert:tofu /clipboard +auto-reconnect /network:lan /audio-mode:1 /gfx:RFX +async-update +async-channels /frame-ack:0 /size:2048x1240";
+    rdpFlags = "/cert:tofu /usb:auto /clipboard +auto-reconnect /network:lan /audio-mode:1 /gfx:RFX +async-update +async-channels /frame-ack:0 /size:2048x1240";
 
     # Maximum fluidity:
-    #rdpFlags = "/cert:tofu /clipboard +auto-reconnect /network:lan /audio-mode:1 /gfx:AVC444 +async-update +async-channels /frame-ack:0 /size:2048x1240";
+    #rdpFlags = "/cert:tofu /usb:auto /clipboard +auto-reconnect /network:lan /audio-mode:1 /gfx:AVC444 +async-update +async-channels /frame-ack:0 /size:2048x1240";
 
     rdpFlagsWindows = "";
 
