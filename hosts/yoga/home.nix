@@ -156,12 +156,18 @@ in
     vmIP = "192.168.122.139";
     windowsDomain = "DESKTOP-DVTRQ43";
     rdpScale = 180;
+    debug = true;
 
-    # Optimal for loopback VM: no codec overhead, full quality, audio + USB
-    rdpFlags = "/cert:tofu +auto-reconnect /network:lan /audio-mode:1 /bpp:32 /gfx-";
+    # Maximum responsiveness:
+    #rdpFlags = "/cert:tofu /clipboard +auto-reconnect /network:lan /audio-mode:1 /bpp:16 -gfx +relax-order-checks +async-update +async-channels /frame-ack:0 /size:2048x1240";
 
-    # Full desktop only
-    rdpFlagsWindows = "/dynamic-resolution";
+    # Balanced:
+    rdpFlags = "/cert:tofu /clipboard +auto-reconnect /network:lan /audio-mode:1 /gfx:RFX +async-update +async-channels /frame-ack:0 /size:2048x1240";
+
+    # Maximum fluidity:
+    #rdpFlags = "/cert:tofu /clipboard +auto-reconnect /network:lan /audio-mode:1 /gfx:AVC444 +async-update +async-channels /frame-ack:0 /size:2048x1240";
+
+    rdpFlagsWindows = "";
 
   };
 }
