@@ -154,7 +154,7 @@ in
   programs.winapps = {
     enable = true;
     vmIP = "192.168.122.139";
-    windowsDomain = "DESKTOP-DVTRQ43";
+    windowsDomain = "DESKTOP-TDTHSIQ";
     rdpScale = 180;
     debug = true;
 
