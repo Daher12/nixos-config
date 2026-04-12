@@ -112,6 +112,7 @@
       "amd_pstate=active"
       "amdgpu.ppfeaturemask=0xffffffff"
       "amdgpu.dcdebugmask=0x10"
+      "systemd.restore_state=0"
     ];
 
     virtualization = {
