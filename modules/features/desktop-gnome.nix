@@ -121,7 +121,7 @@ in
         gnomeExtensions.blur-my-shell
         gtk3
         papers
-	    openssl
+        openssl
       ];
     };
 

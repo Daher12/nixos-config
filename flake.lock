@@ -244,11 +244,11 @@
     "lix": {
       "flake": false,
       "locked": {
-        "lastModified": 1774608105,
-        "narHash": "sha256-JBiiKbsJ0Mtq7AKJuQGD8V2jRRVeThwiIIDTGdh+rr4=",
-        "rev": "001e3fde8f5d3e81ede2c95eab414fcaf83a9233",
+        "lastModified": 1776855124,
+        "narHash": "sha256-+zA4N59vOaWfYibZDS3RN4bnerX5qGj0t6KfY8rNPCk=",
+        "rev": "af99ede1fde5a8c8cc877e06ab3c0e6de31d11cf",
         "type": "tarball",
-        "url": "https://git.lix.systems/api/v1/repos/lix-project/lix/archive/001e3fde8f5d3e81ede2c95eab414fcaf83a9233.tar.gz?rev=001e3fde8f5d3e81ede2c95eab414fcaf83a9233"
+        "url": "https://git.lix.systems/api/v1/repos/lix-project/lix/archive/af99ede1fde5a8c8cc877e06ab3c0e6de31d11cf.tar.gz?rev=af99ede1fde5a8c8cc877e06ab3c0e6de31d11cf"
       },
       "original": {
         "type": "tarball",
@@ -445,25 +445,11 @@
         ]
       },
       "locked": {
-<<<<<<< Updated upstream
         "lastModified": 1776771786,
         "narHash": "sha256-DRFGPfFV6hbrfO9a1PH1FkCi7qR5FgjSqsQGGvk1rdI=",
-||||||| Stash base
-        "lastModified": 1775682595,
-        "narHash": "sha256-0E9PohY/VuESLq0LR4doaH7hTag513sDDW5n5qmHd1Q=",
-=======
-        "lastModified": 1775971308,
-        "narHash": "sha256-VKp9bhVSm0bT6JWctFy06ocqxGGnWHi1NfoE90IgIcY=",
->>>>>>> Stashed changes
         "owner": "Mic92",
         "repo": "sops-nix",
-<<<<<<< Updated upstream
         "rev": "bef289e2248991f7afeb95965c82fbcd8ff72598",
-||||||| Stash base
-        "rev": "d2e8438d5886e92bc5e7c40c035ab6cae0c41f76",
-=======
-        "rev": "31ac5fe5d015f76b54058c69fcaebb66a55871a4",
->>>>>>> Stashed changes
         "type": "github"
       },
       "original": {
