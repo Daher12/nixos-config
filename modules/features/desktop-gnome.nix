@@ -120,6 +120,8 @@ in
         gnomeExtensions.user-themes
         gnomeExtensions.blur-my-shell
         gtk3
+        papers
+	    openssl
       ];
     };
 

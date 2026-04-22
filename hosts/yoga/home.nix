@@ -108,6 +108,10 @@ in
           directory = ".config/onlyoffice";
           mode = "0700";
         }
+        {
+          directory = ".local/share/papers-signing";
+          mode = "0700";
+        }
         ".local/share/keyrings"
         ".mozilla/firefox"
         ".config/BraveSoftware/Brave-Browser"
