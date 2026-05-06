@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  pkgs,
   inputs,
   self,
   mainUser,
@@ -29,10 +28,17 @@ in
       };
     };
 
-    optimise.automatic = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Automatically optimize Nix store";
+    optimise = {
+      automatic = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Automatically optimize Nix store";
+      };
+      dates = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ "weekly" ];
+        description = "When to run Nix store optimisation";
+      };
     };
   };
 
@@ -107,7 +113,7 @@ in
 
       optimise = lib.mkIf cfg.optimise.automatic {
         automatic = true;
-        dates = [ "weekly" ];
+        inherit (cfg.optimise) dates;
       };
 
       # Rationale: Idiomatic upstream abstraction ensures compatibility with future unit updates.
@@ -116,7 +122,5 @@ in
     };
 
     systemd.services.NetworkManager-wait-online.wantedBy = lib.mkForce [ ];
-
-    environment.systemPackages = [ pkgs.cachix ];
   };
 }

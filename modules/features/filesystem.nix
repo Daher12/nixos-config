@@ -11,10 +11,15 @@ let
   # Detect Btrfs from final merged filesystems (Disko-compatible)
   btrfsFileSystems = lib.filterAttrs (_: fs: (fs.fsType or null) == "btrfs") config.fileSystems;
 
-  # Check actual mount options for discard=async
   hasAsyncDiscard = lib.any (fs: lib.elem "discard=async" (fs.options or [ ])) (
     lib.attrValues btrfsFileSystems
   );
+
+  resolvedBalanceFs =
+    if cfg.btrfs.balanceFilesystems != [ ] then
+      cfg.btrfs.balanceFilesystems
+    else
+      cfg.btrfs.scrubFilesystems;
 in
 {
   options.features.filesystem = {
@@ -69,6 +74,12 @@ in
         default = false;
         description = "Enable monthly Btrfs balance";
       };
+
+      balanceFilesystems = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = "Filesystems to balance (defaults to scrubFilesystems when empty)";
+      };
     };
   };
 
@@ -117,7 +128,7 @@ in
           set -euo pipefail
           ${lib.concatMapStringsSep "\n" (
             fs: "${lib.getExe' pkgs.btrfs-progs "btrfs"} balance start -dusage=10 -musage=10 ${fs}"
-          ) cfg.btrfs.scrubFilesystems}
+          ) resolvedBalanceFs}
         '';
       };
 

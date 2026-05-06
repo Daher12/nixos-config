@@ -1,9 +1,10 @@
 {
+  config,
   lib,
   ...
 }:
 let
-  homeDir = "/home/dk";
+  homeDir = config.home.homeDirectory;
 
   xdgDirs = {
     desktop = "${homeDir}/Schreibtisch";
@@ -68,7 +69,7 @@ in
 
   home = {
     stateVersion = "25.11";
-    sessionPath = [ "/home/dk/.local/bin" ];
+    sessionPath = [ "${homeDir}/.local/bin" ];
 
     persistence."/persist" = {
       directories = [
@@ -162,14 +163,7 @@ in
     rdpScale = 180;
     debug = true;
 
-    # Maximum responsiveness:
-    #rdpFlags = "/cert:tofu /usb:auto /clipboard +auto-reconnect /network:lan /audio-mode:1 /bpp:16 -gfx +relax-order-checks +async-update +async-channels /frame-ack:0 /size:2048x1240";
-
-    # Balanced:
     rdpFlags = "/cert:tofu /usb:auto /clipboard +auto-reconnect /network:lan /audio-mode:1 /gfx:RFX +async-update +async-channels /frame-ack:0 /size:2048x1240";
-
-    # Maximum fluidity:
-    #rdpFlags = "/cert:tofu /usb:auto /clipboard +auto-reconnect /network:lan /audio-mode:1 /gfx:AVC444 +async-update +async-channels /frame-ack:0 /size:2048x1240";
 
     rdpFlagsWindows = "";
 

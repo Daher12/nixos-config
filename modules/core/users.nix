@@ -141,13 +141,7 @@ in
       coredump.enable = false;
     };
 
-    documentation = {
-      enable = false;
-      nixos.enable = false;
-      man.enable = false;
-      info.enable = false;
-      doc.enable = false;
-    };
+    documentation.enable = false;
 
     # Priority 900: nixpkgs sets this at default priority (1000), causing merge conflicts
     boot.kernel.sysctl = {
