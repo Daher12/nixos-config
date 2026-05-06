@@ -16,7 +16,7 @@
     homeDirectory = homeDirectory;
 
     sessionVariables = {
-      NH_FLAKE = "/home/${mainUser}/nixos-config";
+      NH_FLAKE = "${homeDirectory}/nixos-config";
       EDITOR = "ox";
       VISUAL = "ox";
       NIXOS_OZONE_WL = "1";
