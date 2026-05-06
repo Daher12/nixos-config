@@ -1,4 +1,8 @@
-{ homeDirectory ? "/home/${mainUser}", mainUser, ... }:
+{
+  homeDirectory ? "/home/${mainUser}",
+  mainUser,
+  ...
+}:
 
 {
   imports = [
@@ -13,7 +17,7 @@
 
   home = {
     username = mainUser;
-    homeDirectory = homeDirectory;
+    inherit homeDirectory;
 
     sessionVariables = {
       NH_FLAKE = "${homeDirectory}/nixos-config";
