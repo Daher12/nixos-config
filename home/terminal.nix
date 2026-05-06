@@ -144,6 +144,7 @@ in
         nix-output-monitor
         p7zip
         unzip
+        opencode
       ];
     }
   ];
