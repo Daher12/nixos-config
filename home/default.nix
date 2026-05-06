@@ -1,4 +1,4 @@
-{ mainUser, ... }:
+{ homeDirectory ? "/home/${mainUser}", mainUser, ... }:
 
 {
   imports = [
@@ -13,7 +13,7 @@
 
   home = {
     username = mainUser;
-    homeDirectory = "/home/${mainUser}";
+    homeDirectory = homeDirectory;
 
     sessionVariables = {
       NH_FLAKE = "/home/${mainUser}/nixos-config";

@@ -32,6 +32,7 @@ let
       ;
     # Rationale: Utilize flake evaluation caching to avoid O(N) nixpkgs re-imports.
     # Note: Consuming modules should set `config.allowUnfree = true` if non-free pkgs are needed.
+    homeDirectory = "/home/${mainUser}";
     pkgsUnstable = inputs.nixpkgs-unstable.legacyPackages.${system};
   }
   // extraSpecialArgs;

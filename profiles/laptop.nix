@@ -1,10 +1,12 @@
 { lib, config, ... }:
 
 let
+  cfg = config.laptop;
+
   homeWifiContent = ''
     [connection]
     id=HomeWiFi
-    uuid=7a3b4c5d-1234-5678-9abc-def012345678
+    uuid=${cfg.homeWifiUuid}
     type=wifi
     autoconnect=true
 
@@ -25,7 +27,7 @@ let
   workWifiContent = ''
     [connection]
     id=WorkWiFi
-    uuid=8b4c5d6e-2345-6789-0bcd-ef1234567890
+    uuid=${cfg.workWifiUuid}
     type=wifi
     autoconnect=true
 
@@ -43,10 +45,24 @@ let
     method=auto
   '';
 in
-lib.mkMerge [
-  {
-    features = {
-      bluetooth.enable = lib.mkDefault true;
+{
+  options.laptop = {
+    homeWifiUuid = lib.mkOption {
+      type = lib.types.str;
+      default = "7a3b4c5d-1234-5678-9abc-def012345678";
+      description = "UUID for home WiFi NetworkManager connection";
+    };
+    workWifiUuid = lib.mkOption {
+      type = lib.types.str;
+      default = "8b4c5d6e-2345-6789-0bcd-ef1234567890";
+      description = "UUID for work WiFi NetworkManager connection";
+    };
+  };
+
+  config = lib.mkMerge [
+    {
+      features = {
+        bluetooth.enable = lib.mkDefault true;
       power-tlp.enable = lib.mkDefault true;
       zram.enable = lib.mkDefault true;
       network-optimization.enable = lib.mkDefault true;
@@ -82,38 +98,39 @@ lib.mkMerge [
     hardware.enableRedistributableFirmware = lib.mkDefault true;
   }
 
-  (lib.mkIf config.features.sops.enable {
-    assertions = [
-      {
-        assertion = config.networking.networkmanager.enable or false;
-        message = "WiFi nmconnection templates enabled but NetworkManager is disabled";
-      }
-    ];
+    (lib.mkIf config.features.sops.enable {
+      assertions = [
+        {
+          assertion = config.networking.networkmanager.enable or false;
+          message = "WiFi nmconnection templates enabled but NetworkManager is disabled";
+        }
+      ];
 
-    sops = {
-      secrets = {
-        "wifi_home_psk" = { };
-        "wifi_work_psk" = { };
-      };
+      sops = {
+        secrets = {
+          "wifi_home_psk" = { };
+          "wifi_work_psk" = { };
+        };
 
-      templates = {
-        "wifi-home.nmconnection" = {
-          mode = "0600";
-          owner = "root";
-          group = "root";
-          path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
-          content = homeWifiContent;
-          restartUnits = [ "NetworkManager.service" ];
-        };
-        "wifi-work.nmconnection" = {
-          mode = "0600";
-          owner = "root";
-          group = "root";
-          path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
-          content = workWifiContent;
-          restartUnits = [ "NetworkManager.service" ];
+        templates = {
+          "wifi-home.nmconnection" = {
+            mode = "0600";
+            owner = "root";
+            group = "root";
+            path = "/etc/NetworkManager/system-connections/home-wifi.nmconnection";
+            content = homeWifiContent;
+            restartUnits = [ "NetworkManager.service" ];
+          };
+          "wifi-work.nmconnection" = {
+            mode = "0600";
+            owner = "root";
+            group = "root";
+            path = "/etc/NetworkManager/system-connections/work-wifi.nmconnection";
+            content = workWifiContent;
+            restartUnits = [ "NetworkManager.service" ];
+          };
         };
       };
-    };
-  })
-]
+    })
+  ];
+}

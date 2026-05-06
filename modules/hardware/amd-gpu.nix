@@ -20,10 +20,10 @@ in
     hardware.graphics = {
       enable = true;
       enable32Bit = true;
-      extraPackages = with pkgs; [
-        rocmPackages.clr
-        libva-vdpau-driver
-        libvdpau-va-gl
+      extraPackages = [
+        pkgs.rocmPackages.clr
+        pkgs.libva-vdpau-driver
+        pkgs.libvdpau-va-gl
       ];
     };
 

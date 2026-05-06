@@ -122,8 +122,8 @@ in
     '';
   };
 
-  environment.systemPackages = with pkgs; [
-    libva-utils
-    sbctl
+  environment.systemPackages = [
+    pkgs.libva-utils
+    pkgs.sbctl
   ];
 }

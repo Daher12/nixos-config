@@ -1,5 +1,6 @@
 {
   config,
+  flakeRoot,
   lib,
   pkgs,
   ...
@@ -8,7 +9,7 @@
 let
   cfg = config.features.sops;
   hostname = config.networking.hostName;
-  secretsPath = ../../secrets/hosts/${hostname}.yaml;
+  secretsPath = "${flakeRoot}/secrets/hosts/${hostname}.yaml";
 
   # Bypass impermanence bind-mount lifecycle: point directly to persist volume.
   # Guarantees key availability during early boot and nixos-install chroot (no systemd).

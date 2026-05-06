@@ -164,9 +164,9 @@
 
   # --- Environment & Filesystems ---
   environment = {
-    systemPackages = with pkgs; [
-      libva-utils
-      vulkan-tools
+    systemPackages = [
+      pkgs.libva-utils
+      pkgs.vulkan-tools
     ];
 
     persistence."/persist/system" = {

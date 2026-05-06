@@ -130,21 +130,21 @@ in
     })
 
     {
-      home.packages = with pkgs; [
-        rsync
-        ripgrep
-        fd
-        sd
-        jq
-        ox
-        grc
-        eza
-        nh
-        nvd
-        nix-output-monitor
-        p7zip
-        unzip
-        opencode
+      home.packages = [
+        pkgs.rsync
+        pkgs.ripgrep
+        pkgs.fd
+        pkgs.sd
+        pkgs.jq
+        pkgs.ox
+        pkgs.grc
+        pkgs.eza
+        pkgs.nh
+        pkgs.nvd
+        pkgs.nix-output-monitor
+        pkgs.p7zip
+        pkgs.unzip
+        pkgs.opencode
       ];
     }
   ];

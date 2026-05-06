@@ -87,40 +87,40 @@ in
     };
 
     environment = {
-      gnome.excludePackages = with pkgs; [
-        gnome-photos
-        gnome-tour
-        gedit
-        cheese
-        gnome-music
-        epiphany
-        geary
-        totem
-        gnome-contacts
-        gnome-weather
-        gnome-maps
-        yelp
-        seahorse
-        gnome-user-docs
-        gnome-calendar
-        simple-scan
-        gnome-logs
-        gnome-connections
+      gnome.excludePackages = [
+        pkgs.gnome-photos
+        pkgs.gnome-tour
+        pkgs.gedit
+        pkgs.cheese
+        pkgs.gnome-music
+        pkgs.epiphany
+        pkgs.geary
+        pkgs.totem
+        pkgs.gnome-contacts
+        pkgs.gnome-weather
+        pkgs.gnome-maps
+        pkgs.yelp
+        pkgs.seahorse
+        pkgs.gnome-user-docs
+        pkgs.gnome-calendar
+        pkgs.simple-scan
+        pkgs.gnome-logs
+        pkgs.gnome-connections
       ];
 
-      systemPackages = with pkgs; [
-        nautilus
-        file-roller
-        gnome-tweaks
-        loupe
-        wl-clipboard
-        gnome-text-editor
-        gnome-calculator
-        gnome-themes-extra
-        gnomeExtensions.user-themes
-        gnomeExtensions.blur-my-shell
-        gtk3
-        papers
+      systemPackages = [
+        pkgs.nautilus
+        pkgs.file-roller
+        pkgs.gnome-tweaks
+        pkgs.loupe
+        pkgs.wl-clipboard
+        pkgs.gnome-text-editor
+        pkgs.gnome-calculator
+        pkgs.gnome-themes-extra
+        pkgs.gnomeExtensions.user-themes
+        pkgs.gnomeExtensions.blur-my-shell
+        pkgs.gtk3
+        pkgs.papers
       ];
     };
 

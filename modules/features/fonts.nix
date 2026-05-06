@@ -18,15 +18,15 @@ in
       enableDefaultPackages = false;
       fontDir.enable = true;
 
-      packages = with pkgs; [
-        noto-fonts
-        noto-fonts-cjk-sans
-        noto-fonts-color-emoji
-        nerd-fonts.caskaydia-cove
-        fira-code
-        inter
-        roboto
-        cantarell-fonts
+      packages = [
+        pkgs.noto-fonts
+        pkgs.noto-fonts-cjk-sans
+        pkgs.noto-fonts-color-emoji
+        pkgs.nerd-fonts.caskaydia-cove
+        pkgs.fira-code
+        pkgs.inter
+        pkgs.roboto
+        pkgs.cantarell-fonts
       ];
 
       fontconfig = {

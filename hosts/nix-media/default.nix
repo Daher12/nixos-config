@@ -108,21 +108,21 @@ in
     enableGuc = true;
   };
 
-  environment.systemPackages = with pkgs; [
-    mergerfs
-    xfsprogs
-    nvme-cli
-    smartmontools
-    ethtool
-    mosh
-    wget
-    aria2
-    trash-cli
-    unrar
-    unzip
-    ox
-    btop
-    fastfetchMinimal
+  environment.systemPackages = [
+    pkgs.mergerfs
+    pkgs.xfsprogs
+    pkgs.nvme-cli
+    pkgs.smartmontools
+    pkgs.ethtool
+    pkgs.mosh
+    pkgs.wget
+    pkgs.aria2
+    pkgs.trash-cli
+    pkgs.unrar
+    pkgs.unzip
+    pkgs.ox
+    pkgs.btop
+    pkgs.fastfetchMinimal
   ];
 
   networking = {
