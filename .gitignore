@@ -28,6 +28,7 @@ keys.txt
 key.txt
 key_*.txt
 age.key
+api.key
 
 #Trash
 .Trash-1000
