@@ -113,6 +113,14 @@ in
           directory = ".local/share/papers-signing";
           mode = "0700";
         }
+        {
+          directory = ".local/share/opencode";
+          mode = "0700";
+        }
+        {
+          directory = ".config/opencode";
+          mode = "0700";
+        }
         ".local/share/keyrings"
         ".mozilla/firefox"
         ".config/BraveSoftware/Brave-Browser"
@@ -146,6 +154,28 @@ in
 
   home.file.".config/gtk-3.0/bookmarks".text = gtkBookmarksText;
   home.file.".config/gtk-4.0/bookmarks".text = gtkBookmarksText;
+
+  home.file.".config/opencode/opencode.json".text = builtins.toJSON {
+    "$schema" = "https://opencode.ai/config.json";
+    model = "openrouter/deepseek/deepseek-v4-flash";
+    small_model = "openrouter/deepseek/deepseek-v4-flash";
+    provider = {
+      openrouter = {
+        models = {
+          "deepseek/deepseek-v4-flash" = { };
+        };
+      };
+    };
+    permission = {
+      edit = "ask";
+      bash = {
+        "*" = "ask";
+        "git status" = "allow";
+        "git diff *" = "allow";
+        "rm -rf *" = "deny";
+      };
+    };
+  };
 
   programs.fish.functions.nus = ''
     "$HOME/nixos-config/scripts/update-safe" $argv

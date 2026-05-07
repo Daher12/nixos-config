@@ -59,17 +59,13 @@
       plymouth.theme = "bgrt";
       tmpfs = {
         enable = true;
-        size = "80%";
+        size = "2G";
       };
     };
     users = {
       description = "David";
       defaultShell = "fish";
     };
-  };
-
-  networking.hosts = {
-    "100.123.189.29" = [ "nix-media" ];
   };
 
   # --- Features ---
@@ -97,9 +93,10 @@
       method = "age";
     };
 
+    zram.memoryPercent = 50;
+
     filesystem = {
       type = "btrfs";
-      enableFstrim = false;
       btrfs = {
         autoScrub = true;
         scrubFilesystems = [ "/persist" ];
@@ -111,8 +108,7 @@
       "zswap.enabled=0"
       "amd_pstate=active"
       "amdgpu.ppfeaturemask=0xffffffff"
-      "amdgpu.dcdebugmask=0x10"
-      "systemd.restore_state=0"
+##      "amdgpu.dcdebugmask=0x10"  ## Testing if it's working with the kernel 7.0 update
     ];
 
     virtualization = {
@@ -144,12 +140,6 @@
 
   # --- Services & Systemd ---
   systemd = {
-    services.nix-daemon.serviceConfig =
-      let
-        cores = config.nix.settings.cores or 0;
-      in
-      lib.mkIf (cores > 0) { CPUQuota = "${toString (cores * 100)}%"; };
-
     tmpfiles.rules = [
       "d /persist 0755 root root - -"
       "d /persist/home/ 0711 dk dk - -"

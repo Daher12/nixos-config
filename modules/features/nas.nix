@@ -28,6 +28,10 @@ in
       }
     ];
 
+    networking.hosts = {
+      "${cfg.serverIp}" = [ "nix-media" ];
+    };
+
     fileSystems."${cfg.mountPoint}" = {
       device = "${cfg.serverIp}:/";
       fsType = "nfs";

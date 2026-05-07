@@ -47,14 +47,11 @@ in
       plymouth.theme = "bgrt";
       tmpfs = {
         enable = true;
-        size = "80%";
+        size = "2G";
       };
     };
   };
 
-  networking.hosts = {
-    "100.123.189.29" = [ "nix-media" ];
-  };
   hardware = {
     intel-gpu.enable = true;
     isPhysical = true;
