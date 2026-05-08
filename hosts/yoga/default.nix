@@ -108,7 +108,7 @@
       "zswap.enabled=0"
       "amd_pstate=active"
       "amdgpu.ppfeaturemask=0xffffffff"
-##      "amdgpu.dcdebugmask=0x10"  ## Testing if it's working with the kernel 7.0 update
+      ##      "amdgpu.dcdebugmask=0x10"  ## Testing if it's working with the kernel 7.0 update
     ];
 
     virtualization = {
