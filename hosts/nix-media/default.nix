@@ -164,6 +164,20 @@ in
 
   users.groups.${mainUser}.gid = config.roles.media.nfsAnonGid;
 
+  # TEMP: HDD streaming fix — hangs in read-ahead, not scheduler
+  # https://github.com/daher12/nixos-config/issues/…
+  # Root cause: default read_ahead_kb=128 forces tiny USB transfers, starving
+  # the video buffer mid-playback.  4MB gives ~800ms of 4K video per read.
+  # Scheduler=none because USB bridge chip does its own queuing; deadline
+  # on top just adds latency bubbles (confirmed via iostat — 136KB dirty,
+  # no writeback contention, mq-deadline was fine but unnecessary).
+  # Remove these once mergerfs gets read-ahead passthrough or kernel default
+  # is bumped for rotational USB:
+  services.udev.extraRules = ''
+    ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="sd*", ATTR{queue/rotational}=="1", ATTR{bdi/read_ahead_kb}="4096"
+    ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="sd*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="none"
+  '';
+
   services = {
     journald.extraConfig = ''
       Storage=persistent
