@@ -158,7 +158,7 @@ in
   home.file.".config/opencode/opencode.json".text = builtins.toJSON {
     "$schema" = "https://opencode.ai/config.json";
     model = "openrouter/deepseek/deepseek-v4-flash";
-    small_model = "openrouter/deepseek/deepseek-v4-flash";
+    small_model = "openrouter/mistralai/mistral-small-3.2-24b-instruct";
     provider = {
       openrouter = {
         models = {
