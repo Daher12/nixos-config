@@ -114,7 +114,7 @@ in
             "${storagePath}/audiobooks:/audiobooks:ro"
             "${storagePath}/podcasts:/podcasts:ro"
           ];
-          ports = [ "13378:80" ];
+          ports = [ "127.0.0.1:13378:80" ];
           extraOptions = [
             "--network=${dockerNetwork.name}"
             "--memory=512m"

@@ -44,17 +44,16 @@ let
 
   mkHandle =
     name: cfg:
-    # Jellyfin requires strip_prefix for subpath hosting if baseurl isn't set
-    if name == "jellyfin" then
+    if name == "grafana" then
       ''
         handle /${name}/* {
-          uri strip_prefix /${name}
           reverse_proxy http://127.0.0.1:${toString cfg.port}
         }
       ''
     else
       ''
         handle /${name}/* {
+          uri strip_prefix /${name}
           reverse_proxy http://127.0.0.1:${toString cfg.port}
         }
       '';
