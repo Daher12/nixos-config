@@ -163,6 +163,14 @@ in
       openrouter = {
         models = {
           "deepseek/deepseek-v4-flash" = { };
+          "deepseek/deepseek-v4-pro" = {
+            options = {
+              provider = {
+                order = [ "deepseek" ];
+                allow_fallbacks = true;
+              };
+            };
+          };
         };
       };
     };
