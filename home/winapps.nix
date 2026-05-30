@@ -136,12 +136,12 @@ in
       if [ ! -f "$SECRETS" ]; then
         $DRY_RUN_CMD mkdir -p "$(dirname "$SECRETS")"
         $DRY_RUN_CMD tee "$SECRETS" > /dev/null <<'EOF'
-      # WinApps credentials — fill in before first use
-      RDP_USER=""
-      RDP_PASS=""
+      # WinApps credentials
+      RDP_USER="your-windows-username"
+      RDP_PASS="your-windows-password"
       EOF
         $DRY_RUN_CMD chmod 600 "$SECRETS"
-        verboseEcho "Created empty WinApps secrets template: $SECRETS — edit before use"
+        verboseEcho "Created WinApps secrets template: $SECRETS"
       fi
     '';
   };
