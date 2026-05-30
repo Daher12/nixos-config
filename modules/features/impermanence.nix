@@ -46,6 +46,10 @@ in
         assertion = lib.hasPrefix "/dev/mapper/" cfg.device;
         message = "features.impermanence: device must be a /dev/mapper/* path, got: ${cfg.device}";
       }
+      {
+        assertion = cfg.device != "";
+        message = "features.impermanence: device must not be empty";
+      }
     ];
 
     boot.initrd.systemd = {

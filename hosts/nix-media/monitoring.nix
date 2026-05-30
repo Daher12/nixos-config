@@ -416,8 +416,8 @@ in
       intel-gpu-metrics = {
         wantedBy = [ "timers.target" ];
         timerConfig = {
-          OnBootSec = "10s";
-          OnUnitActiveSec = "30s";
+          OnBootSec = "15s";
+          OnUnitActiveSec = "60s";
         };
       };
     };

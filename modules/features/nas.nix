@@ -15,16 +15,20 @@ in
 
     serverIp = lib.mkOption {
       type = lib.types.str;
-      default = "100.123.189.29";
-      description = "NFS Server IP or Hostname";
+      description = "NFS Server IP or Hostname (e.g., Tailscale IP)";
+      example = "100.123.189.29";
     };
   };
 
   config = lib.mkIf cfg.enable {
     assertions = [
       {
-        assertion = config.features.vpn.tailscale.enable;
+        assertion = config.features.vpn.tailscale.enable or false;
         message = "features.nas requires features.vpn.tailscale.enable = true";
+      }
+      {
+        assertion = cfg.serverIp != "";
+        message = "features.nas: serverIp must not be empty";
       }
     ];
 

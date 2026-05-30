@@ -24,7 +24,7 @@ in
       enable = true;
       # Relies on firewall/Tailscale for access control
       exports = ''
-        /mnt/storage *(rw,async,crossmnt,fsid=0,no_subtree_check,no_root_squash,all_squash,anonuid=${toString cfg.nfsAnonUid},anongid=${toString cfg.nfsAnonGid})
+        /mnt/storage *(rw,async,crossmnt,fsid=0,no_subtree_check,root_squash,all_squash,anonuid=${toString cfg.nfsAnonUid},anongid=${toString cfg.nfsAnonGid})
       '';
     };
   };

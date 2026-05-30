@@ -28,7 +28,7 @@ in
   core = {
     boot.tmpfs = {
       enable = true;
-      size = "80%";
+      size = "4G";
     };
 
     nix.gc = {

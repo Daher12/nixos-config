@@ -76,7 +76,10 @@
     };
 
     secureboot.enable = true;
-    nas.enable = true;
+    nas = {
+      enable = true;
+      serverIp = "100.123.189.29"; # Tailscale IP of nix-media
+    };
 
     desktop-gnome.autoLogin = true;
 
@@ -93,7 +96,10 @@
       method = "age";
     };
 
-    zram.memoryPercent = 50;
+    zram = {
+      enable = true;
+      memoryPercent = 50;
+    };
 
     filesystem = {
       type = "btrfs";
@@ -108,7 +114,6 @@
       "zswap.enabled=0"
       "amd_pstate=active"
       "amdgpu.ppfeaturemask=0xffffffff"
-      ##      "amdgpu.dcdebugmask=0x10"  ## Testing if it's working with the kernel 7.0 update
     ];
 
     virtualization = {
@@ -150,6 +155,13 @@
 
   services = {
     journald.extraConfig = "SystemMaxUse=200M";
+    openssh = {
+      enable = true;
+      settings = {
+        PasswordAuthentication = false;
+        PermitRootLogin = "no";
+      };
+    };
   };
 
   # --- Environment & Filesystems ---

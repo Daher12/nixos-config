@@ -87,7 +87,6 @@ in
           extraOptions = [
             "--network=${dockerNetwork.name}"
             "--device=/dev/dri:/dev/dri"
-            #            "--device=/dev/dri/renderD128:/dev/dri/renderD128"
             "--group-add=${renderGid}"
             "--cpus=3.9"
             "--shm-size=2g"

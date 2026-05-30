@@ -70,6 +70,15 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion =
+          config.features.filesystem.type == "btrfs"
+          -> lib.elem "discard=async" (config.fileSystems."/".options or [ ]);
+        message = "features.virtualization: btrfs +C flag requires discard=async mount option on root filesystem";
+      }
+    ];
+
     virtualisation = {
       libvirtd = {
         enable = true;

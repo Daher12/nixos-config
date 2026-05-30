@@ -146,10 +146,6 @@ in
     # Priority 900: nixpkgs sets this at default priority (1000), causing merge conflicts
     boot.kernel.sysctl = {
       "vm.max_map_count" = lib.mkOverride 900 1048576;
-      "vm.dirty_ratio" = lib.mkDefault 10;
-      "vm.dirty_background_ratio" = lib.mkDefault 5;
-      "vm.dirty_writeback_centisecs" = lib.mkDefault 1500;
-      "vm.dirty_expire_centisecs" = lib.mkDefault 3000;
       "fs.file-max" = lib.mkDefault 2097152;
       "fs.inotify.max_user_watches" = lib.mkOverride 900 524288;
     };

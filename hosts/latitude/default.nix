@@ -68,7 +68,10 @@ in
       ];
     };
 
-    nas.enable = true;
+    nas = {
+      enable = true;
+      serverIp = "100.123.189.29"; # Tailscale IP of nix-media
+    };
 
     desktop-gnome = {
       autoLogin = true;
@@ -101,6 +104,14 @@ in
       ACTION=="add|change", SUBSYSTEM=="usb", TAG+="systemd", ENV{SYSTEMD_WANTS}+="disable-wakeup-sources.service"
     '';
     thermald.enable = true;
+
+    openssh = {
+      enable = true;
+      settings = {
+        PasswordAuthentication = false;
+        PermitRootLogin = "no";
+      };
+    };
 
     preload-ng = {
       enable = true;
