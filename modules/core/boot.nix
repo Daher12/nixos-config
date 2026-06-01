@@ -37,7 +37,10 @@ in
       consoleLogLevel = if cfg.silent then 0 else 3;
       initrd = {
         verbose = !cfg.silent;
-        systemd.enable = true;
+        systemd = {
+          enable = true;
+          services."systemd-cryptsetup@".after = lib.mkIf cfg.silent [ "plymouth-start.service" ];
+        };
         compressor = "zstd";
         compressorArgs = [
           "-3"
@@ -59,7 +62,6 @@ in
         "systemd.log_level=warning"
         "nowatchdog"
         "nmi_watchdog=0"
-        "plymouth.use-simpledrm"
       ];
       loader = {
         timeout = lib.mkDefault 3;

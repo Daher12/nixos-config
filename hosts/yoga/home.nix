@@ -118,6 +118,14 @@ in
           mode = "0700";
         }
         {
+          directory = ".local/state/opencode";
+          mode = "0700";
+        }
+        {
+          directory = ".cache/opencode";
+          mode = "0700";
+        }
+        {
           directory = ".config/opencode";
           mode = "0700";
         }
