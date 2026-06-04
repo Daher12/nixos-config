@@ -55,6 +55,7 @@ in
       kernelParams = lib.mkIf cfg.silent [
         "quiet"
         "splash"
+        "plymouth.use-simpledrm"
         "vt.global_cursor_default=0"
         "systemd.show_status=false"
         "udev.log_level=3"
