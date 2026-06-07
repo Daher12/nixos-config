@@ -20,12 +20,26 @@
   # --- Hardware & Boot ---
   boot = {
     loader.timeout = 0;
-    initrd.availableKernelModules = [
-      "nvme"
-      "xhci_pci"
-      "usb_storage"
-      "sd_mod"
-    ];
+    initrd = {
+      availableKernelModules = [
+        "nvme"
+        "xhci_pci"
+        "usb_storage"
+        "sd_mod"
+      ];
+
+      # Prevent amdgpu from loading in initrd so simpledrm survives for Plymouth.
+      # lib.mkForce beats amd-gpu.nix and nixos-hardware yoga module.
+      # Preserves btrfs/dm_mod (LUKS) and kvm/kvm-amd (amd-kvm.nix).
+      kernelModules = lib.mkForce [ "btrfs" "dm_mod" "kvm" "kvm-amd" ];
+
+      # Block udev PCI modalias auto-load of amdgpu in initrd.
+      # Without this, udev loads amdgpu before systemd-modules-load runs,
+      # removing simpledrm before Plymouth can attach to it.
+      systemd.contents."/etc/modprobe.d/no-amdgpu.conf".text = ''
+        blacklist amdgpu
+      '';
+    };
     kernelModules = [ "ryzen_smu" ];
     extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
   };
