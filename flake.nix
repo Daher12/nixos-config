@@ -2,7 +2,7 @@
   description = "Unified NixOS Configuration";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
@@ -23,7 +23,7 @@
     };
 
     home-manager = {
-      url = "github:nix-community/home-manager/release-25.11";
+      url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -74,7 +74,7 @@
       };
     in
     {
-      formatter.${system} = pkgs.nixfmt-rfc-style;
+      formatter.${system} = pkgs.nixfmt;
 
       # CI/Lint Checks
       checks.${system} = {
@@ -87,7 +87,7 @@
         } "deadnix --fail ${self} && touch $out";
 
         nixfmt = pkgs.runCommand "nixfmt-check" {
-          buildInputs = [ pkgs.nixfmt-rfc-style ];
+          buildInputs = [ pkgs.nixfmt ];
         } "find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out";
       };
 

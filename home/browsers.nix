@@ -49,6 +49,7 @@ in
     (lib.mkIf cfg.firefox.enable {
       programs.firefox = {
         enable = true;
+        configPath = "${config.xdg.configHome}/mozilla/firefox";
 
         policies = {
           DisablePocket = true;

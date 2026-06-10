@@ -102,8 +102,9 @@ in
         };
       };
       zoxide.enable = lib.mkDefault true;
-      adb.enable = lib.mkDefault true;
     };
+
+    environment.systemPackages = [ pkgs.android-tools ];
 
     services = {
       pipewire = {

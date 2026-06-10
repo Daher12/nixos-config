@@ -41,12 +41,14 @@ in
 
     services.resolved = lib.mkIf (cfg.dns == "systemd-resolved") {
       enable = true;
-      extraConfig = ''
-        DNSStubListener=yes
-        Cache=yes
-        CacheFromLocalhost=yes
-        DNSOverTLS=no
-      '';
+      settings = {
+        Resolve = {
+          DNSStubListener = "yes";
+          Cache = "yes";
+          CacheFromLocalhost = "yes";
+          DNSOverTLS = "no";
+        };
+      };
     };
   };
 }

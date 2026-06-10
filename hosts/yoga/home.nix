@@ -1,13 +1,10 @@
 {
   config,
   lib,
-  pkgs,
-  flakeRoot,
   ...
 }:
 let
   homeDir = config.home.homeDirectory;
-  msty = pkgs.callPackage (flakeRoot + "/pkgs/msty.nix") { };
 
   xdgDirs = {
     desktop = "${homeDir}/Schreibtisch";
@@ -73,7 +70,6 @@ in
   home = {
     stateVersion = "25.11";
     sessionPath = [ "${homeDir}/.local/bin" ];
-    packages = [ msty ];
 
     persistence."/persist" = {
       directories = [
@@ -133,16 +129,8 @@ in
           directory = ".config/opencode";
           mode = "0700";
         }
-        {
-          directory = ".config/msty";
-          mode = "0700";
-        }
-        {
-          directory = ".local/share/msty";
-          mode = "0700";
-        }
         ".local/share/keyrings"
-        ".mozilla/firefox"
+        ".config/mozilla/firefox"
         ".config/BraveSoftware/Brave-Browser"
         ".local/state/wireplumber"
         ".local/share/winapps/icons"
@@ -161,6 +149,7 @@ in
   xdg.userDirs = {
     enable = true;
     createDirectories = true;
+    setSessionVariables = false;
 
     desktop = "$HOME/Schreibtisch";
     documents = "$HOME/Dokumente";

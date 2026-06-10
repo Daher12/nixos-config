@@ -53,7 +53,6 @@ in
       displayManager = {
         gdm = {
           enable = true;
-          wayland = true;
         };
         autoLogin = lib.mkIf cfg.autoLogin {
           enable = true;

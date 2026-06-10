@@ -240,6 +240,7 @@ in
         };
         security = {
           admin_user = "admin";
+          secret_key = "SW2YcwTIb9zpOOhoPsMm";
           allow_embedding = false;
           cookie_secure = true;
           cookie_samesite = "lax";

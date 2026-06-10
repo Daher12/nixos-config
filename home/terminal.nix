@@ -125,7 +125,7 @@ in
     (lib.mkIf cfg.utilities.fastfetch {
       programs.fastfetch = {
         enable = true;
-        package = pkgs.fastfetchMinimal;
+        package = pkgs.fastfetch.minimal;
       };
     })
 

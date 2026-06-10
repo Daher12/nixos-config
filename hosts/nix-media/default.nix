@@ -122,7 +122,7 @@ in
     pkgs.unzip
     pkgs.ox
     pkgs.btop
-    pkgs.fastfetchMinimal
+    pkgs.fastfetch.minimal
   ];
 
   networking = {
