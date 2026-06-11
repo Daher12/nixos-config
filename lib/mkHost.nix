@@ -10,7 +10,7 @@
   system ? "x86_64-linux",
   profiles ? [ ],
   withHardware ? false, # Explicit toggle replacing 'needsHardware' heuristic
-  useLixSource ? true,
+  lix ? "source", # "source" → build from main branch (lix-module), "package" → pkgs.lix (cached), false → CppNix
   extraModules ? [ ],
   hmModules ? [ ],
   extraSpecialArgs ? { },
@@ -62,7 +62,14 @@ nixpkgs.lib.nixosSystem {
       };
     }
   ]
-  ++ nixpkgs.lib.optional useLixSource inputs.lix-module.nixosModules.default
+  ++ (
+    if lix == "source" then
+      [ inputs.lix-module.nixosModules.default ]
+    else if lix == "package" then
+      [ { nix.package = nixpkgs.legacyPackages.${system}.lix; } ]
+    else
+      [ ]
+  )
   ++ baseModules
   ++ profileModules
   ++ extraModules;
