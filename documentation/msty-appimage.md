@@ -48,15 +48,15 @@ The goal is a fully residue-free removal: no Nix store copy, no user
 data, no stale `.desktop`/icon entries, no leftover flake references.
 
 1. **Edit the host's `home.nix`:**
-   1. Remove `msty` from `home.packages` (line 76 in `hosts/yoga/home.nix`).
+   1. Remove `msty` from `home.packages`.
    2. Remove the `msty = pkgs.callPackage (flakeRoot + "/pkgs/msty.nix") { };`
-      binding from the `let` block (line 10).
+      binding from the `let` block.
    3. If `pkgs` and `flakeRoot` are no longer used anywhere else in the
-      file, remove them from the function argument list (lines 4-5). In
+      file, remove them from the function argument list. In
       `hosts/yoga/home.nix` they are only used for the msty binding, so
       both can be dropped.
    4. Remove the `.config/msty` and `.local/share/msty` entries from
-      `home.persistence."/persist".directories` (lines 136-143).
+      `home.persistence."/persist".directories`.
 
 2. **Verify no other host imports the package:**
 
@@ -104,7 +104,7 @@ data, no stale `.desktop`/icon entries, no leftover flake references.
    ```
 
    If neither command is on `$PATH`, the equivalent
-   `nix-shell -p desktop-file-utils gnome.iconcache` provides them.
+   `nix-shell -p desktop-file-utils gtk3` provides them.
 
 After step 6, the host has no msty residue in the Nix store, in user
 data, in the persistence manifest, in `home.packages`, or in the

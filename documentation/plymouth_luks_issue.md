@@ -251,7 +251,7 @@ for i in $(seq 1 5); do sudo systemctl reboot; sleep 30; \
 
 ---
 
-## Critical Evaluation of External Troubleshooting Session
+## Previous Attempts and Why They Fall Short
 
 An independent troubleshooting session produced findings that overlap with but also
 contradict parts of this document. Below is a point-by-point evaluation.

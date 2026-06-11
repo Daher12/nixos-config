@@ -256,7 +256,7 @@ get silently broken DNS.
 
 | Setting | Before | After | Reason |
 |---------|--------|-------|--------|
-| `auto-optimise-store` | `mkDefault true` | `false` | Timer-based `optimise.automatic` already runs weekly. Store was being optimized on every build *and* on timer — double work. |
+| `auto-optimise-store` | `mkDefault true` | `false` | Timer-based `optimise.automatic` already runs a full scan weekly. `auto-optimise-store` adds incremental store traversal overhead to every build. The weekly timer catches everything with acceptable delay. |
 | `http-connections` | `128` | `64` | Single-user machine, default is 25. 128 is excessive. |
 | `narinfo-cache-positive-ttl` | `2592000` (30d) | removed (upstream default: 7d) | 30-day cache could serve stale binary cache metadata. |
 | `narinfo-cache-negative-ttl` | `3600` (1h) | removed (upstream default: 1h) | Same as default — redundant. |
@@ -326,10 +326,11 @@ earlier revision of `flake.nix` and was removed without updating the scripts.
 **What:** Replaced `pkgs.replaceVars` with `pkgs.substituteAll` in
 `hosts/nix-media/caddy.nix`.
 
-**Rationale:** `replaceVars` was a plasma5-specific utility (`substituteAll`
-wrapper from `plasma5`). It was removed from nixpkgs or may not exist in all
-evaluation contexts. `substituteAll` is the standard nixpkgs function that
-replaces `@varName@` placeholders in text files.
+**Rationale:** `replaceVars` is a general nixpkgs build support function
+(`pkgs/build-support/replace-vars/`), not specific to plasma5. However,
+`substituteAll` is the conventional, widely-documented function for `@varName@`
+substitution in text files. `replaceVars` was an unusual choice that pulled in a
+newer, less familiar API.
 
 **Review:** ✓ Same behaviour: replaces `@servicesJson@` in `landing.html`. ✓
 Same API shape: `src` + named string attributes. ✓ Function exists in every

@@ -14,7 +14,7 @@ service running every 60s via a timer.
 ```
 intel_gpu_top -l -s 1000 -n 6
     │         │      │
-    │         │      └── 5 samples (n-1), exit automatically
+    │         │         └── 6 iterations; first sample discarded as baseline
     │         └───────── 1000ms interval between samples
     └─────────────────── plain-text output (not TUI)
 ```

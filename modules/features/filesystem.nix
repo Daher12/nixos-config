@@ -31,7 +31,7 @@ in
         "zfs"
       ];
       default = "ext4";
-      description = "Primary filesystem type";
+      description = "Primary filesystem type (informational — only Btrfs receives active tuning via this module)";
     };
 
     mountOptions = lib.mkOption {

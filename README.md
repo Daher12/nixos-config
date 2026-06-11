@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![NixOS 25.11](https://img.shields.io/badge/NixOS-25.11-5277C3?style=for-the-badge&logo=nixos&logoColor=white)](https://nixos.org)
+[![NixOS 26.05](https://img.shields.io/badge/NixOS-26.05-5277C3?style=for-the-badge&logo=nixos&logoColor=white)](https://nixos.org)
 [![Lix](https://img.shields.io/badge/Lix-2.93-7E3FF2?style=for-the-badge)](https://lix.systems)
 [![Flakes](https://img.shields.io/badge/Flakes-Enabled-41BAC1?style=for-the-badge)](https://nixos.wiki/wiki/Flakes)
 [![CI](https://img.shields.io/github/actions/workflow/status/daher12/nixos-config/bump.yml?style=for-the-badge&label=CI)](https://github.com/daher12/nixos-config/actions)
@@ -60,7 +60,7 @@
 ├── hosts/           # Per-host configuration
 ├── home/            # Shared home-manager modules
 ├── secrets/         # SOPS-encrypted credentials
-└── install.sh       # Automated installer
+└── scripts/install.sh   # Automated installer
 ```
 
 ---
@@ -91,6 +91,6 @@ nix flake update && nix flake check
 
 <div align="center">
 
-**[Documentation](https://nixos.org/manual/nixos/stable/)** • **[Flakes Guide](https://nixos.wiki/wiki/Flakes)** • **[Issues](https://github.com/daher12/nixos-config/issues)**
+**[Repo Docs](documentation/INDEX.md)** • **[Flakes Guide](https://nixos.wiki/wiki/Flakes)** • **[Issues](https://github.com/daher12/nixos-config/issues)**
 
 </div>

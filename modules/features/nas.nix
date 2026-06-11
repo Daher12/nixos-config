@@ -56,7 +56,5 @@ in
         "_netdev"
       ];
     };
-
-    systemd.targets.network-online.wantedBy = lib.mkForce [ "multi-user.target" ];
   };
 }

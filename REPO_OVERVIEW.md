@@ -55,12 +55,16 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 
 | File | Purpose |
 |------|---------|
+| `audio.nix` | PipeWire audio, ALSA, PulseAudio, JACK, 48kHz clock |
 | `boot.nix` | systemd-boot, Plymouth, tmpfs root, SSD scheduler udev rule |
-| `nix.nix` | Flakes, caches (nixpkgs cache, cachix), GC, store optimization |
-| `users.nix` | Main user account, group membership |
-| `networking.nix` | Base networking (systemd-resolved, Tailscale, firewall) |
+| `input.nix` | libinput input handling |
 | `locale.nix` | Timezone, locale |
+| `networking.nix` | Base networking (systemd-resolved, Tailscale, firewall) |
+| `nix.nix` | Flakes, caches (nixpkgs cache, cachix), GC, store optimization |
+| `shell.nix` | zoxide shell integration |
 | `sysctl.nix` | Kernel parameters |
+| `systemd.nix` | systemd manager timeouts, coredump disabled |
+| `users.nix` | Main user account, group membership |
 
 ### Feature Modules (`modules/features/`) — Toggle on/off per host
 
@@ -221,6 +225,7 @@ bash scripts/install.sh
 | Document | Topic |
 |----------|-------|
 | `documentation/INDEX.md` | Categorized documentation index |
+| `documentation/impermanence.md` | Btrfs root rollback, @blank template, recovery procedures |
 | `documentation/upgrade-26.05.md` | NixOS 25.11 → 26.05 migration |
 | `documentation/opencode-provider-persistence.md` | OpenCode provider drops after rebuild |
 | `documentation/plymouth_luks_issue.md` | Plymouth + LUKS on AMD |

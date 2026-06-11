@@ -224,9 +224,11 @@ This writes a real file exactly once, then OpenCode owns it. However, this is NO
 
 ---
 
-## Lint Fixes Applied
+## Related: `libstdc++.so.6` Runtime Fix
 
-1. **statix [20]**: Repeated `programs` keys — consolidated
-2. **deadnix**: Unused `prev` — renamed to `_prev`
-3. **deadnix**: Unused `finalAttrs` — removed from colloid package
-4. **nixfmt**: Colloid package reformatted
+A separate issue — `libstdc++.so.6` missing at runtime (file watcher failure) —
+was fixed via `overrideAttrs` with `LD_LIBRARY_PATH`. See
+[upgrade-26.05.md → opencode libstdc++ fix](upgrade-26.05.md#7-opencode-libstdcso6-missing-nixos)
+for details.
+
+

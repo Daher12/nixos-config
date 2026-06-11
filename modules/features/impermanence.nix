@@ -18,7 +18,7 @@ in
     enable = lib.mkEnableOption "Btrfs root rollback on boot";
 
     device = lib.mkOption {
-      type = lib.types.str;
+      type = lib.types.nonEmptyStr;
       description = "Mapped LUKS block device, e.g. /dev/mapper/cryptroot";
       example = "/dev/mapper/cryptroot";
     };
@@ -46,10 +46,6 @@ in
         assertion = lib.hasPrefix "/dev/mapper/" cfg.device;
         message = "features.impermanence: device must be a /dev/mapper/* path, got: ${cfg.device}";
       }
-      {
-        assertion = cfg.device != "";
-        message = "features.impermanence: device must not be empty";
-      }
     ];
 
     boot.initrd.systemd = {
@@ -60,7 +56,7 @@ in
         "${pkgs.util-linux}/bin/mount"
         "${pkgs.util-linux}/bin/umount"
         "${pkgs.coreutils}/bin/chmod"
-        "${pkgs.coreutils}/bin/test"
+        "${pkgs.gawk}/bin/awk"
       ];
 
       services = {
@@ -100,19 +96,32 @@ in
 
             mkdir -p /btrfs
             mount -t btrfs -o subvolid=5 "${cfg.device}" /btrfs
+            trap 'umount /btrfs 2>/dev/null || true' EXIT
 
             delete_subvolume_recursively() {
               local target="$1"
+              local children
+              children=$(btrfs subvolume list -o "$target" | awk '{print $NF}') || {
+                echo "ERROR: failed to list child subvolumes of $target" >&2
+                exit 1
+              }
               local child
               while read -r child; do
+                [ -n "$child" ] || continue
                 delete_subvolume_recursively "/btrfs/$child"
-              done < <(btrfs subvolume list -o "$target" | cut -f 9- -d ' ')
-              btrfs subvolume delete "$target" || true
+              done <<< "$children"
+              echo "Deleting subvolume: $target" >&2
+              btrfs subvolume delete "$target"
             }
 
             if ! btrfs subvolume show "/btrfs/$BLANK" >/dev/null 2>&1; then
               echo "ERROR: missing template snapshot /btrfs/$BLANK" >&2
-              umount /btrfs
+              exit 1
+            fi
+
+            if ! btrfs subvolume show "/btrfs/$BLANK" 2>/dev/null \
+              | grep -q "Flags:.*readonly"; then
+              echo "ERROR: /btrfs/$BLANK is not a read-only snapshot" >&2
               exit 1
             fi
 
@@ -131,7 +140,6 @@ in
             do
               if [ ! -e "/btrfs/$BLANK/$d" ]; then
                 echo "ERROR: template /btrfs/$BLANK is missing required path: /$d" >&2
-                umount /btrfs
                 exit 1
               fi
             done
@@ -140,13 +148,11 @@ in
               delete_subvolume_recursively "/btrfs/$ROOT"
             elif [ -e "/btrfs/$ROOT" ]; then
               echo "ERROR: /btrfs/$ROOT exists but is not a Btrfs subvolume" >&2
-              umount /btrfs
               exit 1
             fi
 
             btrfs subvolume snapshot "/btrfs/$BLANK" "/btrfs/$ROOT"
             chmod 1777 "/btrfs/$ROOT/tmp"
-            umount /btrfs
           '';
         };
       };

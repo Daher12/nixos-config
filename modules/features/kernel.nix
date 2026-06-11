@@ -17,6 +17,12 @@ let
 in
 {
   options.features.kernel = {
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable custom kernel variant and parameters";
+    };
+
     variant = lib.mkOption {
       type = lib.types.enum [
         "default"
@@ -40,7 +46,7 @@ in
     };
   };
 
-  config = {
+  config = lib.mkIf cfg.enable {
     boot = {
       kernelPackages = lib.mkDefault kernelPackages.${cfg.variant};
       kernelParams = lib.mkBefore cfg.extraParams;

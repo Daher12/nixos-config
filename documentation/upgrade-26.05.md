@@ -45,7 +45,6 @@ were updated via `nix flake update`.
 | `lix` | `c64fbc` (2026-05-27) | `ab149a6` (2026-06-09) |
 | `disko` | `115e521` (2026-06-01) | `24fed06` (2026-06-08) |
 | `nixos-hardware` | `4ed851c` (2026-06-01) | `32c2cd9` (2026-06-09) |
-| `nixpkgs-unstable` | `331800d` (2026-05-31) | `a799d3e` (2026-06-06) |
 | `winapps` | `3c1e7e1` (2026-06-02) | `abc2c3d` (2026-06-07) |
 
 ## Breaking Changes Fixed
@@ -122,12 +121,13 @@ a Wayland session; the option to choose X11 no longer exists.
 
 ### 3. `programs.adb` removed
 
-**File:** `modules/core/users.nix`  
+**File:** `modules/core/users.nix`, package moved to `hosts/yoga/default.nix`  
 **Affects:** All hosts
 
 systemd 258 (included in 26.05) handles uaccess rules automatically for USB
 devices. The `programs.adb` option and `adbusers` group are no longer needed.
-The `adb` command itself is provided by `pkgs.android-tools`.
+The `adb` command itself is provided by `pkgs.android-tools`, added to
+`environment.systemPackages` in `hosts/yoga/default.nix`.
 
 **Before:**
 
@@ -145,6 +145,7 @@ programs = {
   # ... (adb.enable removed)
 };
 
+# In hosts/yoga/default.nix:
 environment.systemPackages = [ pkgs.android-tools ];
 ```
 
@@ -451,6 +452,11 @@ next boot. Add `.config/mozilla/firefox` to the persistence list before
 deploying (see Firefox migration above). Other persistent directories are
 unchanged.
 
+If the upgrade added or changed any Btrfs subvolume mounts under `/`, the
+`@blank` template snapshot must be updated before rebooting. See
+[impermanence.md → Updating @blank](impermanence.md#updating-blank)
+for the procedure.
+
 ### Firefox profile migration
 
 After deploying, Firefox profiles must be moved from `~/.mozilla/firefox`
@@ -465,7 +471,8 @@ list.
 | `flake.nix` | Branch refs → 26.05, `nixfmt-rfc-style` → `nixfmt` |
 | `flake.lock` | All inputs updated via `nix flake update` |
 | `modules/core/networking.nix` | `extraConfig` → `settings` |
-| `modules/core/users.nix` | Removed `programs.adb.enable`, added `pkgs.android-tools` |
+| `modules/core/users.nix` | Removed `programs.adb.enable` |
+| `hosts/yoga/default.nix` | Added `pkgs.android-tools` to `environment.systemPackages` |
 | `modules/features/desktop-gnome.nix` | Removed `gdm.wayland = true` |
 | `hosts/nix-media/monitoring.nix` | Added `secret_key` to Grafana security |
 | `hosts/nix-media/default.nix` | `fastfetchMinimal` → `fastfetch.minimal` |
