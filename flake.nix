@@ -125,6 +125,7 @@
           hostname = "latitude";
           mainUser = "dk";
           withHardware = true;
+          useLixSource = false;
           profiles = [
             "laptop"
             "desktop-gnome"

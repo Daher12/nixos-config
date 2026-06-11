@@ -123,6 +123,7 @@ in
         name = themeDark;
         package = colloid;
       };
+      gtk4.theme = null;
       iconTheme = {
         name = iconDark;
         package = iconPkg;

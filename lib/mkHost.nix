@@ -10,6 +10,7 @@
   system ? "x86_64-linux",
   profiles ? [ ],
   withHardware ? false, # Explicit toggle replacing 'needsHardware' heuristic
+  useLixSource ? true,
   extraModules ? [ ],
   hmModules ? [ ],
   extraSpecialArgs ? { },
@@ -42,7 +43,6 @@ nixpkgs.lib.nixosSystem {
   specialArgs = commonArgs;
 
   modules = [
-    inputs.lix-module.nixosModules.default
     inputs.sops-nix.nixosModules.sops
     inputs.home-manager.nixosModules.home-manager
     inputs.disko.nixosModules.disko
@@ -62,6 +62,7 @@ nixpkgs.lib.nixosSystem {
       };
     }
   ]
+  ++ nixpkgs.lib.optional useLixSource inputs.lix-module.nixosModules.default
   ++ baseModules
   ++ profileModules
   ++ extraModules;
