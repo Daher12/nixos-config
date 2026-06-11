@@ -55,38 +55,35 @@ let
   };
 
   gpuMetricsScript = pkgs.writeShellScript "collect-gpu-metrics" ''
-    set -euo pipefail
+    set -uo pipefail
     export LC_ALL=C
 
     TMPFILE=/var/lib/prometheus-node-exporter/intel_gpu.prom.tmp
     OUTFILE=/var/lib/prometheus-node-exporter/intel_gpu.prom
 
-    OUTPUT=$(${pkgs.coreutils}/bin/timeout 4s ${pkgs.intel-gpu-tools}/bin/intel_gpu_top -s 1000 | tr -d '\r')
-
-    echo "$OUTPUT" | ${pkgs.gawk}/bin/awk '
-      BEGIN { render_sum=0; video_sum=0; enhance_sum=0; samples=0 }
-      /Freq/ || /req/ || /^$/ { next }
-      $1 ~ /^[0-9.]+$/ && NF >= 13 {
-        render_sum  += $7; video_sum += $11; enhance_sum += $13; samples++
-      }
-      END {
-        if (samples > 0) {
-          render  = render_sum / samples
-          video   = video_sum / samples
-          enhance = enhance_sum / samples
-          busy = render
-          if (video > busy) busy = video
-          if (enhance > busy) busy = enhance
-        } else {
-          render = 0; video = 0; enhance = 0; busy = 0
+    ${pkgs.coreutils}/bin/timeout 7s ${pkgs.intel-gpu-tools}/bin/intel_gpu_top -l -s 1000 -n 6 2>/dev/null \
+      | ${pkgs.gawk}/bin/awk '
+        NF >= 13 && $1 ~ /^[0-9]+$/ {
+          render_sum  += $7; video_sum += $13; enhance_sum += $16; samples++
         }
-        printf "intel_gpu_engine_busy_percent{engine=\"render\"} %.2f\n", render
-        printf "intel_gpu_engine_busy_percent{engine=\"video\"} %.2f\n", video
-        printf "intel_gpu_engine_busy_percent{engine=\"videoenhance\"} %.2f\n", enhance
-        printf "intel_gpu_busy_percent %.2f\n", busy
-        print "intel_gpu_build_info{version=\"${pkgs.intel-gpu-tools.version}\"} 1"
-      }
-    ' > "$TMPFILE"
+        END {
+          if (samples > 0) {
+            ravg = render_sum / samples
+            vavg = video_sum / samples
+            eavg = enhance_sum / samples
+            busy = ravg
+            if (vavg > busy) busy = vavg
+            if (eavg > busy) busy = eavg
+          } else {
+            ravg = 0; vavg = 0; eavg = 0; busy = 0
+          }
+          printf "intel_gpu_engine_busy_percent{engine=\"render\"} %.2f\n", ravg
+          printf "intel_gpu_engine_busy_percent{engine=\"video\"} %.2f\n", vavg
+          printf "intel_gpu_engine_busy_percent{engine=\"videoenhance\"} %.2f\n", eavg
+          printf "intel_gpu_busy_percent %.2f\n", busy
+          print "intel_gpu_build_info{version=\"${pkgs.intel-gpu-tools.version}\"} 1"
+        }
+      ' > "$TMPFILE" || true
 
     if [ -s "$TMPFILE" ]; then
       mv "$TMPFILE" "$OUTFILE"
@@ -274,9 +271,9 @@ in
           {
             name = "default";
             type = "file";
-            disableDeletion = false;
-            updateIntervalSeconds = 10;
-            allowUiUpdates = true;
+            disableDeletion = true;
+            updateIntervalSeconds = 60;
+            allowUiUpdates = false;
             options.path = "/etc/grafana/dashboards";
           }
         ];
