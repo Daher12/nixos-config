@@ -241,6 +241,78 @@ checks.${system} = {
 RFC-style formatter became the default). The old name is a deprecated alias
 that may be removed in 26.11.
 
+### 7. opencode `libstdc++.so.6` missing (NixOS)
+
+**File:** `home/terminal.nix`  
+**Affects:** yoga, latitude (hosts with opencode in home.packages)
+
+opencode is compiled with Bun, which loads a native file-watcher module at
+runtime that depends on `libstdc++.so.6`. NixOS does not include this library
+in standard paths, so the file watcher fails on every startup:
+
+```
+ERROR service=file.watcher error=libstdc++.so.6: cannot open shared object file
+```
+
+This is a known NixOS issue ([opencode #462](https://github.com/anomalyco/opencode/issues/462))
+caused by Bun's compilation bundling a dynamic `libstdc++` dependency. It
+persists across opencode versions (1.10 → 1.15.x → 1.17.x) because it is a
+build artifact, not a version-specific bug.
+
+**Change:**
+
+```nix
+home.packages = [
+  # ...
+  (pkgs.opencode.overrideAttrs (previousAttrs: {
+    postFixup = (previousAttrs.postFixup or "") + ''
+      wrapProgram $out/bin/opencode \
+        --set LD_LIBRARY_PATH "${lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}"
+    '';
+  }))
+];
+```
+
+**Why:** Wrapping the binary with `LD_LIBRARY_PATH` pointing to
+`stdenv.cc.cc.lib` (which provides `libstdc++.so.6`) resolves the missing
+library error at runtime. Using `overrideAttrs` with `postFixup` is the
+standard NixOS pattern for injecting runtime library paths into packaged
+binaries.
+
+### 8. Docker `docker-28.5.2` marked insecure (nix-media CI)
+
+**File:** `hosts/nix-media/docker.nix`  
+**Affects:** nix-media only (CI builds)
+
+NixOS 26.05 marked `docker_28` as insecure (unmaintained since November 2025).
+The nix-media host uses `virtualisation.docker.enable = true`, which defaults
+`package` to `pkgs.docker`. When the CI runs `nix flake update`, the latest
+nixpkgs may resolve `pkgs.docker` to `docker-28.5.2`, causing evaluation to
+fail:
+
+```
+error: Package 'docker-28.5.2' ... is marked as insecure, refusing to evaluate.
+  docker_28 has been unmaintained since November 2025, use docker_29 or newer instead
+```
+
+**Change:**
+
+```nix
+virtualisation = {
+  docker = {
+    enable = true;
+    package = pkgs.docker_29;   # added — avoids docker-28 insecure evaluation
+    # ...
+  };
+};
+```
+
+**Why:** Pinning to `pkgs.docker_29` explicitly bypasses the insecure default.
+This is an interim fix — when nix-media is fully upgraded to 26.05, the default
+`pkgs.docker` will already be docker 29 and the pin can be removed. The
+`docker_29` attribute exists in both 25.11 and 26.05, so it is safe to use
+during the transition.
+
 ## Adopted 26.05 Defaults
 
 These warnings were resolved by explicitly setting the new 26.05 defaults,
@@ -397,10 +469,11 @@ list.
 | `modules/features/desktop-gnome.nix` | Removed `gdm.wayland = true` |
 | `hosts/nix-media/monitoring.nix` | Added `secret_key` to Grafana security |
 | `hosts/nix-media/default.nix` | `fastfetchMinimal` → `fastfetch.minimal` |
-| `home/terminal.nix` | `fastfetchMinimal` → `fastfetch.minimal` |
+| `home/terminal.nix` | `fastfetchMinimal` → `fastfetch.minimal`, opencode `LD_LIBRARY_PATH` wrap |
 | `home/theme.nix` | Added `gtk.gtk4.theme = null` |
 | `home/browsers.nix` | Added `programs.firefox.configPath` (XDG path) |
 | `hosts/yoga/home.nix` | Added `xdg.userDirs.setSessionVariables = false` |
+| `hosts/nix-media/docker.nix` | Added `package = pkgs.docker_29` |
 
 ## Verification Commands
 

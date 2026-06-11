@@ -31,7 +31,12 @@
       # Prevent amdgpu from loading in initrd so simpledrm survives for Plymouth.
       # lib.mkForce beats amd-gpu.nix and nixos-hardware yoga module.
       # Preserves btrfs/dm_mod (LUKS) and kvm/kvm-amd (amd-kvm.nix).
-      kernelModules = lib.mkForce [ "btrfs" "dm_mod" "kvm" "kvm-amd" ];
+      kernelModules = lib.mkForce [
+        "btrfs"
+        "dm_mod"
+        "kvm"
+        "kvm-amd"
+      ];
 
       # Block udev PCI modalias auto-load of amdgpu in initrd.
       # Without this, udev loads amdgpu before systemd-modules-load runs,

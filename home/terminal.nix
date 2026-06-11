@@ -144,7 +144,12 @@ in
         pkgs.nix-output-monitor
         pkgs.p7zip
         pkgs.unzip
-        pkgs.opencode
+        (pkgs.opencode.overrideAttrs (previousAttrs: {
+          postFixup = (previousAttrs.postFixup or "") + ''
+            wrapProgram $out/bin/opencode \
+              --set LD_LIBRARY_PATH "${lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}"
+          '';
+        }))
       ];
     }
   ];
