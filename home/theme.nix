@@ -21,7 +21,6 @@ let
   switchTheme = pkgs.writeShellApplication {
     name = "switch-theme";
     runtimeInputs = with pkgs; [
-      coreutils
       glib
       dbus
       systemd
@@ -77,23 +76,20 @@ let
       for item in gtk.css gtk-dark.css assets; do
         src="$THEME_BASE/$theme/gtk-4.0/$item"
         dst="$GTK4_DIR/$item"
-        [ -e "$src" ] && ln -sfn "$src" "$dst"
+        [ -e "$src" ] || continue
+        [ ! -L "$dst" ] && [ -d "$dst" ] && rm -rf "$dst"
+        ln -sfn "$src" "$dst"
       done
     '';
   };
 
-  # darkman wants executable paths (no args)
-  switchDark = pkgs.writeShellApplication {
-    name = "switch-theme-dark";
-    runtimeInputs = [ switchTheme ];
-    text = "exec ${switchTheme}/bin/switch-theme dark";
-  };
+  switchDark = pkgs.writeShellScriptBin "switch-theme-dark" ''
+    exec ${switchTheme}/bin/switch-theme dark
+  '';
 
-  switchLight = pkgs.writeShellApplication {
-    name = "switch-theme-light";
-    runtimeInputs = [ switchTheme ];
-    text = "exec ${switchTheme}/bin/switch-theme light";
-  };
+  switchLight = pkgs.writeShellScriptBin "switch-theme-light" ''
+    exec ${switchTheme}/bin/switch-theme light
+  '';
 in
 {
   config = {
@@ -126,9 +122,6 @@ in
       theme = {
         name = themeDark;
         package = colloid;
-      };
-      gtk4 = {
-        theme = null;
       };
       iconTheme = {
         name = iconDark;

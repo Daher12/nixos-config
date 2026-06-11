@@ -58,24 +58,28 @@
       # Kept locally only to satisfy formatter and check derivations
       system = "x86_64-linux";
 
+      # Overlays shared between the local pkgs (for formatter/checks) and NixOS modules
+      colloidFluentOverlays = [
+        (final: _prev: {
+          colloid-gtk-theme = final.callPackage ./pkgs/colloid-gtk-theme.nix { };
+          fluent-icon-theme = final.callPackage ./pkgs/fluent-icon-theme.nix { };
+        })
+      ];
+
       # Rationale: Defer architecture binding to per-host evaluation. Avoids breaking non-x86 builds.
       mkHost = import ./lib/mkHost.nix {
         inherit
           nixpkgs
           inputs
           self
+          colloidFluentOverlays
           ;
       };
 
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;
-        overlays = [
-          (final: _prev: {
-            colloid-gtk-theme = final.callPackage ./pkgs/colloid-gtk-theme.nix { };
-            fluent-icon-theme = final.callPackage ./pkgs/fluent-icon-theme.nix { };
-          })
-        ];
+        overlays = colloidFluentOverlays;
       };
     in
     {

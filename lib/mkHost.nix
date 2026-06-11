@@ -2,6 +2,7 @@
   nixpkgs,
   inputs,
   self,
+  colloidFluentOverlays ? [ ],
 }:
 {
   hostname,
@@ -46,7 +47,10 @@ nixpkgs.lib.nixosSystem {
     inputs.home-manager.nixosModules.home-manager
     inputs.disko.nixosModules.disko
     {
-      nixpkgs.config.allowUnfree = true;
+      nixpkgs = {
+        config.allowUnfree = true;
+        overlays = colloidFluentOverlays;
+      };
       networking.hostName = hostname;
 
       home-manager = {

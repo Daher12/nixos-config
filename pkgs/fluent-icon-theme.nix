@@ -4,7 +4,6 @@
   fetchFromGitHub,
   gtk3,
   hicolor-icon-theme,
-  jdupes,
   roundedIcons ? false,
   blackPanelIcons ? false,
   allColorVariants ? false,
@@ -41,7 +40,6 @@ lib.checkListOfEnum "${pname}: available color variants"
 
     nativeBuildInputs = [
       gtk3
-      jdupes
     ];
 
     buildInputs = [ hicolor-icon-theme ];
@@ -64,7 +62,8 @@ lib.checkListOfEnum "${pname}: available color variants"
         ${lib.optionalString roundedIcons "--round"} \
         ${lib.optionalString blackPanelIcons "--black"}
 
-      jdupes --quiet --link-soft --recurse $out/share
+      # Remove broken symlinks from upstream (icons linked to non-existent search.svg, etc.)
+      find $out/share/icons -type l ! -exec test -e {} \; -delete
 
       runHook postInstall
     '';
