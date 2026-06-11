@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  pkgsUnstable,
   ...
 }:
 
@@ -68,7 +67,7 @@ in
     (lib.mkIf cfg.ghostty.enable {
       programs.ghostty = {
         enable = true;
-        package = pkgsUnstable.ghostty;
+        package = pkgs.ghostty;
 
         settings = {
           theme = "Nord";
@@ -144,12 +143,6 @@ in
         pkgs.nix-output-monitor
         pkgs.p7zip
         pkgs.unzip
-        (pkgsUnstable.opencode.overrideAttrs (previousAttrs: {
-          postFixup = (previousAttrs.postFixup or "") + ''
-            wrapProgram $out/bin/opencode \
-              --set LD_LIBRARY_PATH "${lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}"
-          '';
-        }))
       ];
     }
   ];

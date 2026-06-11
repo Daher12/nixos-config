@@ -3,7 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     lanzaboote = {
@@ -71,6 +70,12 @@
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;
+        overlays = [
+          (final: _prev: {
+            colloid-gtk-theme = final.callPackage ./pkgs/colloid-gtk-theme.nix { };
+            fluent-icon-theme = final.callPackage ./pkgs/fluent-icon-theme.nix { };
+          })
+        ];
       };
     in
     {

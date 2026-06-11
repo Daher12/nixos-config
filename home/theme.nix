@@ -1,7 +1,6 @@
 {
   lib,
   pkgs,
-  pkgsUnstable,
   ...
 }:
 
@@ -9,9 +8,9 @@ let
   themeDark = "Colloid-Dark-Nord";
   themeLight = "Colloid-Light-Nord";
 
-  colloid = pkgsUnstable.colloid-gtk-theme.override { tweaks = [ "nord" ]; };
+  colloid = pkgs.colloid-gtk-theme.override { tweaks = [ "nord" ]; };
 
-  iconPkg = pkgsUnstable.fluent-icon-theme;
+  iconPkg = pkgs.fluent-icon-theme;
   iconDark = "Fluent-dark";
   iconLight = "Fluent";
 

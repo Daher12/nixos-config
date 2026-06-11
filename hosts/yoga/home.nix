@@ -177,59 +177,81 @@ in
   home.file.".config/gtk-3.0/bookmarks".text = gtkBookmarksText;
   home.file.".config/gtk-4.0/bookmarks".text = gtkBookmarksText;
 
-  home.file.".config/opencode/opencode.json".text = builtins.toJSON {
-    "$schema" = "https://opencode.ai/config.json";
-    model = "openrouter/deepseek/deepseek-v4-flash";
-    small_model = "openrouter/mistralai/mistral-small-3.2-24b-instruct";
-    provider = {
-      openrouter = {
-        models = {
-          "deepseek/deepseek-v4-flash" = { };
-          "deepseek/deepseek-v4-pro" = {
-            options = {
-              provider = {
-                order = [ "deepseek" ];
-                allow_fallbacks = true;
-              };
-            };
-          };
-        };
-      };
-    };
-    permission = {
-      edit = "ask";
-      bash = {
-        "*" = "ask";
-        "git status" = "allow";
-        "git diff *" = "allow";
-        "rm -rf *" = "deny";
-      };
-    };
-  };
-
   home.packages = [
     pkgs.cherry-studio
   ];
-
-  programs.fish.functions.nus = ''
-    "$HOME/nixos-config/scripts/update-safe" $argv
-  '';
 
   browsers = {
     firefox.enable = true;
     brave.enable = true;
   };
 
-  programs.winapps = {
-    enable = true;
-    vmIP = "192.168.122.139";
-    windowsDomain = "DESKTOP-TDTHSIQ";
-    rdpScale = 180;
-    debug = true;
+  systemd.user.services.opencode-cache-clean = {
+    Unit = {
+      Description = "Clean OpenCode provider SDK cache";
+    };
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.bash}/bin/bash -c 'rm -rf ${homeDir}/.cache/opencode/node_modules'";
+    };
+    Install = {
+      WantedBy = [ "default.target" ];
+    };
+  };
 
-    rdpFlags = "/cert:tofu /usb:auto /clipboard +auto-reconnect /network:lan /audio-mode:1 /gfx:RFX +async-update +async-channels /frame-ack:0 /size:2048x1240";
+  programs = {
+    opencode = {
+      enable = true;
+      package = pkgs.opencode.overrideAttrs (previousAttrs: {
+        postFixup = (previousAttrs.postFixup or "") + ''
+          wrapProgram $out/bin/opencode \
+            --set LD_LIBRARY_PATH "${lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}"
+        '';
+      });
+      settings = {
+        model = "openrouter/deepseek/deepseek-v4-flash";
+        small_model = "openrouter/mistralai/mistral-small-3.2-24b-instruct";
+        provider = {
+          openrouter = {
+            models = {
+              "deepseek/deepseek-v4-flash" = { };
+              "deepseek/deepseek-v4-pro" = {
+                options = {
+                  provider = {
+                    order = [ "deepseek" ];
+                    allow_fallbacks = true;
+                  };
+                };
+              };
+            };
+          };
+        };
+        permission = {
+          edit = "ask";
+          bash = {
+            "*" = "ask";
+            "git status" = "allow";
+            "git diff *" = "allow";
+            "rm -rf *" = "deny";
+          };
+        };
+      };
+    };
 
-    rdpFlagsWindows = "";
+    fish.functions.nus = ''
+      "$HOME/nixos-config/scripts/update-safe" $argv
+    '';
 
+    winapps = {
+      enable = true;
+      vmIP = "192.168.122.139";
+      windowsDomain = "DESKTOP-TDTHSIQ";
+      rdpScale = 180;
+      debug = true;
+
+      rdpFlags = "/cert:tofu /usb:auto /clipboard +auto-reconnect /network:lan /audio-mode:1 /gfx:RFX +async-update +async-channels /frame-ack:0 /size:2048x1240";
+
+      rdpFlagsWindows = "";
+    };
   };
 }
