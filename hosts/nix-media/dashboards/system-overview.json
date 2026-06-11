@@ -51,7 +51,21 @@
               }
             ]
           }
-        }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU Usage"
+            },
+            "properties": [
+              {
+                "id": "custom.showLegend",
+                "value": false
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -95,7 +109,21 @@
               }
             ]
           }
-        }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RAM Used"
+            },
+            "properties": [
+              {
+                "id": "custom.showLegend",
+                "value": false
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -139,7 +167,21 @@
               }
             ]
           }
-        }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Storage Used"
+            },
+            "properties": [
+              {
+                "id": "custom.showLegend",
+                "value": false
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -164,58 +206,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "Bps",
-          "custom": {
-            "lineWidth": 2
-          }
-        }
-      }
-    },
-    {
-      "id": 5,
-      "gridPos": {
-        "x": 0,
-        "y": 16,
-        "w": 12,
-        "h": 8
-      },
-      "type": "timeseries",
-      "title": "Container CPU",
-      "targets": [
-        {
-          "expr": "rate(container_cpu_usage_seconds_total{name=~\"jellyfin|audiobookshelf\"}[5m]) * 100",
-          "legendFormat": "{{name}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "custom": {
-            "lineWidth": 2
-          }
-        }
-      }
-    },
-    {
-      "id": 6,
-      "gridPos": {
-        "x": 12,
-        "y": 16,
-        "w": 12,
-        "h": 8
-      },
-      "type": "timeseries",
-      "title": "Container Memory",
-      "targets": [
-        {
-          "expr": "container_memory_usage_bytes{name=~\"jellyfin|audiobookshelf\"}",
-          "legendFormat": "{{name}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
+          "unit": "binBps",
           "custom": {
             "lineWidth": 2
           }
@@ -226,7 +217,7 @@
       "id": 8,
       "gridPos": {
         "x": 0,
-        "y": 24,
+        "y": 16,
         "w": 12,
         "h": 8
       },
@@ -282,7 +273,7 @@
       "id": 7,
       "gridPos": {
         "x": 12,
-        "y": 24,
+        "y": 16,
         "w": 12,
         "h": 8
       },
@@ -307,8 +298,7 @@
             "gradientMode": "opacity"
           },
           "thresholds": {
-            "mode": "absolute",
-            "steps": []
+            "mode": "absolute"
           }
         }
       }
