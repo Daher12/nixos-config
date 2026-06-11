@@ -24,9 +24,8 @@ let
   };
 
   # --- Template Injection ---
-  # FIX: Replaced removed 'substituteAll' with 'replaceVars'
-  landingPage = pkgs.replaceVars ./landing.html {
-    # Generate JSON for the frontend
+  landingPage = pkgs.substituteAll {
+    src = ./landing.html;
     servicesJson = builtins.toJSON (
       lib.mapAttrsToList (name: cfg: {
         inherit name;

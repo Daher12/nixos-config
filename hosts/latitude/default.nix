@@ -55,7 +55,7 @@ in
   hardware = {
     intel-gpu.enable = true;
     isPhysical = true;
-    nvidia.disable.enable = true;
+    nvidia-disable.enable = true;
   };
   features = {
     sops.enable = true;

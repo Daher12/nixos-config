@@ -1,10 +1,10 @@
 { config, lib, ... }:
 
 let
-  cfg = config.hardware.nvidia.disable;
+  cfg = config.hardware.nvidia-disable;
 in
 {
-  options.hardware.nvidia.disable = {
+  options.hardware.nvidia-disable = {
     enable = lib.mkEnableOption "completely disable Nvidia GPU";
   };
 

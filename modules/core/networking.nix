@@ -22,7 +22,6 @@ in
     dns = lib.mkOption {
       type = lib.types.enum [
         "systemd-resolved"
-        "dnsmasq"
         "none"
       ];
       default = "systemd-resolved";
@@ -35,20 +34,19 @@ in
       enable = lib.mkDefault true;
       wifi.backend = cfg.backend;
       wifi.powersave = cfg.enablePowersave;
-      # FIX: Use inherit to satisfy statix
       inherit (cfg) dns;
     };
 
     services.resolved = lib.mkIf (cfg.dns == "systemd-resolved") {
       enable = true;
-      settings = {
-        Resolve = {
-          DNSStubListener = "yes";
-          Cache = "yes";
-          CacheFromLocalhost = "yes";
-          DNSOverTLS = "no";
-        };
+      settings.Resolve = {
+        DNSStubListener = "yes";
+        Cache = "yes";
+        CacheFromLocalhost = "yes";
+        DNSOverTLS = "no";
       };
     };
+
+    systemd.services.NetworkManager-wait-online.wantedBy = lib.mkForce [ ];
   };
 }

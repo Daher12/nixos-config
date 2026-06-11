@@ -2,7 +2,6 @@
 
 let
   cfg = config.core.boot;
-  # Detect if the Secure Boot feature module is active
   sbActive = config.features.secureboot.enable or false;
 in
 {
@@ -15,7 +14,6 @@ in
         "script"
         "text"
       ];
-      # PATCH: safe default prevents eval failure if silent = true without explicit theme
       default = "spinner";
       description = "Plymouth theme to use";
     };
@@ -62,22 +60,15 @@ in
         "loglevel=3"
         "systemd.log_level=warning"
         "nowatchdog"
-        "nmi_watchdog=0"
       ];
       loader = {
         timeout = lib.mkDefault 3;
         systemd-boot = {
-          # PATCH: lib.mkDefault (!sbActive) replaces lib.mkIf (!sbActive) true.
-          # The old pattern contributed {} (not false) when sbActive=true, making the
-          # result depend on other modules rather than expressing an explicit value.
-          # secureboot.nix still mkForce-disables this when active.
           enable = lib.mkDefault (!sbActive);
           configurationLimit = lib.mkDefault 10;
           consoleMode = lib.mkDefault "keep";
         };
         efi.canTouchEfiVariables = true;
-        # Keep ESP mountpoint consistent with Disko (ESP mounted at /boot)
-        # and with the installer script's strict /mnt/boot mountpoint check.
         efi.efiSysMountPoint = lib.mkDefault "/boot";
       };
       tmp = lib.mkIf cfg.tmpfs.enable {

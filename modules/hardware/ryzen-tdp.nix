@@ -144,8 +144,6 @@ in
 
       serviceConfig = {
         Type = "oneshot";
-        Restart = "on-failure";
-        RestartSec = "1s";
         ExecStartPre = "${pkgs.coreutils}/bin/sleep ${toString cfg.settleDelaySec}";
         ExecStart = lib.getExe setTdp;
         TimeoutStartSec = "10s";

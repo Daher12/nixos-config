@@ -50,7 +50,7 @@ in
           "flakes"
         ];
 
-        auto-optimise-store = lib.mkDefault true;
+        auto-optimise-store = false;
         max-jobs = lib.mkDefault "auto";
         cores = lib.mkDefault 0;
 
@@ -63,9 +63,7 @@ in
         sandbox-fallback = false;
 
         min-free = 5368709120;
-        # 5GB
         max-free = 21474836480;
-        # 20GB
 
         substituters = [
           "https://cache.nixos.org"
@@ -80,10 +78,9 @@ in
         ];
 
         fallback = lib.mkDefault true;
-        http-connections = 128;
+        http-connections = 64;
         connect-timeout = 5;
         download-attempts = 3;
-        stalled-download-timeout = 300;
 
         keep-derivations = false;
         keep-outputs = false;
@@ -91,8 +88,6 @@ in
         builders-use-substitutes = true;
         log-lines = lib.mkDefault 25;
         accept-flake-config = true;
-        narinfo-cache-negative-ttl = 3600;
-        narinfo-cache-positive-ttl = 2592000;
         flake-registry = "";
       };
 
@@ -105,9 +100,7 @@ in
 
       gc = lib.mkIf cfg.gc.automatic {
         automatic = true;
-        # FIX: Use inherit to satisfy linter (assignment match)
         inherit (cfg.gc) dates;
-        # Note: 'options' maps to 'flags', so it cannot be inherited.
         options = cfg.gc.flags;
       };
 
@@ -116,11 +109,8 @@ in
         inherit (cfg.optimise) dates;
       };
 
-      # Rationale: Idiomatic upstream abstraction ensures compatibility with future unit updates.
       daemonCPUSchedPolicy = lib.mkDefault "idle";
       daemonIOSchedClass = lib.mkDefault "idle";
     };
-
-    systemd.services.NetworkManager-wait-online.wantedBy = lib.mkForce [ ];
   };
 }

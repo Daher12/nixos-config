@@ -186,6 +186,7 @@
   # --- Environment & Filesystems ---
   environment = {
     systemPackages = [
+      pkgs.android-tools
       pkgs.libva-utils
       pkgs.vulkan-tools
     ];

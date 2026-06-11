@@ -48,7 +48,7 @@ git pull --ff-only
 
 echo "==> Update safe flake inputs"
 nix flake update \
-  nixpkgs nixpkgs-unstable nixos-hardware \
+  nixpkgs nixos-hardware \
   home-manager sops-nix disko impermanence \
   winapps preload-ng
 

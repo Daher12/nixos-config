@@ -22,7 +22,6 @@ in
       default = "User";
       description = "User full name";
     };
-
     defaultShell = lib.mkOption {
       type = lib.types.enum [
         "fish"
@@ -32,7 +31,6 @@ in
       default = "fish";
       description = "Default shell for main user";
     };
-    # Explicit nesting ensures cfg.zsh exists
     zsh = {
       theme = lib.mkOption {
         type = lib.types.str;
@@ -44,7 +42,6 @@ in
 
   config = {
     sops.secrets = lib.mkIf sopsEnabled {
-      # Main user password -- available before users activation via neededForUsers
       "${mainUser}_password_hash" = {
         neededForUsers = true;
         sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
@@ -58,10 +55,7 @@ in
         isNormalUser = true;
         inherit (cfg) description;
         group = mainUser;
-
-        # Reads SOPS secret directly; activation guaranteed by neededForUsers = true
         hashedPasswordFile = lib.mkIf sopsEnabled config.sops.secrets."${mainUser}_password_hash".path;
-
         shell = pkgs.${cfg.defaultShell};
         extraGroups = [
           "networkmanager"
@@ -77,15 +71,12 @@ in
       groups.${mainUser} = { };
     };
 
-    security = {
-      sudo = {
-        wheelNeedsPassword = true;
-        extraConfig = ''
-          Defaults timestamp_timeout=${toString cfg.sudoTimeout}
-          Defaults !tty_tickets
-        '';
-      };
-      rtkit.enable = lib.mkDefault true;
+    security.sudo = {
+      wheelNeedsPassword = true;
+      extraConfig = ''
+        Defaults timestamp_timeout=${toString cfg.sudoTimeout}
+        Defaults !tty_tickets
+      '';
     };
 
     programs = {
@@ -101,54 +92,6 @@ in
           inherit (cfg.zsh) theme;
         };
       };
-      zoxide.enable = lib.mkDefault true;
-    };
-
-    environment.systemPackages = [ pkgs.android-tools ];
-
-    services = {
-      pipewire = {
-        enable = lib.mkDefault true;
-        alsa.enable = lib.mkDefault true;
-        alsa.support32Bit = lib.mkDefault true;
-        pulse.enable = lib.mkDefault true;
-        jack.enable = lib.mkDefault true;
-        extraConfig.pipewire = {
-          "10-clock-rate" = {
-            "context.properties" = {
-              "default.clock.rate" = 48000;
-              "default.clock.quantum" = 1024;
-              "default.clock.min-quantum" = 512;
-              "default.clock.max-quantum" = 2048;
-            };
-          };
-        };
-      };
-
-      libinput.enable = lib.mkDefault true;
-      fwupd.enable = lib.mkDefault true;
-      logind.settings.Login = {
-        HandleLidSwitch = "suspend";
-        HandleLidSwitchExternalPower = "ignore";
-        HandleLidSwitchDocked = "ignore";
-      };
-    };
-
-    systemd = {
-      settings.Manager = {
-        DefaultTimeoutStopSec = lib.mkDefault "30s";
-        DefaultTimeoutStartSec = lib.mkDefault "90s";
-      };
-      coredump.enable = false;
-    };
-
-    documentation.enable = false;
-
-    # Priority 900: nixpkgs sets this at default priority (1000), causing merge conflicts
-    boot.kernel.sysctl = {
-      "vm.max_map_count" = lib.mkOverride 900 1048576;
-      "fs.file-max" = lib.mkDefault 2097152;
-      "fs.inotify.max_user_watches" = lib.mkOverride 900 524288;
     };
   };
 }

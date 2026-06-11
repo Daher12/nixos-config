@@ -72,28 +72,30 @@ simpledrm device that (2) tells Plymouth to use. Change (3) is correct in concep
 (the LUKS prompt must wait for Plymouth to be ready) but cannot help if Plymouth
 has no display to serve the prompt through.
 
-Additionally, `amdgpu` is added to `boot.initrd.kernelModules` by **three** separate
-sources, all of which must be neutralized:
+Additionally, `amdgpu` is added to `boot.initrd.kernelModules` by **two**
+sources on yoga, and udev auto-loads it via PCI modalias regardless of
+both:
 
 - `modules/hardware/amd-gpu.nix:19` — local module
 - `nixos-hardware/lenovo/yoga/7/slim/gen8/default.nix:3` — direct (yoga profile)
-- `nixos-hardware/common/gpu/amd/default.nix:12` — transitive (sets
-  `hardware.amdgpu.initrd.enable = lib.mkDefault true;`, imported by the yoga profile)
 
-Nix deduplicates the resulting list but does not disable any of the sources.
+Removing `amdgpu` from `initrd.kernelModules` is necessary but not
+sufficient — the initcall blacklist is what actually prevents loading.
 
 ## Proposed Fix
 
-Three changes, two of which are zero-edit (the existing pieces that work):
+Two changes. The core fix is blacklisting `amdgpu` in the initrd so that
+`simpledrm` survives and Plymouth attaches to it deterministically.
 
-### 1. Override `boot.initrd.kernelModules` in yoga's host config
+### 1. Blacklist `amdgpu` in initrd kernel params
 
-`lib.mkForce` on an empty list beats all three contributing sources, including the
-nixos-hardware yoga profile and the upstream `hardware.amdgpu.initrd.enable`
-default.
+udev's PCI modalias auto-detection loads `amdgpu` during kernel PCI
+enumeration — **before** `systemd-modules-load.service` runs. Removing
+`amdgpu` from `boot.initrd.kernelModules` alone does not prevent this.
+The driver must be blocked at the initcall level:
 
 ```nix
-# hosts/yoga/default.nix — inside the existing `boot = { ... }` block (lines 21–31)
+# hosts/yoga/default.nix — inside the existing `boot = { ... }` block
 boot = {
   loader.timeout = 0;
   initrd.availableKernelModules = [
@@ -102,31 +104,53 @@ boot = {
     "usb_storage"
     "sd_mod"
   ];
+  initrd.kernelModules = [ "btrfs" "dm_mod" "kvm" "kvm-amd" ];  # no amdgpu
   kernelModules = [ "ryzen_smu" ];
   extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
-  initrd.kernelModules = lib.mkForce [ ];  # prevent amdgpu in initrd → keeps simpledrm alive
+  kernelParams = [
+    "initcall_blacklist=amdgpu_init"  # prevent amdgpu probe in initrd → keeps simpledrm alive
+  ];
 };
 ```
 
-`amdgpu` will still load in the real root after `switch-root` via standard PCI/udev
-handling. No boot-stage-2 functionality is lost.
+**Why `initcall_blacklist` and not `module_blacklist`:**
+`module_blacklist=amdgpu` prevents `modprobe` from loading the module, but
+udev can still load it directly via `modules-load` or implicit modalias
+resolution. `initcall_blacklist=amdgpu_init` prevents the driver's
+`module_init` function from executing even if the module is loaded, which
+is the only reliable way to stop it from calling
+`drm_aperture_remove_conflicting_framebuffers()`.
 
-### 2. Keep `plymouth.use-simpledrm` (already in `modules/core/boot.nix:58`)
+**What gets preserved:** `btrfs`, `dm_mod`, `kvm`, `kvm-amd` stay in
+`initrd.kernelModules`. Only `amdgpu` is removed. The previous
+`lib.mkForce [ ]` approach would have destroyed these — both are required
+for LUKS+Btrfs root mounting.
 
-No change. The flag now works because simpledrm survives the entire stage-1 sequence.
+**amdgpu still loads after switch-root.** In the real root, standard
+PCI/udev handling loads `amdgpu` normally. No stage-2 functionality is
+lost.
 
-### 3. Keep `systemd-cryptsetup@` after `plymouth-start.service` (already in `modules/core/boot.nix:42`)
+### 2. Keep existing config (no changes needed)
 
-No change. This is the correct ordering and guarantees the LUKS prompt is not
-requested before Plymouth is ready to render it.
+- **`plymouth.use-simpledrm`** (`modules/core/boot.nix:58`) — stays. Now
+  works because simpledrm survives the entire stage-1 sequence.
+- **`systemd-cryptsetup@` after `plymouth-start.service`**
+  (`modules/core/boot.nix:42`) — stays. Guarantees LUKS prompt waits for
+  Plymouth.
+- **`modules/hardware/amd-gpu.nix`** — unchanged. The shared module is
+  correct as a generic early-KMS-amdgpu preset. The yoga-specific LUKS +
+  Plymouth requirement justifies a host-level override, not a shared
+  module change.
 
-### Alternative (rejected): also drop the line in `modules/hardware/amd-gpu.nix`
+### Alternative considered: disable simpledrm instead
 
-The shared `modules/hardware/amd-gpu.nix` module is correct as a generic
-"early-KMS-amdgpu" preset. The yoga-specific LUKS + Plymouth requirement is the
-exception that justifies the host-level override, not a change to the shared module.
-Other AMD hosts that want early-KMS for non-Plymouth reasons would regress if the
-shared module were changed.
+The opposite approach — `initcall_blacklist=simpledrm_platform_driver_init`
+— prevents simpledrm from loading, so amdgpu gets `card0` directly and
+Plymouth attaches without the 8s timeout. This avoids the
+simpledrm→amdgpu handoff entirely. Some distributions use this approach.
+However, the Fedora 42 approach (blacklist amdgpu, keep simpledrm) is
+preferred here because it matches upstream direction and provides a clean
+stage-1→stage-2 handoff.
 
 ## Expected boot sequence with the fix
 
@@ -158,7 +182,7 @@ default behaviour for the same reason (see `Changes/PlymouthUseSimpledrm`).
 | Mar 18 | `e235ec2` | yes | nixos-hardware only | no | Still broken — nixos-hardware loads amdgpu regardless |
 | Jun 1 | `8754a7f` | removed | amd-gpu + nixos-hardware | **yes** | 8s race still present (no use-simpledrm) |
 | Jun 5 | `466d491` | **yes** | amd-gpu + nixos-hardware | **yes** | **Broken** — amdgpu removes simpledrm, use-simpledrm cannot help |
-| Proposed | — | **yes** | **no** (`lib.mkForce []`) | **yes** | **Expected fix** — simpledrm survives, Plymouth attaches deterministically |
+| Proposed | — | **yes** | **no** (initcall blacklist) | **yes** | **Expected fix** — amdgpu init blocked in initrd, simpledrm survives, Plymouth attaches deterministically |
 
 ## Key Insight
 
