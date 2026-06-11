@@ -186,18 +186,9 @@ in
     brave.enable = true;
   };
 
-  systemd.user.services.opencode-cache-clean = {
-    Unit = {
-      Description = "Clean OpenCode provider SDK cache";
-    };
-    Service = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.bash}/bin/bash -c 'rm -rf ${homeDir}/.cache/opencode/node_modules'";
-    };
-    Install = {
-      WantedBy = [ "default.target" ];
-    };
-  };
+  # NOTE: opencode-cache-clean service REMOVED — was deleting node_modules
+  # on boot, potentially breaking provider initialization. OpenCode manages
+  # its own cache; deleting it forces re-download which can fail or race.
 
   programs = {
     opencode = {

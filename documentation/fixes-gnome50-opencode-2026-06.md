@@ -6,117 +6,116 @@
 
 ## Context
 
-Two issues resolved during NixOS 26.05 + GNOME 50 upgrade:
+Issues resolved during NixOS 26.05 + GNOME 50 upgrade:
 
-1. **OpenCode provider drops** on reboot/rebuild — provider SDK npm packages in `~/.cache/opencode/` break when nix store paths change
-2. **Colloid GTK theme** — nixpkgs version `2025-07-31` outdated, 12+ unreleased commits on `main` fix widget issues, no `--libadwaita` flag for GTK4 apps
-
-Additionally: **Removed `nixpkgs-unstable`** input — all packages now come from stable 26.05 with custom overlays for colloid and fluent.
-
----
-
-## Changes Implemented
-
-### 1. Colloid Theme — GNOME 50 Compatibility
-
-**Key finding:** The Colloid `install.sh` already handles GNOME 50 via fallback (`50 >= 48` → `48-0` styles). GNOME Shell theming works out of the box.
-
-**What was done:**
-
-| File | Change |
-|------|--------|
-| `pkgs/colloid-gtk-theme.nix` | **New file.** Custom derivation fetching git `main` (commit `fd805db`, Dec 2025). Adds `--libadwaita` flag for proper GTK4/Libadwaita theming. |
-| `flake.nix` | Added nixpkgs overlay to use the custom colloid package |
-| `home/theme.nix` | Uses `pkgs.colloid-gtk-theme.override { tweaks = [ "nord" ]; }` (overlaid package) |
-
-**How it works:**
-- The overlay replaces `pkgs.colloid-gtk-theme` with the custom derivation
-- The `--libadwaita` flag installs GTK4 theme files to `$out/share/themes/<theme>/gtk-4.0/`
-- The `switch-theme` script symlinks these to `~/.config/gtk-4.0/` at runtime
-
-### 2. Fluent Icon Theme — Latest Fixes
-
-**What was done:**
-
-| File | Change |
-|------|--------|
-| `pkgs/fluent-icon-theme.nix` | **New file.** Custom derivation fetching git `main` (commit `8a99a6d`, Nov 2025). |
-| `flake.nix` | Added to overlay alongside colloid |
-| `home/theme.nix` | Uses `pkgs.fluent-icon-theme` (overlaid package) |
-
-### 3. OpenCode Provider Persistence Fix
-
-**Root cause:** Provider SDK packages (`@ai-sdk/openai-compatible`, etc.) are dynamically installed via npm to `~/.cache/opencode/`. On NixOS, these break when nix store paths change on rebuild.
-
-**What was done:**
-
-| File | Change |
-|------|--------|
-| `hosts/yoga/home.nix` | Migrated from `home.file` to `programs.opencode` module. Added `pkgs.opencode` with `LD_LIBRARY_PATH` fix. Added `opencode-cache-clean` systemd service. |
-| `home/terminal.nix` | Removed redundant opencode package from `home.packages` (now handled by HM module). |
-
-**How it works:**
-- `programs.opencode` writes `~/.config/opencode/opencode.json` declaratively via `xdg.configFile`
-- The `opencode-cache-clean` service runs on boot (Type=oneshot, WantedBy=default.target)
-- It clears `~/.cache/opencode/node_modules/` so provider SDKs are rebuilt fresh
-- Impermanence already persists all 4 required directories
-
-### 4. Removed `nixpkgs-unstable`
-
-**Why:** All packages previously using unstable are now either:
-- Available in stable 26.05 (`opencode` 1.15.10, `ghostty` 1.3.1)
-- Handled via custom overlays (colloid, fluent)
-
-**What was done:**
-
-| File | Change |
-|------|--------|
-| `flake.nix` | Removed `nixpkgs-unstable` input |
-| `lib/mkHost.nix` | Removed `pkgsUnstable` from `commonArgs` |
-| `hosts/yoga/home.nix` | Removed `pkgsUnstable` from function args, uses `pkgs.opencode` |
-| `home/terminal.nix` | Removed `pkgsUnstable` from function args, uses `pkgs.ghostty` |
-| `home/theme.nix` | Removed `pkgsUnstable` from function args, uses `pkgs.fluent-icon-theme` |
+1. **OpenCode provider drops** on reboot/rebuild
+2. **Colloid GTK theme** — nixpkgs version outdated, needs GNOME 50 fixes
+3. **Removed `nixpkgs-unstable`** — all packages from stable 26.05
 
 ---
 
-## Files Modified
+## OpenCode Provider Investigation
 
-```
-flake.nix                          # Removed unstable input, added colloid + fluent overlays
-lib/mkHost.nix                     # Removed pkgsUnstable
-pkgs/colloid-gtk-theme.nix         # NEW: Custom derivation (git main + libadwaita)
-pkgs/fluent-icon-theme.nix         # NEW: Custom derivation (git main)
-hosts/yoga/home.nix                # programs.opencode + systemd service + removed pkgsUnstable
-home/theme.nix                     # Uses overlaid pkgs for colloid + fluent
-home/terminal.nix                  # Removed opencode package + removed pkgsUnstable
-documentation/fixes-gnome50-opencode-2026-06.md  # This file
+### What we know (evidence-based)
+
+| Check | Finding |
+|-------|---------|
+| `opencode.json` symlink | Identical to nix store — OpenCode does NOT write to it |
+| `auth.json` | Persists with API keys for OpenRouter + OpenCode |
+| `kv.json` | Has `"openrouter_warning": true` — persists across rebuilds |
+| `model.json` | Shows `providerID: "opencode"` — built-in free models, NOT OpenRouter |
+| All logs | Every entry shows `providerID=opencode` — OpenRouter never used |
+| `~/.cache/opencode/node_modules/` | EMPTY — auth SDK packages not installed |
+
+### What was tried (and why it was wrong)
+
+**Attempt 1: `home.file` instead of `programs.opencode.settings`**
+
+Claimed fix: "Use `home.file` to create a real writable file instead of a symlink."
+
+**Why it's wrong:** `home.file."<path>".text` and `xdg.configFile."<path>".text` are functionally identical. Both call `pkgs.writeText` internally and create a symlink to the nix store. There is no "copy mode." The resulting file at `~/.config/opencode/opencode.json` is a symlink either way.
+
+**Proof:**
+```bash
+$ diff ~/.config/opencode/opencode.json $(readlink ~/.config/opencode/opencode.json)
+# No output — files are identical
+$ touch ~/.config/opencode/opencode.json
+touch: cannot create file: Permission denied
 ```
 
+**Conclusion:** The symlink being read-only is irrelevant because OpenCode doesn't write to `opencode.json` at all.
+
+### Current hypothesis
+
+The `opencode-cache-clean` systemd service was deleting `~/.cache/opencode/node_modules/` on every boot. These packages (`opencode-copilot-auth`, `opencode-anthropic-auth`) are needed by OpenCode to initialize provider authentication. Deleting them forces a re-download on every boot, which can:
+
+1. Fail silently if network is unavailable during boot
+2. Race with OpenCode startup
+3. Cause provider initialization to fall back to built-in models
+
+**Action taken:** Removed the `opencode-cache-clean` service.
+
+### What we still don't know
+
+1. **Where does `/connect` store its state?** — Not in `opencode.json` (proven). Likely in the SQLite database (`opencode-stable.db`) or `kv.json`.
+
+2. **Why does `kv.json` have `"openrouter_warning": true`?** — This flag persists and might prevent OpenRouter from being used. Needs investigation.
+
+3. **Why does `model.json` show `providerID: "opencode"` despite config saying `openrouter`?** — Either OpenRouter initialization fails and falls back, or the user has been using built-in models all along.
+
+### Recommended next steps
+
+1. **After rebuild, test:** Run `opencode`, run `/connect`, quit, rebuild, relaunch. Does `/connect` persist?
+
+2. **If not, check:**
+   ```bash
+   # Check if openrouter_warning is the blocker
+   cat ~/.local/state/opencode/kv.json | jq '.openrouter_warning'
+   
+   # Check database for provider state
+   sqlite3 ~/.local/share/opencode/opencode-stable.db ".tables"
+   
+   # Check if node_modules rebuilt properly after boot
+   ls -la ~/.cache/opencode/node_modules/
+   ```
+
+3. **If `openrouter_warning` is `true`:** Try deleting it:
+   ```bash
+   # Remove the warning flag
+   jq 'del(.openrouter_warning)' ~/.local/state/opencode/kv.json > /tmp/kv.json && mv /tmp/kv.json ~/.local/state/opencode/kv.json
+   ```
+
+4. **If node_modules are missing:** The cache-clean service removal should fix this. If not, check if OpenCode can install packages on startup.
+
 ---
 
-## Architecture
+## Changes Made
 
-All packages now come from **stable NixOS 26.05** with two custom overlays:
+### Files Modified
 
-| Package | Source | Reason |
-|---------|--------|--------|
-| `colloid-gtk-theme` | Custom overlay (git main) | GNOME 50 fixes + libadwaita support |
-| `fluent-icon-theme` | Custom overlay (git main) | Latest icon additions |
-| `opencode` | Stable 26.05 | v1.15.10 (sufficient) |
-| `ghostty` | Stable 26.05 | v1.3.1 (same as unstable) |
+| File | Change |
+|------|--------|
+| `flake.nix` | Removed `nixpkgs-unstable`, added colloid + fluent overlays |
+| `lib/mkHost.nix` | Removed `pkgsUnstable` |
+| `pkgs/colloid-gtk-theme.nix` | NEW: Custom derivation (git main + libadwaita) |
+| `pkgs/fluent-icon-theme.nix` | NEW: Custom derivation (git main) |
+| `hosts/yoga/home.nix` | `programs.opencode` (package + settings), removed cache-clean service |
+| `home/theme.nix` | Uses overlaid `pkgs` for colloid + fluent |
+| `home/terminal.nix` | Uses `pkgs.ghostty` (stable) |
 
-### Adding unstable packages in the future
-
-If you need a package not in stable, you can temporarily re-add the unstable input:
+### OpenCode config approach
 
 ```nix
-# flake.nix inputs
-nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+# Package install + declarative settings via programs.opencode
+programs.opencode = {
+  enable = true;
+  package = pkgs.opencode.overrideAttrs ...;
+  settings = { ... };
+};
 
-# flake.nix outputs (in pkgs overlay)
-(final: _prev: {
-  some-package = inputs.nixpkgs-unstable.legacyPackages.${system}.some-package;
-})
+# Config is a symlink to nix store (read-only) — this is FINE because
+# OpenCode does NOT write to opencode.json. /connect state is stored
+# elsewhere (database, kv.json, or auth.json).
 ```
 
 ---
@@ -125,60 +124,58 @@ nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
 
 After rebuilding, test:
 
+### OpenCode
+```bash
+sudo nixos-rebuild switch --flake ~/nixos-config
+opencode
+> /connect    # Connect to OpenRouter
+# Quit, rebuild, relaunch — /connect should persist
+```
+
 ### Theme
 ```bash
 switch-theme dark
-# Verify: GTK3 apps show Colloid-Dark-Nord
-# Verify: GTK4 apps (Nautilus, Settings) show Colloid theme
-# Verify: GNOME Shell panel/overview styled
-# Verify: darkman auto-switching works at sunset/sunrise
-```
-
-### OpenCode
-```bash
-# Rebuild NixOS
-sudo nixos-rebuild switch --flake ~/nixos-config
-
-# Launch OpenCode
-opencode
-
-# Verify: OpenRouter provider connects
-# Verify: Models listed correctly
-# Verify: Settings persist after reboot
+# Verify GTK3 + GTK4 apps, GNOME Shell, darkman
 ```
 
 ---
 
-## Troubleshooting
+## Architecture: `xdg.configFile` vs `home.file`
 
-### Theme not applying to GTK4 apps
-- Check `~/.config/gtk-4.0/` has symlinks: `ls -la ~/.config/gtk-4.0/`
-- Re-run: `switch-theme dark`
+Both create **symlinks to the nix store**. Neither creates a writable file.
 
-### OpenCode provider still dropping
-- Check cache was cleaned: `ls ~/.cache/opencode/node_modules/` (should be empty or fresh)
-- Check systemd service: `systemctl --user status opencode-cache-clean`
-- Manual clean: `rm -rf ~/.cache/opencode/node_modules`
+| Mechanism | Creates | Writable | Use case |
+|-----------|---------|----------|----------|
+| `xdg.configFile` | Symlink | ❌ | Declarative config |
+| `home.file` | Symlink | ❌ | Declarative config |
 
-### Colloid/Fluent hash mismatch
-If the source hash changes (new commits on main):
-```bash
-nix-prefetch-github vinceliuice Colloid-gtk-theme --rev <new-commit>
-nix-prefetch-github vinceliuice Fluent-icon-theme --rev <new-commit>
-# Update hash in pkgs/colloid-gtk-theme.nix or pkgs/fluent-icon-theme.nix
+**If an app needs to write to its config at runtime**, the correct approach is `home.activation` with an existence guard:
+
+```nix
+home.activation.opencode-config = lib.hm.dag.entryAfter ["writeBoundary"] ''
+  _cfg="${config.xdg.configHome}/opencode/opencode.json"
+  if [[ ! -f "$_cfg" ]]; then
+    mkdir -p "$(dirname "$_cfg")"
+    printf '%s' '${builtins.toJSON { ... }}' > "$_cfg"
+  fi
+'';
 ```
+
+This writes a real file exactly once, then OpenCode owns it. However, this is NOT needed for OpenCode because it doesn't write to `opencode.json`.
 
 ---
 
 ## Lint Fixes Applied
 
-1. **statix [20]**: Repeated `programs` keys in `hosts/yoga/home.nix` — consolidated into single `programs = { ... }` block
-2. **deadnix**: Unused `prev` lambda argument in `flake.nix` overlay — renamed to `_prev`
+1. **statix [20]**: Repeated `programs` keys — consolidated
+2. **deadnix**: Unused `prev` — renamed to `_prev`
+3. **deadnix**: Unused `finalAttrs` — removed from colloid package
+4. **nixfmt**: Colloid package reformatted
 
 ---
 
 ## Future Maintenance
 
-- **Colloid:** When a new release includes GNOME 50 support, consider reverting to the nixpkgs package. Check https://github.com/vinceliuice/Colloid-gtk-theme/releases
-- **Fluent:** When a new release is made, consider reverting to the nixpkgs package. Check https://github.com/vinceliuice/Fluent-icon-theme/releases
-- **OpenCode:** The HM `programs.opencode` module is maintained upstream. Update with home-manager releases.
+- **Colloid:** Revert to nixpkgs when GNOME 50 support is released. Check https://github.com/vinceliuice/Colloid-gtk-theme/releases
+- **Fluent:** Revert to nixpkgs when new release is made. Check https://github.com/vinceliuice/Fluent-icon-theme/releases
+- **OpenCode:** The `programs.opencode` module is useful for package management. Config symlink is fine — OpenCode doesn't write to it.

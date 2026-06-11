@@ -54,7 +54,7 @@ lib.checkListOfEnum "colloid-gtk-theme: theme variants"
   tweaks
 
   stdenvNoCC.mkDerivation
-  (finalAttrs: {
+  {
     inherit pname;
     version = "unstable-2025-12-05";
 
@@ -101,4 +101,4 @@ lib.checkListOfEnum "colloid-gtk-theme: theme variants"
       platforms = lib.platforms.unix;
       maintainers = [ lib.maintainers.romildo ];
     };
-  })
+  }
