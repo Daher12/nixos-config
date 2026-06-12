@@ -20,7 +20,7 @@ Btrfs top-level (subvolid=5)
 
 Each boot:
 
-1. `@blank` is validated (exists, has all required mount-point directories)
+1. `@blank` is validated (exists, is read-only, has all required mount-point directories)
 2. `@` is recursively deleted (if it exists)
 3. A fresh read-write snapshot is created from `@blank` → `@`
 4. `/tmp` permissions are set to 1777
@@ -39,7 +39,9 @@ directories, `/etc` files managed by `environment.persistence`).
 Kernel → LUKS device appears
   → rollback-root service runs
       → mount Btrfs top-level
-      → validate @blank template
+      → validate @blank exists
+      → validate @blank is read-only (btrfs property get)
+      → validate @blank has all required mount-point directories
       → delete @ subvolume
       → snapshot @blank → @
       → set /tmp permissions
@@ -50,7 +52,7 @@ Kernel → LUKS device appears
       - /sysroot/persist    (persist subvolume must be mounted)
   → activation completes
   → switch-root to real system
-  → impermanence module bind-mounts /persist/{files,directories}
+  → impermanence module bind-mounts each persist entry to its target path under /
   → multi-user.target
 ```
 
@@ -63,7 +65,14 @@ touched unless `@blank` passes all validations, so data is preserved.
 
 ## Template Validation
 
-The `@blank` snapshot must contain these directories (validated at every boot):
+The `@blank` snapshot must pass three checks at every boot:
+
+1. **Exists** — `btrfs subvolume show` confirms the subvolume is present.
+2. **Read-only** — `btrfs property get -ts @blank ro` must return `ro=true`.
+   The install script creates `@blank` with `btrfs subvolume snapshot -r` to
+   set this flag. If `@blank` was made writable (e.g. for template updates),
+   the flag must be restored with `btrfs property set -ts @blank ro true`.
+3. **Required directories** — the following mount-point directories must exist:
 
 ```
 nix persist boot home etc tmp var
@@ -74,14 +83,20 @@ These are **mount points** for persistent subvolumes and special paths. They
 must exist as empty directories inside `@blank`. If any path is missing, the
 boot aborts with a clear error message before `@` is modified.
 
-### Adding a New Persistent Directory
+### Adding a New Btrfs Subvolume Under `/`
 
-If you add a new `environment.persistence."/path".directories` entry that
-creates a subvolume mount point **not** in the list above, you must:
+If you add a new Btrfs subvolume mount via `fileSystems` (e.g.,
+`/var/lib/docker` as a separate subvolume), the mount-point directory must
+exist inside `@blank`. You must:
 
 1. Add the path to the validation list in `modules/features/impermanence.nix`
    (the `for d in \` block in the rollback script)
-2. Update `@blank` to contain the new directory
+2. Update `@blank` to contain the new directory (see below)
+
+Note: plain `environment.persistence` entries (bind-mounts from `/persist`) do
+**not** require a `@blank` update — the impermanence module creates target
+directories at runtime. Only new filesystem-level subvolume mounts need the
+template.
 
 ---
 
@@ -113,7 +128,7 @@ Or from the initrd emergency shell after a failed validation:
 
 ```sh
 mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /mnt
-btrfs subvolume snapshot /mnt/@ /mnt/@blank
+btrfs subvolume snapshot -r /mnt/@ /mnt/@blank
 umount /mnt
 reboot
 ```
@@ -134,12 +149,17 @@ rules. Cross-check when adding new services:
 |------|---------------|------|
 | `/var/log` | `environment.persistence."/persist/system"` | Directory |
 | `/var/lib/{bluetooth,iwd,nixos,systemd,tailscale,sops-nix,upower,libvirt,gdm,AccountsService,fwupd,colord}` | Same | Directories |
-| `/var/db/sudo/lectured` | Same | Directory |
+| `/var/db/sudo/lectured` (NixOS sudo lecture tracking) | Same | Directory |
 | `/etc/machine-id` | Same | File |
 | `/etc/ssh/ssh_host_*` | Same | Files (with `parentDirectory.mode`) |
 | `/etc/NetworkManager/system-connections` | Same | Directory |
 | `/etc/brave/policies/managed/bloat.json` | Same | File |
 | `/persist` (user dirs) | `environment.persistence."/persist"` | User directories under `users.dk` |
+
+The two persistence scopes:
+- **`/persist/system`** — system-level state: service data (`/var/lib/*`),
+  SSH keys, NetworkManager connections, machine identity
+- **`/persist`** — user home directories: desktop folders, config repos
 
 ---
 
@@ -159,14 +179,37 @@ mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /mnt
 # Check if @ still exists
 btrfs subvolume show /mnt/@
 
-# Re-create @blank from @ (booting without rollback for one cycle)
-btrfs subvolume snapshot /mnt/@ /mnt/@blank
+# Re-create @blank from @  (read-only, booting without rollback for one cycle)
+btrfs subvolume snapshot -r /mnt/@ /mnt/@blank
 
 # Verify
 btrfs subvolume show /mnt/@blank
 
 umount /mnt
 exit  # continues booting
+```
+
+### Boot fails with "not a read-only snapshot"
+
+`@blank` exists but does not have the Btrfs read-only flag set. This happens
+when `@blank` was made writable (e.g. to add a directory) and the flag was
+not restored. The rollback script refuses to snapshot a writable template
+because it could be corrupted.
+
+From the initrd emergency shell:
+
+```sh
+mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /mnt
+
+# Restore the read-only flag
+btrfs property set -ts /mnt/@blank ro true
+
+# Verify
+btrfs property get -ts /mnt/@blank ro
+# Should print: ro=true
+
+umount /mnt
+exit
 ```
 
 ### Boot fails with "missing required path"
@@ -179,16 +222,44 @@ From the initrd emergency shell:
 ```sh
 mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /mnt
 
-# Create the missing directory in @blank, then re-snapshot
-mkdir -p /mnt/@blank/<missing-path>
-
-# Or, if @blank is too far out of date, recreate from @
+# RECOMMENDED: recreate @blank from current @ (reliable, handles all cases)
 btrfs subvolume delete /mnt/@blank
-btrfs subvolume snapshot /mnt/@ /mnt/@blank
+btrfs subvolume snapshot -r /mnt/@ /mnt/@blank
+
+# ALTERNATIVE: if @ is also corrupted, make @blank temporarily writable
+# and manually add only the missing path:
+#   btrfs property set -ts /mnt/@blank ro false
+#   mkdir -p /mnt/@blank/<missing-path>
+#   btrfs property set -ts /mnt/@blank ro true
 
 umount /mnt
 exit
 ```
+
+---
+
+## Initrd Constraints
+
+The rollback script runs inside the systemd-based initrd. Only binaries
+explicitly listed in `boot.initrd.systemd.storePaths` are available. The
+current list:
+
+- `btrfs` (btrfs-progs)
+- `mount`, `umount` (util-linux)
+- `chmod` (coreutils)
+
+**Not available** in the initrd PATH: `grep`, `awk`, `sed`, `cut`, `find`,
+`ls`, `cat`, `echo` (as standalone binaries — the shell builtin `echo` works).
+The script uses only:
+
+- `btrfs` subcommands for all filesystem operations
+- Bash builtins (`read`, `while`, `[ ]`, `case`, parameter expansion) for
+  control flow and string manipulation
+
+If you add new logic to the rollback script, avoid external commands not in
+`storePaths`. Use `btrfs property get` for property checks and bash builtins
+for parsing. Nix `''` strings require `''${` to emit a literal `${` into the
+shell script (e.g. `''${var##pattern}` for bash parameter expansion).
 
 ---
 
@@ -200,5 +271,6 @@ exit
 - Disk layout: `hosts/yoga/disks.nix` (Disko configuration)
 - Secure Boot PKI persistence: `modules/features/secureboot.nix` (persists
   `/var/lib/sbctl` via impermanence)
-- SOPS key persistence: `modules/features/sops.nix` (reads key from
-  `/persist/system/var/lib/sops-nix/`)
+- SOPS key persistence: `modules/features/sops.nix` (key stored at
+  `/persist/system/var/lib/sops-nix/`, bind-mounted to `/var/lib/sops-nix/`
+  at runtime)
