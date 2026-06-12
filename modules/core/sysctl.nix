@@ -12,9 +12,7 @@ in
     # Universal baseline — applies regardless of server/desktop role
     {
       boot.kernel.sysctl = {
-        "vm.max_map_count" = lib.mkDefault 1048576;
         "fs.file-max" = lib.mkDefault 2097152;
-        "fs.inotify.max_user_watches" = lib.mkDefault 524288;
       };
     }
 

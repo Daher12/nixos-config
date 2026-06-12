@@ -133,6 +133,10 @@
       "zswap.enabled=0"
       "amd_pstate=active"
       "amdgpu.ppfeaturemask=0xffffffff"
+      # Prevent amdgpu module_init in initrd so simpledrm survives for Plymouth.
+      # More reliable than a modprobe blacklist: blocks the driver's init
+      # function even if the kernel auto-loads the module via PCI modalias.
+      "initcall_blacklist=amdgpu_init"
     ];
 
     virtualization = {

@@ -56,7 +56,6 @@ in
         "${pkgs.util-linux}/bin/mount"
         "${pkgs.util-linux}/bin/umount"
         "${pkgs.coreutils}/bin/chmod"
-        "${pkgs.gawk}/bin/awk"
       ];
 
       services = {
@@ -100,16 +99,16 @@ in
 
             delete_subvolume_recursively() {
               local target="$1"
-              local children
-              children=$(btrfs subvolume list -o "$target" | awk '{print $NF}') || {
+              local list
+              list=$(btrfs subvolume list -o "$target") || {
                 echo "ERROR: failed to list child subvolumes of $target" >&2
                 exit 1
               }
-              local child
-              while read -r child; do
-                [ -n "$child" ] || continue
-                delete_subvolume_recursively "/btrfs/$child"
-              done <<< "$children"
+              local line
+              while IFS= read -r line; do
+                [ -n "$line" ] || continue
+                delete_subvolume_recursively "/btrfs/''${line##* }"
+              done <<< "$list"
               echo "Deleting subvolume: $target" >&2
               btrfs subvolume delete "$target"
             }
@@ -119,8 +118,11 @@ in
               exit 1
             fi
 
-            if ! btrfs subvolume show "/btrfs/$BLANK" 2>/dev/null \
-              | grep -q "Flags:.*readonly"; then
+            _ro=$(btrfs property get -ts "/btrfs/$BLANK" ro) || {
+              echo "ERROR: failed to read ro property of /btrfs/$BLANK" >&2
+              exit 1
+            }
+            if [ "$_ro" != "ro=true" ]; then
               echo "ERROR: /btrfs/$BLANK is not a read-only snapshot" >&2
               exit 1
             fi

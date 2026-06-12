@@ -24,7 +24,7 @@ the code.
 
 | Doc | Status | Description |
 |-----|--------|-------------|
-| [impermanence.md](impermanence.md) | `✓` | Btrfs root rollback on boot: data model (`@` / `@blank` / `/persist`), when and how to update the template snapshot, directory validation, recovery procedures. |
+| [impermanence.md](impermanence.md) | `✓` | Btrfs root rollback on boot: data model (`@` / `@blank` / `/persist`), template validation (including read-only check), initrd constraints, recovery procedures. |
 | [upgrade-26.05.md](upgrade-26.05.md) | `✓` | NixOS 25.11 → 26.05 upgrade record: all breaking changes fixed (8 items), flake input updates, adopted defaults, deployment notes, verification commands. |
 
 ---
@@ -34,7 +34,8 @@ the code.
 | Doc | Status | Description |
 |-----|--------|-------------|
 | [opencode-provider-persistence.md](opencode-provider-persistence.md) | `◌` | OpenCode built-in provider drops after rebuild: diagnostics, findings, open questions. Also covers the `libstdc++.so.6` LD_LIBRARY_PATH fix (see upgrade-26.05.md). |
-| [plymouth_luks_issue.md](plymouth_luks_issue.md) | `!` | Plymouth LUKS prompt fails on AMD (yoga): root cause (simpledrm vs amdgpu race), proposed fix (initcall blacklist), configuration history. **Fix not yet applied.** |
+| [opencode-packaging.md](opencode-packaging.md) | `✓` | OpenCode packaging on NixOS: Bun binary constraints, why pre-built binaries fail, wrapper approach, explored alternatives (community flakes, official flake), key learnings. |
+| [plymouth_luks_issue.md](plymouth_luks_issue.md) | `◌` | Two issues: (1) amdgpu/simpledrm race → graphical fallback (fixed via `initcall_blacklist`), (2) store-path text under LUKS input via `label-freetype` plugin (proposed fix documented). |
 | [intel-gpu-metrics.md](intel-gpu-metrics.md) | `✓` | Intel GPU monitoring service on nix-media: architecture, 26.05 upgrade failure (`intel-gpu-tools` 2.2→2.3), awk parsing, Grafana queries. |
 
 ---
@@ -71,6 +72,11 @@ upgrade-26.05.md
 
 opencode-provider-persistence.md
   → upgrade-26.05.md        (libstdc++ fix documented in upgrade guide)
+  → opencode-packaging.md   (wrapper approach and Bun binary constraints)
+
+opencode-packaging.md
+  → upgrade-26.05.md        (LD_LIBRARY_PATH wrapper fix)
+  → opencode-provider-persistence.md  (related provider issues)
 
 msty-appimage.md
   → REPO_OVERVIEW.md        (package location and mkHost integration)

@@ -376,3 +376,115 @@ The fix must either:
 
 Option (B) is actually what some distributions do — it avoids the simpledrm→amdgpu
 handoff entirely. Option (A) is what Fedora 42 does. Both are valid.
+
+---
+
+## Second Issue: Store Path Text Under the LUKS Password Input
+
+### Observed
+
+After fixing the amdgpu race (so the graphical Plymouth screen appears), a
+`/nix/store/` path is displayed as text **under the LUKS password input field**
+on the graphical Plymouth screen — not in the prompt itself, but as a secondary
+label rendered below the input box.
+
+### Root Cause
+
+**The Plymouth `label-freetype` plugin renders systemd status messages as
+graphical text on the boot screen,** and these messages on NixOS include full
+store paths.
+
+Plymouth 26+ (shipped with NixOS 26.05) introduced the `label-freetype` plugin,
+which renders text labels using FreeType fonts. This plugin is now included in
+the initrd by default. It subscribes to systemd's status protocol and renders
+the current unit status text on screen.
+
+In NixOS with systemd-stage-1, `systemd-cryptsetup` is invoked via
+`ExecStart=/nix/store/<hash>-systemd-<version>/bin/systemd-cryptsetup attach ...`
+When the binary requests a password via the systemd ask-password protocol,
+systemd also broadcasts unit status messages. The `label-freetype` plugin renders
+these messages as graphical text, which includes the full store path of the
+ExecStart command.
+
+This is **upstream intentional behavior** (Red Hat Bugzilla #2356893, Comment 3):
+
+> "Plymouth has always tried to draw this text but before it could not draw it
+> since its 'text label' plugin was not included in the initrd because of initrd
+> size concerns. plymouth upstream now has a new freetype 'text label' plugin...
+> which brings a lot less dependencies into the initrd resolving the size concern."
+
+On Fedora, the label text says `Please enter passphrase for /dev/sdaN`. On NixOS,
+the status message from systemd-cryptsetup includes the full nix store binary path.
+
+### Proposed Fix: Exclude `label-freetype.so` from the Initrd
+
+The fix is to ensure `label-freetype.so` is **not present** in the initrd's
+Plymouth plugin directory. On Fedora the mechanism is
+`PLYMOUTH_DISABLE_LABEL_FREETYPE=1` in `/etc/plymouth/plymouth-populate-initrd.conf`.
+NixOS does not use dracut / `plymouth-populate-initrd`, so the fix must be done
+at the Nix level.
+
+**Option A — Override Plymouth to remove the plugin:**
+
+```nix
+# In hosts/yoga/default.nix (or modules/core/boot.nix)
+boot.plymouth.package = pkgs.plymouth.overrideAttrs (old: {
+  postInstall = (old.postInstall or "") + ''
+    rm -f $out/lib/plymouth/label-freetype.so
+  '';
+});
+```
+
+This removes the plugin from the Plymouth output before it's bundled into the
+initrd. The `two-step` plugin (used by `bgrt` theme) falls back to basic
+label rendering without `label-freetype`.
+
+**Option B — Remove from initrd contents directly:**
+
+```nix
+# In modules/core/boot.nix, inside the boot.plymouth config
+boot.initrd.systemd.contents = let
+  plymouth = config.boot.plymouth.package;
+in lib.mkAfter [
+  # Override: exclude label-freetype plugin from initrd
+  (pkgs.runCommand "plymouth-initrd-nolabel" {} ''
+    mkdir -p $out/lib/plymouth
+    # Copy all plugins except label-freetype
+    for f in ${plymouth}/lib/plymouth/*.so; do
+      base=$(basename "$f")
+      [ "$base" = "label-freetype.so" ] && continue
+      ln -s "$f" "$out/lib/plymouth/$base"
+    done
+  '')
+];
+```
+
+**Option C — Switch to a theme that does not use the two-step plugin:**
+
+The `spinner` theme uses the `script` plugin instead of `two-step`, so it
+doesn't load `label-freetype`. However, this loses the firmware-background
+feature that `bgrt` provides.
+
+### Verification
+
+After applying Option A or B, rebuild and reboot. The `/nix/store/` text
+under the password input should be gone, while the graphical Plymouth LUKS
+prompt and firmware background are preserved.
+
+```bash
+# Check that label-freetype.so is not in the initrd
+sudo lsinitrd /nix/store/*-initrd-linux-*/initrd 2>/dev/null \
+  | grep 'label-freetype'
+# Expected: no output (plugin not present)
+```
+
+### References
+
+- [Fedora Discussion: "Please enter passphrase for disk" has returned](https://discussion.fedoraproject.org/t/please-enter-passphrase-for-disk-has-returned/150626/5)
+  — fix via `PLYMOUTH_DISABLE_LABEL_FREETYPE=1`
+- [Red Hat Bugzilla #2356893](https://bugzilla.redhat.com/show_bug.cgi?id=2356893)
+  — Text Appearing under LUKS decryption box (upstream intentional behavior)
+- Plymouth source: `src/plugins/renderers/two-step/` — `two-step` plugin loads
+  `label-freetype` as a sub-plugin for text rendering
+- NixOS Plymouth module: `nixos/modules/system/boot/plymouth.nix` — how the
+  initrd includes Plymouth
