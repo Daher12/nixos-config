@@ -17,7 +17,7 @@
 [![Home Manager](https://img.shields.io/badge/Home--Manager-Integrated-5277C3?style=for-the-badge)](https://github.com/nix-community/home-manager)
 [![CI](https://img.shields.io/github/actions/workflow/status/daher12/nixos-config/bump.yml?style=for-the-badge&label=CI)](https://github.com/daher12/nixos-config/actions)
 
-[Hosts](#-hosts) · [Features](#-features) · [Structure](#-structure) · [Deploy](#-deploy) · [Docs](documentation/INDEX.md)
+[Hosts](#-hosts) · [Features](#-features) · [Structure](#-structure) · [Deploy](#-deploy)
 
 </div>
 
@@ -87,8 +87,7 @@ nixos-config/
 ├── lib/              custom nix helpers (mkHost)
 ├── pkgs/             custom package definitions
 ├── secrets/          sops-encrypted credentials
-├── scripts/          installer & update helpers
-└── documentation/    guides & troubleshooting
+└── scripts/          installer & update helpers
 ```
 
 ---
@@ -131,7 +130,7 @@ nix flake check                  # runs statix, deadnix, nixfmt checks
 
 <div align="center">
 
-**[Documentation](documentation/INDEX.md)** · **[Flakes Guide](https://nixos.wiki/wiki/Flakes)** · **[Issues](https://github.com/daher12/nixos-config/issues)**
+**[Flakes Guide](https://nixos.wiki/wiki/Flakes)** · **[Issues](https://github.com/daher12/nixos-config/issues)**
 
 ---
 
