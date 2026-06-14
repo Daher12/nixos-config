@@ -24,7 +24,7 @@ let
   };
 
   # --- Template Injection ---
-  landingPage = pkgs.substituteAll {
+  landingPage = pkgs.replaceVars {
     src = ./landing.html;
     servicesJson = builtins.toJSON (
       lib.mapAttrsToList (name: cfg: {
