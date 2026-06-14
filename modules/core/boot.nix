@@ -1,4 +1,9 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.core.boot;
@@ -38,6 +43,40 @@ in
         systemd = {
           enable = true;
           services."systemd-cryptsetup@".after = lib.mkIf cfg.silent [ "plymouth-start.service" ];
+          # Exclude label-freetype.so / label-pango.so from the initrd.
+          # These were added upstream (Fedora 42 / NixOS 26.05) to render a
+          # device-name label below the LUKS prompt.  The bgrt/spinner themes
+          # use two-step.so for the actual password entry widget, so removing
+          # the label plugin has no effect on functionality.
+          contents = lib.mkIf cfg.silent {
+            "/etc/plymouth/plugins".source = lib.mkForce (
+              let
+                pluginSource = pkgs.buildEnv {
+                  name = "plymouth-all-plugins";
+                  paths = [ config.boot.plymouth.package ] ++ config.boot.plymouth.themePackages;
+                };
+              in
+              pkgs.runCommand "plymouth-initrd-plugins-nolabel" { } ''
+                mkdir -p $out/renderers
+                for f in ${pluginSource}/lib/plymouth/*.so; do
+                  [ -e "$f" ] || continue
+                  name=$(basename "$f")
+                  case "$name" in
+                    label-*) ;;
+                    *) cp "$f" "$out/" ;;
+                  esac
+                done
+                for f in ${pluginSource}/lib/plymouth/renderers/*.so; do
+                  [ -e "$f" ] || continue
+                  name=$(basename "$f")
+                  case "$name" in
+                    x11.so) ;;
+                    *) cp "$f" "$out/renderers/" ;;
+                  esac
+                done
+              ''
+            );
+          };
         };
         compressor = "zstd";
         compressorArgs = [

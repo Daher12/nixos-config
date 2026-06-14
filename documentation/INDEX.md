@@ -35,6 +35,7 @@ the code.
 |-----|--------|-------------|
 | [opencode-provider-persistence.md](opencode-provider-persistence.md) | `◌` | OpenCode built-in provider drops after rebuild: diagnostics, findings, open questions. Also covers the `libstdc++.so.6` LD_LIBRARY_PATH fix (see upgrade-26.05.md). |
 | [plymouth_luks_issue.md](plymouth_luks_issue.md) | `!` | Plymouth LUKS prompt fails on AMD (yoga): root cause (simpledrm vs amdgpu race), proposed fix (initcall blacklist), configuration history. **Fix not yet applied.** |
+| [plymouth_luks_label_text.md](plymouth_luks_label_text.md) | `✓` | Plymouth LUKS prompt shows unwanted text below password input: root cause (label-freetype.so in initrd), fix (exclude label plugins from initrd derivation), verification steps. |
 | [intel-gpu-metrics.md](intel-gpu-metrics.md) | `✓` | Intel GPU monitoring service on nix-media: architecture, 26.05 upgrade failure (`intel-gpu-tools` 2.2→2.3), awk parsing, Grafana queries. |
 
 ---
@@ -74,6 +75,9 @@ opencode-provider-persistence.md
 
 msty-appimage.md
   → REPO_OVERVIEW.md        (package location and mkHost integration)
+
+plymouth_luks_label_text.md
+  → plymouth_luks_issue.md  (related Plymouth + LUKS issue on AMD hosts)
 ```
 
 ---
