@@ -78,7 +78,7 @@ jobs:
         run: nix fmt -- $(find . -name '*.nix' -type f)
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v6
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: |
             chore(flake): update inputs & format
