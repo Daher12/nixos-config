@@ -1,12 +1,17 @@
 <div align="center">
 
 ```
- ███╗   ██╗██╗██╗  ██╗██╗███╗   ██╗███████╗ █████╗ ██████╗ ████████╗
- ████╗  ██║██║╚██╗██╔╝██║████╗  ██║██╔════╝██╔══██╗██╔══██╗╚══██╔══╝
- ██╔██╗ ██║██║ ╚███╔╝ ██║██╔██╗ ██║█████╗  ███████║██████╔╝   ██║
- ██║╚██╗██║██║ ██╔██╗ ██║██║╚██╗██║██╔══╝  ██╔══██║██╔══██╗   ██║
- ██║ ╚████║██║██╔╝ ██╗██║██║ ╚████║███████╗██║  ██║██║  ██║   ██║
- ╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+        *
+       /|\
+      /_|_\
+     /  |  \
+    /   |   \
+   *----*----*
+    \   |   /
+     \  |  /
+      \_|_/
+       \|/
+        *
 ```
 
 **Declarative. Reproducible. Sustainable.**
@@ -129,10 +134,6 @@ nix flake check                  # runs statix, deadnix, nixfmt checks
 ---
 
 <div align="center">
-
-**[Flakes Guide](https://nixos.wiki/wiki/Flakes)** · **[Issues](https://github.com/daher12/nixos-config/issues)**
-
----
 
 *NixOS — because reproducibility isn't optional.*
 
