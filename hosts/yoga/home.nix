@@ -234,7 +234,7 @@ in
     '';
 
     winapps = {
-      enable = true;
+      enable = false; # Disabled — use virt-viewer launcher instead. Remove entirely once confirmed working.
       vmIP = "192.168.122.139";
       windowsDomain = "DESKTOP-TDTHSIQ";
       rdpScale = 180;

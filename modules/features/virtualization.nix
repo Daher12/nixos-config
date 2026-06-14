@@ -12,6 +12,69 @@ let
 
   filesystemType = lib.attrByPath [ "features" "filesystem" "type" ] null config;
 
+  vmName = w11.name;
+
+  windows11-icon = pkgs.stdenv.mkDerivation {
+    pname = "windows11-icon";
+    version = "1.0";
+    dontUnpack = true;
+    installPhase = ''
+      mkdir -p $out/share/icons/hicolor/256x256/apps
+      cat > $out/share/icons/hicolor/256x256/apps/windows11.svg <<'SVG'
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+        <rect width="256" height="256" rx="32" fill="#0078D4"/>
+        <g fill="#fff">
+          <rect x="28" y="28" width="100" height="100" rx="8"/>
+          <rect x="148" y="28" width="100" height="100" rx="8"/>
+          <rect x="28" y="148" width="100" height="100" rx="8"/>
+          <rect x="148" y="148" width="100" height="100" rx="8"/>
+        </g>
+      </svg>
+      SVG
+    '';
+  };
+
+  windows11-launcher = pkgs.writeShellScriptBin "windows11" ''
+    virsh="${pkgs.libvirt}/bin/virsh -c qemu:///system"
+    viewer="${pkgs.virt-viewer}/bin/virt-viewer"
+
+    if ! $virsh dominfo "${vmName}" >/dev/null 2>&1; then
+      echo "VM '${vmName}' not found. Define it in virt-manager first." >&2
+      exit 1
+    fi
+
+    state=$($virsh domstate "${vmName}" 2>/dev/null | tr -d '[:space:]')
+
+    if [ "$state" != "running" ]; then
+      echo "Starting ${vmName}..."
+      $virsh start "${vmName}"
+      echo "Waiting for guest to boot..."
+      for _ in $(seq 1 30); do
+        sleep 2
+        state=$($virsh domstate "${vmName}" 2>/dev/null | tr -d '[:space:]')
+        if [ "$state" = "running" ]; then
+          sleep 5
+          break
+        fi
+      done
+    fi
+
+    exec $viewer --full-screen --connect "qemu:///system" "${vmName}"
+  '';
+
+  windows11-desktop = pkgs.makeDesktopItem {
+    name = "windows11";
+    desktopName = "Windows 11";
+    comment = "Full Windows 11 desktop session via SPICE";
+    exec = "${windows11-launcher}/bin/windows11";
+    icon = "windows11";
+    terminal = false;
+    categories = [
+      "System"
+      "Emulator"
+    ];
+  };
+
   defaultNetworkXml = pkgs.writeText "libvirt-default-net.xml" ''
     <network>
       <name>default</name>
@@ -108,6 +171,9 @@ in
         remmina
         freerdp
         adwaita-icon-theme
+        windows11-launcher
+        windows11-desktop
+        windows11-icon
       ]
       ++ lib.optionals cfg.spiceUSBRedirection [
         usbredir
