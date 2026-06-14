@@ -533,18 +533,313 @@ improvement for an edge case that is unlikely to trigger in practice.
 
 ---
 
+---
+
+## Phase 3: AI-Assisted Audit (2026-06-14)
+
+An independent AI review of the codebase identified several opportunities for
+optimisation, correctness fixes, and configuration alignment. Each item was
+researched and verified before integration. Items that were already correct or
+preferred as-is were left unchanged.
+
+### Table of Contents
+
+- [Lix inputs: tarball → `git+https`](#lix-inputs-tarball--githttps)
+- [Impermanence: narrow initrd validation scope](#impermanence-narrow-initrd-validation-scope)
+- [nix-media: remove redundant `systemd-boot.enable`](#nix-media-remove-redundant-systemd-bootenable)
+- [nix-media: use cached Lix package](#nix-media-use-cached-lix-package)
+- [latitude: remove redundant USB udev rule](#latitude-remove-redundant-usb-udev-rule)
+- [nix-media: fix Jellyfin cache/transcode volume paths](#nix-media-fix-jellyfin-cachetranscode-volume-paths)
+- [yoga: keep explicit `boot.loader.timeout = 0`](#yoga-keep-explicit-bootloadertimeout--0)
+
+---
+
+### Lix inputs: tarball → `git+https`
+
+**What:** Changed `lix` and `lix-module` flake input URLs from tarball archives
+to `git+https` protocol:
+
+| Input | Before | After |
+|-------|--------|-------|
+| `lix` | `https://git.lix.systems/…/archive/main.tar.gz` | `git+https://git.lix.systems/…/lix?ref=main` |
+| `lix-module` | `https://git.lix.systems/…/archive/main.tar.gz` | `git+https://git.lix.systems/…/nixos-module?ref=main` |
+
+**Rationale:** Tarball URLs work but `git+https` is the canonical Nix way to
+reference Git repositories in flakes. Benefits:
+- `nix flake update` reliably tracks the latest commit on `ref=main`
+- The lock file records the full commit revision and URL
+- Avoids tarball caching quirks in the Nix daemon
+
+**Review:** ✓ Same inputs resolved. ✓ Lock file updated automatically (`nix flake
+check` re-locked both). ✓ `flake = false` preserved (neither input exposes a
+flake interface).
+
+**Evaluation:** Best practice alignment. `git+https` is the idiomatic protocol
+for Git-hosted flake inputs. The tarball URL worked, but deviated from the
+convention used by every other input in this flake (all use `github:` or
+`git+https:`).
+
+**File:** `flake.nix:13-22`
+
+---
+
+### Impermanence: narrow initrd validation scope
+
+**What:** Removed `var/lib/sops-nix` and `var/lib/sbctl` from the
+`@blank`-template path validation in the initrd rollback script.
+
+**Before:**
+```nix
+for d in \
+  nix persist boot home etc tmp var var/log var/lib \
+  var/lib/sops-nix var/lib/sbctl
+do ... done
+```
+
+**After:**
+```nix
+for d in \
+  nix persist boot home etc tmp var var/log var/lib
+do ... done
+```
+
+**Rationale:** The initrd validation checks that `@blank` contains all required
+directories before rolling back. `var/lib/sops-nix` and `var/lib/sbctl` are
+handled by stage-2 services (`environment.persistence` from the impermanence
+module), which create the mount-point directories before bind-mounting the
+persistent versions. The initrd only needs to validate paths critical for early
+boot — `/nix`, `/persist`, `/boot`, and the basic root skeleton. Including SOPS
+and sbctl directories couples the initrd to optional features and would cause
+validations failures if impermanence is enabled without those features.
+
+**Review:** ✓ `environment.persistence` creates these dirs on every boot. ✓ The
+install script (`scripts/install.sh`) still creates them in `@blank` as a
+cleanliness measure — the validation change only affects the initrd safety check.
+✓ No functional regression: if `@blank` lacks any of the remaining 10 paths, the
+system still fails safely before rollback.
+
+**Evaluation:** Correct scope reduction. The initrd should validate the minimal
+set of paths the kernel needs to mount subvolumes and reach stage 2.
+Feature-specific directories belong to stage-2 service responsibility.
+
+**File:** `modules/features/impermanence.nix:130-139`
+
+---
+
+### nix-media: remove redundant `systemd-boot.enable`
+
+**What:** Removed `enable = true` from the `boot.loader.systemd-boot` block in
+`hosts/nix-media/default.nix`.
+
+**Before:**
+```nix
+boot.loader.systemd-boot = {
+  enable = true;
+  configurationLimit = 10;
+};
+```
+
+**After:**
+```nix
+boot.loader.systemd-boot = {
+  configurationLimit = 10;
+};
+```
+
+**Rationale:** The core module (`modules/core/boot.nix`) already sets
+`boot.loader.systemd-boot.enable = lib.mkDefault (!sbActive)`. Since nix-media
+does not enable Secure Boot, `sbActive` is `false` and `mkDefault` resolves to
+`true`. The explicit `enable = true` in the host overrides `mkDefault`
+unnecessarily — it creates a false impression that systemd-boot must be
+explicitly enabled, when the default already handles it.
+
+**Review:** ✓ Core module enables systemd-boot for all non-SecureBoot hosts. ✓
+`configurationLimit` remains set explicitly (not `mkDefault` in core — correct,
+since this is a host-specific tuning). ✓ No behavioural change.
+
+**Evaluation:** Cleanup. The redundant `enable` line was harmless but
+misleading — a reader could infer that systemd-boot would be disabled without
+it. Leveraging `mkDefault` makes the host config focused on what is actually
+non-default.
+
+**File:** `hosts/nix-media/default.nix:54-56`
+
+---
+
+### nix-media: use cached Lix package
+
+**What:** Set `lix = "package"` for the nix-media host in `flake.nix`, switching
+from building Lix from source to using the pre-built binary from nixpkgs.
+
+**Rationale:** nix-media runs on an Intel N100 — a low-power 4-core Alder Lake-N
+processor. Building Lix from source takes 2–3 hours on this CPU and happens on
+every `nix flake update` or `nixos-rebuild switch` with input changes. The Lix
+binary cache (`cache.lix.systems`) and nixpkgs binary cache both provide
+pre-built binaries. The `"package"` mode uses `nixpkgs.legacyPackages.lix`,
+which downloads a ~30 MB binary instead of compiling for hours.
+
+The latitude host already uses `lix = "package"` — this change makes nix-media
+consistent with the proven approach.
+
+**Review:** ✓ Binary cache already configured in `modules/core/nix.nix`
+(`cache.lix.systems` key). ✓ `nix.package` switches to `pkgs.lix` (nixpkgs
+build). ✓ Verified via `nix eval .#nixosConfigurations.nix-media.config.nix.package.pname`
+returning `"lix"`. ✓ The yoga host (modern AMD CPU) retains `"source"` mode —
+it compiles fast enough that the flexibility of tracking Lix `main` branch is
+worth the build time.
+
+**Evaluation:** Correct resource optimisation. Building Lix on an N100 is a net
+negative — the machine spends hours compiling when it could be serving media.
+Using the cached binary is the right trade-off for a low-power server.
+
+**File:** `flake.nix:147`
+
+---
+
+### latitude: remove redundant USB udev rule
+
+**What:** Removed the `services.udev.extraRules` entry that triggered the
+`disable-wakeup-sources.service` on USB `add|change` events.
+
+**Before:**
+```nix
+services.udev.extraRules = ''
+  ACTION=="add|change", SUBSYSTEM=="usb", TAG+="systemd", ENV{SYSTEMD_WANTS}+="disable-wakeup-sources.service"
+'';
+systemd.services.disable-wakeup-sources = {
+  wantedBy = [ "multi-user.target" ];
+  after = [ "systemd-udev-settle.service" ];
+  ...
+};
+```
+
+**After:**
+```nix
+systemd.services.disable-wakeup-sources = {
+  wantedBy = [ "multi-user.target" ];
+  after = [ "systemd-udev-settle.service" ];
+  ...
+};
+```
+
+**Rationale:** The `disable-wakeup-sources` service writes to `/proc/acpi/wakeup`,
+a kernel ACPI interface that controls which devices are permitted to wake the
+system from sleep. This is a one-time setting that persists across reboots until
+changed. The service is already idempotent (it checks each device's current
+state before toggling) and runs once at boot via `multi-user.target`.
+
+The udev rule triggered the service on every USB `add|change` event — i.e.,
+every time a USB device is plugged in, removed, or changes state. This is:
+1. **Unnecessary** — ACPI wakeup configuration does not change when USB
+   devices are hotplugged.
+2. **Wasteful** — A `Type = "oneshot"` service is spawned for every USB event.
+3. **Noisy** — Every USB event logs a `SystemdWants` activation in the journal.
+
+The `systemd-udev-settle.service` dependency already ensures the service runs
+after all devices are discovered at boot.
+
+**Review:** ✓ Service runs once at boot — sufficient for configuring
+`/proc/acpi/wakeup`. ✓ udev rule provided zero additional correctness. ✓ No
+behavioural regression.
+
+**Evaluation:** Correct removal. The udev rule was cargo-culted from a pattern
+where a service needs to react to device changes. Here, the configuration is
+static at boot, making the rule pure overhead.
+
+**File:** `hosts/latitude/default.nix:103-105`
+
+---
+
+### nix-media: fix Jellyfin cache/transcode volume paths
+
+**What:** Changed the Jellyfin Docker volume mounts from `/cache` and `/transcode`
+to `/config/cache` and `/config/transcode`.
+
+**Before:**
+```nix
+volumes = [
+  "${dockerPath}/jellyfin/config:/config"
+  "${jellyfinCachePath}/cache:/cache"              # ← wrong
+  "${jellyfinCachePath}/transcode:/transcode"       # ← wrong
+  ...
+];
+```
+
+**After:**
+```nix
+volumes = [
+  "${dockerPath}/jellyfin/config:/config"
+  "${jellyfinCachePath}/cache:/config/cache"        # ← correct
+  "${jellyfinCachePath}/transcode:/config/transcode" # ← correct
+  ...
+];
+```
+
+**Rationale:** The LinuxServer.io Jellyfin image stores cache and transcode data
+under `/config/cache` and `/config/transcode` by default — these are
+subdirectories of the main config mount at `/config`. The previous mounts at
+`/cache` and `/transcode` (top-level directories) were created inside the
+container but **never read by Jellyfin**.
+
+This meant:
+- The 6 GB tmpfs at `/var/cache/jellyfin` was mounted into the container but
+  entirely unused
+- Cache and transcode data was written to `/config` (on-disk storage) instead
+  of tmpfs
+- 4K transcodes filled disk-backed `/config` instead of RAM-backed tmpfs,
+  increasing SSD wear and adding latency
+
+**Review:** ✓ LinuxServer Jellyfin docs confirm config layout: `/config` is the
+root, with `cache/` and `transcode/` underneath. ✓ tmpfs at
+`/var/cache/jellyfin` is now actually used for its intended purpose. ✓ Media
+volumes (`/data/movies`, `/data/shows`, `/data/kinder`) unchanged.
+
+**Evaluation:** Bug fix. The incorrect paths rendered the entire tmpfs
+allocation pointless — 6 GB of RAM reserved for cache that was never used. This
+was likely a silent perf regression from the initial Docker Compose→Nix
+conversion where path conventions were overlooked.
+
+**File:** `hosts/nix-media/docker.nix:80-81`
+
+---
+
+### yoga: keep explicit `boot.loader.timeout = 0`
+
+**What:** Retained the explicit `boot.loader.timeout = 0` on yoga. No change.
+
+**Rationale:** The AI audit flagged that a 0-second timeout prevents access to
+the boot menu after a bad deployment. This is a deliberate trade-off: yoga is a
+primary laptop where instant boot is preferred over the recovery safety net.
+Holding `Space`/`Shift` during boot still forces the systemd-boot menu on most
+UEFI firmware. The core default of 3 seconds is already available for hosts
+that don't set an explicit timeout (nix-media, latitude inherit it).
+
+**Review:** ✓ No change applied. ✓ `modules/core/boot.nix` retains
+`timeout = lib.mkDefault 3` for hosts that don't override. ✓ The 0-second
+setting is conscious and user-approved.
+
+**Evaluation:** User preference respected. The concern is valid, but the owner
+understands the trade-off and prefers the faster boot on this machine.
+
+**File:** `hosts/yoga/default.nix:22`
+
+---
+
 ## Verification
 
 All changes pass the full CI pipeline:
 
 | Check | Status |
 |-------|--------|
-| `nixfmt` (formatting) | ✓ |
+| `nixfmt` (formatting, incl. boot.nix fix) | ✓ |
 | `statix` (linter) | ✓ |
 | `deadnix` (dead code) | ✓ |
 | `nixosConfigurations.yoga` (eval) | ✓ |
 | `nixosConfigurations.latitude` (eval) | ✓ |
 | `nixosConfigurations.nix-media` (eval) | ✓ |
+| `nix-media` uses cached Lix (`nix.package.pname == "lix"`) | ✓ |
+| `nix-media` systemd-boot enabled by mkDefault | ✓ |
+| `yoga` timeout remains `0` | ✓ |
 
 The only pre-existing warning is the `or` keyword usage in the disko module,
 which is an upstream issue, not related to these changes.

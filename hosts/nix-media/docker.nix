@@ -77,8 +77,8 @@ in
           };
           volumes = [
             "${dockerPath}/jellyfin/config:/config"
-            "${jellyfinCachePath}/cache:/cache"
-            "${jellyfinCachePath}/transcode:/transcode"
+            "${jellyfinCachePath}/cache:/config/cache"
+            "${jellyfinCachePath}/transcode:/config/transcode"
             "${storagePath}/movies:/data/movies:ro"
             "${storagePath}/shows:/data/shows:ro"
             "${storagePath}/kinder:/data/kinder:ro"

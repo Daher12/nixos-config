@@ -16,7 +16,7 @@ the code.
 | Doc | Status | Description |
 |-----|--------|-------------|
 | [REPO_OVERVIEW.md](../REPO_OVERVIEW.md) | `✓` | Full repository map: hosts, modules, profiles, secrets, CI, commands. The single-entry reference for understanding the entire flake. |
-| [REFACTOR-OVERVIEW.md](REFACTOR-OVERVIEW.md) | `✓` | Catalogue of all structural changes: what changed, why, technical evaluation of each refactor, and verification status. |
+| [REFACTOR-OVERVIEW.md](REFACTOR-OVERVIEW.md) | `✓` | Catalogue of all structural changes plus Phase 3 AI-assisted audit (2026-06): lix URLs, impermanence validation, Jellyfin paths, wakeup rule, lix package mode. |
 
 ---
 

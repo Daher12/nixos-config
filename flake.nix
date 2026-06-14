@@ -11,12 +11,12 @@
     };
 
     lix = {
-      url = "https://git.lix.systems/lix-project/lix/archive/main.tar.gz";
+      url = "git+https://git.lix.systems/lix-project/lix?ref=main";
       flake = false;
     };
 
     lix-module = {
-      url = "https://git.lix.systems/lix-project/nixos-module/archive/main.tar.gz";
+      url = "git+https://git.lix.systems/lix-project/nixos-module?ref=main";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.lix.follows = "lix";
     };
@@ -145,6 +145,7 @@
           hostname = "nix-media";
           mainUser = "dk";
           withHardware = true; # Enabled to support the physical Intel GPU for transcoding
+          lix = "package"; # N100 is too weak to build Lix from source every update
           profiles = [ ];
           extraModules = [
             ./hosts/nix-media/default.nix

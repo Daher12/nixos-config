@@ -2,7 +2,7 @@
 
 This is the single-stop reference for understanding this NixOS configuration repository.
 
-**Last updated:** 2026-06-11 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
+**Last updated:** 2026-06-14 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
 
 ---
 

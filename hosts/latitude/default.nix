@@ -100,9 +100,6 @@ in
     };
   };
   services = {
-    udev.extraRules = ''
-      ACTION=="add|change", SUBSYSTEM=="usb", TAG+="systemd", ENV{SYSTEMD_WANTS}+="disable-wakeup-sources.service"
-    '';
     thermald.enable = true;
 
     openssh = {

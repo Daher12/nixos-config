@@ -136,9 +136,7 @@ in
               tmp \
               var \
               var/log \
-              var/lib \
-              var/lib/sops-nix \
-              var/lib/sbctl
+              var/lib
             do
               if [ ! -e "/btrfs/$BLANK/$d" ]; then
                 echo "ERROR: template /btrfs/$BLANK is missing required path: /$d" >&2
