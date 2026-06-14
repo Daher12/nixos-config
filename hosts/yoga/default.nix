@@ -133,6 +133,10 @@
       "zswap.enabled=0"
       "amd_pstate=active"
       "amdgpu.ppfeaturemask=0xffffffff"
+      # Uncomment if Plymouth LUKS prompt shows 8s delay or text-mode fallback.
+      # Blocks amdgpu module_init in initrd so simpledrm survives for Plymouth.
+      # Not needed if LUKS prompt appears promptly via simpledrm.
+      # "initcall_blacklist=amdgpu_init"
     ];
 
     virtualization = {

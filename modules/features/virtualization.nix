@@ -104,7 +104,6 @@ in
         virt-manager
         virt-viewer
         swtpm
-        OVMFFull
         remmina
         freerdp
         adwaita-icon-theme
@@ -112,9 +111,6 @@ in
       ++ lib.optionals cfg.spiceUSBRedirection [
         usbredir
         spice-gtk
-      ]
-      ++ lib.optionals w11.enable [
-        win-spice
       ];
 
     environment.variables.LIBVIRT_DEFAULT_URI = "qemu:///system";
@@ -124,12 +120,25 @@ in
       "kvm"
     ];
 
-    users.users.qemu-libvirtd.extraGroups = lib.mkAfter [ "kvm" ];
+    users.users.qemu-libvirtd.extraGroups = lib.mkAfter [
+      "kvm"
+      "input" # Required for evdev passthrough (not in core/users.nix for this user)
+    ];
 
     services.udev.extraRules = ''
       KERNEL=="kvm", GROUP="kvm", MODE="0660"
       SUBSYSTEM=="vfio", OWNER="root", GROUP="kvm"
     '';
+
+    # Allow QEMU (non-root) to lock memory for Hugepages
+    security.pam.loginLimits = [
+      {
+        domain = "qemu-libvirtd";
+        type = "-";
+        item = "memlock";
+        value = "unlimited";
+      }
+    ];
 
     security.polkit.extraConfig = ''
       polkit.addRule(function(action, subject) {
@@ -165,12 +174,14 @@ in
           virsh = "${pkgs.libvirt}/bin/virsh -c qemu:///system";
         in
         ''
-          if ! ${virsh} net-info default >/dev/null 2>&1; then
-            ${virsh} net-define ${defaultNetworkXml}
-          fi
-
+          # Always re-define to sync XML changes (DHCP reservations, IP, MAC).
+          # virsh net-define is idempotent.
+          ${virsh} net-define ${defaultNetworkXml}
           ${virsh} net-autostart default >/dev/null 2>&1 || true
-          ${virsh} net-start default >/dev/null 2>&1 || true
+
+          if ! ${virsh} net-info default 2>/dev/null | grep -q "Active:.*yes"; then
+            ${virsh} net-start default >/dev/null 2>&1 || true
+          fi
         '';
     };
   };
