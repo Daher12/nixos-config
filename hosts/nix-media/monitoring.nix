@@ -286,7 +286,7 @@ in
       alertmanager-ntfy-bridge =
         let
           bridgeScript = pkgs.writeScript "alertmanager-ntfy-bridge" ''
-            #!/usr/bin/env python3
+            #!${pkgs.python3.interpreter}
             ${builtins.readFile ./alertmanager-ntfy-bridge.py}
           '';
         in
