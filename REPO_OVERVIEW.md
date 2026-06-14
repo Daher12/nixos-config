@@ -43,7 +43,6 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 ├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, msty (AppImage)
 ├── secrets/                   # SOPS-encrypted per-host secrets (age keys)
 ├── scripts/                   # install.sh (installer), update-safe (safe updater)
-├── documentation/             # Troubleshooting, upgrade guides, package docs
 └── .github/workflows/         # CI: daily flake updates + lint checks
 ```
 
@@ -180,8 +179,36 @@ Host-specific home additions go in `hosts/<name>/home.nix`.
 
 | File | Purpose |
 |------|---------|
-| `scripts/install.sh` | Full NixOS installer: disk wipe, Disko, Btrfs snapshot, SSH key restore |
-| `scripts/update-safe` | Safe update: pull, update inputs, lint, build, optional deploy |
+| `scripts/install.sh` | Host-agnostic NixOS installer: Disko, Btrfs snapshot, SSH key restore |
+| `scripts/update-safe` | Safe update pipeline: pull, update inputs, lint, build, optional deploy |
+
+### `install.sh` — Host-Agnostic Installer
+
+```bash
+bash scripts/install.sh <host>    # host is required: yoga, latitude, nix-media
+```
+
+The script auto-detects host features from the config:
+- **Disko**: checks for `hosts/<host>/disks.nix` → runs Disko if present
+- **Impermanence**: greps host config for `impermanence.enable = true` → creates `@blank` snapshot
+- **Persist paths**: detects `/persist` references → uses `/mnt/persist/system` or `/mnt` accordingly
+
+Flow: clone → detect features → (optional Disko) → password hash → (optional @blank snapshot) → state restoration → `nixos-install`
+
+### `update-safe` — Safe Update Pipeline
+
+```bash
+./scripts/update-safe <host> [build-only|test|boot|switch]
+```
+
+Steps:
+1. `git pull --ff-only` — fast-forward only, no merge
+2. `nix flake update` — updates nixpkgs, nixos-hardware, home-manager, sops-nix, disko, impermanence, winapps, preload-ng
+3. `nix flake check --impure --keep-going` — runs statix, deadnix, nixfmt checks
+4. `nix build` — builds the host's toplevel derivation
+5. Optionally activates: `test` (temporary), `boot` (next boot), `switch` (live)
+
+Safe inputs are updated; locked inputs (lanzaboote, lix, lix-module) are NOT updated to avoid surprise breakage.
 
 ---
 
@@ -212,25 +239,135 @@ nix flake update
 nix fmt && nix flake check
 
 # Safe update (full pipeline)
-./scripts/update-safe
+./scripts/update-safe yoga switch
 
 # Fresh install
-bash scripts/install.sh
+bash scripts/install.sh yoga
 ```
 
 ---
 
-## Documentation
+## Impermanence — How It Works (yoga only)
 
-| Document | Topic |
-|----------|-------|
-| `documentation/INDEX.md` | Categorized documentation index |
-| `documentation/impermanence.md` | Btrfs root rollback, @blank template, recovery procedures |
-| `documentation/upgrade-26.05.md` | NixOS 25.11 → 26.05 migration |
-| `documentation/opencode-provider-persistence.md` | OpenCode provider drops after rebuild |
-| `documentation/plymouth_luks_issue.md` | Plymouth + LUKS on AMD |
-| `documentation/intel-gpu-metrics.md` | Intel GPU metrics + Grafana |
-| `documentation/msty-appimage.md` | Msty Studio AppImage packaging |
+The root filesystem uses **split Btrfs subvolumes**:
+
+```
+Btrfs top-level (subvolid=5)
+├── @           → mounted at /      — wiped on every boot
+├── @blank      → template snapshot — read-only, never mounted
+├── @nix        → mounted at /nix   — persistent
+└── @persist    → mounted at /persist — persistent
+```
+
+**Boot sequence:**
+1. `@blank` validated (exists, read-only, has required mount-point dirs)
+2. `@` recursively deleted
+3. Fresh read-write snapshot created from `@blank` → `@`
+4. Persistent subvolumes (`/nix`, `/persist`) mounted on top
+5. Impermanence module bind-mounts persist entries to their target paths under `/`
+
+All persistent data lives on `/persist`. The `@` subvolume contains only the NixOS skeleton (symlinks into `/nix/store`, mount-point dirs, `/etc` files from `environment.persistence`).
+
+**Required `@blank` directories:** `nix persist boot home etc tmp var var/log var/lib var/lib/sops-nix var/lib/sbctl`
+
+**Two persistence scopes:**
+- `/persist/system` — system state: service data (`/var/lib/*`), SSH keys, NetworkManager, machine-id
+- `/persist` — user home dirs: desktop folders, config repos
+
+**Adding a new Btrfs subvolume under `/`:** Add the mount-point dir to the validation list in `modules/features/impermanence.nix`, then update `@blank`:
+```sh
+sudo mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /mnt
+sudo btrfs subvolume snapshot -r /mnt/@ /mnt/@blank-tmp
+sudo btrfs subvolume delete /mnt/@blank
+sudo mv /mnt/@blank-tmp /mnt/@blank
+sudo umount /mnt
+```
+
+**Initrd constraint:** The rollback script runs in the systemd initrd. Only `btrfs`, `mount`, `umount`, `chmod` are available — no `grep`, `awk`, `sed`, `find`, `ls`. Use bash builtins for control flow.
+
+---
+
+## Known Gotchas
+
+### Plymouth + AMD GPU (yoga)
+
+`amdgpu` loaded in initrd unregisters `simpledrm` before Plymouth can attach. This causes the LUKS prompt to fall back to text mode with an 8s delay.
+
+**Root cause:** `amdgpu` probes the GPU → calls `drm_aperture_remove_conflicting_framebuffers()` → simpledrm device torn down → Plymouth's `use-simpledrm` predicate finds no device → 8s timeout → text-mode fallback.
+
+**Why cold boot works, reboot fails:** Cold boot loads amdgpu firmware from disk (~3-5s), simpledrm survives long enough. Reboot loads from CPU/RAM caches (<1s), simpledrm is gone before Plymouth starts.
+
+**Current state:** `amdgpu` is blacklisted in initrd via `initcall_blacklist=amdgpu_init` in `hosts/yoga/default.nix`. Plymouth attaches to simpledrm deterministically. amdgpu loads normally after switch-root.
+
+**Verification:**
+```sh
+# amdgpu must NOT be in initrd
+sudo lsinitrd /nix/store/*-initrd-linux-*/initrd 2>/dev/null | grep amdgpu
+# Should be empty
+
+# Plymouth should attach to simpledrm
+journalctl -b -o cat | grep -E "simple-framebuffer.*Registered|plymouth.*Attached"
+# Should show simpledrm registering before Plymouth attaches
+```
+
+### NixOS 26.05 Breaking Changes
+
+| Change | File | Fix |
+|--------|------|-----|
+| `services.resolved.extraConfig` removed | `modules/core/networking.nix` | Migrate to `services.resolved.settings` attrset |
+| `gdm.wayland` removed (Wayland mandatory) | `modules/features/desktop-gnome.nix` | Delete `wayland = true` line |
+| `programs.adb` removed | `modules/core/users.nix` | Use `pkgs.android-tools` in systemPackages |
+| Grafana `secret_key` required | `hosts/nix-media/monitoring.nix` | Set `secret_key = "SW2YcwTIb9zpOOhoPsMm"` |
+| `fastfetchMinimal` renamed | `hosts/nix-media/default.nix`, `home/terminal.nix` | Change to `fastfetch.minimal` |
+| `nixfmt-rfc-style` renamed | `flake.nix` | Change to `nixfmt` |
+| opencode `libstdc++.so.6` missing | `home/terminal.nix` | Wrap binary with `LD_LIBRARY_PATH` pointing to `stdenv.cc.cc.lib` |
+| Docker 28 marked insecure | `hosts/nix-media/docker.nix` | Pin `package = pkgs.docker_29` |
+
+**First switch after upgrade requires reboot** — dbus-broker replaces dbus-daemon, needs full restart.
+
+### Intel GPU Metrics (nix-media)
+
+`intel-gpu-tools` 2.2→2.3 changed output format. The awk parser in `hosts/nix-media/monitoring.nix` was updated to handle the new format. If metrics break after an update, check the parser.
+
+---
+
+## Recovery Procedures
+
+### Boot fails — "missing template snapshot"
+
+`@blank` deleted or corrupted. From initrd emergency shell:
+```sh
+mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /mnt
+btrfs subvolume show /mnt/@          # check if @ still exists
+btrfs subvolume snapshot -r /mnt/@ /mnt/@blank  # recreate from @
+umount /mnt
+exit
+```
+
+### Boot fails — "not a read-only snapshot"
+
+`@blank` exists but lost its read-only flag. From initrd emergency shell:
+```sh
+mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /mnt
+btrfs property set -ts /mnt/@blank ro true
+umount /mnt
+exit
+```
+
+### Boot fails — "missing required path"
+
+A directory is missing from `@blank` (partition layout changed without template update). From initrd emergency shell:
+```sh
+mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /mnt
+btrfs subvolume delete /mnt/@blank
+btrfs subvolume snapshot -r /mnt/@ /mnt/@blank
+umount /mnt
+exit
+```
+
+### General rule
+
+Any error in the rollback script aborts the service → `OnFailure = "emergency.target"` → initrd emergency shell. `@` is never touched unless `@blank` passes all validations, so data is preserved.
 
 ---
 
@@ -253,5 +390,6 @@ bash scripts/install.sh
 | Tailscale VPN | `modules/features/vpn.nix` |
 | Secure Boot | `modules/features/secureboot.nix` |
 | SOPS secrets | `modules/features/sops.nix` |
+| Impermanence module | `modules/features/impermanence.nix` |
 | Custom packages | `pkgs/` |
 | Flake definition | `flake.nix` |
