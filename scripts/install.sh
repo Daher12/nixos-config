@@ -2,13 +2,39 @@
 set -euo pipefail
 umask 077
 
+# --- Usage ---
+
+usage() {
+  cat <<EOF
+Usage: $0 <host>
+
+Installs NixOS for the given flake host.
+
+Available hosts:
+  yoga        Lenovo Yoga 7 Slim Gen 8 (AMD)
+  latitude    Dell E7450 (Intel)
+  nix-media   Intel N100 Mini PC (media server)
+
+Environment:
+  USER_NAME       Primary user (default: dk)
+  REPO_URL        Git repo to clone (default: https://github.com/Daher12/nixos-config)
+
+Examples:
+  $0 yoga
+  $0 nix-media
+  USER_NAME=dk $0 latitude
+EOF
+  exit 1
+}
+
 # --- Configuration ---
 
+[[ $# -ge 1 ]] || usage
+FLAKE_TARGET="$1"
 USER_NAME="${USER_NAME:-dk}"
 USER_UID="1000"
 USER_GID="1000"
 REPO_URL="${REPO_URL:-https://github.com/Daher12/nixos-config}"
-FLAKE_TARGET="${FLAKE_TARGET:-yoga}"
 
 # --- Helpers ---
 
@@ -41,6 +67,44 @@ done
 curl -fsS --connect-timeout 5 --retry 3 --retry-delay 2 https://github.com >/dev/null \
   || die "No internet or GitHub unreachable"
 
+# --- Clone config (needed for host detection) ---
+
+CONFIG_DIR="/tmp/nixos-config"
+rm -rf "$CONFIG_DIR"
+info "Cloning configuration..."
+timeout 120 git clone "$REPO_URL" "$CONFIG_DIR" || die "Clone failed"
+
+PINNED_COMMIT=$(git -C "$CONFIG_DIR" rev-parse HEAD)
+info "Repo at commit: $PINNED_COMMIT"
+
+# --- Detect host features ---
+
+HOST_DIR="$CONFIG_DIR/hosts/$FLAKE_TARGET"
+[[ -d "$HOST_DIR" ]] || die "Host '$FLAKE_TARGET' not found in hosts/"
+
+HAS_DISKO=0
+HAS_IMPERMANENCE=0
+HAS_PERSIST=0
+
+if [[ -f "$HOST_DIR/disks.nix" ]]; then
+  HAS_DISKO=1
+fi
+
+if grep -rq 'impermanence.*enable.*=\s*true' "$HOST_DIR/" 2>/dev/null; then
+  HAS_IMPERMANENCE=1
+fi
+
+# Detect if host config references /persist
+if grep -rq '"/persist' "$HOST_DIR/" 2>/dev/null; then
+  HAS_PERSIST=1
+fi
+
+info "Host:       $FLAKE_TARGET"
+info "Disko:      $([ $HAS_DISKO -eq 1 ] && echo 'yes' || echo 'no')"
+info "Impermanence: $([ $HAS_IMPERMANENCE -eq 1 ] && echo 'yes' || echo 'no')"
+
+# --- Backup prompt ---
+
 read -rp "Backup USB path (e.g. /mnt/usb, or none): " BACKUP_PATH
 USE_BACKUP=1
 if [[ "$BACKUP_PATH" == "none" || ! -d "$BACKUP_PATH" ]]; then
@@ -57,23 +121,54 @@ if [[ "$USE_BACKUP" -eq 1 ]]; then
   fi
 fi
 
-info "Targeting Flake: $FLAKE_TARGET"
-echo "WARNING: This will DESTROY the disks defined in the ${FLAKE_TARGET} disko config."
-confirm "Proceed with wipe and install?"
+# --- Confirmation ---
 
-# --- Clone config ---
+if [[ $HAS_DISKO -eq 1 ]]; then
+  echo "WARNING: This will DESTROY the disks defined in the ${FLAKE_TARGET} disko config."
+else
+  echo "WARNING: This will install NixOS to the mounted partitions under /mnt."
+fi
+confirm "Proceed with install?"
 
-CONFIG_DIR="/tmp/nixos-config"
-rm -rf "$CONFIG_DIR"
-info "Cloning configuration..."
-timeout 120 git clone "$REPO_URL" "$CONFIG_DIR" || die "Clone failed"
+# --- Disko (conditional) ---
 
-PINNED_COMMIT=$(git -C "$CONFIG_DIR" rev-parse HEAD)
-info "Repo at commit: $PINNED_COMMIT"
+if [[ $HAS_DISKO -eq 1 ]]; then
+  info "Resolving locked disko revision from flake.lock..."
+  DISKO_REV=$(nix shell nixpkgs#jq --command \
+    jq -er '.nodes.disko.locked.rev' "$CONFIG_DIR/flake.lock") \
+    || die "Could not extract disko rev from flake.lock"
+  [[ -n "$DISKO_REV" ]] || die "disko rev is empty - check flake.lock has a disko input"
+  info "Using disko rev: $DISKO_REV"
+
+  info "Running Disko..."
+  nix run "github:nix-community/disko/$DISKO_REV" -- \
+    --mode destroy,format,mount \
+    --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Disko failed"
+else
+  info "Skipping Disko (no disks.nix for $FLAKE_TARGET)"
+  info "Expecting partitions already mounted under /mnt"
+fi
+
+# --- Verify mount points ---
+
+info "Verifying mount points..."
+mountpoint -q /mnt || die "/mnt is not mounted"
+
+if [[ $HAS_DISKO -eq 1 ]]; then
+  # Disko hosts mount /boot and potentially /persist, /nix
+  for m in /mnt/boot; do
+    mountpoint -q "$m" 2>/dev/null || echo "WARNING: $m not mounted"
+  done
+  if [[ $HAS_IMPERMANENCE -eq 1 ]]; then
+    mountpoint -q /mnt/persist || die "/mnt/persist is not mounted (required for impermanence)"
+    mountpoint -q /mnt/nix 2>/dev/null || echo "WARNING: /mnt/nix not mounted"
+  fi
+else
+  # Non-disko: at minimum /mnt and /mnt/boot should be mounted
+  mountpoint -q /mnt/boot 2>/dev/null || echo "WARNING: /mnt/boot not mounted"
+fi
 
 # --- Password hash ---
-
-NX="nix shell nixpkgs#whois nixpkgs#jq --command"
 
 info "Setting password for ${USER_NAME}..."
 echo "(input hidden - type password and press Enter)"
@@ -83,78 +178,87 @@ PW_HASH=$(nix shell nixpkgs#whois --command mkpasswd -m yescrypt) \
 
 printf '%s' "$PW_HASH" > "$PW_FILE"
 
-# --- Disko ---
+# --- @blank template snapshot (impermanence only) ---
 
-info "Resolving locked disko revision from flake.lock..."
-DISKO_REV=$(nix shell nixpkgs#jq --command \
-  jq -er '.nodes.disko.locked.rev' "$CONFIG_DIR/flake.lock") \
-  || die "Could not extract disko rev from flake.lock"
-[[ -n "$DISKO_REV" ]] || die "disko rev is empty - check flake.lock has a disko input"
-info "Using disko rev: $DISKO_REV"
+if [[ $HAS_IMPERMANENCE -eq 1 ]]; then
+  info "Creating @blank template snapshot..."
 
-info "Running Disko..."
-nix run "github:nix-community/disko/$DISKO_REV" -- \
-  --mode destroy,format,mount \
-  --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Disko failed"
+  # Find the Btrfs device — look for /dev/mapper/cryptroot (LUKS) or fall back to
+  # the device backing /mnt
+  BTRFS_DEVICE=""
+  if [[ -b /dev/mapper/cryptroot ]]; then
+    BTRFS_DEVICE="/dev/mapper/cryptroot"
+  else
+    # Find the device mounted at /mnt (or the first btrfs partition)
+    BTRFS_DEVICE=$(findmnt -n -o SOURCE /mnt 2>/dev/null | head -1) \
+      || die "Could not determine Btrfs device for /mnt"
+  fi
+  info "Using Btrfs device: $BTRFS_DEVICE"
 
-for m in /mnt /mnt/boot /mnt/persist /mnt/nix; do
-  mountpoint -q "$m" || die "Mount point not found: $m"
-done
+  mkdir -p /tmp/btrfs-top
+  mount -t btrfs -o subvolid=5 "$BTRFS_DEVICE" /tmp/btrfs-top \
+    || die "Failed to mount Btrfs top-level subvolume"
 
-# --- Create @blank template snapshot ---
+  # Populate the root skeleton inside @ itself, not through /mnt, because /mnt/nix
+  # and /mnt/persist are separate mounts and would otherwise hit @nix/@persist.
+  mkdir -p /tmp/btrfs-top/@/{nix,persist,boot,home,etc,tmp,var/log,var/lib/sops-nix,var/lib/sbctl}
+  chmod 1777 /tmp/btrfs-top/@/tmp
 
-info "Creating @blank template snapshot..."
-mkdir -p /tmp/btrfs-top
-mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot /tmp/btrfs-top \
-  || die "Failed to mount Btrfs top-level subvolume"
+  if btrfs subvolume show /tmp/btrfs-top/@blank >/dev/null 2>&1; then
+    btrfs subvolume delete /tmp/btrfs-top/@blank \
+      || die "Failed to remove existing @blank snapshot"
+  fi
 
-# Populate the root skeleton inside @ itself, not through /mnt, because /mnt/nix
-# and /mnt/persist are separate mounts and would otherwise hit @nix/@persist.
-mkdir -p /tmp/btrfs-top/@/{nix,persist,boot,home,etc,tmp,var/log,var/lib/sops-nix,var/lib/sbctl}
-chmod 1777 /tmp/btrfs-top/@/tmp
+  btrfs subvolume snapshot -r /tmp/btrfs-top/@ /tmp/btrfs-top/@blank \
+    || die "@blank snapshot creation failed"
 
-if btrfs subvolume show /tmp/btrfs-top/@blank >/dev/null 2>&1; then
-  btrfs subvolume delete /tmp/btrfs-top/@blank \
-    || die "Failed to remove existing @blank snapshot"
+  btrfs subvolume show /tmp/btrfs-top/@blank >/dev/null \
+    || die "@blank snapshot verification failed"
+
+  umount /tmp/btrfs-top || die "Failed to unmount Btrfs top-level mount"
+  rmdir /tmp/btrfs-top
+  info "@blank snapshot created"
+else
+  info "Skipping @blank snapshot (no impermanence)"
 fi
-
-btrfs subvolume snapshot -r /tmp/btrfs-top/@ /tmp/btrfs-top/@blank \
-  || die "@blank snapshot creation failed"
-
-btrfs subvolume show /tmp/btrfs-top/@blank >/dev/null \
-  || die "@blank snapshot verification failed"
-
-umount /tmp/btrfs-top || die "Failed to unmount Btrfs top-level mount"
-rmdir /tmp/btrfs-top
-info "@blank snapshot created"
 
 # --- Persist password hash ---
 
-HASH_DEST="/mnt/persist/system/var/lib/local-passwords/dk.yescrypt"
+if [[ $HAS_IMPERMANENCE -eq 1 ]]; then
+  HASH_DEST="/mnt/persist/system/var/lib/local-passwords/${USER_NAME}.yescrypt"
 
-info "Writing persisted password hash..."
-install -D -m 600 -o 0 -g 0 \
-  "$PW_FILE" \
-  "$HASH_DEST" || die "Failed to write password hash file"
+  info "Writing persisted password hash..."
+  install -D -m 600 -o 0 -g 0 \
+    "$PW_FILE" \
+    "$HASH_DEST" || die "Failed to write password hash file"
 
-[[ -s "$HASH_DEST" ]] \
-  || die "Hash file not written - aborting before nixos-install"
-[[ "$(stat -c '%a' "$HASH_DEST")" == "600" ]] \
-  || die "Hash file has wrong permissions (expected 600)"
-[[ "$(stat -c '%u:%g' "$HASH_DEST")" == "0:0" ]] \
-  || die "Hash file has wrong ownership (expected root:root)"
+  [[ -s "$HASH_DEST" ]] \
+    || die "Hash file not written - aborting before nixos-install"
+  [[ "$(stat -c '%a' "$HASH_DEST")" == "600" ]] \
+    || die "Hash file has wrong permissions (expected 600)"
+  [[ "$(stat -c '%u:%g' "$HASH_DEST")" == "0:0" ]] \
+    || die "Hash file has wrong ownership (expected root:root)"
+else
+  info "Skipping persist password hash (no impermanence — sops handles credentials)"
+fi
 
 # --- State Restoration (System) ---
 
 info "Restoring system identity..."
 
+if [[ $HAS_PERSIST -eq 1 ]]; then
+  PERSIST_SYSTEM="/mnt/persist/system"
+else
+  PERSIST_SYSTEM="/mnt"
+fi
+
 if [[ "$USE_BACKUP" -eq 1 ]] && [[ -f "$BACKUP_PATH/ssh/ssh_host_ed25519_key" ]]; then
   info "Restoring SSH host keys..."
-  mkdir -p /mnt/persist/system/etc/ssh
-  cp -a "$BACKUP_PATH"/ssh/ssh_host_* /mnt/persist/system/etc/ssh/
-  chmod 600 /mnt/persist/system/etc/ssh/*_key
-  chmod 644 /mnt/persist/system/etc/ssh/*.pub 2>/dev/null || true
-  chown -R 0:0 /mnt/persist/system/etc/ssh
+  mkdir -p "$PERSIST_SYSTEM/etc/ssh"
+  cp -a "$BACKUP_PATH"/ssh/ssh_host_* "$PERSIST_SYSTEM/etc/ssh/"
+  chmod 600 "$PERSIST_SYSTEM/etc/ssh/"*_key
+  chmod 644 "$PERSIST_SYSTEM/etc/ssh/"*.pub 2>/dev/null || true
+  chown -R 0:0 "$PERSIST_SYSTEM/etc/ssh"
 else
   echo "WARNING: No SSH host keys - new keys generated on boot."
   echo "  Update known_hosts on machines that connect to this host."
@@ -162,21 +266,22 @@ fi
 
 if [[ "$MACHINE_ID_AVAILABLE" -eq 1 ]]; then
   install -D -m 444 -o 0 -g 0 \
-    "$BACKUP_PATH/system/machine-id" /mnt/persist/system/etc/machine-id
+    "$BACKUP_PATH/system/machine-id" "$PERSIST_SYSTEM/etc/machine-id"
   info "Restored machine-id"
 else
   info "Skipping machine-id - systemd generates on first boot"
 fi
 
-# --- sbctl PKI ---
-
-# Skipped: secureboot.enable = false for initial install.
-# Post-boot: sudo sbctl create-keys && sudo sbctl enroll-keys --microsoft
-
 # --- State Restoration (User) ---
 
 info "Restoring user data for $USER_NAME..."
-USER_HOME="/mnt/persist/home/$USER_NAME"
+
+if [[ $HAS_PERSIST -eq 1 ]]; then
+  USER_HOME="/mnt/persist/home/$USER_NAME"
+else
+  USER_HOME="/mnt/home/$USER_NAME"
+fi
+
 mkdir -p "$USER_HOME"/{.ssh,.gnupg,nixos-config,Documents,Downloads}
 
 if [[ "$USE_BACKUP" -eq 1 ]]; then
@@ -235,19 +340,30 @@ info "Verifying bootloader..."
   || die "/mnt/boot/EFI is empty - bootloader install failed"
 info "Bootloader installed"
 
+# --- Summary ---
+
 echo ""
 echo "=============================="
 echo "       INSTALL SUCCESS        "
 echo "=============================="
+echo "Host:   $FLAKE_TARGET"
 echo "Commit: $PINNED_COMMIT"
-echo "Disko:  $DISKO_REV"
+[[ $HAS_DISKO -eq 1 ]] && echo "Disko:  $DISKO_REV"
 echo ""
-echo "POST-BOOT: Set up Secure Boot once running:"
-echo "  1. sudo sbctl create-keys"
-echo "  2. sudo sbctl enroll-keys --microsoft"
-echo "  3. Reboot -> UEFI firmware -> enable Secure Boot"
-echo "  4. Edit hosts/yoga/default.nix: secureboot.enable = true"
-echo "  5. sudo nixos-rebuild switch --flake .#yoga"
+
+# --- Post-boot instructions (host-aware) ---
+
+if [[ $HAS_IMPERMANENCE -eq 1 ]]; then
+  echo "POST-BOOT: Set up Secure Boot once running:"
+  echo "  1. sudo sbctl create-keys"
+  echo "  2. sudo sbctl enroll-keys --microsoft"
+  echo "  3. Reboot -> UEFI firmware -> enable Secure Boot"
+  echo "  4. Edit hosts/$FLAKE_TARGET/default.nix: secureboot.enable = true"
+  echo "  5. sudo nixos-rebuild switch --flake .#$FLAKE_TARGET"
+else
+  echo "POST-BOOT: Review and rebuild as needed:"
+  echo "  sudo nixos-rebuild switch --flake .#$FLAKE_TARGET"
+fi
 
 confirm "Reboot now?"
 reboot

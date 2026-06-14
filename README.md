@@ -1,15 +1,23 @@
-# NixOS Configuration
-
 <div align="center">
+
+```
+ ███╗   ██╗██╗██╗  ██╗██╗███╗   ██╗███████╗ █████╗ ██████╗ ████████╗
+ ████╗  ██║██║╚██╗██╔╝██║████╗  ██║██╔════╝██╔══██╗██╔══██╗╚══██╔══╝
+ ██╔██╗ ██║██║ ╚███╔╝ ██║██╔██╗ ██║█████╗  ███████║██████╔╝   ██║
+ ██║╚██╗██║██║ ██╔██╗ ██║██║╚██╗██║██╔══╝  ██╔══██║██╔══██╗   ██║
+ ██║ ╚████║██║██╔╝ ██╗██║██║ ╚████║███████╗██║  ██║██║  ██║   ██║
+ ╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+```
+
+**Declarative. Reproducible. Sustainable.**
 
 [![NixOS 26.05](https://img.shields.io/badge/NixOS-26.05-5277C3?style=for-the-badge&logo=nixos&logoColor=white)](https://nixos.org)
 [![Lix](https://img.shields.io/badge/Lix-2.93-7E3FF2?style=for-the-badge)](https://lix.systems)
 [![Flakes](https://img.shields.io/badge/Flakes-Enabled-41BAC1?style=for-the-badge)](https://nixos.wiki/wiki/Flakes)
+[![Home Manager](https://img.shields.io/badge/Home--Manager-Integrated-5277C3?style=for-the-badge)](https://github.com/nix-community/home-manager)
 [![CI](https://img.shields.io/github/actions/workflow/status/daher12/nixos-config/bump.yml?style=for-the-badge&label=CI)](https://github.com/daher12/nixos-config/actions)
 
-**Personal NixOS flake**
-
-[Hosts](#%EF%B8%8F-hosts) • [Structure](#-structure) • [Quick Start](#-deployment)
+[Hosts](#-hosts) · [Features](#-features) · [Structure](#-structure) · [Deploy](#-deploy) · [Docs](documentation/INDEX.md)
 
 </div>
 
@@ -19,78 +27,114 @@
 
 | Host | Hardware | Role |
 |------|----------|------|
-| **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD) | Primary laptop with impermanence |
+| **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD) | Primary laptop |
 | **latitude** | Dell E7450 (Intel) | Legacy laptop |
 | **nix-media** | Intel N100 Mini PC | Media server |
 
 ---
 
-## ⚡ Stack
+## ⚡ Features
 
-### **Laptops**
-- 🎨 GNOME with Nord theming
-- 🔒 Secure Boot (Lanzaboote)
-- 💾 Btrfs with automated maintenance
-- 🌐 Tailscale mesh networking
-- 🖥️ QEMU/KVM virtualization
+<details open>
+<summary><strong>🐧 Desktop (Laptops)</strong></summary>
 
-### **Media Server**
-- 📺 Jellyfin + Audiobookshelf (Docker)
-- 📊 Prometheus + Grafana monitoring
-- 🌍 Caddy reverse proxy with Tailscale TLS
-- 💿 MergerFS storage pool with NFS exports
-- 🔄 Automated updates with idle detection
+| Category | What's Inside |
+|----------|---------------|
+| **Desktop** | GNOME + Nord theming, Colloid GTK, Fluent icons |
+| **Security** | Secure Boot via Lanzaboote, SOPS-nix encrypted secrets |
+| **Storage** | Btrfs with automated maintenance, ZRAM |
+| **Networking** | Tailscale mesh, systemd-networkd optimization |
+| **Virtualization** | QEMU/KVM with AMD GPU passthrough |
+| **Power** | TLP, Ryzen TDP control, oomd |
 
-### **Infrastructure**
-- 🔐 SOPS-nix encrypted secrets
-- 🤖 GitHub Actions CI (updates, lint, builds)
-- 🔧 Systemd-networkd on servers
-- 🧩 Modular hardware abstraction
+</details>
+
+<details open>
+<summary><strong>📡 Media Server</strong></summary>
+
+| Category | What's Inside |
+|----------|---------------|
+| **Services** | Jellyfin, Audiobookshelf, mnamer, ntfy |
+| **Reverse Proxy** | Caddy with Tailscale TLS |
+| **Monitoring** | Prometheus + Grafana |
+| **Storage** | MergerFS pool, NFS exports, automated maintenance |
+| **Automation** | Idle-aware updates, Docker orchestration |
+
+</details>
+
+<details open>
+<summary><strong>🏗️ Infrastructure</strong></summary>
+
+| Category | What's Inside |
+|----------|---------------|
+| **Secrets** | SOPS-nix with age keys |
+| **CI/CD** | GitHub Actions — lint (`statix`, `deadnix`, `nixfmt`), build checks, flake updates |
+| **Disk** | Disko declarative partitioning, impermanence (root tmpfs) |
+| **Nix** | Lix package manager, Flakes, modular `mkHost` abstraction |
+
+</details>
 
 ---
 
 ## 📁 Structure
+
 ```
-├── modules/
-│   ├── core/        # boot, nix, users, networking
-│   ├── hardware/    # GPU drivers, TDP, device quirks
-│   ├── features/    # desktop, power, VMs, fonts, filesystems
-│   └── roles/       # media server orchestration
-├── profiles/        # Role bundles (laptop, desktop)
-├── hosts/           # Per-host configuration
-├── home/            # Shared home-manager modules
-├── secrets/         # SOPS-encrypted credentials
-└── scripts/install.sh   # Automated installer
+nixos-config/
+├── modules/          core · hardware · features · roles
+├── profiles/         role bundles (laptop, desktop)
+├── hosts/            per-machine config & overrides
+├── home/             shared home-manager modules
+├── lib/              custom nix helpers (mkHost)
+├── pkgs/             custom package definitions
+├── secrets/          sops-encrypted credentials
+├── scripts/          installer & update helpers
+└── documentation/    guides & troubleshooting
 ```
 
 ---
 
-## 🚀 Deployment
+## 🚀 Deploy
 
-### **Fresh Install**
+### Fresh Install
+
 ```bash
-# Boot NixOS ISO
+# 1. Boot the NixOS minimal ISO and connect to the internet
 sudo su
-curl -fsSL https://raw.githubusercontent.com/daher12/nixos-config/main/install.sh -o install.sh
-bash install.sh
-# Prompts for backup USB (SSH keys, SOPS keys, machine-id)
+
+# 2. Pull and run the installer for your host (yoga, latitude, nix-media)
+curl -fsSL https://raw.githubusercontent.com/daher12/nixos-config/main/scripts/install.sh -o install.sh
+bash install.sh <host>
 ```
 
-### **Rebuild**
+### Rebuild
+
 ```bash
 cd ~/nixos-config
 nixos-rebuild switch --flake .#$(hostname)
 ```
 
-### **Maintenance**
+### Update Flake Inputs
+
 ```bash
-nix flake update && nix flake check
+nix flake update
+nix flake check
+```
+
+### Lint & Format
+
+```bash
+nix fmt                          # format all .nix files
+nix flake check                  # runs statix, deadnix, nixfmt checks
 ```
 
 ---
 
 <div align="center">
 
-**[Repo Docs](documentation/INDEX.md)** • **[Flakes Guide](https://nixos.wiki/wiki/Flakes)** • **[Issues](https://github.com/daher12/nixos-config/issues)**
+**[Documentation](documentation/INDEX.md)** · **[Flakes Guide](https://nixos.wiki/wiki/Flakes)** · **[Issues](https://github.com/daher12/nixos-config/issues)**
+
+---
+
+*NixOS — because reproducibility isn't optional.*
 
 </div>
