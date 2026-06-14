@@ -1,5 +1,9 @@
 name: "Maintain: Update Flake Lock"
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
 on:
   schedule:
     # 02:00 UTC is safe. It allows ~1-2 hours for this job to run
@@ -27,9 +31,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v30
+        uses: cachix/install-nix-action@v31
         with:
           extra_nix_config: |
             accept-flake-config = true
@@ -42,47 +48,39 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           extra_inputs=()
-
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.include_lix_module }}" == "true" ]]; then
             extra_inputs+=(lix-module)
           fi
-
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.include_lanzaboote }}" == "true" ]]; then
             extra_inputs+=(lanzaboote)
           fi
-
           nix flake update \
             nixpkgs nixos-hardware \
             home-manager sops-nix disko impermanence \
             winapps preload-ng \
             "${extra_inputs[@]}" \
             --accept-flake-config
-
           echo "nixpkgs_rev=$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev[0:7]')" >> "$GITHUB_OUTPUT"
-
-      - name: Format Nix code
-        run: find . -name '*.nix' -exec nix fmt -v {} +
 
       - name: Verify configurations
         shell: bash
         run: |
           set -euo pipefail
-
           nix flake check --all-systems --impure --keep-going
-
-          for host in yoga latitude nix-media; do
+          for host in $(nix eval --json '.#nixosConfigurations' --apply 'builtins.attrNames' | jq -r '.[]'); do
             echo "::group::Verifying $host"
             nix build ".#nixosConfigurations.${host}.config.system.build.toplevel" --dry-run --impure
             echo "::endgroup::"
           done
 
+      - name: Format Nix code
+        run: nix fmt
+
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: |
             chore(flake): update inputs & format
-
             nixpkgs: ${{ steps.update.outputs.nixpkgs_rev }}
           file_pattern: flake.lock **/*.nix
