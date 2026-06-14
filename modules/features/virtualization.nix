@@ -241,8 +241,13 @@ in
           virsh = "${pkgs.libvirt}/bin/virsh -c qemu:///system";
         in
         ''
-          # Always re-define to sync XML changes (DHCP reservations, IP, MAC).
-          # virsh net-define is idempotent.
+          # Destroy + undefine to allow re-define with updated XML
+          # (DHCP reservations, IP, MAC). net-define fails on UUID mismatch.
+          if ${virsh} net-info default >/dev/null 2>&1; then
+            ${virsh} net-destroy default 2>/dev/null || true
+            ${virsh} net-undefine default 2>/dev/null || true
+          fi
+
           ${virsh} net-define ${defaultNetworkXml}
           ${virsh} net-autostart default >/dev/null 2>&1 || true
 
