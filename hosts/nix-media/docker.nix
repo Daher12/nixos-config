@@ -202,17 +202,23 @@ in
         IOWeight = 8000;
         CPUWeight = 1000;
         OOMScoreAdjust = -500;
+        StartLimitBurst = 10;
+        StartLimitIntervalSec = "5min";
       };
 
       "docker-audiobookshelf".serviceConfig = {
         IOWeight = 100;
         CPUWeight = 100;
         OOMScoreAdjust = 500;
+        StartLimitBurst = 10;
+        StartLimitIntervalSec = "5min";
       };
 
       "docker-cadvisor".serviceConfig = {
         CPUWeight = 50;
         OOMScoreAdjust = 700;
+        StartLimitBurst = 10;
+        StartLimitIntervalSec = "5min";
       };
 
       "docker-image-refresh" = {

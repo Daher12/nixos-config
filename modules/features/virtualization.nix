@@ -83,7 +83,7 @@ in
       libvirtd = {
         enable = true;
         onBoot = "ignore";
-        onShutdown = "shutdown";
+        onShutdown = "ignore";
 
         qemu = {
           package = pkgs.qemu_kvm;

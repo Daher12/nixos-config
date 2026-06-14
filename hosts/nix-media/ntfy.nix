@@ -16,7 +16,6 @@ let
     "docker-cadvisor.service"
     "docker-network-jellyfin.service"
     "nixos-upgrade.service"
-    "docker-image-refresh.service"
   ];
 
   failureServices = map (lib.removeSuffix ".service") criticalServices;
