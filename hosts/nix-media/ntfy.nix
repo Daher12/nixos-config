@@ -68,7 +68,25 @@ in
         description = "Notify on %i failure";
         serviceConfig = {
           Type = "oneshot";
-          ExecStart = ''${ntfySend}/bin/ntfy-send urgent rotating_light,skull "Failed: %i" "Service %i failed on ${hostname}"'';
+          ExecStart =
+            let
+              # Wrapper that waits for transient failures to settle before notifying.
+              # Handles false positives during nixos-rebuild switch when Docker
+              # services briefly enter failed state due to restart race conditions.
+              notifyScript = pkgs.writeShellScript "ntfy-failure-notify" ''
+                set -euo pipefail
+                SERVICE="$1"
+
+                # Wait for transient failures to settle (rebuild switches, etc.)
+                sleep 60
+
+                # Only notify if the service is still failed after the delay
+                if systemctl is-failed --quiet "$SERVICE"; then
+                  ${ntfySend}/bin/ntfy-send urgent rotating_light,skull "Failed: $SERVICE" "Service $SERVICE failed on ${hostname}"
+                fi
+              '';
+            in
+            "${notifyScript} %i";
         };
       };
 
