@@ -88,7 +88,7 @@ in
             "--network=${dockerNetwork.name}"
             "--device=/dev/dri:/dev/dri"
             "--group-add=${renderGid}"
-            "--cpus=3.9"
+            "--cpus=3.5"
             "--shm-size=2g"
             "--pids-limit=1000"
             "--health-cmd=curl -fsS http://localhost:8096/jellyfin/health || exit 1"
@@ -162,10 +162,9 @@ in
   };
 
   systemd.tmpfiles.rules = [
-    # Note: Using mainUser/group names for readability; ownership aligns with IDs above
-    "d ${jellyfinCachePath} 0755 ${mainUser} ${mainUser} - -"
-    "d ${jellyfinCachePath}/cache 0755 ${mainUser} ${mainUser} - -"
-    "d ${jellyfinCachePath}/transcode 0755 ${mainUser} ${mainUser} - -"
+    "d ${jellyfinCachePath} 0755 ${uid} ${gid} - -"
+    "d ${jellyfinCachePath}/cache 0755 ${uid} ${gid} - -"
+    "d ${jellyfinCachePath}/transcode 0755 ${uid} ${gid} - -"
   ];
 
   systemd = {

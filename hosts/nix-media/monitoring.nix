@@ -117,8 +117,6 @@ in
       retentionTime = "30d";
       extraFlags = [
         "--storage.tsdb.wal-compression"
-        "--storage.tsdb.min-block-duration=2h"
-        "--storage.tsdb.max-block-duration=2h"
       ];
       globalConfig = {
         scrape_interval = "30s";
