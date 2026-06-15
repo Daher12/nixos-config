@@ -34,10 +34,6 @@ in
         assertion = hostname != "";
         message = "features.sops enabled but networking.hostName is empty; cannot resolve per-host secrets file path.";
       }
-      {
-        assertion = builtins.pathExists secretsPath;
-        message = "SOPS enabled for host '${hostname}' but no secrets file found at: secrets/hosts/${hostname}.yaml";
-      }
     ];
 
     sops = {

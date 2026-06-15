@@ -123,6 +123,7 @@ in
     (lib.mkIf (cfg.type == "btrfs" && cfg.btrfs.autoBalance) {
       systemd.services.btrfs-balance = {
         description = "Monthly Btrfs balance";
+        after = [ "local-fs.target" ];
         serviceConfig.Type = "oneshot";
         script = ''
           set -euo pipefail

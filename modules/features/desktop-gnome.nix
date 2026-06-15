@@ -48,7 +48,7 @@ in
         services = {
           xserver = {
             enable = lib.mkDefault true;
-            xkb.layout = "de";
+            xkb.layout = lib.mkDefault "de";
             excludePackages = [ pkgs.xterm ];
           };
 
@@ -67,10 +67,11 @@ in
           gnome = {
             games.enable = false;
             core-apps.enable = false;
-            tinysparql.enable = lib.mkForce false;
-            localsearch.enable = lib.mkForce false;
+            tinysparql.enable = false;
+            localsearch.enable = false;
+            # evolution-data-server needs mkForce: upstream uses bare `true` (not mkDefault)
             evolution-data-server.enable = lib.mkForce false;
-            gnome-online-accounts.enable = lib.mkForce false;
+            gnome-online-accounts.enable = false;
             gnome-browser-connector.enable = false;
             gnome-keyring.enable = true;
           };

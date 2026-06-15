@@ -15,7 +15,13 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    services.power-profiles-daemon.enable = lib.mkForce false;
+    assertions = [
+      {
+        assertion = !config.services.power-profiles-daemon.enable;
+        message = "TLP and power-profiles-daemon are mutually exclusive. Disable one.";
+      }
+    ];
+    services.power-profiles-daemon.enable = false;
 
     services.tlp = {
       enable = true;

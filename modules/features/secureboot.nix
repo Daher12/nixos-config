@@ -26,11 +26,9 @@ in
       environment.persistence."/persist/system".directories = [ cfg.pkiBundle ];
     })
 
-    (lib.mkIf ((config.features.impermanence.enable or false) || cfg.enable) {
-      environment.systemPackages = [ pkgs.sbctl ];
-    })
-
     (lib.mkIf cfg.enable {
+      environment.systemPackages = [ pkgs.sbctl ];
+
       boot.loader.systemd-boot.enable = lib.mkForce false;
 
       boot.lanzaboote = {

@@ -51,7 +51,6 @@ in
         "nfsvers=4.2"
         "soft"
         "timeo=600"
-        "resvport"
         "retrans=2"
         "_netdev"
       ];

@@ -136,9 +136,10 @@ in
     assertions = [
       {
         assertion =
-          config.features.filesystem.type == "btrfs"
-          -> lib.elem "discard=async" (config.fileSystems."/".options or [ ]);
-        message = "features.virtualization: btrfs +C flag requires discard=async mount option on root filesystem";
+          config.features.filesystem.type != "btrfs"
+          || lib.elem "discard=async" (config.fileSystems."/".options or [ ])
+          || config.services.fstrim.enable;
+        message = "features.virtualization: btrfs +C flag requires either discard=async or periodic fstrim for proper TRIM";
       }
     ];
 
@@ -241,16 +242,17 @@ in
           virsh = "${pkgs.libvirt}/bin/virsh -c qemu:///system";
         in
         ''
-          # Destroy + undefine to allow re-define with updated XML
-          # (DHCP reservations, IP, MAC). net-define fails on UUID mismatch.
-          if ${virsh} net-info default >/dev/null 2>&1; then
-            ${virsh} net-destroy default 2>/dev/null || true
-            ${virsh} net-undefine default 2>/dev/null || true
+          # Only redefine if XML changed (e.g. DHCP reservation update)
+          current_xml=$(${virsh} net-dumpxml default 2>/dev/null || true)
+          new_xml=$(cat ${defaultNetworkXml})
+          if [ "$current_xml" != "$new_xml" ]; then
+            if ${virsh} net-info default >/dev/null 2>&1; then
+              ${virsh} net-destroy default 2>/dev/null || true
+              ${virsh} net-undefine default 2>/dev/null || true
+            fi
+            ${virsh} net-define ${defaultNetworkXml}
           fi
-
-          ${virsh} net-define ${defaultNetworkXml}
           ${virsh} net-autostart default >/dev/null 2>&1 || true
-
           if ! ${virsh} net-info default 2>/dev/null | grep -q "Active:.*yes"; then
             ${virsh} net-start default >/dev/null 2>&1 || true
           fi
