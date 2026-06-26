@@ -145,7 +145,7 @@
           hostname = "nix-media";
           mainUser = "dk";
           withHardware = true; # Enabled to support the physical Intel GPU for transcoding
-          lix = "package"; # N100 is too weak to build Lix from source every update
+          lix = false; # CppNix — no Rust build overhead, headless server doesn't benefit from Lix
           profiles = [ ];
           extraModules = [
             ./hosts/nix-media/default.nix
