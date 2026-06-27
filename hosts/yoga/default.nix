@@ -139,15 +139,26 @@
       # "initcall_blacklist=amdgpu_init"
     ];
 
-    virtualization = {
-      enable = true;
-      windows11 = {
-        enable = true;
-        name = "windows11";
-        ip = "192.168.122.139";
-        mac = "52:54:00:03:b9:49";
-      };
-    };
+    # WinPodX replaces the old WinApps/libvirt setup for seamless Windows
+    # app windows. The windows11 block below is retained (commented out) as
+    # a fallback reference — it configured the libvirt VM with virt-manager
+    # and a static IP/MAC reservation. WinPodX uses Podman + dockur/windows
+    # instead and manages its own VM lifecycle.
+    #
+    # To re-enable libvirt-based VM management:
+    #   1. Uncomment the windows11 block below
+    #   2. Add the virtualization import back to modules/features/default.nix
+    #   3. See documentation/winpodx.md for migration notes
+    #
+    # virtualization = {
+    #   enable = true;
+    #   windows11 = {
+    #     enable = true;
+    #     name = "windows11";
+    #     ip = "192.168.122.139";
+    #     mac = "52:54:00:03:b9:49";
+    #   };
+    # };
 
     power-tlp.settings = {
       TLP_DEFAULT_MODE = "BAT";

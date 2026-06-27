@@ -41,8 +41,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    winapps = {
-      url = "github:winapps-org/winapps";
+    winpodx = {
+      url = "github:kernalix7/winpodx";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -116,7 +116,7 @@
           ];
           hmModules = [ ./hosts/yoga/home.nix ];
           extraSpecialArgs = {
-            winappsPackages = inputs.winapps.packages.${system};
+            winpodxPackage = inputs.winpodx.packages.${system};
           };
         };
 
@@ -136,7 +136,7 @@
           ];
           hmModules = [ ./hosts/latitude/home.nix ];
           extraSpecialArgs = {
-            winappsPackages = null;
+            winpodxPackage = null;
           };
         };
 
@@ -152,7 +152,7 @@
           ];
           hmModules = [ ./hosts/nix-media/home.nix ];
           extraSpecialArgs = {
-            winappsPackages = null;
+            winpodxPackage = null;
           };
         };
       };

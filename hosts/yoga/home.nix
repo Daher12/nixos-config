@@ -95,11 +95,11 @@ in
           mode = "0700";
         }
         {
-          directory = ".config/winapps";
+          directory = ".config/winpodx";
           mode = "0700";
         }
         {
-          directory = ".config/freerdp";
+          directory = ".local/share/winpodx";
           mode = "0700";
         }
         {
@@ -146,13 +146,11 @@ in
         ".config/mozilla/firefox"
         ".config/BraveSoftware/Brave-Browser"
         ".local/state/wireplumber"
-        ".local/share/winapps/icons"
         ".local/share/applications"
       ];
 
       files = [
         ".oxrc"
-        ".local/bin/windows"
         ".config/user-dirs.locale"
         ".config/monitors.xml"
       ];
@@ -191,6 +189,10 @@ in
   # its own cache; deleting it forces re-download which can fail or race.
 
   programs = {
+    winpodx = {
+      enable = true;
+    };
+
     opencode = {
       enable = true;
       package = pkgs.opencode.overrideAttrs (previousAttrs: {
@@ -232,17 +234,5 @@ in
     fish.functions.nus = ''
       "$HOME/nixos-config/scripts/update-safe" $argv
     '';
-
-    winapps = {
-      enable = false; # Disabled — use virt-viewer launcher instead. Remove entirely once confirmed working.
-      vmIP = "192.168.122.139";
-      windowsDomain = "DESKTOP-TDTHSIQ";
-      rdpScale = 180;
-      debug = true;
-
-      rdpFlags = "/cert:tofu /usb:auto /clipboard +auto-reconnect /network:lan /audio-mode:1 /gfx:RFX +async-update +async-channels /frame-ack:0 /size:2048x1240";
-
-      rdpFlagsWindows = "";
-    };
   };
 }
