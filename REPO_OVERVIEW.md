@@ -39,7 +39,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 │   ├── yoga/                  # Host-specific: default.nix, disks.nix (disko), home.nix
 │   ├── latitude/              # Host-specific: default.nix, hardware-configuration.nix, home.nix
 │   └── nix-media/             # Host-specific: default.nix, docker.nix, monitoring.nix, caddy.nix, etc.
-├── home/                      # Shared Home Manager: browsers, terminal, theme, git, winapps
+├── home/                      # Shared Home Manager: browsers, terminal, theme, git, winpodx
 ├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, msty (AppImage)
 ├── secrets/                   # SOPS-encrypted per-host secrets (age keys)
 ├── scripts/                   # install.sh (installer), update-safe (safe updater)
@@ -203,7 +203,7 @@ Flow: clone → detect features → (optional Disko) → password hash → (opti
 
 Steps:
 1. `git pull --ff-only` — fast-forward only, no merge
-2. `nix flake update` — updates nixpkgs, nixos-hardware, home-manager, sops-nix, disko, impermanence, winapps, preload-ng
+2. `nix flake update` — updates nixpkgs, nixos-hardware, home-manager, sops-nix, disko, impermanence, winpodx, preload-ng
 3. `nix flake check --impure --keep-going` — runs statix, deadnix, nixfmt checks
 4. `nix build` — builds the host's toplevel derivation
 5. Optionally activates: `test` (temporary), `boot` (next boot), `switch` (live)
