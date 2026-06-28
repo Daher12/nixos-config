@@ -10,10 +10,10 @@
     ./network-optimization.nix
     ./onlyoffice.nix
     ./oomd.nix
+    ./podman.nix
     ./power-tlp.nix
     ./secureboot.nix
     ./sops.nix
-    ./virtualization.nix
     ./vpn.nix
     ./zram.nix
   ];
