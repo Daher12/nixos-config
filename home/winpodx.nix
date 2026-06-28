@@ -27,7 +27,11 @@ in
       }
     ];
 
-    home.packages = [ winpodxPackage.winpodx ];
+    home.packages = [
+      (winpodxPackage.winpodx.overrideAttrs (_: {
+        doInstallCheck = false;
+      }))
+    ];
 
     # Uses home.file (not xdg.configFile) so the file is a mutable copy
     # that winpodx setup can overwrite during first-run provisioning.

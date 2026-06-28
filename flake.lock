@@ -214,27 +214,22 @@
     "lix": {
       "flake": false,
       "locked": {
-        "lastModified": 1781461991,
-        "narHash": "sha256-0VZTvagSupGy1KlvwRqtGKEBSotOLa3UuVv2kS0Dfsg=",
-        "ref": "main",
-        "rev": "93c872ab25ca827136753ad26ba6e33804f51657",
-        "revCount": 19235,
-        "type": "git",
-        "url": "https://git.lix.systems/lix-project/lix"
+        "lastModified": 1782673789,
+        "narHash": "sha256-E4J9RFReYB2d51muU9c4oLLLoN6M9Mm4jCQCk/xz6T0=",
+        "rev": "7ef274600d5e7c83d4e94336aac30f974209db9c",
+        "type": "tarball",
+        "url": "https://git.lix.systems/api/v1/repos/lix-project/lix/archive/7ef274600d5e7c83d4e94336aac30f974209db9c.tar.gz?rev=7ef274600d5e7c83d4e94336aac30f974209db9c"
       },
       "original": {
-        "ref": "main",
-        "type": "git",
-        "url": "https://git.lix.systems/lix-project/lix"
+        "type": "tarball",
+        "url": "https://git.lix.systems/lix-project/lix/archive/main.tar.gz"
       }
     },
     "lix-module": {
       "inputs": {
         "flake-utils": "flake-utils",
         "flakey-profile": "flakey-profile",
-        "lix": [
-          "lix"
-        ],
+        "lix": "lix",
         "nixpkgs": [
           "nixpkgs"
         ]
@@ -352,7 +347,6 @@
         "home-manager": "home-manager",
         "impermanence": "impermanence",
         "lanzaboote": "lanzaboote",
-        "lix": "lix",
         "lix-module": "lix-module",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_2",

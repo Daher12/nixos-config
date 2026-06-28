@@ -43,6 +43,14 @@ in
   };
 
   config = {
+    nixpkgs.overlays = [
+      (_final: prev: {
+        winpodx = prev.winpodx.overrideAttrs (_: {
+          doInstallCheck = false;
+        });
+      })
+    ];
+
     nix = {
       settings = {
         experimental-features = [

@@ -10,15 +10,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    lix = {
-      url = "git+https://git.lix.systems/lix-project/lix?ref=main";
-      flake = false;
-    };
-
     lix-module = {
       url = "git+https://git.lix.systems/lix-project/nixos-module?ref=main";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.lix.follows = "lix";
     };
 
     home-manager = {
@@ -125,7 +119,7 @@
           hostname = "latitude";
           mainUser = "dk";
           withHardware = true;
-          lix = "package";
+          lix = true;
           profiles = [
             "laptop"
             "desktop-gnome"
