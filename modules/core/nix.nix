@@ -78,7 +78,7 @@ in
         ];
 
         fallback = lib.mkDefault true;
-        http-connections = 64;
+        http-connections = lib.mkDefault 32;
         connect-timeout = 5;
         download-attempts = 3;
 
@@ -87,7 +87,7 @@ in
 
         builders-use-substitutes = true;
         log-lines = lib.mkDefault 25;
-        accept-flake-config = true;
+        accept-flake-config = false;
         flake-registry = "";
       };
 

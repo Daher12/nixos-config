@@ -43,6 +43,10 @@ in
             assertion = cfg.autoLogin -> cfg.autoLoginUser != "";
             message = "autoLoginUser must be set when autoLogin is enabled";
           }
+          {
+            assertion = builtins.hasAttr "home-manager" config;
+            message = "features.desktop-gnome requires home-manager to be included via mkHost";
+          }
         ];
 
         services = {
@@ -122,13 +126,13 @@ in
         programs.dconf.enable = lib.mkDefault true;
       }
 
-      (lib.mkIf (builtins.hasAttr "home-manager" config) {
+      {
         home-manager.users.${mainUser}.dconf.settings = {
           "org/gnome/mutter" = {
             experimental-features = cfg.experimentalFeatures;
           };
         };
-      })
+      }
     ]
   );
 }

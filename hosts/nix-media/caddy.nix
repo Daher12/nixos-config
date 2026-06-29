@@ -1,4 +1,9 @@
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 
 let
   # --- Service Definitions (Single Source of Truth) ---
@@ -62,8 +67,7 @@ in
     user = "caddy";
     group = "caddy";
 
-    # VERIFY: Ensure hostname matches your Tailscale domain
-    virtualHosts."nix-media.tail6db26.ts.net".extraConfig = ''
+    virtualHosts."${config.networking.hostName}.tail6db26.ts.net".extraConfig = ''
       tls { get_certificate tailscale }
       header {
         X-Content-Type-Options "nosniff"

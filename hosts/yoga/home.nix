@@ -130,18 +130,7 @@ in
           directory = ".config/opencode";
           mode = "0700";
         }
-        {
-          directory = ".config/CherryStudio";
-          mode = "0700";
-        }
-        {
-          directory = ".local/share/CherryStudio";
-          mode = "0700";
-        }
-        {
-          directory = ".cache/CherryStudio";
-          mode = "0700";
-        }
+
         ".local/share/keyrings"
         ".config/mozilla/firefox"
         ".config/BraveSoftware/Brave-Browser"
