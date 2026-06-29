@@ -55,25 +55,25 @@ in
     ]
     ++ lib.optionals cfg.winpodx.enable [
       winpodxPackage
-      pkgs.python3Packages.pillow
     ];
 
     users.users.${mainUser}.extraGroups = [ "podman" ];
 
     systemd.services.winpodx-apps = lib.mkIf cfg.winpodx.enable {
       description = "Configure WinPodX visible apps";
-      after = [ "winpodx.service" ];
-      requires = [ "winpodx.service" ];
       wantedBy = [ "multi-user.target" ];
       path = [ winpodxPackage ];
-      serviceConfig.Type = "oneshot";
+      serviceConfig = {
+        Type = "oneshot";
+        User = mainUser;
+      };
       script = ''
         sleep 30
-        winpodx app refresh 2>/dev/null
+        winpodx app refresh
         winpodx app list | tail -n +4 | awk '{print $1}' | while read name; do
-          winpodx app hide "$name" 2>/dev/null
+          winpodx app hide "$name"
         done
-        ${lib.concatStringsSep "\n" (map (app: "winpodx app show ${app} 2>/dev/null") cfg.winpodx.apps)}
+        ${lib.concatStringsSep "\n" (map (app: "winpodx app show ${app}") cfg.winpodx.apps)}
       '';
     };
   };

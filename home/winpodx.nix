@@ -33,7 +33,7 @@ in
 
     # Uses home.file (not xdg.configFile) so the file is a mutable copy
     # that winpodx setup can overwrite during first-run provisioning.
-    home.file."config/winpodx/winpodx.toml".text = ''
+    home.file.".config/winpodx/winpodx.toml".text = ''
       # WinPodX configuration
       # This skeleton is overwritten by `winpodx setup` on first run.
       # Add custom settings below this line.
