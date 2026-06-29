@@ -11,11 +11,6 @@ on:
     - cron: "0 2 * * *"
   workflow_dispatch:
     inputs:
-      include_lix_module:
-        description: "Also update lix-module"
-        required: false
-        default: false
-        type: boolean
       include_lanzaboote:
         description: "Also update lanzaboote"
         required: false
@@ -49,9 +44,6 @@ jobs:
         run: |
           set -euo pipefail
           extra_inputs=()
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.include_lix_module }}" == "true" ]]; then
-            extra_inputs+=(lix-module)
-          fi
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.include_lanzaboote }}" == "true" ]]; then
             extra_inputs+=(lanzaboote)
           fi

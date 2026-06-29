@@ -10,7 +10,7 @@
   system ? "x86_64-linux",
   profiles ? [ ],
   withHardware ? false, # Explicit toggle replacing 'needsHardware' heuristic
-  lix ? true, # true → Lix via nixos-module (cached from nixpkgs), false → CppNix
+  lix ? true, # true → Lix from nixpkgs (cached), false → CppNix
   extraModules ? [ ],
   hmModules ? [ ],
   extraSpecialArgs ? { },
@@ -62,7 +62,11 @@ nixpkgs.lib.nixosSystem {
       };
     }
   ]
-  ++ nixpkgs.lib.optional lix inputs.lix-module.nixosModules.lixFromNixpkgs
+  ++ nixpkgs.lib.optional lix (
+    { pkgs, ... }: {
+      nix.package = pkgs.lixPackageSets.latest.lix;
+    }
+  )
   ++ baseModules
   ++ profileModules
   ++ extraModules;

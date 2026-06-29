@@ -115,7 +115,7 @@ nixosConfigurations.yoga = mkHost {
   mainUser = "dk";
   profiles = [ "laptop" "desktop-gnome" ];
   withHardware = true;
-  lix = true;  # true → Lix (cached via nixos-module), false → CppNix
+  lix = true;  # true → Lix from nixpkgs (cached), false → CppNix
   hmModules = [ ... ];
   extraModules = [ ... ];
 };
@@ -208,7 +208,7 @@ Steps:
 4. `nix build` — builds the host's toplevel derivation
 5. Optionally activates: `test` (temporary), `boot` (next boot), `switch` (live)
 
-Safe inputs are updated; locked inputs (lanzaboote, lix-module) are NOT updated to avoid surprise breakage.
+Safe inputs are updated; locked inputs (lanzaboote) are NOT updated to avoid surprise breakage.
 
 ---
 

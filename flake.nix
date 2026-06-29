@@ -10,11 +10,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    lix-module = {
-      url = "git+https://git.lix.systems/lix-project/nixos-module?ref=main";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     home-manager = {
       url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -139,7 +134,7 @@
           hostname = "nix-media";
           mainUser = "dk";
           withHardware = true; # Enabled to support the physical Intel GPU for transcoding
-          lix = false; # CppNix — no Rust build overhead, headless server doesn't benefit from Lix
+          lix = false; # CppNix — headless server has no interactive use case for Lix improvements
           profiles = [ ];
           extraModules = [
             ./hosts/nix-media/default.nix
