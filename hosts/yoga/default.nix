@@ -17,6 +17,9 @@
 
   users.users.root.hashedPasswordFile = config.sops.secrets.root_password_hash.path;
 
+  # ADB group for android-tools (not in core/users.nix since only yoga needs it)
+  users.users.${mainUser}.extraGroups = [ "adbusers" ];
+
   # --- Hardware & Boot ---
   boot = {
     loader.timeout = 0;
@@ -156,6 +159,7 @@
     #   2. Add the virtualization import back to modules/features/default.nix
     #   3. See documentation/winpodx.md for migration notes
     #
+    # Kept for reference — do not delete without checking documentation/winpodx.md
     # virtualization = {
     #   enable = true;
     #   windows11 = {

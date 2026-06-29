@@ -63,7 +63,6 @@ in
           "video"
           "audio"
           "input"
-          "adbusers"
           "render"
         ];
       };

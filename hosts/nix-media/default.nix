@@ -33,7 +33,7 @@ in
 
     nix.gc = {
       automatic = true;
-      dates = "Sun 03:15";
+      dates = "Sun 04:00";
       flags = "--delete-older-than 60d";
     };
 
@@ -205,6 +205,7 @@ in
     };
 
     thermald.enable = true;
+    # Server host — no audio stack needed. Overrides mkDefault in modules/core/audio.nix.
     pipewire.enable = false;
     pulseaudio.enable = false;
   };

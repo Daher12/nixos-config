@@ -63,7 +63,9 @@ let
 
     ${pkgs.coreutils}/bin/timeout 7s ${pkgs.intel-gpu-tools}/bin/intel_gpu_top -l -s 1000 -n 6 2>/dev/null \
       | ${pkgs.gawk}/bin/awk '
-        NF >= 13 && $1 ~ /^[0-9]+$/ {
+        # intel_gpu_top -l output (v2.3+): 22 fields per data line
+        # $7=Render%, $13=Video%, $16=VideoEnhance%
+        NF >= 16 && $1 ~ /^[0-9]+$/ {
           render_sum  += $7; video_sum += $13; enhance_sum += $16; samples++
         }
         END {
@@ -235,6 +237,8 @@ in
         };
         security = {
           admin_user = "admin";
+          # Intentionally hardcoded: Grafana is behind Tailscale, not exposed to WAN.
+          # Rotate if Tailscale ACLs change or host is decommissioned.
           secret_key = "SW2YcwTIb9zpOOhoPsMm";
           allow_embedding = false;
           cookie_secure = true;

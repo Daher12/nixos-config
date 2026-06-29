@@ -87,7 +87,8 @@
     timers.biweekly-reboot = {
       wantedBy = [ "timers.target" ];
       timerConfig = {
-        OnCalendar = "Sun *-*-1,15 07:30";
+        # Fires every Sunday; idempotency check in script skips if no staged update
+        OnCalendar = "Sun 07:30";
         Persistent = true;
       };
     };

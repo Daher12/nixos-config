@@ -63,6 +63,9 @@ in
           autoStart = true;
           image = images.jellyfin;
           environment = {
+            # Intro Skipper: known to leak threads during library scans (github.com/intro-skipper/intro-skipper/issues/199)
+            # If stuttering is observed, disable temporarily to isolate cause:
+            #   DOCKER_MODS = lib.mkForce "";
             DOCKER_MODS = "ghcr.io/intro-skipper/intro-skipper-docker-mod";
             PGID = gid;
             PUID = uid;
