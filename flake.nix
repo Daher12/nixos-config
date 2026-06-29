@@ -55,6 +55,17 @@
         })
       ];
 
+      # WinPodX package with all tests disabled (environment-dependent tests
+      # fail in the Nix sandbox: doctor probes detect missing /etc/subuid, and
+      # storage-mutation tests can't persist config).
+      # Pre-overridden here so every host shares a single store path — avoids
+      # duplicate overrideAttrs in podman.nix and home/winpodx.nix, each of
+      # which would produce a different, non-cacheable derivation.
+      winpodxPackage = inputs.winpodx.packages.${system}.winpodx.overrideAttrs (_: {
+        doCheck = false;
+        doInstallCheck = false;
+      });
+
       # Rationale: Defer architecture binding to per-host evaluation. Avoids breaking non-x86 builds.
       mkHost = import ./lib/mkHost.nix {
         inherit
@@ -105,7 +116,7 @@
           ];
           hmModules = [ ./hosts/yoga/home.nix ];
           extraSpecialArgs = {
-            winpodxPackage = inputs.winpodx.packages.${system};
+            inherit winpodxPackage;
           };
         };
 

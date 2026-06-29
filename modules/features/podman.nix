@@ -2,14 +2,13 @@
   config,
   lib,
   pkgs,
-  inputs,
+  winpodxPackage,
   mainUser,
   ...
 }:
 
 let
   cfg = config.features.podman;
-  winpodxPkgs = inputs.winpodx.packages.${pkgs.stdenv.hostPlatform.system};
 in
 {
   options.features.podman = {
@@ -55,9 +54,7 @@ in
       pkgs.e2fsprogs
     ]
     ++ lib.optionals cfg.winpodx.enable [
-      (winpodxPkgs.winpodx.overrideAttrs (_: {
-        doInstallCheck = false;
-      }))
+      winpodxPackage
       pkgs.python3Packages.pillow
     ];
 
@@ -68,7 +65,7 @@ in
       after = [ "winpodx.service" ];
       requires = [ "winpodx.service" ];
       wantedBy = [ "multi-user.target" ];
-      path = [ winpodxPkgs.winpodx ];
+      path = [ winpodxPackage ];
       serviceConfig.Type = "oneshot";
       script = ''
         sleep 30

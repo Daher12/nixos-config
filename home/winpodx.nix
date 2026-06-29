@@ -28,9 +28,7 @@ in
     ];
 
     home.packages = [
-      (winpodxPackage.winpodx.overrideAttrs (_: {
-        doInstallCheck = false;
-      }))
+      winpodxPackage
     ];
 
     # Uses home.file (not xdg.configFile) so the file is a mutable copy
