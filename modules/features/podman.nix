@@ -2,12 +2,14 @@
   config,
   lib,
   pkgs,
+  inputs,
   mainUser,
   ...
 }:
 
 let
   cfg = config.features.podman;
+  winpodxPkgs = inputs.winpodx.packages.${pkgs.stdenv.hostPlatform.system};
 in
 {
   options.features.podman = {
@@ -20,6 +22,21 @@ in
         Expose a docker CLI compatibility wrapper so tooling that expects
         the docker CLI (e.g. WinPodX) can find it.
       '';
+    };
+
+    winpodx = {
+      enable = lib.mkEnableOption "WinPodX Windows VM integration";
+
+      apps = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [
+          "file-explorer"
+          "microsoft-edge"
+          "tiptoi-manager"
+          "itunes"
+        ];
+        description = "WinPodX apps visible in the Linux desktop menu";
+      };
     };
   };
 
@@ -35,9 +52,32 @@ in
     };
 
     environment.systemPackages = [
-      pkgs.e2fsprogs # chattr for btrfs +C (nodatacow) on container storage
+      pkgs.e2fsprogs
+    ]
+    ++ lib.optionals cfg.winpodx.enable [
+      (winpodxPkgs.winpodx.overrideAttrs (_: {
+        doInstallCheck = false;
+      }))
+      pkgs.python3Packages.pillow
     ];
 
     users.users.${mainUser}.extraGroups = [ "podman" ];
+
+    systemd.services.winpodx-apps = lib.mkIf cfg.winpodx.enable {
+      description = "Configure WinPodX visible apps";
+      after = [ "winpodx.service" ];
+      requires = [ "winpodx.service" ];
+      wantedBy = [ "multi-user.target" ];
+      path = [ winpodxPkgs.winpodx ];
+      serviceConfig.Type = "oneshot";
+      script = ''
+        sleep 30
+        winpodx app refresh 2>/dev/null
+        winpodx app list | tail -n +4 | awk '{print $1}' | while read name; do
+          winpodx app hide "$name" 2>/dev/null
+        done
+        ${lib.concatStringsSep "\n" (map (app: "winpodx app show ${app} 2>/dev/null") cfg.winpodx.apps)}
+      '';
+    };
   };
 }

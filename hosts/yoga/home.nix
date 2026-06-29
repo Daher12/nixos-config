@@ -175,10 +175,6 @@ in
   home.file.".config/gtk-3.0/bookmarks".text = gtkBookmarksText;
   home.file.".config/gtk-4.0/bookmarks".text = gtkBookmarksText;
 
-  home.packages = [
-    pkgs.cherry-studio
-  ];
-
   browsers = {
     firefox.enable = true;
     brave.enable = true;

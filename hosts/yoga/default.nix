@@ -103,7 +103,10 @@
     desktop-gnome.autoLogin = true;
 
     # WinPodX uses Podman to run dockur/windows containers
-    podman.enable = true;
+    podman = {
+      enable = true;
+      winpodx.enable = true;
+    };
 
     onlyoffice = {
       enable = true;
