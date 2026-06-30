@@ -156,7 +156,6 @@
 
     power-tlp.settings = {
       TLP_DEFAULT_MODE = "BAT";
-      TLP_PERSISTENT_DEFAULT = 1;
       CPU_DRIVER_OPMODE_ON_AC = "active";
       CPU_DRIVER_OPMODE_ON_BAT = "active";
       CPU_SCALING_GOVERNOR_ON_AC = "performance";
