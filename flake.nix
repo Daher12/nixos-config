@@ -61,9 +61,15 @@
       # Pre-overridden here so every host shares a single store path — avoids
       # duplicate overrideAttrs in podman.nix and home/winpodx.nix, each of
       # which would produce a different, non-cacheable derivation.
-      winpodxPackage = inputs.winpodx.packages.${system}.winpodx.overrideAttrs (_: {
+      winpodxPackage = inputs.winpodx.packages.${system}.winpodx.overrideAttrs (old: {
         doCheck = false;
         doInstallCheck = false;
+        makeWrapperArgs = (old.makeWrapperArgs or [ ]) ++ [
+          "--prefix"
+          "PATH"
+          ":"
+          (pkgs.lib.makeBinPath [ pkgs.usbredir ])
+        ];
       });
 
       # Rationale: Defer architecture binding to per-host evaluation. Avoids breaking non-x86 builds.
