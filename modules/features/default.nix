@@ -10,8 +10,8 @@
     ./network-optimization.nix
     ./onlyoffice.nix
     ./oomd.nix
-    ./podman.nix
     ./power-tlp.nix
+    ./virtualization.nix
     ./secureboot.nix
     ./sops.nix
     ./vpn.nix

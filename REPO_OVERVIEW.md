@@ -16,7 +16,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 
 | Host | Hardware | Role | Special Features |
 |------|----------|------|------------------|
-| **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | Impermanence (root wiped), SecureBoot, LUKS, Btrfs, WinPodX (Windows VM) |
+| **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | Impermanence (root wiped), SecureBoot, LUKS, Btrfs, virt-manager (Windows VM) |
 | **latitude** | Dell E7450 (Intel) | Legacy laptop | Lix package mode, nvidia-disable, TLP power, ext4 |
 | **nix-media** | Intel N100 Mini PC | Media server | Docker (Jellyfin, Audiobookshelf), Prometheus+Grafana, Caddy, NFS, systemd-networkd |
 
@@ -39,7 +39,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 │   ├── yoga/                  # Host-specific: default.nix, disks.nix (disko), home.nix
 │   ├── latitude/              # Host-specific: default.nix, hardware-configuration.nix, home.nix
 │   └── nix-media/             # Host-specific: default.nix, docker.nix, monitoring.nix, caddy.nix, etc.
-├── home/                      # Shared Home Manager: browsers, terminal, theme, git, winpodx
+├── home/                      # Shared Home Manager: browsers, terminal, theme, git
 ├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, msty (AppImage)
 ├── secrets/                   # SOPS-encrypted per-host secrets (age keys)
 ├── scripts/                   # install.sh (installer), update-safe (safe updater)
@@ -75,7 +75,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | `impermanence.nix` | Btrfs root wipe on boot, persist to `/persist` |
 | `secureboot.nix` | Lanzaboote Secure Boot |
 | `sops.nix` | SOPS-nix secret decryption |
-| `virtualization.nix` | QEMU/KVM, libvirt (fallback — WinPodX is primary) |
+| `virtualization.nix` | QEMU/KVM, libvirt, virt-manager, SPICE USB redirection |
 | `vpn.nix` | Tailscale mesh VPN |
 | `power-tlp.nix` | TLP power management |
 | `kernel.nix` | Kernel variant (zen) |
@@ -142,7 +142,6 @@ Shared across all hosts via `home/default.nix`:
 | `terminal.nix` | Ghostty (Nord), Fish shell (hydro, fzf-fish), btop, fastfetch, CLI tools |
 | `theme.nix` | Colloid GTK (Nord), Fluent icons, Posy cursors, `switch-theme` script, darkman |
 | `git.nix` | Git config (delta, SSH, rebase on pull) |
-| `winpodx.nix` | WinPodX — seamless Windows apps via FreeRDP RemoteApp |
 
 Host-specific home additions go in `hosts/<name>/home.nix`.
 
@@ -203,7 +202,7 @@ Flow: clone → detect features → (optional Disko) → password hash → (opti
 
 Steps:
 1. `git pull --ff-only` — fast-forward only, no merge
-2. `nix flake update` — updates nixpkgs, nixos-hardware, home-manager, sops-nix, disko, impermanence, winpodx, preload-ng
+2. `nix flake update` — updates nixpkgs, nixos-hardware, home-manager, sops-nix, disko, impermanence, preload-ng
 3. `nix flake check --impure --keep-going` — runs statix, deadnix, nixfmt checks
 4. `nix build` — builds the host's toplevel derivation
 5. Optionally activates: `test` (temporary), `boot` (next boot), `switch` (live)
@@ -240,10 +239,6 @@ nix fmt && nix flake check
 
 # Safe update (full pipeline)
 ./scripts/update-safe yoga switch
-
-# WinPodX first-time setup (after switch)
-winpodx setup
-winpodx app run desktop
 
 # Fresh install
 bash scripts/install.sh yoga
@@ -324,7 +319,7 @@ journalctl -b -o cat | grep -E "simple-framebuffer.*Registered|plymouth.*Attache
 | Grafana `secret_key` required | `hosts/nix-media/monitoring.nix` | Set `secret_key = "SW2YcwTIb9zpOOhoPsMm"` |
 | `fastfetchMinimal` renamed | `hosts/nix-media/default.nix`, `home/terminal.nix` | Change to `fastfetch.minimal` |
 | `nixfmt-rfc-style` renamed | `flake.nix` | Change to `nixfmt` |
-| WinApps removed | `flake.nix`, `home/`, `hosts/yoga/` | Replaced by WinPodX — see `documentation/winpodx.md` |
+| WinApps removed | `flake.nix`, `home/`, `hosts/yoga/` | Replaced by virt-manager/libvirt |
 | opencode `libstdc++.so.6` missing | `home/terminal.nix` | Wrap binary with `LD_LIBRARY_PATH` pointing to `stdenv.cc.cc.lib` |
 | Docker 28 marked insecure | `hosts/nix-media/docker.nix` | Pin `package = pkgs.docker_29` |
 
@@ -386,7 +381,7 @@ Any error in the rollback script aborts the service → `OnFailure = "emergency.
 | Theme/dark mode | `home/theme.nix` |
 | Terminal/shell | `home/terminal.nix` |
 | Browser config | `home/browsers.nix` |
-| Windows apps (WinPodX) | `home/winpodx.nix` |
+| Windows VM (virt-manager) | `modules/features/virtualization.nix` |
 | Disk layout (yoga) | `hosts/yoga/disks.nix` |
 | Docker containers | `hosts/nix-media/docker.nix` |
 | Monitoring stack | `hosts/nix-media/monitoring.nix` |

@@ -279,8 +279,7 @@
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_2",
         "preload-ng": "preload-ng",
-        "sops-nix": "sops-nix",
-        "winpodx": "winpodx"
+        "sops-nix": "sops-nix"
       }
     },
     "rust-overlay": {
@@ -336,26 +335,6 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
-        "type": "github"
-      }
-    },
-    "winpodx": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1782554070,
-        "narHash": "sha256-yYlf7+TEt4jdtB55bwICfJ8UMcB8sqr6SLmXDpbWLAs=",
-        "owner": "kernalix7",
-        "repo": "winpodx",
-        "rev": "e4dd7d5d0d97cb7d441f05ac3515175da3755ff0",
-        "type": "github"
-      },
-      "original": {
-        "owner": "kernalix7",
-        "repo": "winpodx",
         "type": "github"
       }
     }

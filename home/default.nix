@@ -10,7 +10,6 @@
     ./git.nix
     ./terminal.nix
     ./theme.nix
-    ./winpodx.nix
   ];
 
   programs.home-manager.enable = true;

@@ -94,14 +94,7 @@ in
           directory = ".config/dconf";
           mode = "0700";
         }
-        {
-          directory = ".config/winpodx";
-          mode = "0700";
-        }
-        {
-          directory = ".local/share/winpodx";
-          mode = "0700";
-        }
+
         {
           directory = ".local/share/fish";
           mode = "0700";
@@ -174,10 +167,6 @@ in
   # its own cache; deleting it forces re-download which can fail or race.
 
   programs = {
-    winpodx = {
-      enable = true;
-    };
-
     opencode = {
       enable = true;
       package = pkgs.opencode.overrideAttrs (previousAttrs: {

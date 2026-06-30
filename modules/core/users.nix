@@ -64,7 +64,6 @@ in
           "audio"
           "input"
           "render"
-          "kvm"
         ];
       };
 

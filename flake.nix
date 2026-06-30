@@ -30,11 +30,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    winpodx = {
-      url = "github:kernalix7/winpodx";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     preload-ng = {
       url = "github:miguel-b-p/preload-ng";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -54,23 +49,6 @@
           fluent-icon-theme = final.callPackage ./pkgs/fluent-icon-theme.nix { };
         })
       ];
-
-      # WinPodX package with all tests disabled (environment-dependent tests
-      # fail in the Nix sandbox: doctor probes detect missing /etc/subuid, and
-      # storage-mutation tests can't persist config).
-      # Pre-overridden here so every host shares a single store path — avoids
-      # duplicate overrideAttrs in podman.nix and home/winpodx.nix, each of
-      # which would produce a different, non-cacheable derivation.
-      winpodxPackage = inputs.winpodx.packages.${system}.winpodx.overrideAttrs (old: {
-        doCheck = false;
-        doInstallCheck = false;
-        makeWrapperArgs = (old.makeWrapperArgs or [ ]) ++ [
-          "--prefix"
-          "PATH"
-          ":"
-          (pkgs.lib.makeBinPath [ pkgs.usbredir ])
-        ];
-      });
 
       # Rationale: Defer architecture binding to per-host evaluation. Avoids breaking non-x86 builds.
       mkHost = import ./lib/mkHost.nix {
@@ -121,9 +99,7 @@
             ./hosts/yoga/default.nix
           ];
           hmModules = [ ./hosts/yoga/home.nix ];
-          extraSpecialArgs = {
-            inherit winpodxPackage;
-          };
+          extraSpecialArgs = { };
         };
 
         # Physical Laptop: Latitude (Intel)
@@ -141,9 +117,7 @@
             ./hosts/latitude/default.nix
           ];
           hmModules = [ ./hosts/latitude/home.nix ];
-          extraSpecialArgs = {
-            winpodxPackage = null;
-          };
+          extraSpecialArgs = { };
         };
 
         # Physical Media Server (Intel)
@@ -157,9 +131,7 @@
             ./hosts/nix-media/default.nix
           ];
           hmModules = [ ./hosts/nix-media/home.nix ];
-          extraSpecialArgs = {
-            winpodxPackage = null;
-          };
+          extraSpecialArgs = { };
         };
       };
     };
