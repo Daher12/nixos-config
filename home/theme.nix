@@ -5,10 +5,16 @@
 }:
 
 let
-  themeDark = "Colloid-Dark-Nord";
-  themeLight = "Colloid-Light-Nord";
+  activeTheme = "mactahoe"; # "colloid" or "mactahoe"
 
-  colloid = pkgs.colloid-gtk-theme.override { tweaks = [ "nord" ]; };
+  themePkg =
+    if activeTheme == "mactahoe" then pkgs.mactahoe-gtk-theme
+    else pkgs.colloid-gtk-theme.override { tweaks = [ "nord" ]; };
+
+  themeDark = if activeTheme == "mactahoe" then "MacTahoe-Dark-nord"
+              else "Colloid-Dark-Nord";
+  themeLight = if activeTheme == "mactahoe" then "MacTahoe-Light-nord"
+               else "Colloid-Light-Nord";
 
   iconPkg = pkgs.fluent-icon-theme;
   iconDark = "Fluent-dark";
@@ -60,7 +66,7 @@ let
       # Runtime owns ~/.config/gtk-4.0/*
       XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
       GTK4_DIR="$XDG_CONFIG_HOME/gtk-4.0"
-      THEME_BASE="${colloid}/share/themes"
+      THEME_BASE="${themePkg}/share/themes"
 
       mkdir -p "$GTK4_DIR"
       for item in gtk.css gtk-dark.css assets; do
@@ -112,7 +118,7 @@ in
 
     home = {
       packages = [
-        colloid
+        themePkg
         iconPkg
         cursorPkg
         switchTheme
@@ -122,8 +128,8 @@ in
 
       # Required for GNOME Shell theme discovery by User Themes: expose in ~/.themes
       file = {
-        ".themes/${themeDark}".source = "${colloid}/share/themes/${themeDark}";
-        ".themes/${themeLight}".source = "${colloid}/share/themes/${themeLight}";
+        ".themes/${themeDark}".source = "${themePkg}/share/themes/${themeDark}";
+        ".themes/${themeLight}".source = "${themePkg}/share/themes/${themeLight}";
       };
     };
 
@@ -131,7 +137,7 @@ in
       enable = true;
       theme = {
         name = themeDark;
-        package = colloid;
+        package = themePkg;
       };
       gtk4.theme = null;
       iconTheme = {

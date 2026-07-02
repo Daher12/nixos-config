@@ -47,6 +47,7 @@
         (final: _prev: {
           colloid-gtk-theme = final.callPackage ./pkgs/colloid-gtk-theme.nix { };
           fluent-icon-theme = final.callPackage ./pkgs/fluent-icon-theme.nix { };
+          mactahoe-gtk-theme = final.callPackage ./pkgs/mactahoe-gtk-theme.nix { };
         })
       ];
 
