@@ -51,7 +51,7 @@ stdenvNoCC.mkDerivation {
     HOME="$TMPDIR" ./install.sh \
       --color dark \
       --color light \
-      --opacity normal \
+      --opacity solid \
       --scheme nord \
       --dest $out/share/themes
 

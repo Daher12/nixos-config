@@ -11,9 +11,9 @@ let
     if activeTheme == "mactahoe" then pkgs.mactahoe-gtk-theme
     else pkgs.colloid-gtk-theme.override { tweaks = [ "nord" ]; };
 
-  themeDark = if activeTheme == "mactahoe" then "MacTahoe-Dark-nord"
+  themeDark = if activeTheme == "mactahoe" then "MacTahoe-Dark-solid-nord"
               else "Colloid-Dark-Nord";
-  themeLight = if activeTheme == "mactahoe" then "MacTahoe-Light-nord"
+  themeLight = if activeTheme == "mactahoe" then "MacTahoe-Light-solid-nord"
                else "Colloid-Light-Nord";
 
   iconPkg = pkgs.fluent-icon-theme;
