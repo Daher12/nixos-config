@@ -46,8 +46,6 @@ stdenvNoCC.mkDerivation {
 
     mkdir -p $out/share/themes
 
-    export SHELL_VERSION=48
-
     HOME="$TMPDIR" ./install.sh \
       --color dark \
       --color light \
@@ -61,7 +59,7 @@ stdenvNoCC.mkDerivation {
   '';
 
   meta = {
-    description = "macOS Sequoia-like Gtk theme";
+    description = "macOS Tahoe-like GTK theme";
     homepage = "https://github.com/vinceliuice/MacTahoe-gtk-theme";
     license = lib.licenses.mit;
     platforms = lib.platforms.unix;
