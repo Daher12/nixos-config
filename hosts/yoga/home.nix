@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  inputs,
   ...
 }:
 let
@@ -162,6 +163,10 @@ in
     brave.enable = true;
   };
 
+  home.packages = [
+    pkgs.jan
+  ];
+
   # NOTE: opencode-cache-clean service REMOVED — was deleting node_modules
   # on boot, potentially breaking provider initialization. OpenCode manages
   # its own cache; deleting it forces re-download which can fail or race.
@@ -169,7 +174,7 @@ in
   programs = {
     opencode = {
       enable = true;
-      package = pkgs.opencode.overrideAttrs (previousAttrs: {
+      package = inputs.opencode.packages.x86_64-linux.default.overrideAttrs (previousAttrs: {
         postFixup = (previousAttrs.postFixup or "") + ''
           wrapProgram $out/bin/opencode \
             --set LD_LIBRARY_PATH "${lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}"

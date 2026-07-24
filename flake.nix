@@ -34,6 +34,8 @@
       url = "github:miguel-b-p/preload-ng";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    opencode.url = "github:anomalyco/opencode";
   };
 
   outputs =
@@ -47,6 +49,7 @@
         (final: _prev: {
           colloid-gtk-theme = final.callPackage ./pkgs/colloid-gtk-theme.nix { };
           fluent-icon-theme = final.callPackage ./pkgs/fluent-icon-theme.nix { };
+          jan = final.callPackage ./pkgs/jan.nix { };
         })
       ];
 
