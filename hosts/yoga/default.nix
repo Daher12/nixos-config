@@ -164,7 +164,7 @@
       CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
       CPU_SCALING_MIN_FREQ_ON_AC = 403730;
       CPU_SCALING_MIN_FREQ_ON_BAT = 403730;
-      PLATFORM_PROFILE_ON_AC = "performance";
+      PLATFORM_PROFILE_ON_AC = "balanced";
       PLATFORM_PROFILE_ON_BAT = "balanced";
       PCIE_ASPM_ON_BAT = "powersupersave";
     };
