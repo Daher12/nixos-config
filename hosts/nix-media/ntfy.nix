@@ -117,14 +117,14 @@ in
     enable = true;
     notifications = {
       x11.enable = false;
-      wall.enable = true;
+      wall.enable = false;
       mail.enable = false;
     };
     extraOptions = [
       "-A /var/log/smartd/"
       "--attributelog=-"
     ];
-    defaults.monitored = "-a -o on -s (S/../.././02|L/../../6/03) -W 4,45,55 -m @${smartdNotify}";
+    defaults.monitored = "-a -o on -s (S/../.././02|L/../01/./03) -W 4,45,55 -m <nomailer> -M exec ${smartdNotify}";
   };
 
   systemd.tmpfiles.rules = [

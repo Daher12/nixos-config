@@ -1,6 +1,5 @@
 {
   pkgs,
-  lib,
   config,
   mainUser,
   ...
@@ -35,14 +34,6 @@ let
   jellyfinCachePath = "/var/cache/jellyfin"; # Now 6GB tmpfs
 in
 {
-  assertions = [
-    {
-      assertion = renderGid != "REPLACE_ME";
-      message = "Docker Config Error: Set 'renderGid' in hosts/nix-media/docker.nix";
-    }
-    # Removed UID assertion: Logic now sourced directly from trusted role config
-  ];
-
   virtualisation = {
     docker = {
       enable = true;
@@ -98,8 +89,8 @@ in
             "--health-interval=60s"
             "--health-retries=4"
             "--health-timeout=10s"
-          ]
-          ++ lib.optional (videoGid != "REPLACE_ME") "--group-add=${videoGid}";
+            "--group-add=${videoGid}"
+          ];
         };
 
         audiobookshelf = {

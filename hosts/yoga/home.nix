@@ -165,6 +165,7 @@ in
 
   home.packages = [
     pkgs.jan
+    pkgs.mcp-nixos
   ];
 
   # NOTE: opencode-cache-clean service REMOVED — was deleting node_modules
@@ -205,6 +206,12 @@ in
             "git status" = "allow";
             "git diff *" = "allow";
             "rm -rf *" = "deny";
+          };
+        };
+        mcp = {
+          nixos = {
+            type = "local";
+            command = [ "mcp-nixos" ];
           };
         };
       };

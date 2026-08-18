@@ -34,6 +34,7 @@
           coreutils
           systemd
           procps
+          gawk
         ];
 
         script = ''

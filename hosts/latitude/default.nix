@@ -129,6 +129,5 @@ in
 
   environment.systemPackages = [
     pkgs.libva-utils
-    pkgs.sbctl
   ];
 }

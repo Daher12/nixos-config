@@ -100,7 +100,10 @@ let
 
   mnamerTools = pkgs.writeShellApplication {
     name = "mnamer-tools";
-    runtimeInputs = [ resolvedPackage ];
+    runtimeInputs = [
+      resolvedPackage
+      pkgs.coreutils
+    ];
     text = ''
             set -euo pipefail
 
