@@ -62,10 +62,10 @@
     ryzen-tdp = {
       enable = true;
       ac = {
-        stapm = 54;
+        stapm = 50;
         fast = 60;
-        slow = 54;
-        temp = 95;
+        slow = 50;
+        temp = 85;
       };
       battery = {
         stapm = 18;
