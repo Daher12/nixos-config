@@ -213,6 +213,16 @@ in
             type = "local";
             command = [ "mcp-nixos" ];
           };
+          mikrotik = {
+            type = "local";
+            command = [
+              "nix-shell"
+              "-p"
+              "nodejs"
+              "--run"
+              "npx -y mikromcp serve"
+            ];
+          };
         };
       };
     };
