@@ -90,6 +90,7 @@
       description = "David";
       defaultShell = "fish";
     };
+    networking.enablePowersave = false; # disable wifi powersave (NM wifi.powersave=2) — fixes iwlwifi AX210 roaming/AP handoff (was powersave=3)
   };
 
   # --- Features ---
@@ -167,6 +168,8 @@
       PLATFORM_PROFILE_ON_AC = "performance";
       PLATFORM_PROFILE_ON_BAT = "balanced";
       PCIE_ASPM_ON_BAT = "powersupersave";
+      WIFI_PWR_ON_AC = "off"; # explicit — default is off, ensures no TLP wifi powersave on AC (you're currently on AC)
+      WIFI_PWR_ON_BAT = "off"; # disable TLP wifi powersave on BAT — fixes roaming/AP handoff when on battery (default would be "on")
     };
   };
 
