@@ -54,6 +54,7 @@
           colloid-gtk-theme = final.callPackage ./pkgs/colloid-gtk-theme.nix { };
           fluent-icon-theme = final.callPackage ./pkgs/fluent-icon-theme.nix { };
           jan = final.callPackage ./pkgs/jan.nix { };
+          mikromcp = final.callPackage ./pkgs/mikromcp.nix { };
         })
       ];
 

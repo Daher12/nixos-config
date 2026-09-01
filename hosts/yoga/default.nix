@@ -17,6 +17,10 @@
 
   users.users.root.hashedPasswordFile = config.sops.secrets.root_password_hash.path;
 
+  # MikroTik MCP (mikromcp): flip to false to disable the opencode MCP server
+  # (keeps ~/.mikromcp data persisted either way).
+  home-manager.users.${mainUser}.custom.mikrotikMcp.enable = true;
+
   # ADB group for android-tools (not in core/users.nix since only yoga needs it)
   users.users.${mainUser}.extraGroups = [ "adbusers" ];
 
