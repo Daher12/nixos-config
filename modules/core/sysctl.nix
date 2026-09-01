@@ -30,6 +30,11 @@ in
     {
       boot.kernel.sysctl = {
         "fs.file-max" = lib.mkDefault 2097152;
+        # systemd.coredump is force-disabled (core/systemd.nix), which leaves
+        # kernel.core_pattern at the default "core" — crashing processes then
+        # dump multi-GB files into their cwd. Piping to a failing handler
+        # discards cores instead.
+        "kernel.core_pattern" = "|/bin/false";
       }
       // (if cfg.optimizeForServer then serverSysctl else desktopSysctl);
     };
