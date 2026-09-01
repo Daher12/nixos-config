@@ -8,13 +8,6 @@
 let
   cfg = config.features.filesystem;
 
-  # Detect Btrfs from final merged filesystems (Disko-compatible)
-  btrfsFileSystems = lib.filterAttrs (_: fs: (fs.fsType or null) == "btrfs") config.fileSystems;
-
-  hasAsyncDiscard = lib.any (fs: lib.elem "discard=async" (fs.options or [ ])) (
-    lib.attrValues btrfsFileSystems
-  );
-
   resolvedBalanceFs =
     if cfg.btrfs.balanceFilesystems != [ ] then
       cfg.btrfs.balanceFilesystems
@@ -100,12 +93,19 @@ in
     }
 
     # Fstrim auto-detection (fixed for Disko)
+    # Btrfs-specific computations deferred into branches to avoid unconditional
+    # evaluation of config.fileSystems on non-btrfs hosts.
     {
       services.fstrim.enable =
         if cfg.enableFstrim != null then
           cfg.enableFstrim
+        else if cfg.type != "btrfs" then
+          true
         else
-          (lib.attrNames btrfsFileSystems == [ ]) || !hasAsyncDiscard;
+          (lib.attrNames (lib.filterAttrs (_: fs: (fs.fsType or null) == "btrfs") config.fileSystems) == [ ])
+          || !lib.any (fs: lib.elem "discard=async" (fs.options or [ ])) (
+            lib.attrValues (lib.filterAttrs (_: fs: (fs.fsType or null) == "btrfs") config.fileSystems)
+          );
 
       services.fstrim.interval = lib.mkIf config.services.fstrim.enable "weekly";
     }

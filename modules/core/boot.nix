@@ -107,7 +107,7 @@ in
           configurationLimit = lib.mkDefault 10;
           consoleMode = lib.mkDefault "keep";
         };
-        efi.canTouchEfiVariables = true;
+        efi.canTouchEfiVariables = lib.mkDefault true;
         efi.efiSysMountPoint = lib.mkDefault "/boot";
       };
       tmp = lib.mkIf cfg.tmpfs.enable {

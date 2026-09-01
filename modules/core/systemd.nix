@@ -9,8 +9,9 @@
     user.extraConfig = ''
       DefaultTimeoutStopSec=10s
     '';
-    coredump.enable = false;
+    # Force-disable: no core dumps on desktop/laptop, no docs rebuild overhead
+    coredump.enable = lib.mkForce false;
   };
 
-  documentation.enable = false;
+  documentation.enable = lib.mkForce false;
 }

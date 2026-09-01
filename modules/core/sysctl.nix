@@ -8,17 +8,9 @@ in
     optimizeForServer = lib.mkEnableOption "server-oriented sysctl defaults";
   };
 
-  config = lib.mkMerge [
-    # Universal baseline — applies regardless of server/desktop role
-    {
-      boot.kernel.sysctl = {
-        "fs.file-max" = lib.mkDefault 2097152;
-      };
-    }
-
-    # Server-oriented sysctl overrides
-    (lib.mkIf cfg.optimizeForServer {
-      boot.kernel.sysctl = {
+  config =
+    let
+      serverSysctl = {
         "vm.swappiness" = 10;
         "vm.vfs_cache_pressure" = 50;
         "vm.dirty_background_bytes" = 134217728;
@@ -28,16 +20,17 @@ in
         "net.core.somaxconn" = 4096;
         "net.ipv4.ip_local_port_range" = "10240 65535";
       };
-    })
-
-    # Desktop defaults (ratio-based dirty writeback, suitable for workstations)
-    (lib.mkIf (!cfg.optimizeForServer) {
-      boot.kernel.sysctl = {
+      desktopSysctl = {
         "vm.dirty_ratio" = lib.mkDefault 10;
         "vm.dirty_background_ratio" = lib.mkDefault 5;
         "vm.dirty_writeback_centisecs" = lib.mkDefault 1500;
         "vm.dirty_expire_centisecs" = lib.mkDefault 3000;
       };
-    })
-  ];
+    in
+    {
+      boot.kernel.sysctl = {
+        "fs.file-max" = lib.mkDefault 2097152;
+      }
+      // (if cfg.optimizeForServer then serverSysctl else desktopSysctl);
+    };
 }

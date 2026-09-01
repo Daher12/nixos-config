@@ -4,9 +4,9 @@
   i18n.defaultLocale = lib.mkDefault "de_DE.UTF-8";
 
   console = {
-    earlySetup = true;
-    font = "ter-v16n";
-    packages = [ pkgs.terminus_font ];
-    useXkbConfig = true;
+    earlySetup = lib.mkDefault true;
+    font = lib.mkDefault "ter-v16n";
+    packages = lib.mkDefault [ pkgs.terminus_font ];
+    useXkbConfig = lib.mkDefault true;
   };
 }

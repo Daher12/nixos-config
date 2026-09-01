@@ -6,7 +6,7 @@
     enable = true;
     dates = "05:00";
     operation = "boot";
-    flake = "github:daher12/nixos-config#nix-media";
+    flake = "path:/home/dk/nixos-config#nix-media";
     randomizedDelaySec = "45min";
     flags = [ "-L" ];
   };

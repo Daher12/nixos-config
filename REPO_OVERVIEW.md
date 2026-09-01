@@ -2,7 +2,7 @@
 
 This is the single-stop reference for understanding this NixOS configuration repository.
 
-**Last updated:** 2026-06-27 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
+**Last updated:** 2026-09-02 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
 
 ---
 
@@ -40,7 +40,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 │   ├── latitude/              # Host-specific: default.nix, hardware-configuration.nix, home.nix
 │   └── nix-media/             # Host-specific: default.nix, docker.nix, monitoring.nix, caddy.nix, etc.
 ├── home/                      # Shared Home Manager: browsers, terminal, theme, git
-├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, msty (AppImage)
+├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, jan (AppImage)
 ├── secrets/                   # SOPS-encrypted per-host secrets (age keys)
 ├── scripts/                   # install.sh (installer), update-safe (safe updater)
 └── .github/workflows/         # CI: daily flake updates + lint checks
@@ -127,7 +127,7 @@ nixosConfigurations.yoga = mkHost {
 3. Hardware modules (if `withHardware = true`)
 4. Profile modules
 5. Infrastructure: sops-nix, home-manager, disko
-6. nixpkgs config with overlays (colloid, fluent)
+6. nixpkgs config with overlays (colloid, fluent, jan)
 
 ---
 
@@ -170,7 +170,7 @@ Host-specific home additions go in `hosts/<name>/home.nix`.
 |------|---------|-------|
 | `colloid-gtk-theme.nix` | Colloid GTK | Git main for GNOME 50 support; nixpkgs version outdated |
 | `fluent-icon-theme.nix` | Fluent icons | Git main; nixpkgs version outdated |
-| `msty.nix` | Msty Studio | AppImage wrapper (1.8 GB), requires `--no-sandbox` |
+| `jan.nix` | Jan | AppImage wrapper via `appimageTools.wrapType2`, pinned release |
 
 ---
 
@@ -217,7 +217,7 @@ Safe inputs are updated; locked inputs (lanzaboote) are NOT updated to avoid sur
 
 2. **Adding a feature module:** Create `modules/features/<name>.nix`, import it in `modules/features/default.nix`, toggle per-host via `mkIf`.
 
-3. **Adding a custom package:** Create `pkgs/<name>.nix`, call it via `pkgs.callPackage (flakeRoot + "/pkgs/<name>.nix") {}` in the host's `home.nix`.
+3. **Adding a custom package:** Create `pkgs/<name>.nix`, add it to the overlay in `flake.nix` (`colloidFluentOverlays`), and consume via `pkgs.<name>` in home-manager or system packages.
 
 4. **Secrets:** Add to `secrets/hosts/<host>.yaml` via `sops secrets`, reference in modules via `config.sops.secrets.<name>.path`.
 

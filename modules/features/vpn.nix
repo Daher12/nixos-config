@@ -4,6 +4,9 @@ let
   cfg = config.features.vpn;
 in
 {
+  # NOTE: Option tree is depth-3 (features.vpn.tailscale.enable) unlike other
+  # features which use depth-2 (features.<name>.enable). This is intentional —
+  # vpn is a namespace that may host additional providers beyond Tailscale.
   options.features.vpn = {
     tailscale = {
       enable = lib.mkEnableOption "Tailscale VPN service";

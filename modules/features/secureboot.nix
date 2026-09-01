@@ -21,20 +21,18 @@ in
     };
   };
 
-  config = lib.mkMerge [
-    (lib.mkIf (config.features.impermanence.enable or false) {
-      environment.persistence."/persist/system".directories = [ cfg.pkiBundle ];
-    })
+  config = lib.mkIf cfg.enable {
+    environment.systemPackages = [ pkgs.sbctl ];
 
-    (lib.mkIf cfg.enable {
-      environment.systemPackages = [ pkgs.sbctl ];
+    boot.loader.systemd-boot.enable = lib.mkForce false;
 
-      boot.loader.systemd-boot.enable = lib.mkForce false;
+    boot.lanzaboote = {
+      enable = true;
+      inherit (cfg) pkiBundle;
+    };
 
-      boot.lanzaboote = {
-        enable = true;
-        inherit (cfg) pkiBundle;
-      };
-    })
-  ];
+    environment.persistence = lib.mkIf (config.features.impermanence.enable or false) {
+      "/persist/system".directories = [ cfg.pkiBundle ];
+    };
+  };
 }

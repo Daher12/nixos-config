@@ -31,5 +31,6 @@ appimageTools.wrapType2 {
     license = lib.licenses.asl20;
     mainProgram = "Jan";
     platforms = lib.platforms.linux;
+    maintainers = [ ];
   };
 }

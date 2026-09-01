@@ -35,8 +35,6 @@
     nix.gc.automatic = lib.mkDefault true;
   };
 
-  hardware.enableRedistributableFirmware = lib.mkDefault true;
-
   services.logind.settings.Login = {
     HandleLidSwitch = "suspend";
     HandleLidSwitchExternalPower = "ignore";

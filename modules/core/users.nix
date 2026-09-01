@@ -44,7 +44,6 @@ in
     sops.secrets = lib.mkIf sopsEnabled {
       "${mainUser}_password_hash" = {
         neededForUsers = true;
-        sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
       };
     };
 

@@ -13,7 +13,6 @@
   # --- Identity ---
   sops.secrets.root_password_hash = {
     neededForUsers = true;
-    sopsFile = ../../secrets/hosts/${config.networking.hostName}.yaml;
   };
 
   users.users.root.hashedPasswordFile = config.sops.secrets.root_password_hash.path;
@@ -177,8 +176,8 @@
   systemd = {
     tmpfiles.rules = [
       "d /persist 0755 root root - -"
-      "d /persist/home/ 0711 dk dk - -"
-      "d /persist/home/dk 0700 dk dk - -"
+      "d /persist/home/ 0711 ${mainUser} ${mainUser} - -"
+      "d /persist/home/${mainUser} 0700 ${mainUser} ${mainUser} - -"
       "d /persist/system/var/lib/local-passwords 0700 root root - -"
     ];
   };
@@ -240,7 +239,7 @@
     persistence."/persist" = {
       hideMounts = true;
       allowTrash = true;
-      users.dk = {
+      users.${mainUser} = {
         directories = [
           "Schreibtisch"
           "Dokumente"
