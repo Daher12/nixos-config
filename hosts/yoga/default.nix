@@ -33,6 +33,10 @@
   # --- Hardware & Boot ---
   boot = {
     loader.timeout = 0;
+    # Resume device for hibernation: the LUKS device holding the swapfile
+    # (/var/lib/swap/swapfile). Kernel param `resume` comes from this; the
+    # btrfs-specific `resume_offset` is set in features.kernel.extraParams.
+    resumeDevice = "/dev/mapper/cryptroot";
     initrd = {
       availableKernelModules = [
         "nvme"
@@ -130,9 +134,12 @@
       method = "age";
     };
 
+    # memoryPercent is the *uncompressed* capacity cap (nixpkgs docs: "doesn't define
+    # how much memory will be used"), so 100% of RAM costs only ~5-6 GiB actual RAM
+    # at lz4's ~2.5-3x ratio. 50% filled up with no release valve -> lockups.
     zram = {
       enable = true;
-      memoryPercent = 50;
+      memoryPercent = 100;
     };
 
     filesystem = {
@@ -148,6 +155,14 @@
       "zswap.enabled=0"
       "amd_pstate=active"
       "amdgpu.ppfeaturemask=0xffffffff"
+      # Hibernation to the btrfs swapfile (/var/lib/swap/swapfile). The offset
+      # is the swapfile's *device-physical* start (NOT filefrag's value):
+      #   sudo btrfs inspect-internal map-swapfile -r /var/lib/swap/swapfile
+      # Derived 2026-09-03. Valid as long as the swapfile's first extent stays
+      # put — it is pinned by swapon from boot, and balance/scrub skip active
+      # swapfile block groups. If hibernate ever boots normally instead of
+      # resuming (stale offset = lost session, no corruption), re-derive it.
+      "resume_offset=7697093"
       # Uncomment if Plymouth LUKS prompt shows 8s delay or text-mode fallback.
       # Blocks amdgpu module_init in initrd so simpledrm survives for Plymouth.
       # Not needed if LUKS prompt appears promptly via simpledrm.
@@ -182,6 +197,18 @@
     };
   };
 
+  # --- Swap ---
+  # Disk-backed overflow swap: only touched once zram (priority 10) is full.
+  # NixOS creates it via `btrfs filesystem mkswapfile` (NOCOW-safe on this
+  # compress-force=zstd root); lives on /persist so it survives root reset.
+  # priority left null -> kernel assigns a negative one, below zram's 10.
+  swapDevices = [
+    {
+      device = "/var/lib/swap/swapfile";
+      size = 16 * 1024; # MiB
+    }
+  ];
+
   # --- Services & Systemd ---
   systemd = {
     tmpfiles.rules = [
@@ -193,6 +220,18 @@
   };
 
   services = {
+    # GNOME 50 no longer owns lid events (its lid-close gsettings keys were
+    # removed; gsd-power only *blocks* logind's action while an external
+    # monitor is attached). So this is the effective lid policy: on battery,
+    # suspend-then-hibernate — suspend, then auto-hibernate after systemd's
+    # HibernateDelaySec (default 2h), with ACPI low-battery (_BTP) triggering
+    # hibernation earlier if the battery won't last. AC ("ignore") and docked
+    # behavior are inherited from profiles/laptop.nix.
+    # Prereq: resume= + resume_offset in kernelParams (set above) — without
+    # them systemd would pick the highest-priority swap (zram) for the image
+    # and the hibernate phase would be silently unusable.
+    logind.settings.Login.HandleLidSwitch = lib.mkForce "suspend-then-hibernate";
+
     journald.extraConfig = "SystemMaxUse=200M";
     openssh = {
       enable = true;
@@ -229,6 +268,10 @@
         "/var/lib/gdm"
         "/var/lib/AccountsService"
         "/var/lib/fwupd"
+        {
+          directory = "/var/lib/swap";
+          mode = "0700";
+        }
       ];
       files = [
         "/etc/machine-id"
