@@ -320,7 +320,7 @@ journalctl -b -o cat | grep -E "simple-framebuffer.*Registered|plymouth.*Attache
 | `fastfetchMinimal` renamed | `hosts/nix-media/default.nix`, `home/terminal.nix` | Change to `fastfetch.minimal` |
 | `nixfmt-rfc-style` renamed | `flake.nix` | Change to `nixfmt` |
 | WinApps removed | `flake.nix`, `home/`, `hosts/yoga/` | Replaced by virt-manager/libvirt |
-| opencode `libstdc++.so.6` missing | `home/terminal.nix` | Wrap binary with `LD_LIBRARY_PATH` pointing to `stdenv.cc.cc.lib` |
+| opencode `libstdc++.so.6` missing | `hosts/yoga/opencode.nix` | Wrap binary with `LD_LIBRARY_PATH` pointing to `stdenv.cc.cc.lib` (moved from `home/terminal.nix` when opencode config was extracted to its own module) |
 | Docker 28 marked insecure | `hosts/nix-media/docker.nix` | Pin `package = pkgs.docker_29` |
 
 **First switch after upgrade requires reboot** — dbus-broker replaces dbus-daemon, needs full restart.
