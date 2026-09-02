@@ -42,6 +42,7 @@
 
     programs.opencode = {
       enable = true;
+      context = ../../AGENTS-global.md;
       package = inputs.opencode.packages.x86_64-linux.default.overrideAttrs (previousAttrs: {
         postFixup = (previousAttrs.postFixup or "") + ''
           wrapProgram $out/bin/opencode \
