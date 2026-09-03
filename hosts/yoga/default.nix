@@ -23,7 +23,7 @@
 
   # MikroTik MCP (mikromcp): flip to false to disable the opencode MCP server
   # (keeps ~/.mikromcp data persisted either way).
-  home-manager.users.${mainUser}.custom.mikrotikMcp.enable = true;
+  home-manager.users.${mainUser}.custom.mikrotikMcp.enable = false;
 
   users.users.root.hashedPasswordFile = config.sops.secrets.root_password_hash.path;
 
@@ -138,7 +138,6 @@
       setGlobalCursorSize = true;
     };
 
-    # TEMPORARY: disabled until new admin key is generated and secrets re-encrypted
     sops = {
       enable = true;
       method = "age";

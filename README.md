@@ -121,7 +121,7 @@ nix flake check
 ### Lint & Format
 
 ```bash
-nix fmt                          # format all .nix files
+nix fmt <files>                 # pass files explicitly (bare `nix fmt` fails)
 nix flake check                  # runs statix, deadnix, nixfmt checks
 ```
 

@@ -163,8 +163,7 @@ in
 
   users.groups.${mainUser}.gid = config.roles.media.nfsAnonGid;
 
-  # TEMP: HDD streaming fix — hangs in read-ahead, not scheduler
-  # https://github.com/daher12/nixos-config/issues/…
+  # HDD streaming fix — hangs in read-ahead, not scheduler.
   # Root cause: default read_ahead_kb=128 forces tiny USB transfers, starving
   # the video buffer mid-playback.  4MB gives ~800ms of 4K video per read.
   # Scheduler=none because USB bridge chip does its own queuing; deadline

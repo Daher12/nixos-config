@@ -127,7 +127,7 @@ nixosConfigurations.yoga = mkHost {
 3. Hardware modules (if `withHardware = true`)
 4. Profile modules
 5. Infrastructure: sops-nix, home-manager, disko
-6. nixpkgs config with overlays (colloid, fluent, jan)
+6. nixpkgs config with overlays (colloid, fluent, jan, zcode, mikromcp)
 
 ---
 
@@ -171,7 +171,8 @@ Host-specific home additions go in `hosts/<name>/home.nix`.
 | `colloid-gtk-theme.nix` | Colloid GTK | Git main for GNOME 50 support; nixpkgs version outdated |
 | `fluent-icon-theme.nix` | Fluent icons | Git main; nixpkgs version outdated |
 | `jan.nix` | Jan | AppImage wrapper via `appimageTools.wrapType2`, pinned release |
-| `zcode.nix` | ZCode | AppImage wrapper via `appimageTools.wrapType2`, pinned release (yoga test) |
+| `zcode.nix` | ZCode | AppImage wrapper via `appimageTools.wrapType2`, pinned release |
+| `mikromcp.nix` | MikroMCP | Fixed nix package for the MikroTik MCP server (no npx/network at runtime) |
 
 ---
 
@@ -235,8 +236,8 @@ sudo nixos-rebuild switch --flake .#$(hostname)
 # Update inputs
 nix flake update
 
-# Lint and check
-nix fmt && nix flake check
+# Lint and check (pass files explicitly — bare `nix fmt` fails)
+nix fmt <changed-files> && nix flake check
 
 # Safe update (full pipeline)
 ./scripts/update-safe yoga switch
