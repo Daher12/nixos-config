@@ -113,6 +113,9 @@ in
           ".local/share/keyrings"
           ".config/mozilla/firefox"
           ".config/BraveSoftware/Brave-Browser"
+          # ZCode (Electron AppImage): auth/session + workspace state.
+          # Verify actual dirname after first launch: ls ~/.config | grep -i zcode
+          ".config/ZCode"
           ".local/state/wireplumber"
           ".local/share/applications"
         ];
@@ -150,6 +153,7 @@ in
 
     home.packages = [
       pkgs.jan
+      pkgs.zcode
     ];
 
     programs = {

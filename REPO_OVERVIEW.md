@@ -40,7 +40,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 │   ├── latitude/              # Host-specific: default.nix, hardware-configuration.nix, home.nix
 │   └── nix-media/             # Host-specific: default.nix, docker.nix, monitoring.nix, caddy.nix, etc.
 ├── home/                      # Shared Home Manager: browsers, terminal, theme, git
-├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, jan (AppImage)
+├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, jan/zcode (AppImage)
 ├── secrets/                   # SOPS-encrypted per-host secrets (age keys)
 ├── scripts/                   # install.sh (installer), update-safe (safe updater)
 └── .github/workflows/         # CI: daily flake updates + lint checks
@@ -171,6 +171,7 @@ Host-specific home additions go in `hosts/<name>/home.nix`.
 | `colloid-gtk-theme.nix` | Colloid GTK | Git main for GNOME 50 support; nixpkgs version outdated |
 | `fluent-icon-theme.nix` | Fluent icons | Git main; nixpkgs version outdated |
 | `jan.nix` | Jan | AppImage wrapper via `appimageTools.wrapType2`, pinned release |
+| `zcode.nix` | ZCode | AppImage wrapper via `appimageTools.wrapType2`, pinned release (yoga test) |
 
 ---
 
