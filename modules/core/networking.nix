@@ -13,12 +13,6 @@ in
       default = "iwd";
       description = "WiFi backend for NetworkManager";
     };
-    enablePowersave = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Enable WiFi power saving";
-    };
-
     dns = lib.mkOption {
       type = lib.types.enum [
         "systemd-resolved"
@@ -33,7 +27,6 @@ in
     networking.networkmanager = {
       enable = lib.mkDefault true;
       wifi.backend = cfg.backend;
-      wifi.powersave = cfg.enablePowersave;
       inherit (cfg) dns;
     };
 

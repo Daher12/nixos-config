@@ -103,8 +103,24 @@
       description = "David";
       defaultShell = "fish";
     };
-    networking.enablePowersave = false; # disable wifi powersave (NM wifi.powersave=2) — fixes iwlwifi AX210 roaming/AP handoff (was powersave=3)
   };
+
+  # --- WiFi (iwd) tuning ---
+  # iwd is the backend (core.networking.backend = "iwd") and has no client-side
+  # switch for 802.11r FT, so the AX210 roaming handoff failures can't be
+  # disabled here — only worked around. RoamRetryInterval spaces out retries
+  # after a failed FT handover.
+  networking.wireless.iwd.settings = {
+    General = {
+      RoamRetryInterval = 120;
+    };
+  };
+
+  # TEMPORARY (Phase 0 diagnostic): verbose iwd logging to capture the exact
+  # FT handover failure signature. Remove after diagnosis.
+  systemd.services.iwd.serviceConfig.ExecStart = lib.mkForce [
+    "${pkgs.iwd}/libexec/iwd -d"
+  ];
 
   # --- Features ---
   features = {
@@ -192,8 +208,6 @@
       PLATFORM_PROFILE_ON_AC = "performance";
       PLATFORM_PROFILE_ON_BAT = "balanced";
       PCIE_ASPM_ON_BAT = "powersupersave";
-      WIFI_PWR_ON_AC = "off"; # explicit — default is off, ensures no TLP wifi powersave on AC (you're currently on AC)
-      WIFI_PWR_ON_BAT = "off"; # disable TLP wifi powersave on BAT — fixes roaming/AP handoff when on battery (default would be "on")
     };
   };
 
