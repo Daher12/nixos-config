@@ -6,11 +6,11 @@
 
 let
   pname = "Jan";
-  version = "0.8.3";
+  version = "0.8.4";
 
   src = fetchurl {
     url = "https://github.com/janhq/jan/releases/download/v${version}/jan_${version}_amd64.AppImage";
-    hash = "sha256-vEmioWQ4ic/FrtNFMKaLOcEy2BTRdouPc4PYWk90ZBI=";
+    hash = "sha256-NNTIq02kisIjINS2TCh0Rb2UyRMSlJLR2+uzZmWxSVo=";
   };
 
   appimageContents = appimageTools.extractType2 {
