@@ -116,12 +116,6 @@
     };
   };
 
-  # TEMPORARY (Phase 0 diagnostic): verbose iwd logging to capture the exact
-  # FT handover failure signature. Remove after diagnosis.
-  systemd.services.iwd.serviceConfig.ExecStart = lib.mkForce [
-    "${pkgs.iwd}/libexec/iwd -d"
-  ];
-
   # --- Features ---
   features = {
     impermanence = {
