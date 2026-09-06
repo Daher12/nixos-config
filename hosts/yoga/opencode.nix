@@ -66,19 +66,19 @@
               };
             };
           };
-          orcarouter = {
-            npm = "@ai-sdk/openai-compatible";
-            name = "OrcaRouter";
-            options = {
-              baseURL = "https://api.orcarouter.ai/v1";
-              apiKey = "{env:ORCAROUTER_API_KEY}";
-            };
-            models = {
-              "orcarouter/auto" = {
-                name = "OrcaRouter Auto";
-              };
-            };
-          };
+          # orcarouter = {
+          #   npm = "@ai-sdk/openai-compatible";
+          #   name = "OrcaRouter";
+          #   options = {
+          #     baseURL = "https://api.orcarouter.ai/v1";
+          #     apiKey = "{env:ORCAROUTER_API_KEY}";
+          #   };
+          #   models = {
+          #     "orcarouter/auto" = {
+          #       name = "OrcaRouter Auto";
+          #     };
+          #   };
+          # };
         };
         permission = {
           edit = "ask";

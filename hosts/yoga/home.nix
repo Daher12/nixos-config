@@ -117,6 +117,7 @@ in
           # Verify actual dirname after first launch: ls ~/.config | grep -i zcode
           ".config/ZCode"
           ".local/state/wireplumber"
+
           ".local/share/applications"
         ];
 
@@ -126,6 +127,24 @@ in
           ".config/monitors.xml"
         ];
       };
+    };
+
+    # ZCode rewrites ~/.local/share/applications/zcode.desktop on launch
+    # (deep-link registration) to point at the raw extracted AppImage binary,
+    # which only runs inside its bwrap FHS sandbox -> NixOS stub-ld failure.
+    # Owning the file via xdg.desktopEntries makes it a read-only store
+    # symlink the app cannot overwrite; it logs a registration error and
+    # continues, while the wrapper-based Exec keeps working.
+    xdg.desktopEntries.zcode = {
+      type = "Application";
+      name = "ZCode";
+      genericName = "ZCode Desktop App";
+      exec = "zcode --no-sandbox %U";
+      terminal = false;
+      icon = "zcode";
+      settings.StartupWMClass = "ZCode";
+      mimeType = [ "x-scheme-handler/zcode" ];
+      categories = [ "Development" ];
     };
 
     xdg.userDirs = {
@@ -152,7 +171,6 @@ in
     };
 
     home.packages = [
-      pkgs.jan
       pkgs.zcode
     ];
 

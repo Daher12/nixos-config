@@ -74,7 +74,19 @@ in
           description = "Rollback Btrfs root subvolume from template snapshot";
           wantedBy = [ "initrd-root-device.target" ];
           before = [ "sysroot.mount" ];
-          after = [ deviceUnit ];
+          after = [
+            deviceUnit
+            # Never wipe the root subvolume before a hibernate image is
+            # given a chance to restore: on a resume boot the kernel jumps
+            # into the restored image inside systemd-hibernate-resume.service
+            # and this initrd (hence the wipe) never finishes. Without this
+            # ordering the two units race (journal 2026-09-06 shows them
+            # interleaved) and a resumed session would write into a deleted
+            # subvolume. On normal boots that unit fails fast ("Image not
+            # found"), which does not block ordering; hosts whose initrd
+            # lacks the unit treat this as a no-op.
+            "systemd-hibernate-resume.service"
+          ];
           requires = [ deviceUnit ];
 
           unitConfig = {

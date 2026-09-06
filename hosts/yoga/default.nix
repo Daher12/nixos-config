@@ -218,7 +218,32 @@
 
   # --- Services & Systemd ---
   systemd = {
+    # Go straight to s2idle: this firmware advertises S3 but rejects it
+    # instantly ("PM: suspend entry (deep)" → exit in the same second, every
+    # cycle; mem_sleep_default=deep comes from nixos-hardware). The "then
+    # hibernate after 2h" half of suspend-then-hibernate is implemented by
+    # the system-sleep hook below — systemd 260's built-in s2h silently
+    # cancels itself on this machine (see REPO_OVERVIEW Known Gotchas).
+    sleep.settings.Sleep = {
+      SuspendMode = "s2idle";
+      # Write the image, then power off via plain shutdown instead of the
+      # firmware's ACPI-S4 platform path. This firmware's ACPI power
+      # management is untrustworthy (broken S3, RTC wakealarm truncation
+      # bug); the 2026-09-06 hibernate attempt died in exactly that
+      # platform handoff. Resume from disk is identical either way.
+      HibernateMode = "shutdown";
+    };
     tmpfiles.rules = [
+      # Cap the hibernation image at 2G. The kernel default (~40% of RAM
+      # ≈ 5.9G) left only ~105 MiB of free-page headroom on the aborted
+      # 2026-09-06 attempt ("Normal pages needed: 1976561 + 1024, available
+      # pages: 2004551") and ENOMEM-aborted outright on 2026-09-03; a
+      # smaller image buys real margin at the cost of deeper pre-snapshot
+      # reclaim. Tradeoff: aggressive reclaim is what mass-evicts TTM
+      # buffers — the amdgpu LRU-corruption trigger (drm/amd #5470) — so
+      # close memory-heavy apps before hibernating and reclaim won't have
+      # to dig that deep.
+      "w /sys/power/image_size - - - - 2147483648"
       "d /persist 0755 root root - -"
       "d /persist/home/ 0711 ${mainUser} ${mainUser} - -"
       "d /persist/home/${mainUser} 0700 ${mainUser} ${mainUser} - -"
@@ -227,17 +252,17 @@
   };
 
   services = {
-    # GNOME 50 no longer owns lid events (its lid-close gsettings keys were
-    # removed; gsd-power only *blocks* logind's action while an external
-    # monitor is attached). So this is the effective lid policy: on battery,
-    # suspend-then-hibernate — suspend, then auto-hibernate after systemd's
-    # HibernateDelaySec (default 2h), with ACPI low-battery (_BTP) triggering
-    # hibernation earlier if the battery won't last. AC ("ignore") and docked
-    # behavior are inherited from profiles/laptop.nix.
-    # Prereq: resume= + resume_offset in kernelParams (set above) — without
-    # them systemd would pick the highest-priority swap (zram) for the image
-    # and the hibernate phase would be silently unusable.
-    logind.settings.Login.HandleLidSwitch = lib.mkForce "suspend-then-hibernate";
+    # Lid policy is inherited from profiles/laptop.nix (suspend on battery,
+    # ignore on AC/docked) — deliberately NOT "suspend-then-hibernate":
+    # systemd 260's s2h never hibernates on this machine. Its RTC wakealarm
+    # fires ~1s before the (microsecond-precision, truncated-to-seconds)
+    # BOOTTIME timer deadline, so every timer wake is misclassified as a
+    # manual wakeup and s2h exits silently; logind's 30s resume holdoff then
+    # re-triggers the still-closed lid and the cycle restarts (observed
+    # 2026-09-04/05: 2h loops all night, zero hibernations, ~30s awake per
+    # cycle — also the extra battery drain). The "then hibernate after 2h"
+    # half lives in the system-sleep hook below instead. Full analysis in
+    # REPO_OVERVIEW Known Gotchas.
 
     journald.extraConfig = "SystemMaxUse=200M";
     openssh = {
@@ -256,6 +281,175 @@
       pkgs.libva-utils
       pkgs.vulkan-tools
     ];
+
+    # Self-implemented suspend-then-hibernate (the classic pre-systemd-252
+    # pattern), because systemd 260's built-in s2h never hibernates on this
+    # machine — its RTC wakealarm fires ~1s before the BOOTTIME timerfd
+    # deadline, so the wake is treated as manual and s2h exits silently
+    # (sleep.c: `if (!woken_by_timer) return 0;`); logind's 30s resume
+    # holdoff then re-triggers the lid and the cycle restarts forever.
+    #
+    # How this hook works instead:
+    #   pre suspend   on battery: remember a deadline in /run and arm every
+    #                 RTC wakealarm (0 first, then the epoch — the standard
+    #                 dance; arming all rtcN because the ACPI-bound one isn't
+    #                 identifiable). On AC: no timer.
+    #   post suspend  woke >60s before deadline → manual wake, clear the
+    #                 alarm. Within the window + lid still closed + still on
+    #                 battery → schedule a hibernate 3s out via a transient
+    #                 unit. The deferral is mandatory: `systemctl hibernate`
+    #                 from inside this hook is always refused by logind
+    #                 ("Action suspend already in progress" — systemd 260
+    #                 holds delayed_action until the suspend job completes,
+    #                 which happens only after these hooks exit; observed
+    #                 2026-09-06). Going through logind 3s later also lets
+    #                 it arm delayed_action + the lid holdoff for the whole
+    #                 hibernate write — the only protection against logind
+    #                 re-triggering the closed lid into a concurrent suspend
+    #                 mid-write. Lid open or on AC → clear, stay awake.
+    #   pre hibernate zram keeps swapped pages resident in RAM; swap it out
+    #                 to the disk swapfile so those pages are neither in the
+    #                 image nor competing for free RAM (without this,
+    #                 hibernate dies with -ENOMEM above ~9.5G use — kernel
+    #                 log 2026-09-03). Best-effort: on swapoff failure,
+    #                 hibernate anyway.
+    #   post hibernate re-create zram via systemd-zram-setup@zram0.service
+    #                 (covers resume AND failed/aborted hibernate attempts;
+    #                 the pre-phase swapoff leaves the device at disksize 0,
+    #                 so a plain swapon cannot work) and clear leftover
+    #                 timer state.
+    #
+    # NixOS pitfall: system-sleep hooks run with a minimal PATH — `grep`
+    # was missing while `swapon` happened to resolve (journal 2026-09-05),
+    # so the PATH is set explicitly. SYSTEMD_SLEEP_ACTION (not $2) is the
+    # action discriminator. Applies to lid AND GNOME idle suspends, both of
+    # which are plain "suspend" on battery.
+    etc."systemd/system-sleep/yoga-s2h".source = pkgs.writeShellScript "yoga-s2h" ''
+      export PATH="${
+        lib.makeBinPath [
+          pkgs.coreutils
+          pkgs.gnugrep
+          pkgs.util-linux
+          pkgs.systemd
+        ]
+      }:$PATH"
+
+      DEADLINE_FILE=/run/yoga-s2h-deadline
+      DELAY=7200 # suspend phase before hibernate (seconds)
+      TOLERANCE=60 # wake within this window of the deadline = timer wake
+
+      log() { echo "yoga-s2h: $*"; }
+      on_ac() { [ "$(cat /sys/class/power_supply/ADP0/online 2>/dev/null)" = "1" ]; }
+      lid_open() { grep -qs '^state:.*open' /proc/acpi/button/lid/*/state; }
+      arm_rtcs() {
+        armed=0
+        for f in /sys/class/rtc/rtc*/wakealarm; do
+          [ -w "$f" ] || continue
+          echo 0 > "$f" 2>/dev/null
+          echo "$1" > "$f" 2>/dev/null && armed=1
+        done
+        [ "$armed" = 1 ] || log "WARNING: failed to arm any RTC wakealarm"
+      }
+      disarm() {
+        for f in /sys/class/rtc/rtc*/wakealarm; do
+          [ -w "$f" ] || continue
+          echo 0 > "$f" 2>/dev/null
+        done
+        rm -f "$DEADLINE_FILE"
+      }
+
+      case "$1:''${SYSTEMD_SLEEP_ACTION:-}" in
+        recheck)
+          # Deferred from post:hibernate via systemd-run: if the hibernate
+          # attempt failed (unit in failed state) with the lid still closed
+          # on battery, suspend again instead of sitting awake draining.
+          if systemctl is-failed --quiet systemd-hibernate.service; then
+            if lid_open; then
+              log "hibernate failed but lid is open: leaving system awake"
+            elif on_ac; then
+              log "hibernate failed but on AC: leaving system awake"
+            else
+              log "hibernate failed with lid closed on battery: re-suspending (retry in 2h)"
+              systemctl suspend
+            fi
+          fi
+          ;;
+        pre:suspend)
+          if on_ac; then
+            disarm
+            log "suspend on AC: no hibernate timer"
+          else
+            deadline=$(( $(date +%s) + DELAY ))
+            echo "$deadline" > "$DEADLINE_FILE"
+            arm_rtcs "$deadline"
+            log "suspend on battery: hibernate at $(date -d @"$deadline" 2>/dev/null || echo "$deadline")"
+          fi
+          ;;
+        post:suspend)
+          [ -r "$DEADLINE_FILE" ] || exit 0
+          deadline=$(cat "$DEADLINE_FILE")
+          now=$(date +%s)
+          remaining=$(( deadline - now ))
+          if [ "$remaining" -gt "$TOLERANCE" ]; then
+            disarm
+            log "manual wake ''${remaining}s before deadline: timer cleared"
+          elif lid_open; then
+            disarm
+            log "timer reached but lid is open: staying awake"
+          elif on_ac; then
+            disarm
+            log "timer reached but on AC: staying awake"
+          else
+            disarm
+            log "suspend deadline reached: hibernating"
+            if systemd-run --collect --unit=yoga-s2h-hibernate --on-active=3s systemctl hibernate; then
+              log "hibernate deferred 3s via transient unit (logind refuses in-hook requests)"
+            else
+              log "WARNING: failed to schedule hibernate"
+            fi
+          fi
+          ;;
+        pre:hibernate)
+          if grep -q '^/dev/zram0 ' /proc/swaps; then
+            if swapoff /dev/zram0; then
+              log "zram0 swapped out for hibernate image"
+            else
+              log "WARNING: swapoff /dev/zram0 failed, hibernating anyway"
+            fi
+          fi
+          ;;
+        post:hibernate)
+          if [ -b /dev/zram0 ] && ! grep -q '^/dev/zram0 ' /proc/swaps; then
+            # swapoff above auto-resets zram to disksize 0, so a plain
+            # swapon fails ("could not read swap header", journal
+            # 2026-09-06). Restart the generator's setup unit instead:
+            # ExecStop (--reset-device) + ExecStart (--setup-device)
+            # recreate size/algorithm/priority from the NixOS-generated
+            # zram-generator.conf.
+            if systemctl restart systemd-zram-setup@zram0.service; then
+              log "zram0 re-created via systemd-zram-setup@zram0.service"
+            else
+              log "WARNING: re-creating zram0 failed; disk swapfile still active"
+            fi
+          fi
+          # Self-heal after a failed/aborted hibernate (this branch also
+          # runs then): schedule a recheck that re-suspends if the lid is
+          # still closed on battery, so the machine doesn't sit awake
+          # draining — the fresh cycle arms a new 2h deadline and retries.
+          # The is-failed guard in the recheck makes it a no-op after a
+          # successful resume.
+          if ! lid_open && ! on_ac; then
+            if systemd-run --collect --unit=yoga-s2h-recheck --on-active=15s -- /etc/systemd/system-sleep/yoga-s2h recheck; then
+              log "failed-hibernate recheck scheduled (15s)"
+            else
+              log "WARNING: failed to schedule failed-hibernate recheck"
+            fi
+          fi
+          disarm
+          ;;
+      esac
+      exit 0
+    '';
 
     persistence."/persist/system" = {
       hideMounts = true;
