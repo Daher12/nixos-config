@@ -406,20 +406,24 @@
         rm -f "$DEADLINE_FILE"
       }
       # The AX210's Bluetooth USB device (8087:0032, usb 3-3) breaks
-      # hibernate whenever it has not been reset since boot — its xHC
-      # slot comes up in a state that trips the freeze pass ("usb 3-3:
-      # WARN: invalid context state for evaluate context command") and
-      # aborts the hibernate mid-flight; the abort class that can
-      # corrupt amdgpu/TTM state. Evidence across five attempts: every
-      # hibernate on a fresh boot aborted at this device (bound+active
-      # 2026-09-06 23:38 and 09-07 22:02; bound+runtime-suspended 23:19
-      # — so quiescing alone is NOT enough); unbinding instead trades
-      # the WARN for usb_dev_restore -107 (22:36); the ONLY clean
-      # success (09-07 04:00) came after s2idle cycles had reset the
-      # device ("usb 3-3: reset ... device number N" on every resume).
-      # Fix: replicate that reset via the authorized 0→1 toggle — the
-      # device is deconfigured and re-enumerated like a replug, staying
-      # bound — then rfkill + autosuspend to make it quiescent.
+      # hibernate unless the xHCI CONTROLLER hosting it has been
+      # re-initialized since boot — the freeze pass dies with "usb 3-3:
+      # WARN: invalid context state for evaluate context command" and the
+      # whole hibernate aborts mid-flight; the abort class that can
+      # corrupt amdgpu/TTM state. Six attempts of evidence: every
+      # hibernate on a fresh boot aborted at this device — bound+active
+      # (2026-09-06 23:38, 09-07 22:02), interface-unbound (22:02),
+      # device-unbound (22:36: no WARN, but usb_dev_restore -107), bound
+      # + runtime-suspended (23:19), and even after a device-level
+      # authorized 0→1 re-enumeration (23:29) — so the bad state is NOT
+      # in the device but in its xHCI slot/controller context. The only
+      # clean success (09-07 04:00) came after s2idle cycles had
+      # suspended and resumed the controller. Fix: rebind the xhci_hcd
+      # driver for the controller hosting the device (a full stop/start,
+      # stronger than the suspend/resume that sufficed at 04:00), then
+      # wait for re-enumeration and quiesce via rfkill + autosuspend.
+      # Blast radius on this machine: usb3 carries only 3-3 (the BT
+      # controller); everything else hangs off the second xHC.
       quiesce_btusb() {
         rfkill block bluetooth 2>/dev/null || true
         for v in /sys/bus/usb/devices/*/idVendor; do
@@ -427,16 +431,21 @@
           dev=''${v%idVendor}
           dev=''${dev%/}
           if [ "$(cat "$v" 2>/dev/null)" = "8087" ] && [ "$(cat "$dev/idProduct" 2>/dev/null)" = "0032" ]; then
-            if [ -w "$dev/authorized" ]; then
-              echo 0 > "$dev/authorized" 2>/dev/null || true
-              sleep 1
-              echo 1 > "$dev/authorized" 2>/dev/null || true
-              i=0
-              while [ "$i" -lt 10 ] && [ ! -e "$dev/idVendor" ]; do
-                sleep 1
-                i=$(( i + 1 ))
-              done
-              log "8087:0032 re-enumerated for hibernate (waited ''${i}s)"
+            pcif=$(echo "$dev" | grep -oE '0000:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f]' | tail -n 1)
+            if [ -n "$pcif" ] && grep -q xhci_hcd "/sys/bus/pci/devices/$pcif/driver" 2>/dev/null; then
+              if echo "$pcif" > /sys/bus/pci/drivers/xhci_hcd/unbind 2>/dev/null; then
+                sleep 2
+                if echo "$pcif" > /sys/bus/pci/drivers/xhci_hcd/bind 2>/dev/null; then
+                  i=0
+                  while [ "$i" -lt 10 ] && [ ! -e "$dev/idVendor" ]; do
+                    sleep 1
+                    i=$(( i + 1 ))
+                  done
+                  log "xhci $pcif rebound, 8087:0032 back after ''${i}s"
+                else
+                  log "WARNING: rebinding xhci_hcd $pcif failed — USB on that controller down until reboot"
+                fi
+              fi
             fi
             echo auto > "$dev/power/control" 2>/dev/null || true
             i=0
