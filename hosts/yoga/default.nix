@@ -224,50 +224,6 @@
     # hibernate after 2h" half of suspend-then-hibernate is implemented by
     # the system-sleep hook below — systemd 260's built-in s2h silently
     # cancels itself on this machine (see REPO_OVERVIEW Known Gotchas).
-    # Manual `systemctl hibernate` must bridge through a suspend cycle on
-    # this machine (full story in the yoga-s2h hook comment and
-    # REPO_OVERVIEW Known Gotchas): hibernating directly from a running
-    # session always aborts in the kernel freeze pass, while hibernating
-    # right after a suspend/resume cycle works (2026-09-07 04:00 cycle).
-    # logind starts THIS unit for any hibernate request, so its stock
-    # ExecStart (systemd-sleep hibernate) is replaced with a bridge:
-    #   - /run/yoga-s2h-bridge-done set (by the hook's post:suspend, i.e.
-    #     we ARE right after a suspend cycle) → stock direct hibernate;
-    #   - otherwise → set /run/yoga-s2h-bridge and suspend (deferred 1s —
-    #     logind refuses suspend requests from inside the unit it is
-    #     currently running as a delayed action); the hook's pre:suspend
-    #     arms a 10s RTC self-wake and its post:suspend re-requests
-    #     hibernate, landing here again with the flag set.
-    services.systemd-hibernate =
-      let
-        bridge = pkgs.writeShellScript "yoga-hibernate-bridge" ''
-          export PATH="${
-            lib.makeBinPath [
-              pkgs.coreutils
-              pkgs.systemd
-            ]
-          }:$PATH"
-          if [ -f /run/yoga-s2h-bridge-done ]; then
-            rm -f /run/yoga-s2h-bridge-done
-            exec ${pkgs.systemd}/lib/systemd/systemd-sleep hibernate
-          fi
-          touch /run/yoga-s2h-bridge
-          systemd-run --collect --unit=yoga-s2h-bridgesusp --on-active=1s systemctl suspend
-        '';
-      in
-      {
-        description = "Hibernate System (yoga: bridged through a suspend cycle)";
-        unitConfig.DefaultDependencies = false;
-        after = [ "systemd-hibernate-clear.service" ];
-        serviceConfig = {
-          Type = "oneshot";
-          # Hibernate includes minutes of kernel reclaim; the 90s default
-          # would kill it mid-write.
-          TimeoutStartSec = "infinity";
-          ExecStart = "${bridge}";
-        };
-      };
-
     sleep.settings.Sleep = {
       # systemd 260's sleep.conf key for /sys/power/mem_sleep is
       # MemorySleepMode= — "SuspendMode=" is NOT a valid key and is silently
@@ -342,52 +298,43 @@
     # (sleep.c: `if (!woken_by_timer) return 0;`); logind's 30s resume
     # holdoff then re-triggers the lid and the cycle restarts forever.
     #
-    # Hibernate-bridge law (established 2026-09-07/08, eight attempts):
-    # hibernating DIRECTLY from a running session always aborts during
-    # the freeze pass ("usb 3-3: WARN: invalid context state", deep
-    # amdgpu unwind — regardless of USB device/controller state: bound,
-    # idle, unbound, re-enumerated, xHCI driver rebound — all tried, all
-    # aborted), while hibernating seconds AFTER waking from s2idle works
-    # (the 04:00 automated cycle: RTC wake → 3s → clean image). The
-    # unattended deadline path below already IS that sequence. For manual
-    # hibernates, systemd-hibernate.service is overridden (see below) to
-    # convert `systemctl hibernate` into: suspend with a 10s RTC
-    # self-wake → post:suspend sees the bridge flag → hibernate for
-    # real. Costs ~15s; uses only proven primitives.
+    # HIBERNATION IS PARKED (2026-09-08; HIBERNATE_ENABLED=0 below). Ten
+    # attempts across two nights, every one aborted in-place in the kernel
+    # freeze pass ("usb 3-3: WARN: invalid context state", deep amdgpu
+    # unwind — the drm/amd #5470 corruption precondition), regardless of
+    # USB device/controller state (bound, idle, unbound, re-enumerated,
+    # xHCI driver rebound) and regardless of bridging through a suspend
+    # cycle first. The single 04:00 success never reproduced. Worse, the
+    # aborts' device resets generate phantom power-button events that
+    # GNOME turns into fresh hibernate requests — an abort→hibernate loop
+    # until hard power-off (2026-09-08 00:20-00:21). So: suspend-only
+    # (s2idle ≈0.25-0.5%/h → a full night ≈3-4%), abort detection and
+    # depth-aware response kept for manual `systemctl hibernate` tests,
+    # and re-enabling is a one-line flip after a kernel/BIOS update.
+    # Full campaign post-mortem in REPO_OVERVIEW Known Gotchas.
     #
-    # How this hook works instead:
-    #   pre suspend   bridge mode (flag set by the overridden
-    #                 systemd-hibernate.service): arm the RTC for +10s
-    #                 instead of the hibernate deadline — the machine
-    #                 suspends briefly and wakes itself for the bridged
-    #                 hibernate. Otherwise on battery: remember a
-    #                 deadline in /run and arm every RTC wakealarm (0
-    #                 first, then the epoch — the standard dance; arming
-    #                 all rtcN because the ACPI-bound one isn't
-    #                 identifiable). A still-valid deadline from a
-    #                 previous cycle is kept (spurious-wake path, see
-    #                 post suspend). On AC: no timer.
-    #   post suspend  bridge wake → mark the bridge done, schedule the
-    #                 real hibernate 3s out. Otherwise: woke >60s before
-    #                 deadline + lid open or AC → manual wake, clear
-    #                 alarm and deadline. Woke >60s early with lid closed
-    #                 on battery → spurious wake (USB/BT etc.): clear
-    #                 only the alarm, KEEP the deadline so hibernate time
-    #                 doesn't slide +2h per wake; logind's holdoff
-    #                 re-suspends and pre-suspend re-arms the alarm.
-    #                 Within the window + lid still closed + still on
-    #                 battery → schedule a hibernate 3s out via a
-    #                 transient unit. The deferral is mandatory:
-    #                 `systemctl hibernate` from inside this hook is
-    #                 always refused by logind ("Action suspend already
-    #                 in progress" — systemd 260 holds delayed_action
-    #                 until the suspend job completes, which happens only
-    #                 after these hooks exit; observed 2026-09-06). Going
-    #                 through logind 3s later also lets it arm
-    #                 delayed_action + the lid holdoff for the whole
-    #                 hibernate write — the only protection against
-    #                 logind re-triggering the closed lid into a
-    #                 concurrent suspend mid-write. Lid open or on AC →
+    # How this hook works:
+    #   pre suspend   on battery: remember a deadline in /run and arm
+    #                 every RTC wakealarm (0 first, then the epoch — the
+    #                 standard dance; arming all rtcN because the
+    #                 ACPI-bound one isn't identifiable). A still-valid
+    #                 deadline from a previous cycle is kept
+    #                 (spurious-wake path, see post suspend). On AC: no
+    #                 timer.
+    #   post suspend  woke >60s before deadline + lid open or AC →
+    #                 manual wake, clear alarm and deadline. Woke >60s
+    #                 early with lid closed on battery → spurious wake
+    #                 (USB/BT etc.): clear only the alarm, KEEP the
+    #                 deadline so the wake time doesn't slide +2h per
+    #                 wake; logind's holdoff re-suspends and pre-suspend
+    #                 re-arms the alarm. Within the window + lid still
+    #                 closed + still on battery → hibernate if
+    #                 HIBERNATE_ENABLED (deferred 3s via a transient
+    #                 unit — `systemctl hibernate` from inside this hook
+    #                 is always refused by logind, and going through it
+    #                 3s later re-arms delayed_action + the lid holdoff
+    #                 for the whole write), else disarm and let logind
+    #                 re-suspend into a fresh window. Lid open or on AC →
     #                 clear, stay awake.
     #   pre hibernate stamp uptime+epoch for abort detection, then swap
     #                 zram out to the disk swapfile so those pages are
@@ -398,15 +345,18 @@
     #   post hibernate re-create zram via systemd-zram-setup@zram0.service
     #                 (covers resume AND
     #                 aborted attempts; the pre-phase swapoff leaves the
-    #                 device at disksize 0, so a plain swapon cannot work),
-    #                 detect an in-place abort (uptime grew >45s during the
-    #                 attempt — a real resume restores the frozen clock),
-    #                 and respond by depth: amdgpu was suspended+unwound
-    #                 ("SMU is resuming" in the kernel log) → reboot when
+    #                 device at disksize 0, so a plain swapon cannot
+    #                 work), detect an in-place abort (uptime grew past
+    #                 the threshold AND wall clock grew by the same — a
+    #                 real resume's uptime also contains the frozen
+    #                 reclaim+write time but its wall delta includes the
+    #                 powered-off interval; see ABORT_UPTIME), and respond
+    #                 by depth: amdgpu was suspended+unwound ("SMU is
+    #                 resuming" in the kernel log) → reboot when
     #                 unattended / warn when the user is present (TTM
     #                 corruption class, drm/amd #5470); shallow abort →
-    #                 re-suspend and retry in 2h. Clear leftover timer and
-    #                 bridge state either way.
+    #                 re-suspend and retry in 2h. Clear leftover timer
+    #                 state either way.
     #
     # First full-cycle telemetry (2026-09-07 night): suspend 02:00, RTC
     # wake 04:00 to the second, image written, powered off ~11h, resumed
@@ -431,21 +381,38 @@
       DEADLINE_FILE=/run/yoga-s2h-deadline
       HIBSTATE_FILE=/run/yoga-s2h-hibstate
       DECISION_FILE=/run/yoga-s2h-decision
-      BRIDGE_FILE=/run/yoga-s2h-bridge
-      BRIDGE_DONE_FILE=/run/yoga-s2h-bridge-done
-      DELAY=7200 # suspend phase before hibernate (seconds)
-      TOLERANCE=60 # wake within this window of the deadline = timer wake
+      DELAY=7200 # suspend window before (disabled) hibernate check (seconds)
+      # Hibernate is PARKED after the 2026-09-07/08 campaign: 10+ attempts,
+      # all aborted in the kernel freeze pass ("usb 3-3: WARN: invalid
+      # context state", deep amdgpu unwind), regardless of USB
+      # device/controller state or bridging through a suspend cycle (the
+      # one 04:00 success never reproduced). Manual `systemctl hibernate`
+      # still runs — the abort detection + depth-aware response below
+      # still covers it. Flip to 1 to re-arm the automated deadline
+      # hibernate (e.g. after a kernel or BIOS update). Full post-mortem
+      # in REPO_OVERVIEW Known Gotchas.
+      HIBERNATE_ENABLED=0
       # A hibernate attempt that runs entirely in this kernel (aborted in
-      # place) grows /proc/uptime by the whole reclaim+snapshot+unwind time
-      # (minutes); a real resume restores the frozen kernel's timekeeping,
-      # so uptime only grows by the image-load seconds. >45s in-kernel =
-      # abort. This matters because the kernel can abort a hibernate yet
-      # have the write() to /sys/power/state return success — observed
-      # 2026-09-06 23:38 (usb device failed during freeze-phase device
-      # suspend, no image written, systemd-hibernate.service NOT failed,
-      # no error logged) — so `systemctl is-failed` alone cannot detect
-      # kernel-level aborts; it is kept only as a secondary trigger.
-      ABORT_UPTIME=45
+      # place) grows /proc/uptime by the whole reclaim+snapshot+unwind
+      # time, and the wall clock grows by the same (machine never powered
+      # off): wall_grew - up_grew ≈ 0. On a REAL resume the restored
+      # kernel's uptime also contains the reclaim+write time (it was
+      # frozen into the image!), but the wall clock additionally contains
+      # the powered-off interval + resume boot: wall_grew - up_grew ≥ 60s.
+      # (Without the wall co-condition a clean resume would be misread as
+      # a deep abort → auto-reboot after success; uptime alone cannot
+      # separate the two — 2026-09-08 analysis.) Threshold 30s: a fast
+      # 40s abort was missed by the old 45s cutoff (00:21 cycle), while
+      # the pre-hook to poweroff path always exceeds ~30s.
+      ABORT_UPTIME=30
+      ABORT_WALL_SKEW=60
+      TOLERANCE=60 # wake within this window of the deadline = timer wake
+      # The kernel can abort a hibernate yet have the write() to
+      # /sys/power/state return success — observed 2026-09-06 23:38 (usb
+      # device failed during freeze-phase device suspend, no image
+      # written, systemd-hibernate.service NOT failed, no error logged)
+      # — so `systemctl is-failed` alone cannot detect kernel-level
+      # aborts; it is kept only as a secondary trigger.
 
       log() { echo "yoga-s2h: $*"; }
       on_ac() { [ "$(cat /sys/class/power_supply/ADP0/online 2>/dev/null)" = "1" ]; }
@@ -502,18 +469,16 @@
           fi
           ;;
         pre:suspend)
-          if [ -f "$BRIDGE_FILE" ]; then
-            # Bridge suspend (triggered by the overridden
-            # systemd-hibernate.service): skip the hibernate-deadline
-            # logic and self-wake in 10s for the real hibernate.
-            clear_alarms
-            arm_rtcs $(( $(date +%s) + 10 ))
-            log "bridge suspend: self-wake in 10s for hibernate"
-            exit 0
-          fi
           if on_ac; then
             disarm
             log "suspend on AC: no hibernate timer"
+          elif [ "$HIBERNATE_ENABLED" != "1" ]; then
+            # Hibernate parked → no RTC timer either: waking every 2h
+            # just to re-suspend would cost ~0.4% battery per cycle for
+            # nothing. A plain unbounded s2idle is the whole policy
+            # while parked (~0.25-0.5%/h).
+            disarm
+            log "suspend on battery: hibernate parked, no RTC timer"
           else
             now=$(date +%s)
             deadline=""
@@ -537,23 +502,6 @@
           fi
           ;;
         post:suspend)
-          if [ -f "$BRIDGE_FILE" ]; then
-            # Self-woke from the bridge suspend: hand off to the real
-            # hibernate. BRIDGE_DONE tells the overridden
-            # systemd-hibernate.service to hibernate directly (stock
-            # ExecStart) instead of starting another bridge — this wake
-            # IS the suspend cycle that makes hibernate work here.
-            rm -f "$BRIDGE_FILE"
-            touch "$BRIDGE_DONE_FILE"
-            disarm
-            log "bridge wake: hibernating via the post-suspend path"
-            if systemd-run --collect --unit=yoga-s2h-hibernate --on-active=3s systemctl hibernate; then
-              log "hibernate deferred 3s via transient unit (logind refuses in-hook requests)"
-            else
-              log "WARNING: failed to schedule bridge hibernate"
-            fi
-            exit 0
-          fi
           [ -r "$DEADLINE_FILE" ] || exit 0
           deadline=$(cat "$DEADLINE_FILE")
           now=$(date +%s)
@@ -579,15 +527,20 @@
             log "timer reached but on AC: staying awake"
           else
             disarm
-            log "suspend deadline reached: hibernating"
-            # We just woke from s2idle — the proven state for hibernating
-            # here. BRIDGE_DONE makes the overridden hibernate unit go
-            # straight to the real hibernate instead of bridging again.
-            touch "$BRIDGE_DONE_FILE"
-            if systemd-run --collect --unit=yoga-s2h-hibernate --on-active=3s systemctl hibernate; then
-              log "hibernate deferred 3s via transient unit (logind refuses in-hook requests)"
+            if [ "$HIBERNATE_ENABLED" = "1" ]; then
+              log "suspend deadline reached: hibernating"
+              if systemd-run --collect --unit=yoga-s2h-hibernate --on-active=3s systemctl hibernate; then
+                log "hibernate deferred 3s via transient unit (logind refuses in-hook requests)"
+              else
+                log "WARNING: failed to schedule hibernate"
+              fi
             else
-              log "WARNING: failed to schedule hibernate"
+              # Hibernation parked (see HIBERNATE_ENABLED above): disarm
+              # only — logind's lid holdoff re-suspends the closed lid and
+              # pre:suspend opens a fresh 2h window. Costs ~30s awake per
+              # 2h (~0.4% battery) while keeping the cycle observable in
+              # the journal.
+              log "suspend window elapsed (hibernate parked): re-suspending"
             fi
           fi
           ;;
@@ -637,7 +590,14 @@
           if [ -r "$HIBSTATE_FILE" ]; then
             read -r hib_epoch hib_uptime < "$HIBSTATE_FILE"
             rm -f "$HIBSTATE_FILE"
-            if [ $(( $(now_uptime) - hib_uptime )) -gt "$ABORT_UPTIME" ]; then
+            # Abort iff the machine never powered off: uptime grew past
+            # the attempt threshold AND the wall clock grew by the same
+            # amount (wall-uptime skew < ABORT_WALL_SKEW). A real resume
+            # has the same uptime growth (reclaim+write are frozen into
+            # the image) but a much larger wall delta. See ABORT_UPTIME.
+            up_grew=$(( $(now_uptime) - hib_uptime ))
+            wall_grew=$(( $(date +%s) - hib_epoch ))
+            if [ "$up_grew" -gt "$ABORT_UPTIME" ] && [ $(( wall_grew - up_grew )) -lt "$ABORT_WALL_SKEW" ]; then
               if journalctl -k --no-pager --since "@$hib_epoch" 2>/dev/null | grep -q "SMU is resuming"; then
                 decision=reboot
               else
@@ -669,7 +629,6 @@
             fi
           fi
           disarm
-          rm -f "$BRIDGE_DONE_FILE"
           ;;
       esac
       exit 0
