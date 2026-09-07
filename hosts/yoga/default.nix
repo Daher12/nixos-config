@@ -405,20 +405,21 @@
         clear_alarms
         rm -f "$DEADLINE_FILE"
       }
-      # The AX210's Bluetooth USB device (8087:0032) breaks hibernate
-      # whenever it is not runtime-idle at freeze time — with recent BT
-      # activity its freeze/poweroff pass fails ("usb 3-3: WARN: invalid
-      # context state", 2026-09-06 23:38 + 2026-09-07 22:02) and aborts
-      # the hibernate mid-flight; the abort class that can corrupt
-      # amdgpu/TTM state. Taking it off the bus is NOT an option either:
-      # a driverless-but-registered usb device makes the poweroff/restore
-      # pass return -ENOTCONN ("usb_dev_restore returns -107",
-      # 2026-09-07 22:36 — deepest abort yet, after the snapshot cycle
-      # had already completed). The only state proven to survive all
-      # passes is BOUND + RUNTIME-SUSPENDED (the 2026-09-07 04:00
-      # success: BT bound, idle for 2h). So: rfkill the controller, put
-      # the device in autosuspend mode, and wait until it actually
-      # suspends. Plain suspend is unaffected (suspend, not freeze).
+      # The AX210's Bluetooth USB device (8087:0032, usb 3-3) breaks
+      # hibernate whenever it has not been reset since boot — its xHC
+      # slot comes up in a state that trips the freeze pass ("usb 3-3:
+      # WARN: invalid context state for evaluate context command") and
+      # aborts the hibernate mid-flight; the abort class that can
+      # corrupt amdgpu/TTM state. Evidence across five attempts: every
+      # hibernate on a fresh boot aborted at this device (bound+active
+      # 2026-09-06 23:38 and 09-07 22:02; bound+runtime-suspended 23:19
+      # — so quiescing alone is NOT enough); unbinding instead trades
+      # the WARN for usb_dev_restore -107 (22:36); the ONLY clean
+      # success (09-07 04:00) came after s2idle cycles had reset the
+      # device ("usb 3-3: reset ... device number N" on every resume).
+      # Fix: replicate that reset via the authorized 0→1 toggle — the
+      # device is deconfigured and re-enumerated like a replug, staying
+      # bound — then rfkill + autosuspend to make it quiescent.
       quiesce_btusb() {
         rfkill block bluetooth 2>/dev/null || true
         for v in /sys/bus/usb/devices/*/idVendor; do
@@ -426,6 +427,17 @@
           dev=''${v%idVendor}
           dev=''${dev%/}
           if [ "$(cat "$v" 2>/dev/null)" = "8087" ] && [ "$(cat "$dev/idProduct" 2>/dev/null)" = "0032" ]; then
+            if [ -w "$dev/authorized" ]; then
+              echo 0 > "$dev/authorized" 2>/dev/null || true
+              sleep 1
+              echo 1 > "$dev/authorized" 2>/dev/null || true
+              i=0
+              while [ "$i" -lt 10 ] && [ ! -e "$dev/idVendor" ]; do
+                sleep 1
+                i=$(( i + 1 ))
+              done
+              log "8087:0032 re-enumerated for hibernate (waited ''${i}s)"
+            fi
             echo auto > "$dev/power/control" 2>/dev/null || true
             i=0
             while [ "$i" -lt 10 ] && [ "$(cat "$dev/power/runtime_status" 2>/dev/null)" != "suspended" ]; do
