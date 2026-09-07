@@ -438,7 +438,11 @@
             pcif=$(readlink -f "$dev" | grep -oE '0000:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f]' | tail -n 1)
             if [ -z "$pcif" ]; then
               log "WARNING: could not resolve the xhci controller for 8087:0032 — skipping controller rebind"
-            elif grep -q xhci_hcd "/sys/bus/pci/devices/$pcif/driver" 2>/dev/null; then
+            elif ls /sys/bus/pci/drivers/xhci_hcd/ 2>/dev/null | grep -q "^$pcif$"; then
+              # NB: /sys/bus/pci/devices/$pcif/driver is a symlink to a
+              # DIRECTORY — grep -q on it always fails ("Is a directory"),
+              # which silently skipped the whole rebind (2026-09-07 23:50
+              # and 23:53). Query the binding from the driver side instead.
               if echo "$pcif" > /sys/bus/pci/drivers/xhci_hcd/unbind 2>/dev/null; then
                 sleep 2
                 if echo "$pcif" > /sys/bus/pci/drivers/xhci_hcd/bind 2>/dev/null; then
@@ -451,7 +455,11 @@
                 else
                   log "WARNING: rebinding xhci_hcd $pcif failed — USB on that controller down until reboot"
                 fi
+              else
+                log "WARNING: unbinding xhci_hcd $pcif failed — skipping controller rebind"
               fi
+            else
+              log "WARNING: $pcif is not bound to xhci_hcd — skipping controller rebind"
             fi
             echo auto > "$dev/power/control" 2>/dev/null || true
             i=0
