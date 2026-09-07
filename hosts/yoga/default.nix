@@ -224,6 +224,50 @@
     # hibernate after 2h" half of suspend-then-hibernate is implemented by
     # the system-sleep hook below — systemd 260's built-in s2h silently
     # cancels itself on this machine (see REPO_OVERVIEW Known Gotchas).
+    # Manual `systemctl hibernate` must bridge through a suspend cycle on
+    # this machine (full story in the yoga-s2h hook comment and
+    # REPO_OVERVIEW Known Gotchas): hibernating directly from a running
+    # session always aborts in the kernel freeze pass, while hibernating
+    # right after a suspend/resume cycle works (2026-09-07 04:00 cycle).
+    # logind starts THIS unit for any hibernate request, so its stock
+    # ExecStart (systemd-sleep hibernate) is replaced with a bridge:
+    #   - /run/yoga-s2h-bridge-done set (by the hook's post:suspend, i.e.
+    #     we ARE right after a suspend cycle) → stock direct hibernate;
+    #   - otherwise → set /run/yoga-s2h-bridge and suspend (deferred 1s —
+    #     logind refuses suspend requests from inside the unit it is
+    #     currently running as a delayed action); the hook's pre:suspend
+    #     arms a 10s RTC self-wake and its post:suspend re-requests
+    #     hibernate, landing here again with the flag set.
+    services.systemd-hibernate =
+      let
+        bridge = pkgs.writeShellScript "yoga-hibernate-bridge" ''
+          export PATH="${
+            lib.makeBinPath [
+              pkgs.coreutils
+              pkgs.systemd
+            ]
+          }:$PATH"
+          if [ -f /run/yoga-s2h-bridge-done ]; then
+            rm -f /run/yoga-s2h-bridge-done
+            exec ${pkgs.systemd}/lib/systemd/systemd-sleep hibernate
+          fi
+          touch /run/yoga-s2h-bridge
+          systemd-run --collect --unit=yoga-s2h-bridgesusp --on-active=1s systemctl suspend
+        '';
+      in
+      {
+        description = "Hibernate System (yoga: bridged through a suspend cycle)";
+        unitConfig.DefaultDependencies = false;
+        after = [ "systemd-hibernate-clear.service" ];
+        serviceConfig = {
+          Type = "oneshot";
+          # Hibernate includes minutes of kernel reclaim; the 90s default
+          # would kill it mid-write.
+          TimeoutStartSec = "infinity";
+          ExecStart = "${bridge}";
+        };
+      };
+
     sleep.settings.Sleep = {
       # systemd 260's sleep.conf key for /sys/power/mem_sleep is
       # MemorySleepMode= — "SuspendMode=" is NOT a valid key and is silently
@@ -298,42 +342,61 @@
     # (sleep.c: `if (!woken_by_timer) return 0;`); logind's 30s resume
     # holdoff then re-triggers the lid and the cycle restarts forever.
     #
+    # Hibernate-bridge law (established 2026-09-07/08, eight attempts):
+    # hibernating DIRECTLY from a running session always aborts during
+    # the freeze pass ("usb 3-3: WARN: invalid context state", deep
+    # amdgpu unwind — regardless of USB device/controller state: bound,
+    # idle, unbound, re-enumerated, xHCI driver rebound — all tried, all
+    # aborted), while hibernating seconds AFTER waking from s2idle works
+    # (the 04:00 automated cycle: RTC wake → 3s → clean image). The
+    # unattended deadline path below already IS that sequence. For manual
+    # hibernates, systemd-hibernate.service is overridden (see below) to
+    # convert `systemctl hibernate` into: suspend with a 10s RTC
+    # self-wake → post:suspend sees the bridge flag → hibernate for
+    # real. Costs ~15s; uses only proven primitives.
+    #
     # How this hook works instead:
-    #   pre suspend   on battery: remember a deadline in /run and arm every
-    #                 RTC wakealarm (0 first, then the epoch — the standard
-    #                 dance; arming all rtcN because the ACPI-bound one isn't
-    #                 identifiable). A still-valid deadline from a previous
-    #                 cycle is kept (spurious-wake path, see post suspend).
-    #                 On AC: no timer.
-    #   post suspend  woke >60s before deadline + lid open or AC → manual
-    #                 wake, clear alarm and deadline. Woke >60s early with
-    #                 lid closed on battery → spurious wake (USB/BT etc.):
-    #                 clear only the alarm, KEEP the deadline so hibernate
-    #                 time doesn't slide +2h per wake; logind's holdoff
+    #   pre suspend   bridge mode (flag set by the overridden
+    #                 systemd-hibernate.service): arm the RTC for +10s
+    #                 instead of the hibernate deadline — the machine
+    #                 suspends briefly and wakes itself for the bridged
+    #                 hibernate. Otherwise on battery: remember a
+    #                 deadline in /run and arm every RTC wakealarm (0
+    #                 first, then the epoch — the standard dance; arming
+    #                 all rtcN because the ACPI-bound one isn't
+    #                 identifiable). A still-valid deadline from a
+    #                 previous cycle is kept (spurious-wake path, see
+    #                 post suspend). On AC: no timer.
+    #   post suspend  bridge wake → mark the bridge done, schedule the
+    #                 real hibernate 3s out. Otherwise: woke >60s before
+    #                 deadline + lid open or AC → manual wake, clear
+    #                 alarm and deadline. Woke >60s early with lid closed
+    #                 on battery → spurious wake (USB/BT etc.): clear
+    #                 only the alarm, KEEP the deadline so hibernate time
+    #                 doesn't slide +2h per wake; logind's holdoff
     #                 re-suspends and pre-suspend re-arms the alarm.
     #                 Within the window + lid still closed + still on
-    #                 battery → schedule a hibernate 3s out via a transient
-    #                 unit. The deferral is mandatory: `systemctl hibernate`
-    #                 from inside this hook is always refused by logind
-    #                 ("Action suspend already in progress" — systemd 260
-    #                 holds delayed_action until the suspend job completes,
-    #                 which happens only after these hooks exit; observed
-    #                 2026-09-06). Going through logind 3s later also lets
-    #                 it arm delayed_action + the lid holdoff for the whole
-    #                 hibernate write — the only protection against logind
-    #                 re-triggering the closed lid into a concurrent suspend
-    #                 mid-write. Lid open or on AC → clear, stay awake.
-    #   pre hibernate stamp uptime+epoch for abort detection, quiesce the
-    #                 AX210's BT device 8087:0032 (rfkill + runtime-suspend
-    #                 — the only state proven to survive all hibernate
-    #                 device passes, see quiesce_btusb), then swap zram
-    #                 out to the disk
-    #                 swapfile so those pages are neither in the image nor
-    #                 competing for free RAM (without this, hibernate dies
-    #                 with -ENOMEM above ~9.5G use — kernel log 2026-09-03).
-    #                 Best-effort: on swapoff failure, hibernate anyway.
-    #   post hibernate rebind btusb, re-create zram via
-    #                 systemd-zram-setup@zram0.service (covers resume AND
+    #                 battery → schedule a hibernate 3s out via a
+    #                 transient unit. The deferral is mandatory:
+    #                 `systemctl hibernate` from inside this hook is
+    #                 always refused by logind ("Action suspend already
+    #                 in progress" — systemd 260 holds delayed_action
+    #                 until the suspend job completes, which happens only
+    #                 after these hooks exit; observed 2026-09-06). Going
+    #                 through logind 3s later also lets it arm
+    #                 delayed_action + the lid holdoff for the whole
+    #                 hibernate write — the only protection against
+    #                 logind re-triggering the closed lid into a
+    #                 concurrent suspend mid-write. Lid open or on AC →
+    #                 clear, stay awake.
+    #   pre hibernate stamp uptime+epoch for abort detection, then swap
+    #                 zram out to the disk swapfile so those pages are
+    #                 neither in the image nor competing for free RAM
+    #                 (without this, hibernate dies with -ENOMEM above
+    #                 ~9.5G use — kernel log 2026-09-03). Best-effort: on
+    #                 swapoff failure, hibernate anyway.
+    #   post hibernate re-create zram via systemd-zram-setup@zram0.service
+    #                 (covers resume AND
     #                 aborted attempts; the pre-phase swapoff leaves the
     #                 device at disksize 0, so a plain swapon cannot work),
     #                 detect an in-place abort (uptime grew >45s during the
@@ -342,8 +405,8 @@
     #                 ("SMU is resuming" in the kernel log) → reboot when
     #                 unattended / warn when the user is present (TTM
     #                 corruption class, drm/amd #5470); shallow abort →
-    #                 re-suspend and retry in 2h. Clear leftover timer
-    #                 state either way.
+    #                 re-suspend and retry in 2h. Clear leftover timer and
+    #                 bridge state either way.
     #
     # First full-cycle telemetry (2026-09-07 night): suspend 02:00, RTC
     # wake 04:00 to the second, image written, powered off ~11h, resumed
@@ -368,6 +431,8 @@
       DEADLINE_FILE=/run/yoga-s2h-deadline
       HIBSTATE_FILE=/run/yoga-s2h-hibstate
       DECISION_FILE=/run/yoga-s2h-decision
+      BRIDGE_FILE=/run/yoga-s2h-bridge
+      BRIDGE_DONE_FILE=/run/yoga-s2h-bridge-done
       DELAY=7200 # suspend phase before hibernate (seconds)
       TOLERANCE=60 # wake within this window of the deadline = timer wake
       # A hibernate attempt that runs entirely in this kernel (aborted in
@@ -405,75 +470,16 @@
         clear_alarms
         rm -f "$DEADLINE_FILE"
       }
-      # The AX210's Bluetooth USB device (8087:0032, usb 3-3) breaks
-      # hibernate unless the xHCI CONTROLLER hosting it has been
-      # re-initialized since boot — the freeze pass dies with "usb 3-3:
-      # WARN: invalid context state for evaluate context command" and the
-      # whole hibernate aborts mid-flight; the abort class that can
-      # corrupt amdgpu/TTM state. Six attempts of evidence: every
-      # hibernate on a fresh boot aborted at this device — bound+active
-      # (2026-09-06 23:38, 09-07 22:02), interface-unbound (22:02),
-      # device-unbound (22:36: no WARN, but usb_dev_restore -107), bound
-      # + runtime-suspended (23:19), and even after a device-level
-      # authorized 0→1 re-enumeration (23:29) — so the bad state is NOT
-      # in the device but in its xHCI slot/controller context. The only
-      # clean success (09-07 04:00) came after s2idle cycles had
-      # suspended and resumed the controller. Fix: rebind the xhci_hcd
-      # driver for the controller hosting the device (a full stop/start,
-      # stronger than the suspend/resume that sufficed at 04:00), then
-      # wait for re-enumeration and quiesce via rfkill + autosuspend.
-      # Blast radius on this machine: usb3 carries only 3-3 (the BT
-      # controller); everything else hangs off the second xHC.
-      quiesce_btusb() {
-        rfkill block bluetooth 2>/dev/null || true
-        for v in /sys/bus/usb/devices/*/idVendor; do
-          [ -e "$v" ] || continue
-          dev=''${v%idVendor}
-          dev=''${dev%/}
-          if [ "$(cat "$v" 2>/dev/null)" = "8087" ] && [ "$(cat "$dev/idProduct" 2>/dev/null)" = "0032" ]; then
-            # /sys/bus/usb/devices/3-3 is a symlink — resolve it, the PCI
-            # function lives in the real path (matching the symlink path
-            # finds nothing and the rebind is silently skipped; observed
-            # 2026-09-07 23:42).
-            pcif=$(readlink -f "$dev" | grep -oE '0000:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f]' | tail -n 1)
-            if [ -z "$pcif" ]; then
-              log "WARNING: could not resolve the xhci controller for 8087:0032 — skipping controller rebind"
-            elif ls /sys/bus/pci/drivers/xhci_hcd/ 2>/dev/null | grep -q "^$pcif$"; then
-              # NB: /sys/bus/pci/devices/$pcif/driver is a symlink to a
-              # DIRECTORY — grep -q on it always fails ("Is a directory"),
-              # which silently skipped the whole rebind (2026-09-07 23:50
-              # and 23:53). Query the binding from the driver side instead.
-              if echo "$pcif" > /sys/bus/pci/drivers/xhci_hcd/unbind 2>/dev/null; then
-                sleep 2
-                if echo "$pcif" > /sys/bus/pci/drivers/xhci_hcd/bind 2>/dev/null; then
-                  i=0
-                  while [ "$i" -lt 10 ] && [ ! -e "$dev/idVendor" ]; do
-                    sleep 1
-                    i=$(( i + 1 ))
-                  done
-                  log "xhci $pcif rebound, 8087:0032 back after ''${i}s"
-                else
-                  log "WARNING: rebinding xhci_hcd $pcif failed — USB on that controller down until reboot"
-                fi
-              else
-                log "WARNING: unbinding xhci_hcd $pcif failed — skipping controller rebind"
-              fi
-            else
-              log "WARNING: $pcif is not bound to xhci_hcd — skipping controller rebind"
-            fi
-            echo auto > "$dev/power/control" 2>/dev/null || true
-            i=0
-            while [ "$i" -lt 10 ] && [ "$(cat "$dev/power/runtime_status" 2>/dev/null)" != "suspended" ]; do
-              sleep 1
-              i=$(( i + 1 ))
-            done
-            log "8087:0032 at freeze: $(cat "$dev/power/runtime_status" 2>/dev/null || echo unknown) (after ''${i}s)"
-          fi
-        done
-      }
-      unquiesce_btusb() {
-        rfkill unblock bluetooth 2>/dev/null || true
-      }
+      # Post-mortem of the usb 3-3 (AX210 BT) hunt, kept so nobody retries
+      # it: the "usb 3-3: WARN: invalid context state" abort could NOT be
+      # fixed at the USB level — tried (2026-09-07/08): bound+active,
+      # interface-unbound, device-unbound (→ usb_dev_restore -107
+      # instead), bound+runtime-suspended via rfkill, device-level
+      # authorized 0→1 re-enumeration, and a full xHCI controller driver
+      # rebind — every hibernate from a running session aborted, and the
+      # rebind demonstrably didn't change the WARN. What works: hibernate
+      # started right after waking from s2idle (04:00 cycle). Hence the
+      # bridge; the USB stack is left alone.
 
       case "$1:''${SYSTEMD_SLEEP_ACTION:-}" in
         recheck)
@@ -496,6 +502,15 @@
           fi
           ;;
         pre:suspend)
+          if [ -f "$BRIDGE_FILE" ]; then
+            # Bridge suspend (triggered by the overridden
+            # systemd-hibernate.service): skip the hibernate-deadline
+            # logic and self-wake in 10s for the real hibernate.
+            clear_alarms
+            arm_rtcs $(( $(date +%s) + 10 ))
+            log "bridge suspend: self-wake in 10s for hibernate"
+            exit 0
+          fi
           if on_ac; then
             disarm
             log "suspend on AC: no hibernate timer"
@@ -522,6 +537,23 @@
           fi
           ;;
         post:suspend)
+          if [ -f "$BRIDGE_FILE" ]; then
+            # Self-woke from the bridge suspend: hand off to the real
+            # hibernate. BRIDGE_DONE tells the overridden
+            # systemd-hibernate.service to hibernate directly (stock
+            # ExecStart) instead of starting another bridge — this wake
+            # IS the suspend cycle that makes hibernate work here.
+            rm -f "$BRIDGE_FILE"
+            touch "$BRIDGE_DONE_FILE"
+            disarm
+            log "bridge wake: hibernating via the post-suspend path"
+            if systemd-run --collect --unit=yoga-s2h-hibernate --on-active=3s systemctl hibernate; then
+              log "hibernate deferred 3s via transient unit (logind refuses in-hook requests)"
+            else
+              log "WARNING: failed to schedule bridge hibernate"
+            fi
+            exit 0
+          fi
           [ -r "$DEADLINE_FILE" ] || exit 0
           deadline=$(cat "$DEADLINE_FILE")
           now=$(date +%s)
@@ -548,6 +580,10 @@
           else
             disarm
             log "suspend deadline reached: hibernating"
+            # We just woke from s2idle — the proven state for hibernating
+            # here. BRIDGE_DONE makes the overridden hibernate unit go
+            # straight to the real hibernate instead of bridging again.
+            touch "$BRIDGE_DONE_FILE"
             if systemd-run --collect --unit=yoga-s2h-hibernate --on-active=3s systemctl hibernate; then
               log "hibernate deferred 3s via transient unit (logind refuses in-hook requests)"
             else
@@ -560,7 +596,6 @@
           # ABORT_UPTIME). Written first: the zram swapoff below can take
           # minutes and all of it counts as in-kernel attempt time.
           printf '%s %s\n' "$(date +%s)" "$(now_uptime)" > "$HIBSTATE_FILE"
-          quiesce_btusb
           if grep -q '^/dev/zram0 ' /proc/swaps; then
             if swapoff /dev/zram0; then
               log "zram0 swapped out for hibernate image"
@@ -570,7 +605,6 @@
           fi
           ;;
         post:hibernate)
-          unquiesce_btusb
           if [ -b /dev/zram0 ] && ! grep -q '^/dev/zram0 ' /proc/swaps; then
             # swapoff above auto-resets zram to disksize 0, so a plain
             # swapon fails ("could not read swap header", journal
@@ -635,6 +669,7 @@
             fi
           fi
           disarm
+          rm -f "$BRIDGE_DONE_FILE"
           ;;
       esac
       exit 0
