@@ -50,9 +50,26 @@
         '';
       });
       settings = {
-        model = "openrouter/deepseek/deepseek-v4-flash";
-        small_model = "openrouter/mistralai/mistral-small-3.2-24b-instruct";
+        model = "zai-coding-plan/glm-5.3-flash";
+        small_model = "zai-coding-plan/glm-5.3-flash";
+        agent = {
+          build = {
+            model = "zai-coding-plan/glm-5.3-flash";
+            variant = "high";
+          };
+          plan = {
+            model = "zai-coding-plan/glm-5.3";
+            variant = "high";
+          };
+        };
         provider = {
+          # reasoningEffort on the model (not an agent variant): opencode skips
+          # variants for small-model calls (title generation etc.), so the
+          # default effort must live here. Agent variants still override it.
+          # GLM has no "off" effort — low is the minimum.
+          "zai-coding-plan".models."glm-5.3-flash".options = {
+            reasoningEffort = "low";
+          };
           openrouter = {
             models = {
               "deepseek/deepseek-v4-flash" = { };
@@ -82,11 +99,33 @@
         };
         permission = {
           edit = "ask";
+          read = {
+            "*" = "allow";
+            "*.env" = "deny";
+            "*.env.*" = "deny";
+            "*.env.example" = "allow";
+          };
+          external_directory = "allow";
           bash = {
             "*" = "ask";
             "git status" = "allow";
             "git diff *" = "allow";
             "rm -rf *" = "deny";
+            "ls *" = "allow";
+            "cat *" = "allow";
+            "rg *" = "allow";
+            "grep *" = "allow";
+            "find *" = "allow";
+            "fd *" = "allow";
+            "tree *" = "allow";
+            "head *" = "allow";
+            "tail *" = "allow";
+            "wc *" = "allow";
+            "stat *" = "allow";
+            "file *" = "allow";
+            "du *" = "allow";
+            "which *" = "allow";
+            "jq *" = "allow";
           };
         };
         mcp = {

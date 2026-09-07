@@ -243,16 +243,16 @@
       HibernateMode = "shutdown";
     };
     tmpfiles.rules = [
-      # Cap the hibernation image at 2G. The kernel default (~40% of RAM
-      # ≈ 5.9G) left only ~105 MiB of free-page headroom on the aborted
-      # 2026-09-06 attempt ("Normal pages needed: 1976561 + 1024, available
-      # pages: 2004551") and ENOMEM-aborted outright on 2026-09-03; a
-      # smaller image buys real margin at the cost of deeper pre-snapshot
-      # reclaim. Tradeoff: aggressive reclaim is what mass-evicts TTM
-      # buffers — the amdgpu LRU-corruption trigger (drm/amd #5470) — so
-      # close memory-heavy apps before hibernating and reclaim won't have
-      # to dig that deep.
-      "w /sys/power/image_size - - - - 2147483648"
+      # Cap the hibernation image at 4G. This drives how deep the kernel's
+      # pre-snapshot reclaim goes (the screen-dark wait before the image is
+      # taken): 2G gave 3.6x free-page margin but produced 17-minute
+      # reclaims on heavy sessions (2026-09-07 22:19). The old 5.9G kernel
+      # default was only dangerous BEFORE the hook swapped zram out first
+      # (zram kept swapped pages resident in RAM — the real cause of the
+      # 2026-09-03/06 ENOMEM aborts); with swapoff in place 4G halves the
+      # reclaim while keeping >1.5x margin. Check margins in the journal:
+      # "Normal pages needed: X, available pages: Y".
+      "w /sys/power/image_size - - - - 4294967296"
       "d /persist 0755 root root - -"
       "d /persist/home/ 0711 ${mainUser} ${mainUser} - -"
       "d /persist/home/${mainUser} 0700 ${mainUser} ${mainUser} - -"
@@ -323,10 +323,11 @@
     #                 hibernate write — the only protection against logind
     #                 re-triggering the closed lid into a concurrent suspend
     #                 mid-write. Lid open or on AC → clear, stay awake.
-    #   pre hibernate stamp uptime+epoch for abort detection, unbind the
-    #                 AX210 btusb device (its freeze-phase suspend
-    #                 intermittently aborts the whole hibernate, see
-    #                 unbind_btusb), then swap zram out to the disk
+    #   pre hibernate stamp uptime+epoch for abort detection, quiesce the
+    #                 AX210's BT device 8087:0032 (rfkill + runtime-suspend
+    #                 — the only state proven to survive all hibernate
+    #                 device passes, see quiesce_btusb), then swap zram
+    #                 out to the disk
     #                 swapfile so those pages are neither in the image nor
     #                 competing for free RAM (without this, hibernate dies
     #                 with -ENOMEM above ~9.5G use — kernel log 2026-09-03).
@@ -366,7 +367,6 @@
 
       DEADLINE_FILE=/run/yoga-s2h-deadline
       HIBSTATE_FILE=/run/yoga-s2h-hibstate
-      BTUSB_FILE=/run/yoga-s2h-btusb-unbound
       DECISION_FILE=/run/yoga-s2h-decision
       DELAY=7200 # suspend phase before hibernate (seconds)
       TOLERANCE=60 # wake within this window of the deadline = timer wake
@@ -405,34 +405,39 @@
         clear_alarms
         rm -f "$DEADLINE_FILE"
       }
-      # The AX210's Bluetooth USB function (8087:0032) intermittently fails
-      # hibernate's freeze-phase device suspend ("usb 3-3: WARN: invalid
-      # context state for evaluate context command", 2026-09-06 23:38) and
-      # aborts the whole hibernate mid-flight — the abort class that can
-      # corrupt amdgpu/TTM state. Plain suspend is unaffected (different
-      # callback: suspend, not freeze), so only hibernate unbinds it.
-      unbind_btusb() {
-        : > "$BTUSB_FILE"
-        for i in /sys/bus/usb/drivers/btusb/*:*; do
-          [ -e "$i" ] || continue
-          dev=$(dirname "$(readlink -f "$i")")
-          if [ "$(cat "$dev/idVendor" 2>/dev/null)" = "8087" ] && [ "$(cat "$dev/idProduct" 2>/dev/null)" = "0032" ]; then
-            iface=''${i##*/}
-            if echo "$iface" > /sys/bus/usb/drivers/btusb/unbind 2>/dev/null; then
-              echo "$iface" >> "$BTUSB_FILE"
-            fi
+      # The AX210's Bluetooth USB device (8087:0032) breaks hibernate
+      # whenever it is not runtime-idle at freeze time — with recent BT
+      # activity its freeze/poweroff pass fails ("usb 3-3: WARN: invalid
+      # context state", 2026-09-06 23:38 + 2026-09-07 22:02) and aborts
+      # the hibernate mid-flight; the abort class that can corrupt
+      # amdgpu/TTM state. Taking it off the bus is NOT an option either:
+      # a driverless-but-registered usb device makes the poweroff/restore
+      # pass return -ENOTCONN ("usb_dev_restore returns -107",
+      # 2026-09-07 22:36 — deepest abort yet, after the snapshot cycle
+      # had already completed). The only state proven to survive all
+      # passes is BOUND + RUNTIME-SUSPENDED (the 2026-09-07 04:00
+      # success: BT bound, idle for 2h). So: rfkill the controller, put
+      # the device in autosuspend mode, and wait until it actually
+      # suspends. Plain suspend is unaffected (suspend, not freeze).
+      quiesce_btusb() {
+        rfkill block bluetooth 2>/dev/null || true
+        for v in /sys/bus/usb/devices/*/idVendor; do
+          [ -e "$v" ] || continue
+          dev=''${v%idVendor}
+          dev=''${dev%/}
+          if [ "$(cat "$v" 2>/dev/null)" = "8087" ] && [ "$(cat "$dev/idProduct" 2>/dev/null)" = "0032" ]; then
+            echo auto > "$dev/power/control" 2>/dev/null || true
+            i=0
+            while [ "$i" -lt 10 ] && [ "$(cat "$dev/power/runtime_status" 2>/dev/null)" != "suspended" ]; do
+              sleep 1
+              i=$(( i + 1 ))
+            done
+            log "8087:0032 at freeze: $(cat "$dev/power/runtime_status" 2>/dev/null || echo unknown) (after ''${i}s)"
           fi
         done
-        [ -s "$BTUSB_FILE" ] && log "btusb unbound for hibernate: $(tr '\n' ' ' < "$BTUSB_FILE")"
       }
-      rebind_btusb() {
-        [ -f "$BTUSB_FILE" ] || return 0
-        while IFS= read -r iface; do
-          [ -n "$iface" ] || continue
-          echo "$iface" > /sys/bus/usb/drivers/btusb/bind 2>/dev/null \
-            || log "WARNING: rebinding btusb interface $iface failed (Bluetooth down until reboot)"
-        done < "$BTUSB_FILE"
-        rm -f "$BTUSB_FILE"
+      unquiesce_btusb() {
+        rfkill unblock bluetooth 2>/dev/null || true
       }
 
       case "$1:''${SYSTEMD_SLEEP_ACTION:-}" in
@@ -520,7 +525,7 @@
           # ABORT_UPTIME). Written first: the zram swapoff below can take
           # minutes and all of it counts as in-kernel attempt time.
           printf '%s %s\n' "$(date +%s)" "$(now_uptime)" > "$HIBSTATE_FILE"
-          unbind_btusb
+          quiesce_btusb
           if grep -q '^/dev/zram0 ' /proc/swaps; then
             if swapoff /dev/zram0; then
               log "zram0 swapped out for hibernate image"
@@ -530,7 +535,7 @@
           fi
           ;;
         post:hibernate)
-          rebind_btusb
+          unquiesce_btusb
           if [ -b /dev/zram0 ] && ! grep -q '^/dev/zram0 ' /proc/swaps; then
             # swapoff above auto-resets zram to disksize 0, so a plain
             # swapon fails ("could not read swap header", journal
