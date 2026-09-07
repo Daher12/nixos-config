@@ -1,5 +1,6 @@
 # Local documentation (kept locally, not pushed)
 documentation/
+REPO_OVERVIEW.md
 
 # Nix build results
 result
@@ -12,6 +13,7 @@ result-*
 *.swp
 .idea/
 .vscode/
+.zcode/
 
 # Secrets
 *.age

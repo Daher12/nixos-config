@@ -225,12 +225,21 @@
     # the system-sleep hook below — systemd 260's built-in s2h silently
     # cancels itself on this machine (see REPO_OVERVIEW Known Gotchas).
     sleep.settings.Sleep = {
-      SuspendMode = "s2idle";
+      # systemd 260's sleep.conf key for /sys/power/mem_sleep is
+      # MemorySleepMode= — "SuspendMode=" is NOT a valid key and is silently
+      # ignored (journal 2026-09-07: every suspend tried "deep" first, the
+      # firmware rejected it in the same second, and systemd's own <5s
+      # retry fell back to s2idle). With the right key, systemd-sleep
+      # writes s2idle to mem_sleep directly and the dead deep attempt
+      # disappears.
+      MemorySleepMode = "s2idle";
       # Write the image, then power off via plain shutdown instead of the
       # firmware's ACPI-S4 platform path. This firmware's ACPI power
       # management is untrustworthy (broken S3, RTC wakealarm truncation
       # bug); the 2026-09-06 hibernate attempt died in exactly that
       # platform handoff. Resume from disk is identical either way.
+      # (Verified applied: /sys/power/disk showed [shutdown] selected after
+      # the 2026-09-07 04:00 hibernate.)
       HibernateMode = "shutdown";
     };
     tmpfiles.rules = [
@@ -293,9 +302,16 @@
     #   pre suspend   on battery: remember a deadline in /run and arm every
     #                 RTC wakealarm (0 first, then the epoch — the standard
     #                 dance; arming all rtcN because the ACPI-bound one isn't
-    #                 identifiable). On AC: no timer.
-    #   post suspend  woke >60s before deadline → manual wake, clear the
-    #                 alarm. Within the window + lid still closed + still on
+    #                 identifiable). A still-valid deadline from a previous
+    #                 cycle is kept (spurious-wake path, see post suspend).
+    #                 On AC: no timer.
+    #   post suspend  woke >60s before deadline + lid open or AC → manual
+    #                 wake, clear alarm and deadline. Woke >60s early with
+    #                 lid closed on battery → spurious wake (USB/BT etc.):
+    #                 clear only the alarm, KEEP the deadline so hibernate
+    #                 time doesn't slide +2h per wake; logind's holdoff
+    #                 re-suspends and pre-suspend re-arms the alarm.
+    #                 Within the window + lid still closed + still on
     #                 battery → schedule a hibernate 3s out via a transient
     #                 unit. The deferral is mandatory: `systemctl hibernate`
     #                 from inside this hook is always refused by logind
@@ -307,17 +323,31 @@
     #                 hibernate write — the only protection against logind
     #                 re-triggering the closed lid into a concurrent suspend
     #                 mid-write. Lid open or on AC → clear, stay awake.
-    #   pre hibernate zram keeps swapped pages resident in RAM; swap it out
-    #                 to the disk swapfile so those pages are neither in the
-    #                 image nor competing for free RAM (without this,
-    #                 hibernate dies with -ENOMEM above ~9.5G use — kernel
-    #                 log 2026-09-03). Best-effort: on swapoff failure,
-    #                 hibernate anyway.
-    #   post hibernate re-create zram via systemd-zram-setup@zram0.service
-    #                 (covers resume AND failed/aborted hibernate attempts;
-    #                 the pre-phase swapoff leaves the device at disksize 0,
-    #                 so a plain swapon cannot work) and clear leftover
-    #                 timer state.
+    #   pre hibernate stamp uptime+epoch for abort detection, unbind the
+    #                 AX210 btusb device (its freeze-phase suspend
+    #                 intermittently aborts the whole hibernate, see
+    #                 unbind_btusb), then swap zram out to the disk
+    #                 swapfile so those pages are neither in the image nor
+    #                 competing for free RAM (without this, hibernate dies
+    #                 with -ENOMEM above ~9.5G use — kernel log 2026-09-03).
+    #                 Best-effort: on swapoff failure, hibernate anyway.
+    #   post hibernate rebind btusb, re-create zram via
+    #                 systemd-zram-setup@zram0.service (covers resume AND
+    #                 aborted attempts; the pre-phase swapoff leaves the
+    #                 device at disksize 0, so a plain swapon cannot work),
+    #                 detect an in-place abort (uptime grew >45s during the
+    #                 attempt — a real resume restores the frozen clock),
+    #                 and respond by depth: amdgpu was suspended+unwound
+    #                 ("SMU is resuming" in the kernel log) → reboot when
+    #                 unattended / warn when the user is present (TTM
+    #                 corruption class, drm/amd #5470); shallow abort →
+    #                 re-suspend and retry in 2h. Clear leftover timer
+    #                 state either way.
+    #
+    # First full-cycle telemetry (2026-09-07 night): suspend 02:00, RTC
+    # wake 04:00 to the second, image written, powered off ~11h, resumed
+    # with amdgpu SMU clean — total battery cost 35%→34% (≈1%, s2idle
+    # drain ≈0.25-0.5%/h). The 2h DELAY is cheap; no reason to shorten.
     #
     # NixOS pitfall: system-sleep hooks run with a minimal PATH — `grep`
     # was missing while `swapon` happened to resolve (journal 2026-09-05),
@@ -335,12 +365,27 @@
       }:$PATH"
 
       DEADLINE_FILE=/run/yoga-s2h-deadline
+      HIBSTATE_FILE=/run/yoga-s2h-hibstate
+      BTUSB_FILE=/run/yoga-s2h-btusb-unbound
+      DECISION_FILE=/run/yoga-s2h-decision
       DELAY=7200 # suspend phase before hibernate (seconds)
       TOLERANCE=60 # wake within this window of the deadline = timer wake
+      # A hibernate attempt that runs entirely in this kernel (aborted in
+      # place) grows /proc/uptime by the whole reclaim+snapshot+unwind time
+      # (minutes); a real resume restores the frozen kernel's timekeeping,
+      # so uptime only grows by the image-load seconds. >45s in-kernel =
+      # abort. This matters because the kernel can abort a hibernate yet
+      # have the write() to /sys/power/state return success — observed
+      # 2026-09-06 23:38 (usb device failed during freeze-phase device
+      # suspend, no image written, systemd-hibernate.service NOT failed,
+      # no error logged) — so `systemctl is-failed` alone cannot detect
+      # kernel-level aborts; it is kept only as a secondary trigger.
+      ABORT_UPTIME=45
 
       log() { echo "yoga-s2h: $*"; }
       on_ac() { [ "$(cat /sys/class/power_supply/ADP0/online 2>/dev/null)" = "1" ]; }
       lid_open() { grep -qs '^state:.*open' /proc/acpi/button/lid/*/state; }
+      now_uptime() { cut -d' ' -f1 /proc/uptime | cut -d. -f1; }
       arm_rtcs() {
         armed=0
         for f in /sys/class/rtc/rtc*/wakealarm; do
@@ -350,28 +395,64 @@
         done
         [ "$armed" = 1 ] || log "WARNING: failed to arm any RTC wakealarm"
       }
-      disarm() {
+      clear_alarms() {
         for f in /sys/class/rtc/rtc*/wakealarm; do
           [ -w "$f" ] || continue
           echo 0 > "$f" 2>/dev/null
         done
+      }
+      disarm() {
+        clear_alarms
         rm -f "$DEADLINE_FILE"
+      }
+      # The AX210's Bluetooth USB function (8087:0032) intermittently fails
+      # hibernate's freeze-phase device suspend ("usb 3-3: WARN: invalid
+      # context state for evaluate context command", 2026-09-06 23:38) and
+      # aborts the whole hibernate mid-flight — the abort class that can
+      # corrupt amdgpu/TTM state. Plain suspend is unaffected (different
+      # callback: suspend, not freeze), so only hibernate unbinds it.
+      unbind_btusb() {
+        : > "$BTUSB_FILE"
+        for i in /sys/bus/usb/drivers/btusb/*:*; do
+          [ -e "$i" ] || continue
+          dev=$(dirname "$(readlink -f "$i")")
+          if [ "$(cat "$dev/idVendor" 2>/dev/null)" = "8087" ] && [ "$(cat "$dev/idProduct" 2>/dev/null)" = "0032" ]; then
+            iface=''${i##*/}
+            if echo "$iface" > /sys/bus/usb/drivers/btusb/unbind 2>/dev/null; then
+              echo "$iface" >> "$BTUSB_FILE"
+            fi
+          fi
+        done
+        [ -s "$BTUSB_FILE" ] && log "btusb unbound for hibernate: $(tr '\n' ' ' < "$BTUSB_FILE")"
+      }
+      rebind_btusb() {
+        [ -f "$BTUSB_FILE" ] || return 0
+        while IFS= read -r iface; do
+          [ -n "$iface" ] || continue
+          echo "$iface" > /sys/bus/usb/drivers/btusb/bind 2>/dev/null \
+            || log "WARNING: rebinding btusb interface $iface failed (Bluetooth down until reboot)"
+        done < "$BTUSB_FILE"
+        rm -f "$BTUSB_FILE"
       }
 
       case "$1:''${SYSTEMD_SLEEP_ACTION:-}" in
         recheck)
-          # Deferred from post:hibernate via systemd-run: if the hibernate
-          # attempt failed (unit in failed state) with the lid still closed
-          # on battery, suspend again instead of sitting awake draining.
-          if systemctl is-failed --quiet systemd-hibernate.service; then
-            if lid_open; then
-              log "hibernate failed but lid is open: leaving system awake"
-            elif on_ac; then
-              log "hibernate failed but on AC: leaving system awake"
-            else
-              log "hibernate failed with lid closed on battery: re-suspending (retry in 2h)"
-              systemctl suspend
-            fi
+          # Deferred from post:hibernate via systemd-run (logind refuses
+          # in-hook sleep/reboot requests). Acts on the decision recorded
+          # there, re-checked against fresh lid/AC state at fire time.
+          [ -r "$DECISION_FILE" ] || exit 0
+          decision=$(cat "$DECISION_FILE")
+          rm -f "$DECISION_FILE"
+          if lid_open; then
+            log "post-abort recheck: lid is open, staying awake ($decision dropped)"
+          elif on_ac; then
+            log "post-abort recheck: on AC, staying awake ($decision dropped)"
+          elif [ "$decision" = "reboot" ]; then
+            log "rebooting after deep-aborted hibernate (amdgpu was suspended+unwound)"
+            systemctl reboot
+          else
+            log "re-suspending after aborted hibernate (hibernate retry in 2h)"
+            systemctl suspend
           fi
           ;;
         pre:suspend)
@@ -379,7 +460,22 @@
             disarm
             log "suspend on AC: no hibernate timer"
           else
-            deadline=$(( $(date +%s) + DELAY ))
+            now=$(date +%s)
+            deadline=""
+            if [ -r "$DEADLINE_FILE" ]; then
+              pending=$(cat "$DEADLINE_FILE")
+              # A wake with the lid still closed wasn't the user (see
+              # post:suspend) — keep the original deadline instead of
+              # pushing hibernation out by another full DELAY per
+              # spurious wake.
+              if [ "$pending" -gt "$now" ] 2>/dev/null && ! lid_open; then
+                deadline=$pending
+                log "keeping pending hibernate deadline (spurious-wake path)"
+              fi
+            fi
+            if [ -z "$deadline" ]; then
+              deadline=$(( now + DELAY ))
+            fi
             echo "$deadline" > "$DEADLINE_FILE"
             arm_rtcs "$deadline"
             log "suspend on battery: hibernate at $(date -d @"$deadline" 2>/dev/null || echo "$deadline")"
@@ -391,8 +487,18 @@
           now=$(date +%s)
           remaining=$(( deadline - now ))
           if [ "$remaining" -gt "$TOLERANCE" ]; then
-            disarm
-            log "manual wake ''${remaining}s before deadline: timer cleared"
+            if lid_open || on_ac; then
+              disarm
+              log "manual wake ''${remaining}s before deadline: timer cleared"
+            else
+              # Lid still closed + still on battery + far from the
+              # deadline = spurious wake (USB/BT device, etc.), not the
+              # user. Clear only the RTC alarm (pre:suspend on logind's
+              # re-suspend re-arms it); KEEP the deadline file so the
+              # hibernate time doesn't slide out by 2h per wake.
+              clear_alarms
+              log "spurious wake ''${remaining}s before deadline: deadline kept, will re-suspend"
+            fi
           elif lid_open; then
             disarm
             log "timer reached but lid is open: staying awake"
@@ -410,6 +516,11 @@
           fi
           ;;
         pre:hibernate)
+          # Timestamps for abort detection in post:hibernate (see
+          # ABORT_UPTIME). Written first: the zram swapoff below can take
+          # minutes and all of it counts as in-kernel attempt time.
+          printf '%s %s\n' "$(date +%s)" "$(now_uptime)" > "$HIBSTATE_FILE"
+          unbind_btusb
           if grep -q '^/dev/zram0 ' /proc/swaps; then
             if swapoff /dev/zram0; then
               log "zram0 swapped out for hibernate image"
@@ -419,6 +530,7 @@
           fi
           ;;
         post:hibernate)
+          rebind_btusb
           if [ -b /dev/zram0 ] && ! grep -q '^/dev/zram0 ' /proc/swaps; then
             # swapoff above auto-resets zram to disksize 0, so a plain
             # swapon fails ("could not read swap header", journal
@@ -432,17 +544,54 @@
               log "WARNING: re-creating zram0 failed; disk swapfile still active"
             fi
           fi
-          # Self-heal after a failed/aborted hibernate (this branch also
-          # runs then): schedule a recheck that re-suspends if the lid is
-          # still closed on battery, so the machine doesn't sit awake
-          # draining — the fresh cycle arms a new 2h deadline and retries.
-          # The is-failed guard in the recheck makes it a no-op after a
-          # successful resume.
-          if ! lid_open && ! on_ac; then
-            if systemd-run --collect --unit=yoga-s2h-recheck --on-active=15s -- /etc/systemd/system-sleep/yoga-s2h recheck; then
-              log "failed-hibernate recheck scheduled (15s)"
+          # Abort detection + proportional response. Two depths, from the
+          # two observed aborts:
+          #   shallow (2026-09-06 23:38): a USB device failed during
+          #     freeze-phase device suspend, amdgpu never suspended, the
+          #     machine ran all night afterwards without incident.
+          #   deep (2026-09-06 01:26 incident): amdgpu DID suspend and was
+          #     unwound — that state carries the TTM LRU corruption that
+          #     oopsed 20 min later and hard-locked the machine (drm/amd
+          #     #5470 class). Marker: "SMU is resuming" in the kernel log
+          #     since the attempt started = amdgpu went down and came back.
+          # Deep abort, unattended (lid closed, battery): reboot — the
+          # documented mitigation, and a hard lock loses the session
+          # anyway. Deep abort with the user present (lid open/AC): warn
+          # loudly and stay up. Shallow abort unattended: re-suspend and
+          # retry in 2h. On a clean resume none of this triggers.
+          decision=""
+          if [ -r "$HIBSTATE_FILE" ]; then
+            read -r hib_epoch hib_uptime < "$HIBSTATE_FILE"
+            rm -f "$HIBSTATE_FILE"
+            if [ $(( $(now_uptime) - hib_uptime )) -gt "$ABORT_UPTIME" ]; then
+              if journalctl -k --no-pager --since "@$hib_epoch" 2>/dev/null | grep -q "SMU is resuming"; then
+                decision=reboot
+              else
+                decision=resuspend
+              fi
+            fi
+          fi
+          # Secondary trigger: attempts systemd itself failed (e.g. the
+          # 2026-09-03 -ENOMEM abort, too fast for the uptime check).
+          if [ -z "$decision" ] && systemctl is-failed --quiet systemd-hibernate.service; then
+            decision=resuspend
+          fi
+          if [ -n "$decision" ]; then
+            echo "$decision" > "$DECISION_FILE"
+            if [ "$decision" = "reboot" ]; then
+              log "hibernate aborted AFTER amdgpu suspend (TTM corruption risk): reboot pending"
+              wall "yoga-s2h: hibernate aborted mid-GPU-suspend; rebooting to avoid amdgpu/TTM corruption (drm/amd #5470 class)" 2>/dev/null || true
             else
-              log "WARNING: failed to schedule failed-hibernate recheck"
+              log "hibernate aborted in-kernel (shallow unwind): re-suspend pending"
+            fi
+            if ! lid_open && ! on_ac; then
+              if systemd-run --collect --unit=yoga-s2h-recheck --on-active=15s -- /etc/systemd/system-sleep/yoga-s2h recheck; then
+                log "abort response ($decision) deferred 15s"
+              else
+                log "WARNING: failed to schedule abort recheck"
+              fi
+            else
+              log "lid open or on AC after aborted hibernate: leaving system awake"
             fi
           fi
           disarm

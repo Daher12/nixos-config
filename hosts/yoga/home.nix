@@ -116,6 +116,8 @@ in
           # ZCode (Electron AppImage): auth/session + workspace state.
           # Verify actual dirname after first launch: ls ~/.config | grep -i zcode
           ".config/ZCode"
+          # ZCode auth/history lives here, not in ~/.config/ZCode
+          ".zcode"
           ".local/state/wireplumber"
 
           ".local/share/applications"
