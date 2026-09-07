@@ -431,8 +431,14 @@
           dev=''${v%idVendor}
           dev=''${dev%/}
           if [ "$(cat "$v" 2>/dev/null)" = "8087" ] && [ "$(cat "$dev/idProduct" 2>/dev/null)" = "0032" ]; then
-            pcif=$(echo "$dev" | grep -oE '0000:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f]' | tail -n 1)
-            if [ -n "$pcif" ] && grep -q xhci_hcd "/sys/bus/pci/devices/$pcif/driver" 2>/dev/null; then
+            # /sys/bus/usb/devices/3-3 is a symlink — resolve it, the PCI
+            # function lives in the real path (matching the symlink path
+            # finds nothing and the rebind is silently skipped; observed
+            # 2026-09-07 23:42).
+            pcif=$(readlink -f "$dev" | grep -oE '0000:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f]' | tail -n 1)
+            if [ -z "$pcif" ]; then
+              log "WARNING: could not resolve the xhci controller for 8087:0032 — skipping controller rebind"
+            elif grep -q xhci_hcd "/sys/bus/pci/devices/$pcif/driver" 2>/dev/null; then
               if echo "$pcif" > /sys/bus/pci/drivers/xhci_hcd/unbind 2>/dev/null; then
                 sleep 2
                 if echo "$pcif" > /sys/bus/pci/drivers/xhci_hcd/bind 2>/dev/null; then
