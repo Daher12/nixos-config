@@ -292,6 +292,7 @@
     systemPackages = [
       pkgs.android-tools
       pkgs.libva-utils
+      pkgs.vulkan-tools
     ];
 
     persistence."/persist/system" = {
