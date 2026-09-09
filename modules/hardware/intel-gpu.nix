@@ -31,6 +31,10 @@ in
             ++ lib.optional cfg.enableOpenCL pkgs.intel-compute-runtime
             ++ lib.optional cfg.enableVpl pkgs.vpl-gpu-rt;
         };
+
+        # Intel hosts run thermald (previously set per-host on latitude and
+        # nix-media); mkDefault so a host can still opt out.
+        services.thermald.enable = lib.mkDefault true;
       }
 
       # Firmware: Conditional Enablement via mkMerge (Type-safe)

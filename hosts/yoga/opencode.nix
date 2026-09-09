@@ -83,19 +83,8 @@
               };
             };
           };
-          # orcarouter = {
-          #   npm = "@ai-sdk/openai-compatible";
-          #   name = "OrcaRouter";
-          #   options = {
-          #     baseURL = "https://api.orcarouter.ai/v1";
-          #     apiKey = "{env:ORCAROUTER_API_KEY}";
-          #   };
-          #   models = {
-          #     "orcarouter/auto" = {
-          #       name = "OrcaRouter Auto";
-          #     };
-          #   };
-          # };
+          # orcarouter provider removed 2026-09-09 along with its
+          # orcarouter_api_key sops secret (recoverable from git history).
         };
         permission = {
           edit = "ask";
@@ -138,7 +127,7 @@
           mikrotik = {
             type = "local";
             # Fixed nix package (pkgs/mikromcp.nix) — no npx/network at runtime.
-            # Toggle via `hosts/yoga/default.nix:25` (custom.mikrotikMcp.enable).
+            # Toggle via `custom.mikrotikMcp.enable` in `hosts/yoga/default.nix`.
             command = [
               "${lib.getExe pkgs.mikromcp}"
               "serve"

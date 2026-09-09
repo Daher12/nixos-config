@@ -48,7 +48,8 @@ in
   };
 
   system.stateVersion = "24.05";
-  hardware.isPhysical = true;
+
+  core.openssh.enable = true;
 
   boot = {
     loader.systemd-boot = {
@@ -188,22 +189,17 @@ in
     '';
 
     logrotate.enable = true;
+    # sshd hardening (PasswordAuthentication/PermitRootLogin/UseDns) via core.openssh
     openssh = {
-      enable = true;
       ports = [ sshPort ];
       openFirewall = true;
-      settings = {
-        PasswordAuthentication = false;
-        PermitRootLogin = "no";
-        UseDns = false;
-      };
     };
     fstrim = {
       enable = true;
       interval = "weekly";
     };
 
-    thermald.enable = true;
+    # thermald comes from hardware.intel-gpu (mkDefault)
     # Server host — no audio stack needed. Overrides mkDefault in modules/core/audio.nix.
     pipewire.enable = false;
     pulseaudio.enable = false;

@@ -15,6 +15,8 @@ in
 
     serverIp = lib.mkOption {
       type = lib.types.str;
+      # Fleet constant: Tailscale IP of nix-media, the only NFS server.
+      default = "100.123.189.29";
       description = "NFS Server IP or Hostname (e.g., Tailscale IP)";
       example = "100.123.189.29";
     };

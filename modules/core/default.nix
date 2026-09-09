@@ -6,6 +6,7 @@
     ./locale.nix
     ./networking.nix
     ./nix.nix
+    ./openssh.nix
     ./shell.nix
     ./systemd.nix
     ./sysctl.nix

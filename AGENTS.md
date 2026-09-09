@@ -13,7 +13,7 @@ per-file map of the repo (including known pitfalls).
 
 - `hosts/<name>/` — per-host NixOS modules (`default.nix`, hardware/disks, home-manager user config in `home.nix`)
 - `home/` — shared home-manager modules (browsers, git, terminal, theme), imported via `../../home`
-- `modules/`, `features/`, `core/` — shared NixOS option modules
+- `modules/` — shared NixOS option modules (`modules/core`, `modules/features`, `modules/hardware`, `modules/roles`)
 - `profiles/` — hardware/system profiles
 - `pkgs/` — custom nix packages (e.g. `mikromcp.nix`)
 - `secrets/` — sops-nix encrypted secrets (hosts/yoga.yaml, hosts/latitude.yaml, hosts/nix-media.yaml)

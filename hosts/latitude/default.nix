@@ -50,11 +50,11 @@ in
         size = "2G";
       };
     };
+    openssh.enable = true;
   };
 
   hardware = {
     intel-gpu.enable = true;
-    isPhysical = true;
     nvidia-disable.enable = true;
   };
   features = {
@@ -68,10 +68,8 @@ in
       ];
     };
 
-    nas = {
-      enable = true;
-      serverIp = "100.123.189.29"; # Tailscale IP of nix-media
-    };
+    # serverIp uses the features.nas option default (Tailscale IP of nix-media)
+    nas.enable = true;
 
     desktop-gnome = {
       autoLogin = true;
@@ -100,16 +98,9 @@ in
     };
   };
   services = {
-    thermald.enable = true;
+    # thermald comes from hardware.intel-gpu (mkDefault)
 
-    openssh = {
-      enable = true;
-      settings = {
-        PasswordAuthentication = false;
-        PermitRootLogin = "no";
-      };
-    };
-
+    # sshd hardening via core.openssh
     preload-ng = {
       enable = true;
       settings = {

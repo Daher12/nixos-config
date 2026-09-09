@@ -23,7 +23,12 @@ let
     (flakeRoot + "/modules/core")
     (flakeRoot + "/modules/features")
   ]
-  ++ nixpkgs.lib.optional withHardware (flakeRoot + "/modules/hardware");
+  ++ nixpkgs.lib.optional withHardware (flakeRoot + "/modules/hardware")
+  # Physical-machine optimizations (fwupd, firmware) — every current host is
+  # bare metal; a future VM host would pass withHardware = false.
+  ++ nixpkgs.lib.optional withHardware {
+    hardware.isPhysical = nixpkgs.lib.mkDefault true;
+  };
 
   commonArgs = {
     inherit

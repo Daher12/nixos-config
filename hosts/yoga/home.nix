@@ -180,12 +180,6 @@ in
       fish.functions.nus = ''
         "$HOME/nixos-config/scripts/update-safe" $argv
       '';
-
-      fish.interactiveShellInit = ''
-        if test -f /run/secrets/orcarouter_api_key
-          set -gx ORCAROUTER_API_KEY (cat /run/secrets/orcarouter_api_key)
-        end
-      '';
     };
   };
 }

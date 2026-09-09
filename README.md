@@ -43,7 +43,7 @@
 | **Security** | Secure Boot via Lanzaboote, SOPS-nix encrypted secrets |
 | **Storage** | Btrfs with automated maintenance, ZRAM |
 | **Networking** | Tailscale mesh, systemd-networkd optimization |
-| **Virtualization** | QEMU/KVM with AMD GPU passthrough |
+| **Virtualization** | QEMU/KVM with virt-manager (SPICE guests) |
 | **Power** | TLP, Ryzen TDP control, oomd |
 
 </details>
@@ -68,7 +68,7 @@
 |----------|---------------|
 | **Secrets** | SOPS-nix with age keys |
 | **CI/CD** | GitHub Actions — lint (`statix`, `deadnix`, `nixfmt`), build checks, flake updates |
-| **Disk** | Disko declarative partitioning, impermanence (root tmpfs) |
+| **Disk** | Disko declarative partitioning, impermanence (Btrfs root rollback) |
 | **Nix** | Lix package manager, Flakes, modular `mkHost` abstraction |
 
 </details>
@@ -114,8 +114,13 @@ nixos-rebuild switch --flake .#$(hostname)
 ### Update Flake Inputs
 
 ```bash
-nix flake update
-nix flake check
+# Safe pipeline: updates only the safe inputs (lanzaboote and opencode stay
+# locked), lints, builds, and optionally activates.
+./scripts/update-safe <host> [build-only|test|boot|switch]
+
+# Bare `nix flake update` bumps ALL inputs including locked ones — use it
+# deliberately, not casually:
+nix flake update && nix flake check
 ```
 
 ### Lint & Format

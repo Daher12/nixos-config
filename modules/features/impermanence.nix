@@ -56,6 +56,10 @@ in
         "${pkgs.util-linux}/bin/mount"
         "${pkgs.util-linux}/bin/umount"
         "${pkgs.coreutils}/bin/chmod"
+        # mkdir -p /btrfs in the rollback script. Present in the initrd via
+        # the default coreutils initrdBin today; listed explicitly so a
+        # nixpkgs default change can't break boot.
+        "${pkgs.coreutils}/bin/mkdir"
       ];
 
       services = {

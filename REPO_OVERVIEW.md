@@ -36,7 +36,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 │   └── roles/                 # Server roles (media server NFS)
 ├── profiles/                  # Role bundles applied via mkHost (laptop, desktop-gnome)
 ├── hosts/
-│   ├── yoga/                  # Host-specific: default.nix, disks.nix (disko), home.nix
+│   ├── yoga/                  # Host-specific: default.nix, disks.nix (disko), home.nix, opencode.nix, yoga-s2h.nix (suspend-then-hibernate hook)
 │   ├── latitude/              # Host-specific: default.nix, hardware-configuration.nix, home.nix
 │   └── nix-media/             # Host-specific: default.nix, docker.nix, monitoring.nix, caddy.nix, etc.
 ├── home/                      # Shared Home Manager: browsers, terminal, theme, git
@@ -55,10 +55,11 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | File | Purpose |
 |------|---------|
 | `audio.nix` | PipeWire audio, ALSA, PulseAudio, JACK, 48kHz clock |
-| `boot.nix` | systemd-boot, Plymouth, tmpfs root, SSD scheduler udev rule |
+| `boot.nix` | systemd-boot, Plymouth, `/tmp` tmpfs, SSD scheduler udev rule |
 | `input.nix` | libinput input handling |
 | `locale.nix` | Timezone, locale |
-| `networking.nix` | Base networking (systemd-resolved, Tailscale, firewall) |
+| `networking.nix` | Base networking (NetworkManager, iwd, systemd-resolved) |
+| `openssh.nix` | sshd with fleet-hardened defaults (PasswordAuthentication=no, PermitRootLogin=no, UseDns=no); hosts set `core.openssh.enable` |
 | `nix.nix` | Flakes, caches (nixpkgs cache, cachix), GC, store optimization |
 | `shell.nix` | zoxide shell integration |
 | `sysctl.nix` | Kernel parameters |
@@ -107,7 +108,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 
 ## How Hosts Are Built
 
-`lib/mkHost.nix` is the host builder. Every host is defined in `flake.nix` like:
+`lib/mkHost.nix` is the host builder. Every host is defined in `flake.nix` like (all `mkHost` options shown; `profiles`, `withHardware` and `lix` have defaults — e.g. yoga omits `lix`, which defaults to `true`):
 
 ```nix
 nixosConfigurations.yoga = mkHost {
@@ -209,7 +210,7 @@ Steps:
 4. `nix build` — builds the host's toplevel derivation
 5. Optionally activates: `test` (temporary), `boot` (next boot), `switch` (live)
 
-Safe inputs are updated; locked inputs (lanzaboote) are NOT updated to avoid surprise breakage.
+Safe inputs are updated; locked inputs (lanzaboote, opencode) are NOT updated to avoid surprise breakage.
 
 ---
 
@@ -284,7 +285,7 @@ sudo mv /mnt/@blank-tmp /mnt/@blank
 sudo umount /mnt
 ```
 
-**Initrd constraint:** The rollback script runs in the systemd initrd. Only `btrfs`, `mount`, `umount`, `chmod` are available — no `grep`, `awk`, `sed`, `find`, `ls`. Use bash builtins for control flow.
+**Initrd constraint:** The rollback script runs in the systemd initrd. The module guarantees exactly `btrfs`, `mount`, `umount`, `chmod`, `mkdir` via `boot.initrd.systemd.storePaths` (`modules/features/impermanence.nix`) — write the script against those. Note that on 26.05 the systemd initrd *also* ships coreutils/systemd userspace by default (`initrdBin`), so more is available in practice, but don't rely on it; stick to the guaranteed set (plus bash builtins for control flow — no `grep`, `awk`, `sed`, `find`, `ls`).
 
 ---
 
@@ -298,7 +299,7 @@ sudo umount /mnt
 
 **Why cold boot works, reboot fails:** Cold boot loads amdgpu firmware from disk (~3-5s), simpledrm survives long enough. Reboot loads from CPU/RAM caches (<1s), simpledrm is gone before Plymouth starts.
 
-**Current state:** `amdgpu` is blacklisted in initrd via `initcall_blacklist=amdgpu_init` in `hosts/yoga/default.nix`. Plymouth attaches to simpledrm deterministically. amdgpu loads normally after switch-root.
+**Current state:** amdgpu is kept out of the initrd by `hosts/yoga/default.nix`: a modprobe.d blacklist (`boot.initrd.systemd.contents."/etc/modprobe.d/no-amdgpu.conf"`) blocks udev modalias auto-load, and `boot.initrd.kernelModules = lib.mkForce [...]` pins the initrd allowlist (btrfs, dm_mod, kvm, kvm-amd). Plymouth attaches to simpledrm deterministically. amdgpu loads normally after switch-root.
 
 **Verification:**
 ```sh
@@ -340,7 +341,7 @@ Lid on battery suspends, then hibernates after 2h. Implemented by the `yoga-s2h`
 
 **The hook instead:** on every battery suspend (lid or GNOME idle — both plain `suspend`) it stores a deadline in `/run/yoga-s2h-deadline` and arms every `/sys/class/rtc/rtc*/wakealarm` (write `0` first, then the epoch value). On resume: more than 60s before the deadline → manual wake (lid open/AC: clear everything) or spurious wake (lid still closed on battery: clear only the RTC alarm, **keep the deadline** so hibernation time doesn't slide out 2h per wake; logind's holdoff re-suspends); within the window + lid still closed + still on battery → schedule the hibernate 3s out via a transient unit (`systemd-run --on-active=3s systemctl hibernate` — see the logind note below). The 60s tolerance makes the timer-vs-manual classification immune to the same second-granularity race that breaks systemd's implementation (the hook's deadline is whole seconds, same as the RTC alarm). Known limits: low battery does not trigger early hibernation (this firmware exposes no ACPI battery alarm — the reason systemd ran its estimation loop at all); if AC is plugged during suspend without waking the machine, it stays awake at the deadline (logged) rather than hibernating.
 
-**logind refuses sleep/reboot requests made from inside sleep hooks (systemd 260):** `systemctl hibernate` called by a `post suspend` hook is always rejected — logind holds `delayed_action` until the suspend *job* completes (`match_job_removed()`), and that happens only after the post hooks exit. First observed 2026-09-06 ("Call to Hibernate failed: Action suspend-then-hibernate already in progress"), and it applies equally to plain suspends and to reboot requests. Hence the 3s deferral through a transient unit: by then the job is gone, logind accepts the request, and — crucially — it re-arms `delayed_action` plus the 30s lid holdoff for the whole hibernate write, which is the only thing preventing logind from re-triggering the still-closed lid into a concurrent suspend mid-image-write (starting `systemd-hibernate.service` directly would dodge the refusal but lose exactly that protection; logind does not track directly-started sleep units). A failed/aborted hibernate self-heals via the same deferral: `post:hibernate` records a decision and schedules a 15s `recheck` self-invocation that re-evaluates lid/AC and executes it (see the abort-handling notes below).
+**logind refuses sleep/reboot requests made from inside sleep hooks (systemd 260):** `systemctl hibernate` called by a `post suspend` hook is always rejected — logind holds `delayed_action` until the suspend *job* completes (`match_job_removed()`), and that happens only after the post hooks exit. First observed 2026-09-06 ("Call to Hibernate failed: Action suspend-then-hibernate already in progress"), and it applies equally to plain suspends and to reboot requests. Hence the 3s deferral through a transient unit: by then the job is gone, logind accepts the request, and — crucially — it re-arms `delayed_action` plus the 30s lid holdoff for the whole hibernate write, which is the only thing preventing logind from re-triggering the still-closed lid into a concurrent suspend mid-image-write (starting `systemd-hibernate.service` directly would dodge the refusal but lose exactly that protection; logind does not track directly-started sleep units). A failed/aborted hibernate self-heals via the same deferral: `post:hibernate` records a decision and schedules a 15s `recheck` self-invocation that re-evaluates lid/AC and executes it (see the abort-handling notes below). **Fixed 2026-09-09:** the deferred unit runs the hook with `$1=recheck` and no `SYSTEMD_SLEEP_ACTION`, so the case word is `recheck:` — the old bare `recheck)` pattern never matched and the abort response silently never fired; the pattern is now `recheck:*)`.
 
 **sleep.conf key names (systemd 260):** the mem_sleep selector is `MemorySleepMode=`, *not* `SuspendMode=` — that key does not exist and unknown keys are silently ignored. Symptom (2026-09-07 journal): every suspend logged `PM: suspend entry (deep)` → instant exit → `PM: suspend entry (s2idle)` — the firmware rejecting S3, then systemd's own <5s-retry falling back. With `MemorySleepMode=s2idle` systemd-sleep writes `s2idle` to `/sys/power/mem_sleep` directly. (`HibernateMode=` *is* valid; `/sys/power/disk` showed `[shutdown]` selected after the 2026-09-07 04:00 hibernate.) Verify after a rebuild+reboot: `systemd-analyze cat-config systemd/sleep.conf` and a single `PM: suspend entry (s2idle)` line per suspend in the journal.
 
