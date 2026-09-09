@@ -32,7 +32,10 @@
 
   # --- Hardware & Boot ---
   boot = {
-    loader.timeout = 0;
+    # TEMPORARY (hibernation experiment): visible boot menu as an escape hatch
+    # while testing linuxPackages_latest. Revert to 0 when the experiment
+    # concludes.
+    loader.timeout = 3;
     # Resume device for hibernation: the LUKS device holding the swapfile
     # (/var/lib/swap/swapfile). Kernel param `resume` comes from this; the
     # btrfs-specific `resume_offset` is set in features.kernel.extraParams.
@@ -160,6 +163,12 @@
       };
     };
 
+    # Hibernation experiment (2026-09-09): zen 7.1 aborted every hibernate in
+    # the kernel freeze pass ("usb 3-3: WARN: invalid context state", deep
+    # amdgpu unwind — REPO_OVERVIEW Known Gotchas); a vanilla mainline kernel
+    # is the one untested kernel avenue in the restart recipe. Host-local
+    # override so latitude keeps the profile's zen default.
+    kernel.variant = "latest";
     kernel.extraParams = [
       "zswap.enabled=0"
       "amd_pstate=active"

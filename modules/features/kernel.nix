@@ -9,6 +9,7 @@ let
   cfg = config.features.kernel;
   kernelPackages = {
     default = pkgs.linuxPackages;
+    latest = pkgs.linuxPackages_latest;
     zen = pkgs.linuxPackages_zen;
     hardened = pkgs.linuxPackages_hardened;
     lqx = pkgs.linuxPackages_lqx;
@@ -24,6 +25,7 @@ in
     variant = lib.mkOption {
       type = lib.types.enum [
         "default"
+        "latest"
         "zen"
         "hardened"
         "lqx"
