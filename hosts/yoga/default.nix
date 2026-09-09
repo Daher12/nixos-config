@@ -32,10 +32,7 @@
 
   # --- Hardware & Boot ---
   boot = {
-    # TEMPORARY (hibernation experiment): visible boot menu as an escape hatch
-    # while testing linuxPackages_latest. Revert to 0 when the experiment
-    # concludes.
-    loader.timeout = 3;
+    loader.timeout = 0;
     # Resume device for hibernation: the LUKS device holding the swapfile
     # (/var/lib/swap/swapfile). Kernel param `resume` comes from this; the
     # btrfs-specific `resume_offset` is set in features.kernel.extraParams.
@@ -67,9 +64,9 @@
     };
     kernelModules = [ "ryzen_smu" ];
     # nixpkgs pins ryzen-smu at 2025-10-22, which predates the mainline x86
-    # cpuid API split — kernel 7.2 removed the implicit <asm/cpuid.h> include
-    # chain, so the module fails to build against linuxPackages_latest with
-    # "implicit declaration of function 'cpuid_eax'". Pin upstream's own fix
+    # cpuid API split in kernel 7.2 (the declarations moved out of the old
+    # include chain into asm/cpuid/api.h), so the module fails to build on
+    # any 7.2-based kernel — zen tracks 7.2 now too. Pin upstream's own fix
     # (d298366, "Fix cpuid include on 7.2+ kernels", 2026-08-15); drop this
     # override once nixpkgs moves past it.
     extraModulePackages = [
@@ -179,12 +176,6 @@
       };
     };
 
-    # Hibernation experiment (2026-09-09): zen 7.1 aborted every hibernate in
-    # the kernel freeze pass ("usb 3-3: WARN: invalid context state", deep
-    # amdgpu unwind — REPO_OVERVIEW Known Gotchas); a vanilla mainline kernel
-    # is the one untested kernel avenue in the restart recipe. Host-local
-    # override so latitude keeps the profile's zen default.
-    kernel.variant = "latest";
     kernel.extraParams = [
       "zswap.enabled=0"
       "amd_pstate=active"
