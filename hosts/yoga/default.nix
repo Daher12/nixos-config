@@ -66,7 +66,23 @@
       '';
     };
     kernelModules = [ "ryzen_smu" ];
-    extraModulePackages = [ config.boot.kernelPackages."ryzen-smu" ];
+    # nixpkgs pins ryzen-smu at 2025-10-22, which predates the mainline x86
+    # cpuid API split — kernel 7.2 removed the implicit <asm/cpuid.h> include
+    # chain, so the module fails to build against linuxPackages_latest with
+    # "implicit declaration of function 'cpuid_eax'". Pin upstream's own fix
+    # (d298366, "Fix cpuid include on 7.2+ kernels", 2026-08-15); drop this
+    # override once nixpkgs moves past it.
+    extraModulePackages = [
+      (config.boot.kernelPackages."ryzen-smu".overrideAttrs (old: {
+        version = "0.1.7-unstable-2026-08-15";
+        src = pkgs.fetchFromGitHub {
+          owner = "amkillam";
+          repo = "ryzen_smu";
+          rev = "d2983668300dd2a598e5a7dc40e71ce0678cc270";
+          hash = "sha256-OmEoycRO3hGkqueLa0i6AzmwMEbdkkPrwJkMyYxOTek=";
+        };
+      }))
+    ];
     blacklistedKernelModules = [ "ipheth" ];
   };
 
