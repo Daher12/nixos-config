@@ -6,6 +6,7 @@
     ./fonts.nix
     ./impermanence.nix
     ./kernel.nix
+    ./litellm.nix
     ./nas.nix
     ./network-optimization.nix
     ./onlyoffice.nix

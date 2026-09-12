@@ -92,6 +92,12 @@
         } "find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out";
       };
 
+      # VM tests — run explicitly, not part of `checks` (CI stays fast):
+      # nix build .#nixosTests.x86_64-linux.litellm-gateway / .ssh-firewall
+      nixosTests.${system} = pkgs.callPackage ./tests/litellm-firewall.nix {
+        litellmModule = ./modules/features/litellm.nix;
+      };
+
       nixosConfigurations = {
         # Physical Laptop: Yoga (AMD)
         yoga = mkHost {
