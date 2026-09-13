@@ -1,8 +1,31 @@
+# SOPS key inventory — full architecture, editing how-to and rotation
+# procedures: SOPS_RUNBOOK.md (repo root)
+#
+# identities:
+#   admin_david     operator's personal age key. Private key lives on yoga at
+#                   ~/.config/sops/age/keys.txt (persisted). Recipient on every
+#                   file so secrets can be created/edited from yoga as user dk.
+#   host_yoga       DERIVED from yoga's persisted ed25519 SSH host key
+#                   (ssh-to-age of /persist/system/etc/ssh/ssh_host_ed25519_key.pub,
+#                   fingerprint SHA256:P400w2IPh+Fgrbu/JK1vwd6aAxP1UdtYG8cmCw7jhdU).
+#                   yoga sets features.sops.method = "ssh" — the device decrypts
+#                   with its SSH host key; no key.txt ever needs provisioning and
+#                   the identity survives impermanence wipes and reinstalls.
+#   host_nix-media  classic age key.txt identity at /var/lib/sops-nix/key.txt
+#                   on the device (provisioned; no impermanence on that host).
+#   host_latitude   classic age key.txt identity at /var/lib/sops-nix/key.txt
+#                   on the device (provisioned; no impermanence on that host).
+#                   Its file is still encrypted to the retired admin key —
+#                   pending re-encryption per SOPS_RUNBOOK.md §3.
+#
+# NOTE: dk_password_hash is consumed on EVERY sops-enabled host via
+# modules/core/users.nix ("${mainUser}_password_hash") — do not remove it
+# from any per-host file.
 keys:
   - &admin_david age1ff0ly0tej0yk39ycfq0dz0skmvqhe3tzuhdyaq2hkl52enu68sqqrr90s2
-  - &host_yoga  age126lkzv0c60kqkva5qzmkuknlalgly93v4e3v7xwkwzrlq74mlvaqpl5kfs
-  - &host_latitude age1n6s0w4k6p77220qhf3gjv29czcrsq3tpalwpualwveypm7wjtdpshtcd8g
+  - &host_yoga age12eq9rtu6m5k9s0e9q56h64k3hwys7rgplt0435xggzs979z84uus8d03we
   - &host_nix-media age1ntm37dt5h4qxqgv34ytjlw6wty560kzathxvlgp4gjx76s2ydc4qspjsm3
+  - &host_latitude age1n6s0w4k6p77220qhf3gjv29czcrsq3tpalwpualwveypm7wjtdpshtcd8g
 
 creation_rules:
   - path_regex: secrets/hosts/yoga\.yaml$
@@ -10,13 +33,13 @@ creation_rules:
       - age:
           - *admin_david
           - *host_yoga
-  - path_regex: secrets/hosts/latitude\.yaml$
-    key_groups:
-      - age:
-          - *admin_david
-          - *host_latitude
   - path_regex: secrets/hosts/nix-media\.yaml$
     key_groups:
       - age:
           - *admin_david
           - *host_nix-media
+  - path_regex: secrets/hosts/latitude\.yaml$
+    key_groups:
+      - age:
+          - *admin_david
+          - *host_latitude

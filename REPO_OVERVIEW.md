@@ -150,10 +150,12 @@ Host-specific home additions go in `hosts/<name>/home.nix`.
 
 ## Secrets (SOPS)
 
-- **Config:** `.sops.yaml` — age key-based, per-host key files
-- **Secrets:** `secrets/hosts/{yoga,latitude,nix-media}.yaml`
+- **Config:** `.sops.yaml` — every file encrypted to the operator key + the host's own identity
+- **Secrets:** `secrets/hosts/{yoga,latitude,nix-media}.yaml` (`dk_password_hash` is load-bearing on every host — modules/core/users.nix)
 - **Usage:** Imported via `modules/features/sops.nix`, accessed as `config.sops.secrets.<name>.path`
-- **Key:** `age1ff0ly0tej0yk39ycfq0dz0skmvqhe3tzuhdyaq2hkl52enu68sqqrr90s2`
+- **Operator key:** `age1ff0ly0tej0yk39ycfq0dz0skmvqhe3tzuhdyaq2hkl52enu68sqqrr90s2` (private on yoga, `~/.config/sops/age/keys.txt`)
+- **Host identities:** yoga = ssh-derived (`method = "ssh"`, no key.txt — identity is the persisted SSH host key); latitude + nix-media = classic `key.txt` on-device
+- **Full reference:** `SOPS_RUNBOOK.md` (editing, re-encryption, rotation, troubleshooting)
 
 ---
 

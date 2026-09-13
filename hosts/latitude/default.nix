@@ -58,6 +58,10 @@ in
     nvidia-disable.enable = true;
   };
   features = {
+    # NOTE: dk_password_hash from secrets/hosts/latitude.yaml is load-bearing
+    # (modules/core/users.nix wires it whenever sops is enabled). The file is
+    # still encrypted to the retired admin key — re-encrypt per
+    # SOPS_RUNBOOK.md §3 (drops the two dead wifi PSKs, keeps the hash).
     sops.enable = true;
     filesystem = {
       type = "ext4";

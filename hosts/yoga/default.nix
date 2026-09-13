@@ -175,7 +175,11 @@
 
     sops = {
       enable = true;
-      method = "age";
+      # Decrypt with the persisted ed25519 SSH host key (converted on the fly
+      # by sops-nix). No /var/lib/sops-nix/key.txt to provision — the identity
+      # survives impermanence wipes and reinstalls. Recipient = ssh-to-age of
+      # the host key pub (see .sops.yaml).
+      method = "ssh";
     };
 
     # memoryPercent is the *uncompressed* capacity cap (nixpkgs docs: "doesn't define
