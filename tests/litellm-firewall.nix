@@ -35,8 +35,8 @@
       server.start()
       server.wait_for_unit("litellm.service")
       server.wait_until_succeeds("ss -tln | grep -q '127.0.0.1:4001'")
-      # Gateway answers on loopback…
-      server.succeed("curl -s -o /dev/null http://127.0.0.1:4001/")
+      # Gateway is actually serving (liveliness endpoint, HTTP 200 required).
+      server.succeed("curl -sf http://127.0.0.1:4001/health/liveliness")
       # …and the unit is active.
       server.succeed("systemctl is-active litellm.service")
     '';
@@ -50,15 +50,18 @@
           enable = true;
           openFirewall = false;
         };
-        # Mirrors the iptables-backend source restriction from
-        # hosts/yoga/default.nix (extraInputRules is nftables-only).
-        networking.firewall = {
-          allowPing = true;
-          extraCommands = ''
-            iptables -A nixos-fw -p tcp -s 192.168.88.0/24 --dport 22 -m conntrack --ctstate NEW -j nixos-fw-accept
-          '';
+        # Mirrors the nftables-backend source restriction from
+        # hosts/yoga/default.nix (networking.nftables.enable + extraInputRules).
+        networking = {
+          nftables.enable = true;
+          useNetworkd = true;
+          firewall = {
+            allowPing = true;
+            extraInputRules = ''
+              ip saddr 192.168.88.0/24 tcp dport 22 ct state new accept comment "ssh from home management LAN"
+            '';
+          };
         };
-        networking.useNetworkd = true;
         systemd.network = {
           enable = true;
           networks."10-eth1" = {
@@ -78,7 +81,9 @@
       };
 
       client = _: {
-        networking.useNetworkd = true;
+        networking = {
+          useNetworkd = true;
+        };
         systemd.network = {
           enable = true;
           networks."10-eth1" = {

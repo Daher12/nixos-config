@@ -116,41 +116,42 @@
     openssh.enable = true;
   };
 
-  # --- WiFi (iwd) tuning ---
-  # iwd is the backend (core.networking.backend = "iwd") and has no client-side
-  # switch for 802.11r FT, so the AX210 roaming handoff failures can't be
-  # disabled here — only worked around. RoamRetryInterval spaces out retries
-  # after a failed FT handover.
-  networking.wireless.iwd.settings = {
-    General = {
-      RoamRetryInterval = 120;
+  networking = {
+    # --- WiFi (iwd) tuning ---
+    # iwd is the backend (core.networking.backend = "iwd") and has no client-side
+    # switch for 802.11r FT, so the AX210 roaming handoff failures can't be
+    # disabled here — only worked around. RoamRetryInterval spaces out retries
+    # after a failed FT handover.
+    wireless.iwd.settings = {
+      General = {
+        RoamRetryInterval = 120;
+      };
+    };
+
+    # --- Firewall hardening (activates on next operator `nixos-rebuild
+    # switch`; keep console/Tailscale access available before switching) ---
+    # Default-deny input (NixOS firewall default policy) with explicit holes:
+    # SSH only from the home management LAN (192.168.88.0/24), plus ICMP echo.
+    # Loopback and established/related are allowed by the base firewall; the
+    # tailscale0 interface stays trusted via
+    # features.vpn.tailscale.trustInterface, which remains the
+    # remote-management path on foreign networks. Port 22 must NOT re-enter
+    # allowedTCPPorts — that would re-open it on every interface.
+    #
+    # nftables backend (switched 2026-09-13 after a repo-wide check: nothing
+    # pins iptables explicitly — libvirtd/Docker operate through the
+    # iptables-nft compat layer and coexist with the native table). NOTE:
+    # extraInputRules below is nftables-ONLY — it is silently ignored when the
+    # iptables backend is active.
+    nftables.enable = true;
+    firewall = {
+      allowPing = true;
+      extraInputRules = ''
+        ip saddr 192.168.88.0/24 tcp dport 22 ct state new accept comment "ssh from home management LAN"
+      '';
     };
   };
-
-  # --- Firewall hardening (activates on next operator `nixos-rebuild switch`;
-  # keep console/Tailscale access available before switching) ---
-  # Default-deny input firewall (NixOS default policy) with two explicit holes:
-  # SSH only from the home management LAN (192.168.88.0/24), plus ICMP echo.
-  # Loopback and established/related are allowed by the base firewall; the
-  # tailscale0 interface stays trusted via features.vpn.tailscale.trustInterface,
-  # which remains the remote-management path when this laptop is on a foreign
-  # network. Port 22 must NOT re-enter allowedTCPPorts — that would re-open it
-  # on every interface and defeat the source restriction below.
-  #
-  # The iptables backend stays (a nftables switch would also affect libvirt's
-  # firewall driver), so the source restriction is added via extraCommands,
-  # jumping to the firewall's own accept chain before the final drop rules.
-  # Mirrored in tests/litellm-firewall.nix (ssh-firewall).
   services.openssh.openFirewall = false;
-  networking.firewall = {
-    allowPing = true;
-    extraCommands = ''
-      iptables -A nixos-fw -p tcp -s 192.168.88.0/24 --dport 22 -m conntrack --ctstate NEW -j nixos-fw-accept
-    '';
-    extraStopCommands = ''
-      iptables -D nixos-fw -p tcp -s 192.168.88.0/24 --dport 22 -m conntrack --ctstate NEW -j nixos-fw-accept 2>/dev/null || true
-    '';
-  };
 
   # --- Features ---
   features = {
