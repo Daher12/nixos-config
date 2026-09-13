@@ -70,9 +70,10 @@ Goal: both files encrypted to `[admin_david (current), <host>]`; on latitude
 additionally drop the two dead wifi PSKs. Each device can decrypt its own old
 file (its key.txt is a recipient); yoga cannot — so this runs ON the device.
 
-**Step 0 — from yoga:** merge + push the branch, then on the target device
-pull it into the checkout your config builds from (e.g.
-`cd /etc/nixos && sudo git pull`). All commands below run on the device as root.
+**Step 0 — from yoga:** push the `testing` branch (or merge it to main if you
+already switched yoga onto it), then on the target device pull it into the
+checkout your config builds from (e.g. `cd /etc/nixos && sudo git pull`).
+All commands below run on the device as root.
 
 **Step 1 — decrypt to tmpfs, drop dead keys (latitude only), re-encrypt:**
 
