@@ -115,7 +115,10 @@ nix shell nixpkgs#yq-go -c yq '.sops.age[].recipient' secrets/hosts/<host>.yaml
 Verify the rendered secrets and that login paths still work:
 
 ```bash
-ls /run/secrets/            # dk_password_hash (+ ntfy/grafana secrets on nix-media) present
+sudo ls /run/secrets-for-users/  # dk_password_hash + root_password_hash (neededForUsers
+                                 # secrets stage here, not /run/secrets/; dir is root-only)
+ls /run/secrets/                 # remaining service secrets (ntfy/grafana on nix-media;
+                                 # yoga has none — all its secrets are neededForUsers)
 ```
 
 **Step 5 — final cross-check from yoga:** after pulling,
@@ -161,7 +164,8 @@ admin_david, so this works from yoga without the host key.
 `.sops.yaml`, `updatekeys` from yoga, replace the device's key.txt.
 
 **After ANY rotation:** commit, rebuild affected hosts, verify
-`ls /run/secrets/` and that a service using the secrets still runs.
+`ls /run/secrets/` plus `sudo ls /run/secrets-for-users/` (the password
+hashes live there) and that a service using the secrets still runs.
 
 ---
 
