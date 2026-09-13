@@ -98,6 +98,19 @@
         litellmModule = ./modules/features/litellm.nix;
       };
 
+      # Secrets/ops toolshell (SOPS_RUNBOOK.md): `nix develop` puts sops, yq,
+      # age, ssh-to-age and jq on PATH — no per-command `nix shell nixpkgs#…`
+      # wrappers needed.
+      devShells.${system}.default = pkgs.mkShell {
+        packages = with pkgs; [
+          sops
+          age
+          ssh-to-age
+          yq-go
+          jq
+        ];
+      };
+
       nixosConfigurations = {
         # Physical Laptop: Yoga (AMD)
         yoga = mkHost {

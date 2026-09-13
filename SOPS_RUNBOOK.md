@@ -36,11 +36,13 @@ Why this design: yoga's on-device decryption needs no manual key provisioning
 and the disko rebuild blueprint), while every file stays editable from yoga
 with your personal key.
 
-Everyday commands (on yoga, as `dk`):
+Everyday commands (on yoga, as `dk`). Tip: `nix develop` in the repo gives you
+`sops`, `yq`, `age`, `ssh-to-age` and `jq` directly — the `nix shell nixpkgs#…`
+prefixes below are the equivalent for one-off use from anywhere:
 
 ```bash
 # edit
-nix shell nixpkgs#sops -c sops secrets/hosts/<host>.yaml
+nix develop -c sops secrets/hosts/<host>.yaml
 # verify you can decrypt
 nix shell nixpkgs#sops -c sops -d secrets/hosts/<host>.yaml > /dev/null && echo OK
 # see which keys a file is encrypted to

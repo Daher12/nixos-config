@@ -42,6 +42,8 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 ├── home/                      # Shared Home Manager: browsers, terminal, theme, git
 ├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, jan/zcode (AppImage)
 ├── secrets/                   # SOPS-encrypted per-host secrets (age keys)
+├── tests/                     # NixOS VM tests, run via `nix build .#nixosTests.x86_64-linux.<name>` (NOT part of `checks`)
+├── SOPS_RUNBOOK.md            # Secrets architecture, re-encryption/rotation procedures, troubleshooting
 ├── scripts/                   # install.sh (installer), update-safe (safe updater)
 └── .github/workflows/         # CI: daily flake updates + lint checks
 ```
@@ -74,6 +76,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | `bluetooth.nix` | BlueZ stack |
 | `fonts.nix` | Font packages, fontconfig |
 | `impermanence.nix` | Btrfs root wipe on boot, persist to `/persist` |
+| `litellm.nix` | Local LiteLLM API gateway (127.0.0.1 only; OFF by default — opt-in via sops-rendered config, see module header) |
 | `secureboot.nix` | Lanzaboote Secure Boot |
 | `sops.nix` | SOPS-nix secret decryption |
 | `virtualization.nix` | QEMU/KVM, libvirt, virt-manager, SPICE USB redirection |
