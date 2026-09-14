@@ -29,13 +29,13 @@ lib.checkListOfEnum "${pname}: available color variants"
   stdenvNoCC.mkDerivation
   {
     inherit pname;
-    version = "unstable-2026-08-10";
+    version = "unstable-2026-08-30";
 
     src = fetchFromGitHub {
       owner = "vinceliuice";
       repo = "Fluent-icon-theme";
-      rev = "ad62738";
-      hash = "sha256-LUvq2I1CR2JmwG7ZVuXBBOWbZlEnGEuWB8Y5HmrGsOk=";
+      rev = "c8a244f";
+      hash = "sha256-rodsZX3SK1CUVlpaXNv4uPDSZkFYgce4OUVAjxULt4E=";
     };
 
     nativeBuildInputs = [

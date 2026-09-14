@@ -5,13 +5,13 @@
   fetchurl,
 }:
 let
-  version = "1.10.0";
+  version = "1.11.0";
   srcWithLock = stdenv.mkDerivation {
     pname = "mikromcp-src";
     inherit version;
     src = fetchurl {
       url = "https://registry.npmjs.org/mikromcp/-/mikromcp-${version}.tgz";
-      hash = "sha256-gTdNpN3TjyHXzOZPjgAZcKLcNrVBAiSvP3m9JhBqajM=";
+      hash = "sha256-WRzjGo0K5AIf3Gh0eglzHKdB3x/Hnq05u/Nzjoz9gzE=";
     };
     dontBuild = true;
     installPhase = ''
@@ -28,7 +28,7 @@ buildNpmPackage {
   inherit version;
   src = srcWithLock;
 
-  npmDepsHash = "sha256-lwHwlxlfuwPL7gFTZuOMCZ6yASz/0AkNW8nqkb7+Ciw=";
+  npmDepsHash = "sha256-SXYzmbnRLj0LLD80Sle7ahRMZJkEDbOFQVjWfBKk3v0=";
 
   dontNpmBuild = true;
 
