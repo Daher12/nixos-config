@@ -101,10 +101,29 @@ in
       ExecStart = disableUsbWakeups;
     };
   };
+
+  # Mirror of yoga's firewall hardening: default-deny input, SSH only from
+  # the home management LAN (192.168.88.0/24). tailscale0 stays trusted via
+  # features.vpn.tailscale.trustInterface (laptop profile) — that remains
+  # the remote-management path on foreign networks. Port 22 must NOT
+  # re-enter allowedTCPPorts; that would re-open it on every interface.
+  # NOTE: extraInputRules is nftables-ONLY — silently ignored when the
+  # iptables backend is active.
+  networking = {
+    nftables.enable = true;
+    firewall = {
+      allowPing = true;
+      extraInputRules = ''
+        ip saddr 192.168.88.0/24 tcp dport 22 ct state new accept comment "ssh from home management LAN"
+      '';
+    };
+  };
   services = {
     # thermald comes from hardware.intel-gpu (mkDefault)
 
-    # sshd hardening via core.openssh
+    # sshd hardening via core.openssh (PasswordAuthentication=no,
+    # PermitRootLogin=no, UseDns=no); port 22 handled by extraInputRules above.
+    openssh.openFirewall = false;
     preload-ng = {
       enable = true;
       settings = {

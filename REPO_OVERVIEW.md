@@ -2,7 +2,7 @@
 
 This is the single-stop reference for understanding this NixOS configuration repository.
 
-**Last updated:** 2026-09-02 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
+**Last updated:** 2026-09-14 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
 
 ---
 
@@ -40,7 +40,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 │   ├── latitude/              # Host-specific: default.nix, hardware-configuration.nix, home.nix
 │   └── nix-media/             # Host-specific: default.nix, docker.nix, monitoring.nix, caddy.nix, etc.
 ├── home/                      # Shared Home Manager: browsers, terminal, theme, git
-├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, jan/zcode (AppImage)
+├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, zcode (AppImage), mikromcp
 ├── secrets/                   # SOPS-encrypted per-host secrets (age keys)
 ├── tests/                     # NixOS VM tests, run via `nix build .#nixosTests.x86_64-linux.<name>` (NOT part of `checks`)
 ├── SOPS_RUNBOOK.md            # Secrets architecture, re-encryption/rotation procedures, troubleshooting
@@ -77,6 +77,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | `fonts.nix` | Font packages, fontconfig |
 | `impermanence.nix` | Btrfs root wipe on boot, persist to `/persist` |
 | `litellm.nix` | Local LiteLLM API gateway (127.0.0.1 only; OFF by default — opt-in via sops-rendered config, see module header) |
+| `mnamer.nix` | mnamer media renaming tooling (feature options + `mnamer-tools` wrapper; consumed by nix-media) |
 | `secureboot.nix` | Lanzaboote Secure Boot |
 | `sops.nix` | SOPS-nix secret decryption |
 | `virtualization.nix` | QEMU/KVM, libvirt, virt-manager, SPICE USB redirection |
@@ -131,7 +132,7 @@ nixosConfigurations.yoga = mkHost {
 3. Hardware modules (if `withHardware = true`)
 4. Profile modules
 5. Infrastructure: sops-nix, home-manager, disko
-6. nixpkgs config with overlays (colloid, fluent, jan, zcode, mikromcp)
+6. nixpkgs config with overlays (colloid, fluent, zcode, mikromcp)
 
 ---
 
@@ -176,7 +177,6 @@ Host-specific home additions go in `hosts/<name>/home.nix`.
 |------|---------|-------|
 | `colloid-gtk-theme.nix` | Colloid GTK | Git main for GNOME 50 support; nixpkgs version outdated |
 | `fluent-icon-theme.nix` | Fluent icons | Git main; nixpkgs version outdated |
-| `jan.nix` | Jan | AppImage wrapper via `appimageTools.wrapType2`, pinned release |
 | `zcode.nix` | ZCode | AppImage wrapper via `appimageTools.wrapType2`, pinned release |
 | `mikromcp.nix` | MikroMCP | Fixed nix package for the MikroTik MCP server (no npx/network at runtime) |
 
