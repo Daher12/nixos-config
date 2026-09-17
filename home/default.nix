@@ -8,6 +8,8 @@
   imports = [
     ./browsers.nix
     ./git.nix
+    ./hyprland.nix
+    ./opencode.nix
     ./terminal.nix
     ./theme.nix
   ];

@@ -2,6 +2,7 @@
   imports = [
     ./bluetooth.nix
     ./desktop-gnome.nix
+    ./desktop-hyprland.nix
     ./filesystem.nix
     ./fonts.nix
     ./impermanence.nix

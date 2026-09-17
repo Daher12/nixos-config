@@ -12,7 +12,7 @@ per-file map of the repo (including known pitfalls).
 ## Layout
 
 - `hosts/<name>/` — per-host NixOS modules (`default.nix`, hardware/disks, home-manager user config in `home.nix`)
-- `home/` — shared home-manager modules (browsers, git, terminal, theme), imported via `../../home`
+- `home/` — shared home-manager modules (browsers, git, opencode, terminal, theme), imported via `../../home`
 - `modules/` — shared NixOS option modules (`modules/core`, `modules/features`, `modules/hardware`, `modules/roles`)
 - `profiles/` — hardware/system profiles
 - `pkgs/` — custom nix packages (e.g. `mikromcp.nix`)
@@ -26,7 +26,7 @@ per-file map of the repo (including known pitfalls).
 - Module style: 4-attr function headers (`{ config, lib, pkgs, ... }:`), nixfmt formatting, option-based feature toggles under `custom.*` or `features.*`.
 - Impermanence is in use: user state must be explicitly persisted via `home.persistence."/persist"` or `environment.persistence."/persist/system"`. If you add a program that writes state to `$HOME`, add the corresponding persistence entries.
 - Secrets never go into plain files — use sops-nix (`secrets/`, `.sops.yaml`). Never commit plaintext keys; `api.key`-style files must stay out of commits.
-- Package overrides that fix runtime issues should carry a comment explaining why (see the opencode `LD_LIBRARY_PATH` wrap in `hosts/yoga/opencode.nix`).
+- Package overrides that fix runtime issues should carry a comment explaining why (see the opencode `LD_LIBRARY_PATH` wrap in `home/opencode.nix`).
 
 ## House rules
 
@@ -37,6 +37,7 @@ per-file map of the repo (including known pitfalls).
 - The `result` symlink and `.gcroots`-style artifacts are build outputs — ignore them, never commit them.
 - Flake evaluation (and `nix fmt`, `nix flake check`, `nixos-rebuild --flake .#<host>`) reads the file from the **git index**, not the working tree. Newly created files are invisible to these commands until staged: run `git add <newfile>` first (staging only — never commit unless asked). Symptom if forgotten: `error: getting status of '/nix/store/...-source/<file>': No such file or directory`.
 - The flake formatter's bare invocation (`nix fmt`) pipes stdin and fails with `unexpected end of input` — pass files explicitly: `nix fmt <changed .nix files>`.
+- The statix gate flags argument-less module headers `{ ... }:` ("empty pattern") unless the module body contains `imports` — for config-only modules use `_: # No arguments used in this module` instead (precedent: `hosts/yoga/disks.nix`).
 
 ## Verification workflow (QC)
 

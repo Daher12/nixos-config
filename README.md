@@ -39,7 +39,7 @@
 
 | Category | What's Inside |
 |----------|---------------|
-| **Desktop** | GNOME + Nord theming, Colloid GTK, Fluent icons |
+| **Desktop** | yoga builds either Hyprland + DankMaterialShell + DankGreeter (`.#yoga`) or GNOME (`.#yoga-gnome`) — switching desktops = rebuilding the other attr; Colloid/Nord theming shared |
 | **Security** | Secure Boot via Lanzaboote, SOPS-nix encrypted secrets |
 | **Storage** | Btrfs with automated maintenance, ZRAM |
 | **Networking** | Tailscale mesh, systemd-networkd optimization |

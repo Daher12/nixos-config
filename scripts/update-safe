@@ -8,6 +8,7 @@ Usage:
 
 Examples:
   update-safe yoga
+  update-safe yoga-gnome switch   # flip yoga back to GNOME
   update-safe latitude test
   update-safe yoga boot
   update-safe nix-media switch
@@ -23,7 +24,7 @@ host="$1"
 action="${2:-build-only}"
 
 case "$host" in
-  yoga|latitude|nix-media) ;;
+  yoga|yoga-gnome|latitude|nix-media) ;;
   *)
     echo "Invalid host: $host" >&2
     usage

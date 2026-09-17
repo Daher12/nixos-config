@@ -113,6 +113,8 @@ in
           ".local/share/keyrings"
           ".config/mozilla/firefox"
           ".config/BraveSoftware/Brave-Browser"
+          # DankMaterialShell settings, themes, wallpapers (hyprland session)
+          ".config/DankMaterialShell"
           # ZCode (Electron AppImage): auth/session + workspace state.
           # Verify actual dirname after first launch: ls ~/.config | grep -i zcode
           ".config/ZCode"
@@ -171,6 +173,15 @@ in
       firefox.enable = true;
       brave.enable = true;
     };
+
+    desktop.hyprland.monitors = [
+      {
+        output = "eDP-1";
+        mode = "3072x1920@120";
+        position = "0x0";
+        scale = "2";
+      }
+    ];
 
     home.packages = [
       pkgs.zcode

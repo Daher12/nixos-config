@@ -164,7 +164,7 @@
     # serverIp uses the features.nas option default (Tailscale IP of nix-media)
     nas.enable = true;
 
-    desktop-gnome.autoLogin = true;
+    desktop-gnome.autoLogin = true; # only effective in the yoga-gnome attr (GDM)
 
     onlyoffice = {
       enable = true;

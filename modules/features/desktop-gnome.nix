@@ -47,6 +47,10 @@ in
             assertion = builtins.hasAttr "home-manager" config;
             message = "features.desktop-gnome requires home-manager to be included via mkHost";
           }
+          {
+            assertion = !config.features.desktop-hyprland.enable;
+            message = "features.desktop-gnome and features.desktop-hyprland are mutually exclusive — switch via the flake attrs (yoga = Hyprland, yoga-gnome = GNOME)";
+          }
         ];
 
         services = {

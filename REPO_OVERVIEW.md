@@ -2,7 +2,7 @@
 
 This is the single-stop reference for understanding this NixOS configuration repository.
 
-**Last updated:** 2026-09-02 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
+**Last updated:** 2026-09-17 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
 
 ---
 
@@ -17,7 +17,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | Host | Hardware | Role | Special Features |
 |------|----------|------|------------------|
 | **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | Impermanence (root wiped), SecureBoot, LUKS, Btrfs, virt-manager (Windows VM) |
-| **latitude** | Dell E7450 (Intel) | Legacy laptop | Lix package mode, nvidia-disable, TLP power, ext4 |
+| **latitude** | Dell E7450 (Intel) | Legacy laptop | Lix package mode, nvidia-disable, TLP power, Disko (LUKS + ext4), opencode |
 | **nix-media** | Intel N100 Mini PC | Media server | Docker (Jellyfin, Audiobookshelf), Prometheus+Grafana, Caddy, NFS, systemd-networkd |
 
 ---
@@ -36,10 +36,10 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 │   └── roles/                 # Server roles (media server NFS)
 ├── profiles/                  # Role bundles applied via mkHost (laptop, desktop-gnome)
 ├── hosts/
-│   ├── yoga/                  # Host-specific: default.nix, disks.nix (disko), home.nix, opencode.nix, yoga-s2h.nix (suspend-then-hibernate hook)
-│   ├── latitude/              # Host-specific: default.nix, hardware-configuration.nix, home.nix
+│   ├── yoga/                  # Host-specific: default.nix, disks.nix (disko), home.nix, opencode.nix (enable + persistence), yoga-s2h.nix (suspend-then-hibernate hook)
+│   ├── latitude/              # Host-specific: default.nix, disks.nix (disko), hardware-configuration.nix (drivers only), home.nix
 │   └── nix-media/             # Host-specific: default.nix, docker.nix, monitoring.nix, caddy.nix, etc.
-├── home/                      # Shared Home Manager: browsers, terminal, theme, git
+├── home/                      # Shared Home Manager: browsers, terminal, theme, git, opencode (opt-in via `opencode.enable`)
 ├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, jan/zcode (AppImage)
 ├── secrets/                   # SOPS-encrypted per-host secrets (age keys)
 ├── tests/                     # NixOS VM tests, run via `nix build .#nixosTests.x86_64-linux.<name>` (NOT part of `checks`)
@@ -73,6 +73,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | File | Purpose |
 |------|---------|
 | `desktop-gnome.nix` | GNOME 50, GDM, dconf, XDG portals |
+| `desktop-hyprland.nix` | Hyprland desktop (uwsm) + DankMaterialShell (`programs.dms-shell`, scoped to `wayland-session@Hyprland.target`) + DankGreeter (greetd), gnome-keyring + PAM, gtk portal, baseline GTK apps; mutually exclusive with `desktop-gnome` |
 | `bluetooth.nix` | BlueZ stack |
 | `fonts.nix` | Font packages, fontconfig |
 | `impermanence.nix` | Btrfs root wipe on boot, persist to `/persist` |
@@ -106,6 +107,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 |------|----------|
 | `laptop.nix` | bluetooth, TLP, zram, network-optimization, zen kernel, oomd, SecureBoot, Tailscale |
 | `desktop-gnome.nix` | GNOME desktop, fonts |
+| `desktop-hyprland.nix` | Hyprland + DankMaterialShell desktop, fonts |
 
 ---
 
@@ -117,7 +119,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 nixosConfigurations.yoga = mkHost {
   hostname = "yoga";
   mainUser = "dk";
-  profiles = [ "laptop" "desktop-gnome" ];
+  profiles = [ "laptop" "desktop-hyprland" ];  # yoga-gnome attr = same host with "desktop-gnome"
   withHardware = true;
   lix = true;  # true → Lix from nixpkgs (cached), false → CppNix
   hmModules = [ ... ];
@@ -125,13 +127,15 @@ nixosConfigurations.yoga = mkHost {
 };
 ```
 
+**Desktop switching (yoga):** `yoga` (Hyprland + DMS + DankGreeter) and `yoga-gnome` (GNOME + GDM) are the same machine with different desktop profiles — `features.desktop-hyprland` and `features.desktop-gnome` assert against each other. Switch desktops by rebuilding the other attr (`nus yoga-gnome switch` / `nus yoga switch`); no config edits.
+
 `mkHost` applies:
 1. Core modules (always)
 2. Feature modules (always, but toggled via `mkIf`)
 3. Hardware modules (if `withHardware = true`)
 4. Profile modules
 5. Infrastructure: sops-nix, home-manager, disko
-6. nixpkgs config with overlays (colloid, fluent, jan, zcode, mikromcp)
+6. nixpkgs config with overlays (colloid, fluent, jan, zcode, mikromcp, linux-firmware pin)
 
 ---
 
@@ -144,8 +148,10 @@ Shared across all hosts via `home/default.nix`:
 | `default.nix` | Entry point, session vars (`EDITOR=ox`), GNOME extensions |
 | `browsers.nix` | Firefox + Brave with forced extensions (uBlock, Bitwarden), policies |
 | `terminal.nix` | Ghostty (Nord), Fish shell (hydro, fzf-fish), btop, fastfetch, CLI tools |
+| `hyprland.nix` | Generates `~/.config/hypr/hyprland.lua` (Hyprland 0.55+ Lua format) — `desktop.hyprland.*` options (monitors, terminal/browser/file manager binds, extraConfig); keybinds/media keys use DMS IPC |
 | `theme.nix` | Colloid GTK (Nord), Fluent icons, Posy cursors, `switch-theme` script, darkman |
 | `git.nix` | Git config (delta, SSH, rebase on pull) |
+| `opencode.nix` | Shared opencode config (models, providers, permissions, MCP, libstdc++ wrap) — opt-in per host via `opencode.enable = true`; impermanence persistence stays in the host files (`hosts/yoga/opencode.nix`) |
 
 Host-specific home additions go in `hosts/<name>/home.nix`.
 
@@ -317,6 +323,14 @@ journalctl -b -o cat | grep -E "simple-framebuffer.*Registered|plymouth.*Attache
 # Should show simpledrm registering before Plymouth attaches
 ```
 
+### linux-firmware pin — yellow_carp DMCUB regression (yoga)
+
+linux-firmware 20260910 (nixpkgs-26.05, Sept 2026) ships a regressed `yellow_carp_dmcub.bin` (DMCUB 0x0400004C → 0x0400004A; RH bugzilla 2532947). On Rembrandt iGPUs (yoga) the PSP rejects it: `failed to load ucode DMCUB(0x3F)` at boot, the display limps along, then freezes/black-screens the moment the screen blanks, locks, or suspends — recovery needs a boot-menu rollback. Gens 137/138 (2026-09-15/16) were hit; gen 136 (fw 20260810) was the last good closure.
+
+**Mitigation:** `flake.nix` input `nixpkgs-firmware-pin` (rev 93108a5, the previous lock state) + overlay pinning `linux-firmware` to its 20260810 snapshot (all hosts).
+
+**Remove when:** a fixed linux-firmware release (newer than 20260910) lands in nixpkgs — drop the input, the `firmwarePinPkgs` binding and the overlay entry, update flake.lock.
+
 ### NixOS 26.05 Breaking Changes
 
 | Change | File | Fix |
@@ -328,10 +342,21 @@ journalctl -b -o cat | grep -E "simple-framebuffer.*Registered|plymouth.*Attache
 | `fastfetchMinimal` renamed | `hosts/nix-media/default.nix`, `home/terminal.nix` | Change to `fastfetch.minimal` |
 | `nixfmt-rfc-style` renamed | `flake.nix` | Change to `nixfmt` |
 | WinApps removed | `flake.nix`, `home/`, `hosts/yoga/` | Replaced by virt-manager/libvirt |
-| opencode `libstdc++.so.6` missing | `hosts/yoga/opencode.nix` | Wrap binary with `LD_LIBRARY_PATH` pointing to `stdenv.cc.cc.lib` (moved from `home/terminal.nix` when opencode config was extracted to its own module) |
+| opencode `libstdc++.so.6` missing | `home/opencode.nix` | Wrap binary with `LD_LIBRARY_PATH` pointing to `stdenv.cc.cc.lib` (moved from `home/terminal.nix` → `hosts/yoga/opencode.nix` → shared `home/opencode.nix` when opencode was extracted to a shared module) |
 | Docker 28 marked insecure | `hosts/nix-media/docker.nix` | Pin `package = pkgs.docker_29` |
 
 **First switch after upgrade requires reboot** — dbus-broker replaces dbus-daemon, needs full restart.
+
+### Disko adoption without reinstall (latitude)
+
+`hosts/latitude/disks.nix` generates mounts by GPT **partlabel** (`/dev/disk/by-partlabel/ESP`, `…/cryptroot`), but the pre-disko install was partitioned by the installer with no matching labels. Rebuilding the live system on the new config **before** fixing the labels produces an unbootable initrd (LUKS device never appears). Either reinstall via `scripts/install.sh` (disko sets the labels at format time), or relabel the existing partitions first — non-destructive, metadata only:
+
+```sh
+lsblk -o NAME,PARTLABEL,FSTYPE        # verify: partition 1 = vfat, 2 = LUKS
+sudo sgdisk --change-name=1:ESP --change-name=2:cryptroot /dev/sda
+```
+
+The LUKS mapper name (`nixos`) and filesystems are untouched — only discovery paths change (by-uuid → by-partlabel) and `allowDiscards` is newly set on the LUKS entry.
 
 ### Suspend-then-hibernate (yoga)
 
@@ -425,11 +450,12 @@ Any error in the rollback script aborts the service → `OnFailure = "emergency.
 | How a host is built | `lib/mkHost.nix` |
 | Boot configuration | `modules/core/boot.nix` |
 | Desktop environment | `modules/features/desktop-gnome.nix` |
+| Hyprland session / DMS | `modules/features/desktop-hyprland.nix` + `home/hyprland.nix` |
 | Theme/dark mode | `home/theme.nix` |
 | Terminal/shell | `home/terminal.nix` |
 | Browser config | `home/browsers.nix` |
 | Windows VM (virt-manager) | `modules/features/virtualization.nix` |
-| Disk layout (yoga) | `hosts/yoga/disks.nix` |
+| Disk layout (yoga, latitude) | `hosts/<name>/disks.nix` |
 | Docker containers | `hosts/nix-media/docker.nix` |
 | Monitoring stack | `hosts/nix-media/monitoring.nix` |
 | CI pipeline | `.github/workflows/bump.yml` |

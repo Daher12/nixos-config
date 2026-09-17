@@ -1,6 +1,7 @@
 {
   lib,
   pkgs,
+  config,
   ...
 }:
 
@@ -148,7 +149,10 @@ in
       };
     };
 
-    services.darkman = {
+    # darkman day/night GTK switching — disabled on the Hyprland attr, where
+    # DMS matugen dynamic theming owns GTK (features.desktop-hyprland).
+    # Running both would fight over ~/.config/gtk-4.0 and GTK_THEME.
+    services.darkman = lib.mkIf (!config.desktop.hyprland.enable) {
       enable = true;
       settings = {
         portal = true;

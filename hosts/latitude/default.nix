@@ -31,6 +31,7 @@ let
 in
 {
   imports = [
+    ./disks.nix
     ./hardware-configuration.nix
   ];
 
@@ -63,14 +64,9 @@ in
     # still encrypted to the retired admin key — re-encrypt per
     # SOPS_RUNBOOK.md §3 (drops the two dead wifi PSKs, keeps the hash).
     sops.enable = true;
-    filesystem = {
-      type = "ext4";
-      mountOptions."/" = [
-        "noatime"
-        "nodiratime"
-        "commit=30"
-      ];
-    };
+    # Mount options live in ./disks.nix (single source with the layout).
+    # ext4 here only steers features.filesystem's fstrim auto-detection.
+    filesystem.type = "ext4";
 
     # serverIp uses the features.nas option default (Tailscale IP of nix-media)
     nas.enable = true;
