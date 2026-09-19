@@ -19,6 +19,12 @@ let
   tz = config.time.timeZone;
 
   images = {
+    # :latest + the weekly docker-image-refresh timer = auto-updates every
+    # Sunday 03:00, including future X-major releases (accepted 2026-09-19).
+    # The DB has been on the 12.x schema since 2026-09-11 — 10.x is NOT a
+    # rollback path. X-major releases carry breaking changes + a manual
+    # upgrade process (backup first!); Y releases are bugfix-only per
+    # Jellyfin's versioning policy.
     jellyfin = "lscr.io/linuxserver/jellyfin:latest";
     audiobookshelf = "ghcr.io/advplyr/audiobookshelf:latest";
     cadvisor = "gcr.io/cadvisor/cadvisor:latest";
@@ -54,10 +60,16 @@ in
           autoStart = true;
           image = images.jellyfin;
           environment = {
-            # Intro Skipper historically leaked threads during scans (upstream issue
-            # intro-skipper/intro-skipper#199, now closed). If stuttering returns,
-            # unset DOCKER_MODS temporarily to isolate cause.
-            DOCKER_MODS = "ghcr.io/intro-skipper/intro-skipper-docker-mod";
+            # 2026-09-19: DOCKER_MODS (intro-skipper docker-mod) removed.
+            # ghcr.io answers 403 DENIED for the mod image since ~2026-09-12
+            # — the project dropped it; the install method is now the
+            # version-aware plugin repository manifest
+            # (https://intro-skipper.org/manifest.json). The plugin itself
+            # persists in /config/data/plugins ("Intro Skipper" 12.0.4.0,
+            # matching the pinned Jellyfin 12.0) and loads without the mod;
+            # the dead env only logged "(ERROR) OFFLINE" at every container
+            # start. When unpinning to 12.1+: update the plugin via its
+            # repository in the dashboard.
             PGID = gid;
             PUID = uid;
             TZ = tz;
@@ -85,7 +97,11 @@ in
             "--cpus=3.5"
             "--shm-size=2g"
             "--pids-limit=1000"
-            "--health-cmd=curl -fsS http://localhost:8096/jellyfin/health || exit 1"
+            # Server serves at / (BaseUrl env is not applied; Caddy's
+            # strip_prefix makes /jellyfin/ work) — probe the root health
+            # endpoint, not /jellyfin/health (always 404 → permanent
+            # "unhealthy" badge).
+            "--health-cmd=curl -fsS http://localhost:8096/health || exit 1"
             "--health-interval=60s"
             "--health-retries=4"
             "--health-timeout=10s"

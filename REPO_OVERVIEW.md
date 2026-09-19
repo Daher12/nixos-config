@@ -343,6 +343,14 @@ journalctl -b -o cat | grep -E "simple-framebuffer.*Registered|plymouth.*Attache
 
 linux-firmware 20260910 (nixpkgs-26.05, Sept 2026) shipped a regressed `yellow_carp_dmcub.bin` (RH bugzilla 2532947): on Rembrandt iGPUs (yoga) the display froze/black-screened on blank/lock/suspend. Interim mitigation was a pin to the 20260810 snapshot (flake input `nixpkgs-firmware-pin` + overlay). Resolved by linux-firmware **20260916** (AMD revert); the pin was removed and the nixpkgs lock bumped in the same change. If a future firmware snapshot reintroduces DMCUB errors (`failed to load ucode DMCUB(0x3F)`), check [bugzilla 2532947](https://bugzilla.redhat.com/show_bug.cgi?id=2532947) and re-pin the same way.
 
+### Jellyfin on nix-media — versioning & operations notes
+
+The container runs `:latest` and follows the weekly `docker-image-refresh` timer (Sun 03:00, `Persistent=true` — missed fires catch up at the next boot). Auto-updates are an accepted trade-off (2026-09-19). How 12.0 arrived: the host was powered off 2026-08-30 → 09-11, during which `:latest` moved to 12.0; at boot the unit found no local image (Monday `docker-prune --all` had removed it), pulled `:latest` = 12.0, and the schema migrated on first boot — the documented manual upgrade process was never followed and no pre-upgrade backup exists. **10.x is NOT a rollback path** (schema mismatch: "no such column" errors, verified 2026-09-19).
+
+- Server serves at `/` (BaseUrl env is not applied); Caddy's `strip_prefix /jellyfin` is the working combo. The health-cmd probes `/health`.
+- intro-skipper `DOCKER_MODS` removed 2026-09-19: ghcr.io returns 403 DENIED (project dropped the docker-mod); the plugin persists in `/config/data/plugins` and updates via its version-aware manifest repo (`https://intro-skipper.org/manifest.json`).
+- Backup gap: only a single automatic zip from 2026-02-02 plus ad-hoc tars — enable Jellyfin's scheduled backup task before the next X-major release lands via the timer.
+
 ### NixOS 26.05 Breaking Changes
 
 | Change | File | Fix |
