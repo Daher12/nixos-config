@@ -172,8 +172,14 @@ in
     browsers = {
       firefox.enable = true;
       brave.enable = true;
+      # Brave >= 1.85 enables VA-API video decode on Wayland by default
+      # (Chromium issue 40225939); the explicit flag is insurance against a
+      # default flip regressing it. Software decode costs 3-6 W on the 680M.
+      brave.extraCommandLineArgs = [ "--enable-features=VaapiVideoDecodeLinuxGL" ];
     };
 
+    # Panel definition for BOTH sessions (also read by the GNOME-side
+    # battery-refresh service on .#yoga-gnome).
     desktop.hyprland.monitors = [
       {
         output = "eDP-1";
@@ -182,6 +188,11 @@ in
         scale = "2";
       }
     ];
+
+    # 120 -> 60 Hz on battery (~0.5-1 W at light load, the panel's EDID has
+    # a native 60 Hz timing for this mode). Triggers: AC plug/unplug, lid
+    # reopen; never while the lid is closed or (GNOME) a monitor is docked.
+    desktop.battery-refresh.enable = true;
 
     home.packages = [
       pkgs.zcode

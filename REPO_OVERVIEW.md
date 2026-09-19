@@ -39,7 +39,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 │   ├── yoga/                  # Host-specific: default.nix, disks.nix (disko), home.nix, opencode.nix (enable + persistence), yoga-s2h.nix (suspend-then-hibernate hook)
 │   ├── latitude/              # Host-specific: default.nix, disks.nix (disko), hardware-configuration.nix (drivers only), home.nix
 │   └── nix-media/             # Host-specific: default.nix, docker.nix, monitoring.nix, caddy.nix, etc.
-├── home/                      # Shared Home Manager: browsers, terminal, theme, git, opencode (opt-in via `opencode.enable`)
+├── home/                      # Shared Home Manager: battery refresh, browsers, terminal, theme, git, opencode (opt-in via `opencode.enable`)
 ├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, zcode (AppImage), mikromcp
 ├── secrets/                   # SOPS-encrypted per-host secrets (age keys)
 ├── tests/                     # NixOS VM tests, run via `nix build .#nixosTests.x86_64-linux.<name>` (NOT part of `checks`)
@@ -147,6 +147,7 @@ Shared across all hosts via `home/default.nix`:
 | File | Purpose |
 |------|---------|
 | `default.nix` | Entry point, session vars (`EDITOR=ox`), GNOME extensions |
+| `battery-refresh.nix` | Panel refresh-rate switch on battery (`desktop.battery-refresh.*`) — works in both sessions: Hyprland daemon (spawned via `hyprland.start`) and GNOME systemd user service (via `gnome-monitor-config`); panel definition comes from `desktop.hyprland.monitors`, which hosts set even on GNOME attrs |
 | `browsers.nix` | Firefox + Brave with forced extensions (uBlock, Bitwarden), policies |
 | `terminal.nix` | Ghostty (Nord), Fish shell (hydro, fzf-fish), btop, fastfetch, CLI tools |
 | `hyprland.nix` | Generates `~/.config/hypr/hyprland.lua` (Hyprland 0.55+ Lua format) — `desktop.hyprland.*` options (monitors, terminal/browser/file manager binds, extraConfig); keybinds/media keys use DMS IPC |
@@ -411,6 +412,25 @@ Lid on battery suspends, then hibernates after 2h. Implemented by the `yoga-s2h`
 **Agent pitfall — the ZCode shell does not see the host's `/etc`:** agent tool shells run sandboxed inside the ZCode fhsenv, which bind-mounts its own `/etc/systemd` (and friends) over the host paths (`findmnt /etc/systemd` shows a `zcode-…-fhsenv-rootfs` source; `sudo` is blocked by `no_new_privileges`). Checking live config files like `/etc/systemd/sleep.conf` from an agent shell therefore gives *wrong answers*. Host truth: journalctl output, `/run/current-system` / `/run/booted-system` store paths, and `/sys` (which passes through) — verify applied sleep config via the journal (`PM: suspend entry (s2idle)`, single line per suspend) rather than `systemd-analyze cat-config` from the sandbox.
 
 **Prereq:** `resumeDevice` + `resume_offset=7697093` (via `btrfs inspect-internal map-swapfile -r /var/lib/swap/swapfile` — re-derive if the swapfile is ever recreated; stale offset = boots fresh instead of resuming, no corruption).
+
+### Power tuning status (yoga) — audited 2026-09-19
+
+Verified live on battery: `amd-pstate-epp` driver, governor `powersave`, EPP `balance_power` on all 16 CPUs — exactly the TLP intent (`hosts/yoga/default.nix`), nothing fights it. system76-scheduler runs alongside but only touches CFS knobs (latencies/nice), not EPP/governors, and is not on TLP's conflict list. Remaining stack: ryzenadj caps (AC 50/60/50W, battery 18/25/18W via `modules/hardware/ryzen-tdp.nix`), zen kernel + `nowatchdog`, zram lz4 (keeps the NVMe asleep), btrfs `noatime zstd:1 discard=async`, 15s dirty writeback, TLP built-ins (sound power-save, Wi-Fi powersave, runtime PM). TLP's own defaults already set `WIFI_PWR_ON_BAT=on` and `SOUND_POWER_SAVE_ON_BAT=1`; no need to spell those out per host.
+
+**Panel refresh switch** (`home/battery-refresh.nix`, the one real lever added by the audit — ~0.5–1 W at light load): 120 → 60 Hz on battery. The panel's EDID carries a native `3072x1920@60` timing (verified by parsing `/sys/class/drm/card*-eDP-1/edid`; DRM exposes both 3072x1920 modes). Trigger conditions: AC plug/unplug and lid reopen only (the lid switch restores the configured 120 Hz mode, so a reopen must re-apply 60 Hz); never while the lid is closed (the panel is disabled — a mode change would re-enable it); the GNOME variant additionally refuses to run while any DP/HDMI output is connected because `gnome-monitor-config set -L` replaces the *whole* monitor configuration. Hyprland attr: daemon spawned via the `hyprland.start` hook, killed with the uwsm session scope on logout, flock-guarded against double starts. GNOME attr: `systemd.user.services.battery-refresh` bound to `graphical-session.target`. Caveat: gmc is `0-unstable-2023` against mutter's versioned DisplayConfig D-Bus API — if GNOME ever breaks it, the symptom is simply no switching (daemon logs an apply error), nothing else. Revert: `desktop.battery-refresh.enable = false`.
+
+**Browser video decode** (software decode costs 3–6 W on the 680M): Firefox ≥136 enables VA-API by default (156 in the lock — nothing to configure). Brave 1.95.101 is ≥1.85 (Wayland hardware decode default-on since Chromium issue 40225939); `hosts/yoga/home.nix` additionally pins `--enable-features=VaapiVideoDecodeLinuxGL` as insurance. Runtime verification: `brave://gpu` must show "Video Decode: Hardware accelerated"; `chrome://media-internals` during playback must list `VaapiVideoDecoder`, not `VpxVideoDecoder`.
+
+Deliberately **not** done (documented so it isn't re-litigated):
+
+- `amdgpu.dcdebugmask=0x10` (disables PSR): popular 680M glitch "fix" that *costs* idle power — PSR is a power-saving feature and stays on.
+- powertop `--auto-tune`, auto-cpufreq, system76-power: all conflict with TLP per linrunner.de/tlp/faq/conflicts.html.
+- `CPU_BOOST_ON_BAT=0`, non-zen kernel: trades exactly the responsiveness this balance is built around.
+- iGPU `power_dpm_force_performance_level=low` on battery (reported effective on the comparable Rembrandt ThinkPad Z13): small win, glitch risk; candidate implementation = extend `set-ryzen-tdp` (`modules/hardware/ryzen-tdp.nix`) which already has the AC/battery trigger plumbing.
+- `PLATFORM_PROFILE_ON_BAT=low-power`: slightly more clock clamping under load than the current `balanced`.
+- Battery charge cap: this EC has no `charge_control_end_threshold`, but Lenovo conservation mode exists at `/sys/devices/pci0000:00/0000:00:14.3/PNP0C09:00/VPC2004:00/conservation_mode` (reads `0` = off, 2026-09-19). It's a longevity feature (caps charge), not a runtime one, and changes charging behavior — only to be enabled on explicit request.
+
+Expectations: 70 Wh battery with the 25 W battery cap ≈ 2 h under genuinely heavy load regardless of tuning; software tuning pays off in light load and browsing, where panel + iGPU dominate. s2idle drain 0.25–0.5%/h is healthy (see the suspend-then-hibernate section above).
 
 ### Intel GPU Metrics (nix-media)
 

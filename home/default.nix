@@ -6,6 +6,7 @@
 
 {
   imports = [
+    ./battery-refresh.nix
     ./browsers.nix
     ./git.nix
     ./hyprland.nix

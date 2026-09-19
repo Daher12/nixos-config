@@ -69,7 +69,8 @@ Daily driver: encrypted, impermanence-wiped, secure-booted work machine.
   Colloid-Nord GTK theme, Fluent icons, Posy cursors and darkman
   light/dark switching are shared by both.
 - **Power:** custom suspend-then-hibernate sleep hook (`yoga-s2h`) working
-  around systemd 260 firmware bugs; TLP; ryzenadj TDP profiles; hibernation
+  around systemd 260 firmware bugs; TLP; ryzenadj TDP profiles; automatic
+  120→60 Hz panel switch on battery (both sessions); hibernation
   currently parked pending an upstream amdgpu/TTM fix (documented in
   REPO_OVERVIEW).
 - **Virtualization:** libvirt/QEMU with virt-manager, SPICE USB redirection,
