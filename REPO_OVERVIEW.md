@@ -2,7 +2,7 @@
 
 This is the single-stop reference for understanding this NixOS configuration repository.
 
-**Last updated:** 2026-09-17 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
+**Last updated:** 2026-09-19 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
 
 ---
 
@@ -16,7 +16,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 
 | Host | Hardware | Role | Special Features |
 |------|----------|------|------------------|
-| **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | Impermanence (root wiped), SecureBoot, LUKS, Btrfs, virt-manager (Windows VM) |
+| **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | Impermanence (root wiped), SecureBoot, LUKS, Btrfs, dual desktop (Hyprland+DMS / GNOME attrs), virt-manager (Windows VMs) |
 | **latitude** | Dell E7450 (Intel) | Legacy laptop | Lix package mode, nvidia-disable, TLP power, Disko (LUKS + ext4), opencode |
 | **nix-media** | Intel N100 Mini PC | Media server | Docker (Jellyfin, Audiobookshelf), Prometheus+Grafana, Caddy, NFS, systemd-networkd |
 
@@ -40,12 +40,12 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 │   ├── latitude/              # Host-specific: default.nix, disks.nix (disko), hardware-configuration.nix (drivers only), home.nix
 │   └── nix-media/             # Host-specific: default.nix, docker.nix, monitoring.nix, caddy.nix, etc.
 ├── home/                      # Shared Home Manager: browsers, terminal, theme, git, opencode (opt-in via `opencode.enable`)
-├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, jan/zcode (AppImage)
+├── pkgs/                      # Custom packages: colloid-gtk, fluent-icons, zcode (AppImage), mikromcp
 ├── secrets/                   # SOPS-encrypted per-host secrets (age keys)
 ├── tests/                     # NixOS VM tests, run via `nix build .#nixosTests.x86_64-linux.<name>` (NOT part of `checks`)
 ├── SOPS_RUNBOOK.md            # Secrets architecture, re-encryption/rotation procedures, troubleshooting
 ├── scripts/                   # install.sh (installer), update-safe (safe updater)
-└── .github/workflows/         # CI: daily flake updates + lint checks
+└── .github/workflows/         # CI: weekly flake updates + lint checks
 ```
 
 ---
@@ -78,6 +78,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | `fonts.nix` | Font packages, fontconfig |
 | `impermanence.nix` | Btrfs root wipe on boot, persist to `/persist` |
 | `litellm.nix` | Local LiteLLM API gateway (127.0.0.1 only; OFF by default — opt-in via sops-rendered config, see module header) |
+| `mnamer.nix` | mnamer media renaming tooling (feature options + `mnamer-tools` wrapper; consumed by nix-media) |
 | `secureboot.nix` | Lanzaboote Secure Boot |
 | `sops.nix` | SOPS-nix secret decryption |
 | `virtualization.nix` | QEMU/KVM, libvirt, virt-manager, SPICE USB redirection, per-guest launchers/DHCP reservations (`features.virtualization.guests`), virtio-win ISO at `/var/lib/libvirt/images/virtio-win.iso` |
@@ -135,7 +136,7 @@ nixosConfigurations.yoga = mkHost {
 3. Hardware modules (if `withHardware = true`)
 4. Profile modules
 5. Infrastructure: sops-nix, home-manager, disko
-6. nixpkgs config with overlays (colloid, fluent, jan, zcode, mikromcp, linux-firmware pin)
+6. nixpkgs config with overlays (colloid, fluent, zcode, mikromcp, linux-firmware pin)
 
 ---
 
@@ -170,7 +171,7 @@ Host-specific home additions go in `hosts/<name>/home.nix`.
 
 ## CI/CD (`.github/workflows/bump.yml`)
 
-- **Trigger:** Daily cron (02:00 UTC) + manual dispatch
+- **Trigger:** Weekly cron (Saturday 02:00 UTC — ahead of the Sunday nix-media reboot, so the fleet burns in a bumped closure on the daily drivers first) + manual dispatch
 - **Actions:** Update safe flake inputs → format with `nixfmt` → `nix flake check` → dry-run build all 3 hosts → auto-commit
 - **Checks:** `statix`, `deadnix`, `nixfmt` (in `flake.nix`)
 
@@ -182,7 +183,6 @@ Host-specific home additions go in `hosts/<name>/home.nix`.
 |------|---------|-------|
 | `colloid-gtk-theme.nix` | Colloid GTK | Git main for GNOME 50 support; nixpkgs version outdated |
 | `fluent-icon-theme.nix` | Fluent icons | Git main; nixpkgs version outdated |
-| `jan.nix` | Jan | AppImage wrapper via `appimageTools.wrapType2`, pinned release |
 | `zcode.nix` | ZCode | AppImage wrapper via `appimageTools.wrapType2`, pinned release |
 | `mikromcp.nix` | MikroMCP | Fixed nix package for the MikroTik MCP server (no npx/network at runtime) |
 

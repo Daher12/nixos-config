@@ -8,6 +8,7 @@
     ./impermanence.nix
     ./kernel.nix
     ./litellm.nix
+    ./mnamer.nix
     ./nas.nix
     ./network-optimization.nix
     ./onlyoffice.nix

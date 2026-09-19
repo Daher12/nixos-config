@@ -399,6 +399,4 @@
     "/persist".neededForBoot = true;
     "/nix".neededForBoot = true;
   };
-
-  programs.fuse.userAllowOther = true;
 }

@@ -21,7 +21,6 @@ in
     ./caddy.nix
     ./ntfy.nix
     ./maintenance.nix
-    ./mnamer.nix
   ];
 
   # --- Core Configuration ---
@@ -58,7 +57,6 @@ in
 
     kernelParams = [ "transparent_hugepage=madvise" ];
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
-    tmp.cleanOnBoot = true;
   };
 
   # Features enabled via standardized options
@@ -74,17 +72,8 @@ in
     mnamer = {
       enable = true;
 
-      paths = {
-        downloads = "/mnt/storage/downloads";
-        movies = "/mnt/storage/movies";
-        shows = "/mnt/storage/shows";
-      };
-
-      formats = {
-        movie = "{name} ({year})/{name} ({year}).{extension}";
-        episode = "{series}/Season {season:02}/{series} - S{season:02}E{episode:02} - {title}.{extension}";
-      };
-
+      # paths and formats keep the module defaults (/mnt/storage/{downloads,
+      # movies, shows} and the "{name} ({year})" naming scheme).
       ignore = [
         ".*sample.*"
         "^RARBG.*"
