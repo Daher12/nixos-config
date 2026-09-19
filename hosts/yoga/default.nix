@@ -219,11 +219,23 @@
 
     virtualization = {
       enable = true;
-      windows11 = {
-        enable = true;
-        name = "windows11";
-        ip = "192.168.122.139";
-        mac = "52:54:00:03:b9:49";
+      guests = {
+        windows11 = {
+          desktopName = "Windows 11";
+          ip = "192.168.122.139";
+          mac = "52:54:00:03:b9:49";
+        };
+        # Work VM: Intune/Entra-managed. Needs UEFI Secure Boot firmware
+        # (edk2-x86_64-secure-code.fd, offered for q35 machines) and an
+        # emulated TPM 2.0 device in virt-manager to satisfy compliance.
+        win11-work = {
+          desktopName = "Windows 11 (Work)";
+          description = "Managed work VM (Entra ID joined, Intune enrolled)";
+          iconColor = "#2b579a";
+          badge = "WORK";
+          ip = "192.168.122.140";
+          mac = "52:54:00:6a:1c:0e";
+        };
       };
     };
 

@@ -80,7 +80,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | `litellm.nix` | Local LiteLLM API gateway (127.0.0.1 only; OFF by default — opt-in via sops-rendered config, see module header) |
 | `secureboot.nix` | Lanzaboote Secure Boot |
 | `sops.nix` | SOPS-nix secret decryption |
-| `virtualization.nix` | QEMU/KVM, libvirt, virt-manager, SPICE USB redirection |
+| `virtualization.nix` | QEMU/KVM, libvirt, virt-manager, SPICE USB redirection, per-guest launchers/DHCP reservations (`features.virtualization.guests`), virtio-win ISO at `/var/lib/libvirt/images/virtio-win.iso` |
 | `vpn.nix` | Tailscale mesh VPN |
 | `power-tlp.nix` | TLP power management |
 | `kernel.nix` | Kernel variant (zen) |
@@ -201,12 +201,27 @@ Host-specific home additions go in `hosts/<name>/home.nix`.
 bash scripts/install.sh <host>    # host is required: yoga, latitude, nix-media
 ```
 
-The script auto-detects host features from the config:
-- **Disko**: checks for `hosts/<host>/disks.nix` → runs Disko if present
-- **Impermanence**: greps host config for `impermanence.enable = true` → creates `@blank` snapshot
-- **Persist paths**: detects `/persist` references → uses `/mnt/persist/system` or `/mnt` accordingly
+The script detects host features by **flake-evaluating the pinned clone**
+(`features.impermanence.enable`, `/persist` presence in `config.fileSystems`,
+`disko.devices.disk != {}`, `features.sops.enable`/`.method`,
+`features.secureboot.enable`) — NOT by grepping source. Reason: nixfmt's
+multiline formatting once silently broke grep-based impermanence detection,
+which would reinstall yoga without the `@blank` template → initrd emergency
+shell on every boot.
 
-Flow: clone → detect features → (optional Disko) → password hash → (optional @blank snapshot) → state restoration → `nixos-install`
+- **Disko**: any `disko.devices.disk` → disko destroy,format,mount (pinned rev from flake.lock)
+- **Impermanence**: creates the `@blank` snapshot (template dirs validated by the rollback script)
+- **Credentials**: passwords are declarative from sops — `dk_password_hash` in
+  `secrets/hosts/<host>.yaml` applies at FIRST boot (nothing is set at install
+  time). The installer provisions the sops **identity**: method=ssh (yoga) uses
+  the restored SSH host key; method=age (latitude, nix-media) restores
+  `<backup>/sops/key.txt` or generates a fresh key at `/var/lib/sops-nix/key.txt`.
+  It then cross-checks the identity's derived age pubkey against the pinned
+  yaml's `.sops.age` recipients and, on mismatch, prints the runbook fix steps
+  (fresh keys are never recipients yet — expected on first enrolment).
+- **Persist paths**: `/persist` in fileSystems → state restored to `/mnt/persist/system`, else `/mnt`
+
+Flow: clone (pinned commit) → eval features → (optional Disko) → (optional @blank) → state restoration (SSH host keys, machine-id, sops identity, user data) → `nixos-install` → verification (bootloader; sops identity/recipient status — accounts lock at first boot if the identity chain is broken; GDM autologin still grants the desktop, sudo does not work until fixed)
 
 ### `update-safe` — Safe Update Pipeline
 
@@ -221,7 +236,7 @@ Steps:
 4. `nix build` — builds the host's toplevel derivation
 5. Optionally activates: `test` (temporary), `boot` (next boot), `switch` (live)
 
-Safe inputs are updated; locked inputs (lanzaboote, opencode) are NOT updated to avoid surprise breakage.
+Safe inputs are updated; locked inputs (lanzaboote, opencode, and the `nixpkgs-firmware-pin` DMCUB regression pin) are NOT updated by this script.
 
 ---
 
@@ -454,7 +469,7 @@ Any error in the rollback script aborts the service → `OnFailure = "emergency.
 | Theme/dark mode | `home/theme.nix` |
 | Terminal/shell | `home/terminal.nix` |
 | Browser config | `home/browsers.nix` |
-| Windows VM (virt-manager) | `modules/features/virtualization.nix` |
+| Windows VMs (virt-manager) | `modules/features/virtualization.nix` |
 | Disk layout (yoga, latitude) | `hosts/<name>/disks.nix` |
 | Docker containers | `hosts/nix-media/docker.nix` |
 | Monitoring stack | `hosts/nix-media/monitoring.nix` |

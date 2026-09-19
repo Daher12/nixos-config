@@ -19,6 +19,16 @@ Environment:
   USER_NAME       Primary user (default: dk)
   REPO_URL        Git repo to clone (default: https://github.com/Daher12/nixos-config)
 
+Credentials:
+  This script does NOT set login passwords. Accounts are declarative
+  (users.mutableUsers = false) and take their hash from the sops secret
+  dk_password_hash (secrets/hosts/<host>.yaml) at FIRST BOOT. The installer
+  only provisions the host's sops identity so that decryption can succeed:
+  method=ssh (yoga): the restored /etc/ssh/ssh_host_ed25519_key;
+  method=age (latitude, nix-media): /var/lib/sops-nix/key.txt, restored from
+  <backup>/sops/key.txt or freshly generated (fix steps printed if the
+  identity is not yet a recipient of the pinned secrets yaml).
+
 Examples:
   $0 yoga
   $0 nix-media
@@ -45,21 +55,13 @@ confirm() {
   [[ "$r" =~ ^[Yy]$ ]] || die "Aborted"
 }
 
-# --- Cleanup trap ---
-
-PW_FILE=$(mktemp)
-cleanup() {
-  rm -f "$PW_FILE"
-}
-trap cleanup EXIT
-
 # --- Pre-flight ---
 
 [[ $EUID -eq 0 ]] || die "Run as root"
 
 export NIX_CONFIG="experimental-features = nix-command flakes"
 
-deps=(nix git mountpoint curl timeout nixos-install stat mount umount)
+deps=(nix git mountpoint curl timeout nixos-install mount umount find findmnt btrfs)
 for cmd in "${deps[@]}"; do
   command -v "$cmd" >/dev/null || die "Missing required command: $cmd"
 done
@@ -77,31 +79,55 @@ timeout 120 git clone "$REPO_URL" "$CONFIG_DIR" || die "Clone failed"
 PINNED_COMMIT=$(git -C "$CONFIG_DIR" rev-parse HEAD)
 info "Repo at commit: $PINNED_COMMIT"
 
-# --- Detect host features ---
+# --- Detect host features (flake eval) ---
+# Truth comes from the evaluated NixOS config of the pinned commit, not from
+# grepping source files — nixfmt's multiline formatting silently broke
+# grep-based impermanence detection once (yoga reinstalled without the
+# @blank template = initrd emergency shell on every boot).
 
 HOST_DIR="$CONFIG_DIR/hosts/$FLAKE_TARGET"
 [[ -d "$HOST_DIR" ]] || die "Host '$FLAKE_TARGET' not found in hosts/"
 
-HAS_DISKO=0
-HAS_IMPERMANENCE=0
-HAS_PERSIST=0
+nix_eval() {
+  # nix_eval <config-attr-path> [apply-lambda]
+  local attr="$1" apply="${2:-}"
+  if [[ -n "$apply" ]]; then
+    nix eval --json "$CONFIG_DIR#nixosConfigurations.$FLAKE_TARGET.config.$attr" --apply "$apply"
+  else
+    nix eval --json "$CONFIG_DIR#nixosConfigurations.$FLAKE_TARGET.config.$attr"
+  fi
+}
 
-if [[ -f "$HOST_DIR/disks.nix" ]]; then
-  HAS_DISKO=1
+bool_flag() {
+  local v
+  v=$(nix_eval "$1" "${2:-}") \
+    || die "Feature detection failed at config.$1 — flake broken at pinned commit?"
+  [[ "$v" == "true" ]]
+}
+
+info "Evaluating host features from the pinned flake (first eval fetches inputs)..."
+
+HAS_DISKO=0;          bool_flag disko.devices.disk 'd: d != {}'                          && HAS_DISKO=1
+HAS_IMPERMANENCE=0;   bool_flag features.impermanence.enable                             && HAS_IMPERMANENCE=1
+HAS_PERSIST=0;        bool_flag fileSystems 'fs: builtins.hasAttr "/persist" fs'         && HAS_PERSIST=1
+HAS_SOPS=0;           bool_flag features.sops.enable                                     && HAS_SOPS=1
+HAS_SECUREBOOT=0;     bool_flag features.secureboot.enable                               && HAS_SECUREBOOT=1
+SOPS_METHOD="none"
+if [[ $HAS_SOPS -eq 1 ]]; then
+  SOPS_METHOD=$(nix eval --raw "$CONFIG_DIR#nixosConfigurations.$FLAKE_TARGET.config.features.sops.method") \
+    || die "Could not evaluate features.sops.method"
 fi
 
-if grep -rq 'impermanence.*enable.*=\s*true' "$HOST_DIR/" 2>/dev/null; then
-  HAS_IMPERMANENCE=1
+if [[ $HAS_PERSIST -eq 1 ]]; then
+  PERSIST_SYSTEM="/mnt/persist/system"
+else
+  PERSIST_SYSTEM="/mnt"
 fi
 
-# Detect if host config references /persist
-if grep -rq '"/persist' "$HOST_DIR/" 2>/dev/null; then
-  HAS_PERSIST=1
-fi
-
-info "Host:       $FLAKE_TARGET"
-info "Disko:      $([ $HAS_DISKO -eq 1 ] && echo 'yes' || echo 'no')"
+info "Host:         $FLAKE_TARGET"
+info "Disko:        $([ $HAS_DISKO -eq 1 ] && echo 'yes' || echo 'no')"
 info "Impermanence: $([ $HAS_IMPERMANENCE -eq 1 ] && echo 'yes' || echo 'no')"
+info "sops:         $([ $HAS_SOPS -eq 1 ] && echo "enabled (method=$SOPS_METHOD)" || echo 'disabled')"
 
 # --- Backup prompt ---
 
@@ -109,6 +135,8 @@ read -rp "Backup USB path (e.g. /mnt/usb, or none): " BACKUP_PATH
 USE_BACKUP=1
 if [[ "$BACKUP_PATH" == "none" || ! -d "$BACKUP_PATH" ]]; then
   echo "WARNING: No backup path - SSH keys and machine-id will be freshly generated."
+  echo "  On sops hosts this also means no identity restore (fresh key generated"
+  echo "  for method=age) - see the credentials note in the usage text."
   USE_BACKUP=0
 fi
 
@@ -145,7 +173,7 @@ if [[ $HAS_DISKO -eq 1 ]]; then
     --mode destroy,format,mount \
     --flake "$CONFIG_DIR#$FLAKE_TARGET" || die "Disko failed"
 else
-  info "Skipping Disko (no disks.nix for $FLAKE_TARGET)"
+  info "Skipping Disko (no disko devices for this host)"
   info "Expecting partitions already mounted under /mnt"
 fi
 
@@ -156,9 +184,7 @@ mountpoint -q /mnt || die "/mnt is not mounted"
 
 if [[ $HAS_DISKO -eq 1 ]]; then
   # Disko hosts mount /boot and potentially /persist, /nix
-  for m in /mnt/boot; do
-    mountpoint -q "$m" 2>/dev/null || echo "WARNING: $m not mounted"
-  done
+  mountpoint -q /mnt/boot 2>/dev/null || echo "WARNING: /mnt/boot not mounted"
   if [[ $HAS_IMPERMANENCE -eq 1 ]]; then
     mountpoint -q /mnt/persist || die "/mnt/persist is not mounted (required for impermanence)"
     mountpoint -q /mnt/nix 2>/dev/null || echo "WARNING: /mnt/nix not mounted"
@@ -167,16 +193,6 @@ else
   # Non-disko: at minimum /mnt and /mnt/boot should be mounted
   mountpoint -q /mnt/boot 2>/dev/null || echo "WARNING: /mnt/boot not mounted"
 fi
-
-# --- Password hash ---
-
-info "Setting password for ${USER_NAME}..."
-echo "(input hidden - type password and press Enter)"
-PW_HASH=$(nix shell nixpkgs#whois --command mkpasswd -m yescrypt) \
-  || die "mkpasswd failed"
-[[ "$PW_HASH" == '$y$'* ]] || die "Unexpected hash format: $PW_HASH"
-
-printf '%s' "$PW_HASH" > "$PW_FILE"
 
 # --- @blank template snapshot (impermanence only) ---
 
@@ -201,7 +217,7 @@ if [[ $HAS_IMPERMANENCE -eq 1 ]]; then
 
   # Populate the root skeleton inside @ itself, not through /mnt, because /mnt/nix
   # and /mnt/persist are separate mounts and would otherwise hit @nix/@persist.
-  mkdir -p /tmp/btrfs-top/@/{nix,persist,boot,home,etc,tmp,var/log,var/lib/sops-nix,var/lib/sbctl}
+  mkdir -p /tmp/btrfs-top/@/{nix,persist,boot,home,etc,tmp,var/log,var/lib,var/lib/sops-nix,var/lib/sbctl}
   chmod 1777 /tmp/btrfs-top/@/tmp
 
   if btrfs subvolume show /tmp/btrfs-top/@blank >/dev/null 2>&1; then
@@ -222,35 +238,15 @@ else
   info "Skipping @blank snapshot (no impermanence)"
 fi
 
-# --- Persist password hash ---
+# --- Credentials note (declarative passwords, applied at first boot) ---
 
-if [[ $HAS_IMPERMANENCE -eq 1 ]]; then
-  HASH_DEST="/mnt/persist/system/var/lib/local-passwords/${USER_NAME}.yescrypt"
-
-  info "Writing persisted password hash..."
-  install -D -m 600 -o 0 -g 0 \
-    "$PW_FILE" \
-    "$HASH_DEST" || die "Failed to write password hash file"
-
-  [[ -s "$HASH_DEST" ]] \
-    || die "Hash file not written - aborting before nixos-install"
-  [[ "$(stat -c '%a' "$HASH_DEST")" == "600" ]] \
-    || die "Hash file has wrong permissions (expected 600)"
-  [[ "$(stat -c '%u:%g' "$HASH_DEST")" == "0:0" ]] \
-    || die "Hash file has wrong ownership (expected root:root)"
-else
-  info "Skipping persist password hash (no impermanence — sops handles credentials)"
-fi
+info "Credentials: login passwords are NOT set at install time. The hash from"
+info "secrets/hosts/$FLAKE_TARGET.yaml (dk_password_hash) applies at FIRST"
+info "BOOT via sops - the identity is provisioned below, after state restore."
 
 # --- State Restoration (System) ---
 
 info "Restoring system identity..."
-
-if [[ $HAS_PERSIST -eq 1 ]]; then
-  PERSIST_SYSTEM="/mnt/persist/system"
-else
-  PERSIST_SYSTEM="/mnt"
-fi
 
 if [[ "$USE_BACKUP" -eq 1 ]] && [[ -f "$BACKUP_PATH/ssh/ssh_host_ed25519_key" ]]; then
   info "Restoring SSH host keys..."
@@ -261,7 +257,7 @@ if [[ "$USE_BACKUP" -eq 1 ]] && [[ -f "$BACKUP_PATH/ssh/ssh_host_ed25519_key" ]]
   chown -R 0:0 "$PERSIST_SYSTEM/etc/ssh"
 else
   echo "WARNING: No SSH host keys - new keys generated on boot."
-  echo "  Update known_hosts on machines that connect to this host."
+  echo "  On method=ssh sops hosts the identity changes with them (runbook §5)."
 fi
 
 if [[ "$MACHINE_ID_AVAILABLE" -eq 1 ]]; then
@@ -272,9 +268,66 @@ else
   info "Skipping machine-id - systemd generates on first boot"
 fi
 
+# --- SOPS identity provisioning (decrypt dk_password_hash at first boot) ---
+
+SOPS_KEY_INSTALLED=0
+SOPS_RECIPIENT_OK=0
+SOPS_PUBKEY=""
+FRESH_AGE_KEY=0
+
+if [[ $HAS_SOPS -eq 1 ]]; then
+  SECRETS_YAML="$CONFIG_DIR/secrets/hosts/$FLAKE_TARGET.yaml"
+  [[ -f "$SECRETS_YAML" ]] || die "sops enabled but $SECRETS_YAML missing in the pinned clone"
+
+  yaml_recipients() {
+    nix shell nixpkgs#yq-go --command \
+      yq '.sops.age[].recipient' "$SECRETS_YAML" 2>/dev/null || true
+  }
+
+  if [[ "$SOPS_METHOD" == "ssh" ]]; then
+    # Identity IS the (persisted) SSH host key restored above.
+    IDENTITY_KEY="$PERSIST_SYSTEM/etc/ssh/ssh_host_ed25519_key"
+    if [[ -f "$IDENTITY_KEY" && -f "$IDENTITY_KEY.pub" ]]; then
+      SOPS_KEY_INSTALLED=1
+      SOPS_PUBKEY=$(nix shell nixpkgs#ssh-to-age --command \
+        sh -c "ssh-to-age < $IDENTITY_KEY.pub" 2>/dev/null \
+        | grep -o 'age1[a-z0-9]*' | head -1 || true)
+    fi
+  elif [[ "$SOPS_METHOD" == "age" ]]; then
+    KEY_TARGET="$PERSIST_SYSTEM/var/lib/sops-nix/key.txt"
+    if [[ "$USE_BACKUP" -eq 1 ]] && [[ -f "$BACKUP_PATH/sops/key.txt" ]]; then
+      info "Restoring sops age key from backup..."
+      install -D -m 600 -o 0 -g 0 "$BACKUP_PATH/sops/key.txt" "$KEY_TARGET"
+    fi
+    if [[ ! -f "$KEY_TARGET" ]]; then
+      info "No sops age key available - generating a fresh identity..."
+      mkdir -p "$(dirname "$KEY_TARGET")"
+      nix shell nixpkgs#age --command age-keygen -o "$KEY_TARGET" >/dev/null 2>&1 \
+        || die "age-keygen failed"
+      chmod 600 "$KEY_TARGET"
+      FRESH_AGE_KEY=1
+    fi
+    if [[ -f "$KEY_TARGET" ]]; then
+      SOPS_KEY_INSTALLED=1
+      SOPS_PUBKEY=$(nix shell nixpkgs#age --command \
+        age-keygen -y "$KEY_TARGET" 2>/dev/null \
+        | grep -o 'age1[a-z0-9]*' | head -1 || true)
+    fi
+  else
+    die "Unknown sops method: $SOPS_METHOD"
+  fi
+
+  if [[ $SOPS_KEY_INSTALLED -eq 1 ]] && [[ -n "$SOPS_PUBKEY" ]]; then
+    if yaml_recipients | grep -qx "$SOPS_PUBKEY"; then
+      SOPS_RECIPIENT_OK=1
+      info "sops identity OK: provisioned key is a recipient of the pinned yaml"
+    fi
+  fi
+fi
+
 # --- State Restoration (User) ---
 
-info "Restoring user data for $USER_NAME..."
+info "Restoring user data for ${USER_NAME}..."
 
 if [[ $HAS_PERSIST -eq 1 ]]; then
   USER_HOME="/mnt/persist/home/$USER_NAME"
@@ -317,28 +370,56 @@ nixos-install --no-root-passwd --flake "$CONFIG_DIR#$FLAKE_TARGET" \
 
 # --- Post-install verification ---
 
-info "Verifying root is not locked..."
-ROOT_FIELD=$(nixos-enter --root /mnt -- getent shadow root 2>/dev/null | cut -d: -f2)
-case "$ROOT_FIELD" in
-  ""|'$'*) info "root accessible (passwordless or hashed)" ;;
-  '!'*|'*') die "CRITICAL: root is locked - TTY recovery impossible" ;;
-  *) die "CRITICAL: root shadow field unrecognised: $ROOT_FIELD" ;;
-esac
-
-info "Verifying ${USER_NAME} account is not locked..."
-USER_FIELD=$(nixos-enter --root /mnt -- getent shadow "${USER_NAME}" 2>/dev/null | cut -d: -f2)
-case "$USER_FIELD" in
-  '$y$'*|'$6$'*|'$5$'*|'$2b$'*) info "${USER_NAME} account is active" ;;
-  "") die "CRITICAL: ${USER_NAME} has empty password field" ;;
-  '!'*|'*') die "CRITICAL: ${USER_NAME} is locked - hash file missing or invalid" ;;
-  *) die "CRITICAL: ${USER_NAME} shadow field unrecognised: $USER_FIELD" ;;
-esac
-
 info "Verifying bootloader..."
 [[ -d /mnt/boot/EFI ]] || die "/mnt/boot/EFI missing"
 [[ -n "$(ls -A /mnt/boot/EFI 2>/dev/null)" ]] \
   || die "/mnt/boot/EFI is empty - bootloader install failed"
 info "Bootloader installed"
+
+# Accounts are declarative and locked at install time by design: sops secrets
+# decrypt at FIRST boot (users.mutableUsers=false re-applies the hash from
+# dk_password_hash then). What we CAN verify now is the sops identity chain.
+FIRST_BOOT_CREDENTIALS_OK=1
+if [[ $HAS_SOPS -eq 1 ]]; then
+  if [[ $SOPS_KEY_INSTALLED -eq 0 ]]; then
+    FIRST_BOOT_CREDENTIALS_OK=0
+    echo "WARNING: no sops identity provisioned - first boot cannot decrypt"
+    echo "  dk_password_hash. Accounts stay LOCKED (GDM autologin still grants"
+    echo "  the desktop; sudo will not work until this is fixed)."
+  elif [[ $SOPS_RECIPIENT_OK -eq 0 ]]; then
+    FIRST_BOOT_CREDENTIALS_OK=0
+    echo "WARNING: the provisioned sops identity is NOT a recipient of"
+    echo "  secrets/hosts/$FLAKE_TARGET.yaml at pinned commit $PINNED_COMMIT.$([[ $FRESH_AGE_KEY -eq 1 ]] && echo ' (freshly generated key - expected until enrolled)')"
+    echo "  First boot cannot decrypt dk_password_hash -> accounts stay LOCKED"
+    echo "  (GDM autologin still grants the desktop; sudo will not work)."
+  else
+    info "First-boot credentials: OK (sops identity provisioned and enrolled)"
+  fi
+
+  if [[ $FIRST_BOOT_CREDENTIALS_OK -eq 0 ]]; then
+    cat <<FIX
+
+Fix from a machine holding ANY current recipient's key — the admin key on
+yoga, or this device itself (see SOPS_RUNBOOK.md §3/§5 for the procedures):
+FIX
+    if [[ "$SOPS_METHOD" == "age" && -n "$SOPS_PUBKEY" ]]; then
+      echo "  1. Add this recipient for secrets/hosts/$FLAKE_TARGET.yaml in .sops.yaml:"
+      echo "       $SOPS_PUBKEY"
+    else
+      echo "  1. Derive the identity's recipient and add it in .sops.yaml"
+      echo "     (method=ssh: ssh-to-age < ssh_host_ed25519_key.pub)."
+    fi
+    cat <<FIX
+  2. nix shell nixpkgs#sops -c sops updatekeys secrets/hosts/$FLAKE_TARGET.yaml
+  3. commit + push
+  4. Rebuild this host from the new commit (after first boot, or re-run this
+     installer from the updated repo).
+If the password stored in the yaml is unknown, rotate it while at it:
+  nix shell nixpkgs#sops -c sops secrets/hosts/$FLAKE_TARGET.yaml   # dk_password_hash
+  nix shell nixpkgs#whois --command mkpasswd -m yescrypt
+FIX
+  fi
+fi
 
 # --- Summary ---
 
@@ -349,20 +430,31 @@ echo "=============================="
 echo "Host:   $FLAKE_TARGET"
 echo "Commit: $PINNED_COMMIT"
 [[ $HAS_DISKO -eq 1 ]] && echo "Disko:  $DISKO_REV"
+if [[ $HAS_SOPS -eq 1 ]]; then
+  if [[ $FIRST_BOOT_CREDENTIALS_OK -eq 1 ]]; then
+    echo "sops:   identity OK"
+  else
+    echo "sops:   ATTENTION REQUIRED (see warning above)"
+  fi
+fi
 echo ""
 
 # --- Post-boot instructions (host-aware) ---
 
-if [[ $HAS_IMPERMANENCE -eq 1 ]]; then
+if [[ $HAS_SECUREBOOT -eq 1 ]]; then
   echo "POST-BOOT: Set up Secure Boot once running:"
   echo "  1. sudo sbctl create-keys"
   echo "  2. sudo sbctl enroll-keys --microsoft"
   echo "  3. Reboot -> UEFI firmware -> enable Secure Boot"
-  echo "  4. Edit hosts/$FLAKE_TARGET/default.nix: secureboot.enable = true"
-  echo "  5. sudo nixos-rebuild switch --flake .#$FLAKE_TARGET"
+  echo "  4. Rebuild: sudo nixos-rebuild switch --flake .#$FLAKE_TARGET"
 else
   echo "POST-BOOT: Review and rebuild as needed:"
   echo "  sudo nixos-rebuild switch --flake .#$FLAKE_TARGET"
+fi
+
+if [[ $FIRST_BOOT_CREDENTIALS_OK -eq 0 ]]; then
+  echo ""
+  echo "NOTE: Do not rely on sudo after first boot until the sops fix above is done."
 fi
 
 confirm "Reboot now?"
