@@ -1,0 +1,46 @@
+# Local documentation (kept locally, not pushed)
+documentation/
+
+# Nix build results
+result
+result-*
+
+# Home Manager backups
+*.backup
+
+# Editor temp files
+*.swp
+.idea/
+.vscode/
+.zcode/
+
+# Secrets
+*.age
+*.secret
+*.local
+winapps.conf
+winapps.conf.local
+secrets.conf
+.env
+.env.*
+!.env.example
+
+# Keys
+/keys/
+id_rsa
+id_ed25519
+*.pem
+*.p12
+*.pfx
+*.key
+*.bak
+keys.txt
+key.txt
+key_*.txt
+age.key
+api.key
+
+#Trash
+.Trash-1000
+/core
+core.*

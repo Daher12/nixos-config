@@ -1,0 +1,198 @@
+{
+  pkgs,
+  lib,
+  config,
+  mainUser,
+  ...
+}:
+
+let
+  lanIf = "enp1s0";
+  sshPort = 26;
+  nfsPort = 2049;
+in
+{
+  imports = [
+    ./hardware-configuration.nix
+    ../../modules/roles/media.nix
+
+    ./docker.nix
+    ./monitoring.nix
+    ./caddy.nix
+    ./ntfy.nix
+    ./maintenance.nix
+  ];
+
+  # --- Core Configuration ---
+  core = {
+    boot.tmpfs = {
+      enable = true;
+      size = "4G";
+    };
+
+    nix.gc = {
+      automatic = true;
+      dates = "Sun 04:00";
+      flags = "--delete-older-than 60d";
+    };
+
+    users.defaultShell = "zsh";
+    sysctl.optimizeForServer = true;
+  };
+
+  roles.media = {
+    enable = true;
+    nfsAnonUid = 1001;
+    nfsAnonGid = 982;
+  };
+
+  system.stateVersion = "24.05";
+
+  core.openssh.enable = true;
+
+  boot = {
+    loader.systemd-boot = {
+      configurationLimit = 10;
+    };
+
+    kernelParams = [ "transparent_hugepage=madvise" ];
+    kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
+  };
+
+  # Features enabled via standardized options
+  features = {
+    sops.enable = true;
+
+    vpn.tailscale = {
+      enable = true;
+      trustInterface = true;
+      routingFeatures = "server";
+    };
+
+    mnamer = {
+      enable = true;
+
+      # paths and formats keep the module defaults (/mnt/storage/{downloads,
+      # movies, shows} and the "{name} ({year})" naming scheme).
+      ignore = [
+        ".*sample.*"
+        "^RARBG.*"
+        ".*\\.part[0-9]+.*"
+        ".*\\btrailer\\b.*"
+        ".*\\bnfo\\b.*"
+      ];
+
+      extraSettings = {
+        hits = 8;
+      };
+
+      extraCliArgs = [ "--no-style" ];
+    };
+  };
+
+  hardware.intel-gpu = {
+    enable = true;
+    enableOpenCL = true; # Critical for HDR→SDR tone mapping
+    enableVpl = true;
+    enableGuc = true;
+  };
+
+  environment.systemPackages = [
+    pkgs.mergerfs
+    pkgs.xfsprogs
+    pkgs.nvme-cli
+    pkgs.smartmontools
+    pkgs.ethtool
+    pkgs.mosh
+    pkgs.wget
+    pkgs.aria2
+    pkgs.trash-cli
+    pkgs.unrar
+    pkgs.unzip
+    pkgs.ox
+    pkgs.btop
+    pkgs.fastfetch.minimal
+  ];
+
+  networking = {
+    networkmanager.enable = false;
+    useNetworkd = true;
+    interfaces.${lanIf}.useDHCP = lib.mkForce false;
+
+    firewall = {
+      allowedTCPPorts = [ ];
+      # Close global access; roles.media handles exports, we allow traffic here
+      interfaces."tailscale0".allowedTCPPorts = [ nfsPort ];
+    };
+  };
+
+  systemd.network = {
+    links."10-${lanIf}" = {
+      matchConfig.Name = lanIf;
+      linkConfig.WakeOnLan = "magic";
+    };
+    networks."10-lan" = {
+      matchConfig.Name = lanIf;
+      networkConfig = {
+        DHCP = "ipv4";
+        IPv6AcceptRA = false;
+        LinkLocalAddressing = "no";
+      };
+    };
+    wait-online = {
+      enable = true;
+      timeout = 30;
+      extraArgs = [ "--interface=${lanIf}:routable" ];
+    };
+  };
+
+  users.users.${mainUser} = {
+    uid = config.roles.media.nfsAnonUid;
+    extraGroups = [ "docker" ];
+  };
+
+  users.groups.${mainUser}.gid = config.roles.media.nfsAnonGid;
+
+  # HDD streaming fix — hangs in read-ahead, not scheduler.
+  # Root cause: default read_ahead_kb=128 forces tiny USB transfers, starving
+  # the video buffer mid-playback.  4MB gives ~800ms of 4K video per read.
+  # Scheduler=none because USB bridge chip does its own queuing; deadline
+  # on top just adds latency bubbles (confirmed via iostat — 136KB dirty,
+  # no writeback contention, mq-deadline was fine but unnecessary).
+  # Remove these once mergerfs gets read-ahead passthrough or kernel default
+  # is bumped for rotational USB:
+  services.udev.extraRules = ''
+    ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="sd*", ATTR{queue/rotational}=="1", ATTR{bdi/read_ahead_kb}="4096"
+    ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="sd*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="none"
+  '';
+
+  services = {
+    journald.extraConfig = ''
+      Storage=persistent
+      Compress=yes
+      SystemMaxUse=500M
+      SystemMaxFileSize=50M
+      MaxRetentionSec=2592000
+      RateLimitInterval=30s
+      RateLimitBurst=1000
+    '';
+
+    logrotate.enable = true;
+    # sshd hardening (PasswordAuthentication/PermitRootLogin/UseDns) via core.openssh
+    openssh = {
+      ports = [ sshPort ];
+      openFirewall = true;
+    };
+    fstrim = {
+      enable = true;
+      interval = "weekly";
+    };
+
+    # thermald comes from hardware.intel-gpu (mkDefault)
+    # Server host — no audio stack needed. Overrides mkDefault in modules/core/audio.nix.
+    pipewire.enable = false;
+    pulseaudio.enable = false;
+  };
+
+  security.rtkit.enable = false;
+}

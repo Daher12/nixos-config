@@ -1,0 +1,23 @@
+{
+  imports = [
+    ./bluetooth.nix
+    ./desktop-gnome.nix
+    ./desktop-hyprland.nix
+    ./filesystem.nix
+    ./fonts.nix
+    ./impermanence.nix
+    ./kernel.nix
+    ./litellm.nix
+    ./mnamer.nix
+    ./nas.nix
+    ./network-optimization.nix
+    ./onlyoffice.nix
+    ./oomd.nix
+    ./power-tlp.nix
+    ./virtualization.nix
+    ./secureboot.nix
+    ./sops.nix
+    ./vpn.nix
+    ./zram.nix
+  ];
+}

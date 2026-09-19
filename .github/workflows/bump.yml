@@ -1,0 +1,79 @@
+name: "Maintain: Update Flake Lock"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+on:
+  schedule:
+    # Weekly Saturday 02:00 UTC: the bump and the 04:00-local host
+    # auto-upgrades land a full day before the Sunday nix-media reboot,
+    # so the fleet burns in the bumped closure on the daily drivers first.
+    - cron: "0 2 * * 6"
+  workflow_dispatch:
+    inputs:
+      include_lanzaboote:
+        description: "Also update lanzaboote"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  update-and-verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            accept-flake-config = true
+            experimental-features = nix-command flakes
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
+            substituters = https://cache.nixos.org https://nix-community.cachix.org
+
+      - name: Update flake inputs
+        id: update
+        shell: bash
+        run: |
+          set -euo pipefail
+          extra_inputs=()
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.include_lanzaboote }}" == "true" ]]; then
+            extra_inputs+=(lanzaboote)
+          fi
+          nix flake update \
+            nixpkgs nixos-hardware \
+            home-manager sops-nix disko impermanence \
+            preload-ng \
+            "${extra_inputs[@]}" \
+            --accept-flake-config
+          echo "nixpkgs_rev=$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev[0:7]')" >> "$GITHUB_OUTPUT"
+
+      - name: Verify configurations
+        shell: bash
+        run: |
+          set -euo pipefail
+          nix flake check --all-systems --impure --keep-going
+          for host in $(nix eval --json '.#nixosConfigurations' --apply 'builtins.attrNames' | jq -r '.[]'); do
+            echo "::group::Verifying $host"
+            nix build ".#nixosConfigurations.${host}.config.system.build.toplevel" --dry-run --impure
+            echo "::endgroup::"
+          done
+
+      - name: Format Nix code
+        run: nix fmt -- $(find . -name '*.nix' -type f)
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: |
+            chore(flake): update inputs & format
+            nixpkgs: ${{ steps.update.outputs.nixpkgs_rev }}
+          file_pattern: flake.lock **/*.nix

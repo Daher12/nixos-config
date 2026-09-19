@@ -1,0 +1,44 @@
+{ config, lib, ... }:
+
+let
+  cfg = config.features.vpn;
+in
+{
+  # NOTE: Option tree is depth-3 (features.vpn.tailscale.enable) unlike other
+  # features which use depth-2 (features.<name>.enable). This is intentional —
+  # vpn is a namespace that may host additional providers beyond Tailscale.
+  options.features.vpn = {
+    tailscale = {
+      enable = lib.mkEnableOption "Tailscale VPN service";
+
+      routingFeatures = lib.mkOption {
+        type = lib.types.enum [
+          "none"
+          "client"
+          "server"
+          "both"
+        ];
+        default = "client";
+        description = "Routing features to enable (client/server)";
+      };
+
+      trustInterface = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Add tailscale0 to trusted firewall interfaces";
+      };
+    };
+  };
+
+  config = lib.mkIf cfg.tailscale.enable {
+    services.tailscale = {
+      enable = true;
+      useRoutingFeatures = cfg.tailscale.routingFeatures;
+    };
+
+    networking.firewall = {
+      checkReversePath = "loose";
+      trustedInterfaces = lib.mkIf cfg.tailscale.trustInterface [ "tailscale0" ];
+    };
+  };
+}
