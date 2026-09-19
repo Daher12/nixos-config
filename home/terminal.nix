@@ -129,7 +129,23 @@ in
     })
 
     {
+      programs.eza = {
+        enable = true;
+        git = true;
+      };
+
+      programs.bat = {
+        enable = true;
+        config.theme = "Nord";
+      };
+    }
+
+    {
       home.packages = [
+        pkgs.fzf
+        pkgs.dust
+        pkgs.duf
+        pkgs.procs
         pkgs.rsync
         pkgs.ripgrep
         pkgs.fd
@@ -137,7 +153,6 @@ in
         pkgs.jq
         pkgs.ox
         pkgs.grc
-        pkgs.eza
         pkgs.nh
         pkgs.nvd
         pkgs.nix-output-monitor
