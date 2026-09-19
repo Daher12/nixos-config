@@ -3,12 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
-    # linux-firmware 20260910 (nixos-26.05) ships a regressed yellow_carp DMCUB
-    # blob (RH bugzilla 2532947) — black screens/boot loops on Rembrandt iGPUs
-    # (yoga). This rev is the previous lock state and holds the last-good
-    # snapshot 20260810. Remove input + the overlay below once a fixed
-    # firmware release is in nixpkgs.
-    nixpkgs-firmware-pin.url = "github:nixos/nixpkgs/93108a538f079596c9a16c72cf03e9322782b6dd";
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware/master";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -54,13 +48,6 @@
       # Kept locally only to satisfy formatter and check derivations
       system = "x86_64-linux";
 
-      # Firmware source for the pin above: linux-firmware 20260810 from the
-      # last-good nixpkgs rev (= what yoga's gen 136 ran until 2026-09-16).
-      firmwarePinPkgs = import inputs."nixpkgs-firmware-pin" {
-        inherit system;
-        config.allowUnfree = true; # linux-firmware is unfree: redistributable
-      };
-
       # Overlays shared between the local pkgs (for formatter/checks) and NixOS modules
       colloidFluentOverlays = [
         (final: _prev: {
@@ -69,7 +56,6 @@
           zcode = final.callPackage ./pkgs/zcode.nix { };
           mikromcp = final.callPackage ./pkgs/mikromcp.nix { };
         })
-        (_final: _prev: { inherit (firmwarePinPkgs) linux-firmware; })
       ];
 
       # Rationale: Defer architecture binding to per-host evaluation. Avoids breaking non-x86 builds.

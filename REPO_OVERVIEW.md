@@ -136,7 +136,7 @@ nixosConfigurations.yoga = mkHost {
 3. Hardware modules (if `withHardware = true`)
 4. Profile modules
 5. Infrastructure: sops-nix, home-manager, disko
-6. nixpkgs config with overlays (colloid, fluent, zcode, mikromcp, linux-firmware pin)
+6. nixpkgs config with overlays (colloid, fluent, zcode, mikromcp)
 
 ---
 
@@ -339,13 +339,9 @@ journalctl -b -o cat | grep -E "simple-framebuffer.*Registered|plymouth.*Attache
 # Should show simpledrm registering before Plymouth attaches
 ```
 
-### linux-firmware pin — yellow_carp DMCUB regression (yoga)
+### linux-firmware yellow_carp DMCUB regression (yoga) — RESOLVED 2026-09-19
 
-linux-firmware 20260910 (nixpkgs-26.05, Sept 2026) ships a regressed `yellow_carp_dmcub.bin` (DMCUB 0x0400004C → 0x0400004A; RH bugzilla 2532947). On Rembrandt iGPUs (yoga) the PSP rejects it: `failed to load ucode DMCUB(0x3F)` at boot, the display limps along, then freezes/black-screens the moment the screen blanks, locks, or suspends — recovery needs a boot-menu rollback. Gens 137/138 (2026-09-15/16) were hit; gen 136 (fw 20260810) was the last good closure.
-
-**Mitigation:** `flake.nix` input `nixpkgs-firmware-pin` (rev 93108a5, the previous lock state) + overlay pinning `linux-firmware` to its 20260810 snapshot (all hosts).
-
-**Remove when:** a fixed linux-firmware release (newer than 20260910) lands in nixpkgs — drop the input, the `firmwarePinPkgs` binding and the overlay entry, update flake.lock.
+linux-firmware 20260910 (nixpkgs-26.05, Sept 2026) shipped a regressed `yellow_carp_dmcub.bin` (RH bugzilla 2532947): on Rembrandt iGPUs (yoga) the display froze/black-screened on blank/lock/suspend. Interim mitigation was a pin to the 20260810 snapshot (flake input `nixpkgs-firmware-pin` + overlay). Resolved by linux-firmware **20260916** (AMD revert); the pin was removed and the nixpkgs lock bumped in the same change. If a future firmware snapshot reintroduces DMCUB errors (`failed to load ucode DMCUB(0x3F)`), check [bugzilla 2532947](https://bugzilla.redhat.com/show_bug.cgi?id=2532947) and re-pin the same way.
 
 ### NixOS 26.05 Breaking Changes
 
