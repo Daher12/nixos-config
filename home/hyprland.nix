@@ -93,9 +93,10 @@ let
         animations = { enabled = true },
     })
 
+    -- dwindle.pseudotile no longer exists in the 0.55 Lua config; pseudo is a
+    -- per-window toggle via hl.dsp.window.pseudo() now.
     hl.config({
         dwindle = {
-            pseudotile = true,
             preserve_split = true,
         },
     })
