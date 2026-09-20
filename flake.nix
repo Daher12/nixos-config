@@ -40,6 +40,21 @@
     };
 
     opencode.url = "github:anomalyco/opencode";
+
+    # DMS desktop stack pinned newer than nixpkgs 26.05: 26.05 ships
+    # dms-shell 1.4.6 with the greeter still bundled inside the shell
+    # package; upstream split the greeter out in 1.6.0. Both inputs are
+    # deliberately NOT in the update-safe/CI bump lists (explicit pins).
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+
+    # DankGreeter NixOS module (programs.dms-greeter) from upstream — newer
+    # standalone greeter. Only the module is consumed here; the package it
+    # should run comes from the nixpkgs-unstable overlay (binary-cached
+    # instead of the module's default from-source build).
+    dank-greeter = {
+      url = "github:AvengeMedia/dank-greeter";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
   };
 
   outputs =
@@ -55,6 +70,17 @@
           fluent-icon-theme = final.callPackage ./pkgs/fluent-icon-theme.nix { };
           zcode = final.callPackage ./pkgs/zcode.nix { };
           mikromcp = final.callPackage ./pkgs/mikromcp.nix { };
+        })
+        # DMS 1.6 line from unstable (see nixpkgs-unstable input): dms-shell
+        # 1.6.1, standalone dms-greeter 1.6.2, matching quickshell. The
+        # programs.dms-shell / programs.dms-greeter modules from 26.05 work
+        # against these packages unchanged.
+        (final: _prev: {
+          inherit (inputs.nixpkgs-unstable.legacyPackages.${final.system})
+            dms-shell
+            dms-greeter
+            quickshell
+            ;
         })
       ];
 

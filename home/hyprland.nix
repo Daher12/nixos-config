@@ -126,15 +126,15 @@ let
 
     -- Window management
     hl.bind(mainMod .. " + Q", hl.dsp.window.close())
-    hl.bind(mainMod .. " + M", hl.dsp.exit())
-    hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
+    hl.bind(mainMod .. " + SHIFT + V", hl.dsp.window.float({ action = "toggle" }))
     hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))
     hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
     hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
     hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
     hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
 
-    -- Apps: DMS owns launcher (SUPER+R), power menu (SUPER+P), lock (SUPER+L)
+    -- Apps: DMS owns launcher (SUPER+R), power menu incl. suspend/logout
+    -- (SUPER+P), lock (SUPER+L — GNOME style)
     hl.bind(mainMod .. " + T",         hl.dsp.exec_cmd(terminal))
     hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exec_cmd(fileManager))
     hl.bind(mainMod .. " + F1",        hl.dsp.exec_cmd(browser))
@@ -142,6 +142,17 @@ let
     hl.bind(mainMod .. " + P",   hl.dsp.exec_cmd("dms ipc call powermenu toggle"))
     hl.bind(mainMod .. " + L",   hl.dsp.exec_cmd("dms ipc call lock lock"))
     hl.bind(mainMod .. " + TAB", hl.dsp.exec_cmd("dms ipc call hypr toggleOverview"))
+
+    -- DMS surfaces. Old-config binds kept; new ones follow GNOME where a
+    -- default exists (SUPER+V clipboard like GNOME 48+, SUPER+N
+    -- notifications) and DMS's own conventions otherwise. SUPER+M used to
+    -- exit Hyprland raw — dropped as a footgun, the power menu logs out.
+    hl.bind(mainMod .. " + V",      hl.dsp.exec_cmd("dms ipc call clipboard toggle"))
+    hl.bind(mainMod .. " + N",      hl.dsp.exec_cmd("dms ipc call notifications toggle"))
+    hl.bind(mainMod .. " + M",      hl.dsp.exec_cmd("dms ipc call processlist focusOrToggle"))
+    hl.bind(mainMod .. " + comma",  hl.dsp.exec_cmd("dms ipc call settings focusOrToggle"))
+    hl.bind(mainMod .. " + C",      hl.dsp.exec_cmd("dms ipc call control-center toggle"))
+    hl.bind(mainMod .. " + slash",  hl.dsp.exec_cmd("dms ipc call keybinds open"))
 
     -- Workspaces 1..10 (10th on key 0), move with SHIFT
     for i = 1, 10 do
@@ -195,12 +206,15 @@ let
     hl.window_rule({ name = "float-bitwarden-popup", match = { class = "firefox", title = "Erweiterung: .*Bitwarden.*" }, float = true })
 
     -- Autostart. DMS itself starts via the dms.service user unit, wanted by
-    -- wayland-session@Hyprland.target (modules/features/desktop-hyprland.nix),
+    -- wayland-session@hyprland.desktop.target (modules/features/desktop-hyprland.nix),
     -- so it only runs in Hyprland sessions. Cursor theme/size arrive via the
     -- systemd user manager (home/theme.nix) through uwsm — no env vars needed.
     hl.on("hyprland.start", function()
         -- Polkit authentication agent (GNOME Shell is not running here)
         hl.exec_cmd("${pkgs.hyprpolkitagent}/bin/hyprpolkitagent")
+        -- Clipboard history backend for the DMS clipboard modal (DMS
+        -- Compositor Setup docs). Harmless if DMS tracks clips itself.
+        hl.exec_cmd("wl-paste --watch cliphist store")
     end)
 
     ${cfg.extraConfig}

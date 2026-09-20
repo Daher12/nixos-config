@@ -113,8 +113,14 @@ in
           ".local/share/keyrings"
           ".config/mozilla/firefox"
           ".config/BraveSoftware/Brave-Browser"
-          # DankMaterialShell settings, themes, wallpapers (hyprland session)
+          # DankMaterialShell settings, themes, wallpapers (hyprland session);
+          # session state + matugen colors are what the greeter syncs from
+          # configHome at boot (programs.dms-greeter.configHome)
           ".config/DankMaterialShell"
+          ".local/state/DankMaterialShell"
+          ".cache/DankMaterialShell"
+          # Clipboard history (wl-paste --watch cliphist store, home/hyprland.nix)
+          ".cache/cliphist"
           # ZCode (Electron AppImage): auth/session + workspace state.
           # Verify actual dirname after first launch: ls ~/.config | grep -i zcode
           ".config/ZCode"

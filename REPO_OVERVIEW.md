@@ -2,7 +2,7 @@
 
 This is the single-stop reference for understanding this NixOS configuration repository.
 
-**Last updated:** 2026-09-19 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
+**Last updated:** 2026-09-21 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
 
 ---
 
@@ -73,7 +73,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | File | Purpose |
 |------|---------|
 | `desktop-gnome.nix` | GNOME 50, GDM, dconf, XDG portals |
-| `desktop-hyprland.nix` | Hyprland desktop (uwsm) + DankMaterialShell (`programs.dms-shell`, scoped to `wayland-session@Hyprland.target`) + DankGreeter (greetd), gnome-keyring + PAM, gtk portal, baseline GTK apps; mutually exclusive with `desktop-gnome` |
+| `desktop-hyprland.nix` | Hyprland desktop (uwsm) + DankMaterialShell (`programs.dms-shell`, scoped to `wayland-session@hyprland.desktop.target`) + DankGreeter (standalone 1.6.2 via upstream `programs.dms-greeter` module from the `dank-greeter` flake input; dms-shell/dms-greeter/quickshell pinned from unstable via overlay), gnome-keyring + PAM, gtk portal, baseline GTK apps; mutually exclusive with `desktop-gnome` |
 | `bluetooth.nix` | BlueZ stack |
 | `fonts.nix` | Font packages, fontconfig |
 | `impermanence.nix` | Btrfs root wipe on boot, persist to `/persist` |
@@ -136,7 +136,7 @@ nixosConfigurations.yoga = mkHost {
 3. Hardware modules (if `withHardware = true`)
 4. Profile modules
 5. Infrastructure: sops-nix, home-manager, disko
-6. nixpkgs config with overlays (colloid, fluent, zcode, mikromcp)
+6. nixpkgs config with overlays (colloid, fluent, zcode, mikromcp, DMS unstable pins: dms-shell/dms-greeter/quickshell from `nixpkgs-unstable`)
 
 ---
 
@@ -150,7 +150,7 @@ Shared across all hosts via `home/default.nix`:
 | `battery-refresh.nix` | Panel refresh-rate switch on battery (`desktop.battery-refresh.*`) — works in both sessions: Hyprland daemon (spawned via `hyprland.start`) and GNOME systemd user service (via `gnome-monitor-config`); panel definition comes from `desktop.hyprland.monitors`, which hosts set even on GNOME attrs |
 | `browsers.nix` | Firefox + Brave with forced extensions (uBlock, Bitwarden), policies |
 | `terminal.nix` | Ghostty (Nord), Fish shell (hydro, fzf-fish), btop, fastfetch, CLI tools |
-| `hyprland.nix` | Generates `~/.config/hypr/hyprland.lua` (Hyprland 0.55+ Lua format) — `desktop.hyprland.*` options (monitors, terminal/browser/file manager binds, extraConfig); keybinds/media keys use DMS IPC |
+| `hyprland.nix` | Generates `~/.config/hypr/hyprland.lua` (Hyprland 0.55+ Lua format) — `desktop.hyprland.*` options (monitors, terminal/browser/file manager binds, extraConfig); keybinds/media keys use DMS IPC (incl. clipboard SUPER+V, notifications SUPER+N, process list SUPER+M, settings SUPER+comma, control center SUPER+C, keybind cheatsheet SUPER+slash); autostarts hyprpolkitagent + cliphist watcher |
 | `theme.nix` | Colloid GTK (Nord), Fluent icons, Posy cursors, `switch-theme` script, darkman |
 | `git.nix` | Git config (delta, SSH, rebase on pull) |
 | `opencode.nix` | Shared opencode config (models, providers, permissions, MCP, libstdc++ wrap) — opt-in per host via `opencode.enable = true`; impermanence persistence stays in the host files (`hosts/yoga/opencode.nix`) |
@@ -237,7 +237,7 @@ Steps:
 4. `nix build` — builds the host's toplevel derivation
 5. Optionally activates: `test` (temporary), `boot` (next boot), `switch` (live)
 
-Safe inputs are updated; locked inputs (lanzaboote, opencode, and the `nixpkgs-firmware-pin` DMCUB regression pin) are NOT updated by this script.
+Safe inputs are updated; locked inputs (lanzaboote, opencode, `nixpkgs-unstable` + `dank-greeter` DMS pins) are NOT updated by this script.
 
 ---
 
@@ -342,6 +342,10 @@ journalctl -b -o cat | grep -E "simple-framebuffer.*Registered|plymouth.*Attache
 ### linux-firmware yellow_carp DMCUB regression (yoga) — RESOLVED 2026-09-19
 
 linux-firmware 20260910 (nixpkgs-26.05, Sept 2026) shipped a regressed `yellow_carp_dmcub.bin` (RH bugzilla 2532947): on Rembrandt iGPUs (yoga) the display froze/black-screened on blank/lock/suspend. Interim mitigation was a pin to the 20260810 snapshot (flake input `nixpkgs-firmware-pin` + overlay). Resolved by linux-firmware **20260916** (AMD revert); the pin was removed and the nixpkgs lock bumped in the same change. If a future firmware snapshot reintroduces DMCUB errors (`failed to load ucode DMCUB(0x3F)`), check [bugzilla 2532947](https://bugzilla.redhat.com/show_bug.cgi?id=2532947) and re-pin the same way.
+
+### DMS never started — uwsm session target naming (yoga, fixed 2026-09-21)
+
+The booted 2026-09-18 generation already contained the whole DMS stack, but `dms.service` never started: it was wanted by `wayland-session@Hyprland.target`, and **uwsm derives the instance name from the compositor's desktop entry id** — the live session activates `wayland-session@hyprland.desktop.target` (lowercase, `.desktop` suffix; confirmed via the running `uwsm`/envelope processes). A `WantedBy` on a non-existent target instance is a silent no-op: no bar, no lock screen, no power menu, and every FN-key/media bind dead because they all shell out to `dms ipc`. The fix is the corrected default of `features.desktop-hyprland.dms.systemdTarget`. If DMS is ever missing again, check `systemctl --user list-units 'wayland-session*'` first and compare the instance string against the option.
 
 ### Jellyfin on nix-media — versioning & operations notes
 
