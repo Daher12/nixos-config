@@ -31,8 +31,14 @@ let
     else
       lib.concatMapStrings monitorLua cfg.monitors;
 
-  # Lid switch: internal panel off when closed, configured mode restored when
-  # opened (docked use; logind still suspends per the laptop profile).
+  # Lid switch: internal panel off when closed, restored when opened (docked
+  # use; logind still suspends per the laptop profile). Hyprland 0.55 moved
+  # monitors into the Lua config parser, where `hyprctl keyword monitor ...`
+  # is refused ("keyword can't work with non-legacy parsers") while still
+  # exiting 0 — a silent no-op. The runtime path is `hyprctl eval` on
+  # hl.monitor. Re-opening needs `hyprctl reload`: eval accepts
+  # disabled=false but the panel stays off (verified 0.55.4); only a reload
+  # re-applies the config's hl.monitor block and re-enables it.
   lidSwitchLua =
     if cfg.monitors == [ ] then
       ""
@@ -41,8 +47,8 @@ let
         m = builtins.head cfg.monitors;
       in
       ''
-        hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd("hyprctl keyword monitor \"${m.output}, disable\""), { locked = true })
-        hl.bind("switch:off:Lid Switch", hl.dsp.exec_cmd("hyprctl keyword monitor \"${m.output}, ${m.mode}, ${m.position}, ${m.scale}\""), { locked = true })
+        hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd("hyprctl eval 'hl.monitor({output=\"${m.output}\", disabled=true})'"), { locked = true })
+        hl.bind("switch:off:Lid Switch", hl.dsp.exec_cmd("hyprctl reload"), { locked = true })
       '';
 
   hyprlandLua = ''

@@ -24,18 +24,24 @@ let
 
   # Shared loop logic: re-derive (power, lid[, ext]) every pollInterval
   # seconds and apply the mode whenever the observed state changed and the
-  # guards pass. `last` is updated on every change even when an apply was
-  # skipped, so the panel converges when the lid reopens / dock detaches.
+  # guards pass. `last` only advances on a successful apply or a guard
+  # block, so a failed apply retries on the next poll instead of being
+  # swallowed until the next state change (compositor socket races at
+  # session start, transient D-Bus errors).
   #
   # Trigger conditions (deliberate, all of them):
   #   - AC plug/unplug  -> switch 120 Hz <-> battery refresh rate
   #   - lid reopen      -> re-apply (the lid switch restores the configured
   #                        120 Hz mode; without this the panel would stay at
   #                        120 Hz on battery until the next AC transition)
-  #   - lid closed      -> never touch the panel (it is disabled by the lid
-  #                        switch; a mode change would re-enable it)
+  #   - lid closed      -> never touch the panel (the lid switch disabled
+  #                        it; applying to a disabled panel is at best a
+  #                        no-op and at worst re-enables it — reload-on-open
+  #                        restores the configured mode anyway)
   #   - external output connected (GNOME only) -> never touch the panel
   #                        (`set -L` replaces the whole monitor configuration)
+  #
+  # applyFn must return non-zero on failure (the loop relies on it).
   daemonText = applyFn: extGuard: ''
     is_on_ac() {
       for psu in /sys/class/power_supply/*; do
@@ -97,41 +103,52 @@ let
       if [ "$state" != "$last" ]; then
         if can_apply; then
           if [ "$pwr" = ac ]; then
-            apply "${panel.mode}"
+            if apply "${panel.mode}"; then last="$state"; fi
           else
-            apply "${batMode}"
+            if apply "${batMode}"; then last="$state"; fi
           fi
+        else
+          last="$state"
         fi
-        last="$state"
       fi
       sleep ${toString cfg.pollInterval}
     done
   '';
 
-  # Hyprland session: spawned via the hyprland.start hook (same pattern as
-  # hyprpolkitagent in home/hyprland.nix); uwsm stops the session scope (and
-  # with it this daemon) on logout, the flock guards stray double-starts.
+  # Hyprland session: hyprctl talks to the compositor (uwsm imports
+  # HYPRLAND_INSTANCE_SIGNATURE/XDG_RUNTIME_DIR into the user manager, where
+  # this runs as a service).
+  #
+  # Hyprland 0.55 moved monitors into the Lua config parser, where the old
+  # `hyprctl keyword monitor ...` is refused ("keyword can't work with
+  # non-legacy parsers") while still exiting 0 — a silent no-op that looked
+  # healthy for weeks. The runtime path is `hyprctl eval` on hl.monitor.
+  # eval ALSO exits 0 on Lua errors and prints "ok" on success, so the
+  # output — not the exit code — is the success signal.
   hyprlandDaemon = pkgs.writeShellApplication {
     name = "battery-refresh";
     runtimeInputs = [
       pkgs.coreutils
       pkgs.gnugrep
-      pkgs.util-linux
       pkgs.hyprland
     ];
     text = ''
       set -euo pipefail
 
-      exec 9>"''${XDG_RUNTIME_DIR:-/tmp}/battery-refresh.lock"
-      flock -n 9 || exit 0
-
-      ${daemonText ''hyprctl keyword monitor "${panel.output},$1,${panel.position},${panel.scale}"'' false}
+      ${daemonText ''
+        local out
+        out=$(hyprctl eval "hl.monitor({output='${panel.output}', mode='$1', position='${panel.position}', scale='${panel.scale}'})" 2>&1) || true
+        if [ "$out" != "ok" ]; then
+          echo "battery-refresh: hyprctl eval failed: $out" >&2
+          return 1
+        fi
+      '' false}
     '';
   };
 
-  # GNOME session: systemd user service (below); gnome-monitor-config talks
-  # to mutter's DisplayConfig D-Bus API. Single instance is guaranteed by
-  # systemd, no lock needed.
+  # GNOME session: gnome-monitor-config talks to mutter's DisplayConfig
+  # D-Bus API and exits non-zero on failure. Single instance is guaranteed
+  # by systemd.
   gnomeDaemon = pkgs.writeShellApplication {
     name = "battery-refresh";
     runtimeInputs = [
@@ -148,7 +165,7 @@ let
 in
 {
   options.desktop.battery-refresh = {
-    enable = lib.mkEnableOption "switching the internal panel to a lower refresh rate on battery (Hyprland: hyprctl daemon; GNOME: gnome-monitor-config user service; panel taken from desktop.hyprland.monitors)";
+    enable = lib.mkEnableOption "switching the internal panel to a lower refresh rate on battery (systemd user service in both sessions: Hyprland via hyprctl eval, GNOME via gnome-monitor-config; panel taken from desktop.hyprland.monitors)";
 
     refreshRate = lib.mkOption {
       type = lib.types.ints.positive;
@@ -171,23 +188,22 @@ in
       }
     ];
 
-    # Hyprland attr (.#yoga)
-    desktop.hyprland.extraConfig = lib.mkIf config.desktop.hyprland.enable ''
-      -- Battery refresh-rate switch on the internal panel (home/battery-refresh.nix)
-      hl.on("hyprland.start", function()
-          hl.exec_cmd("${hyprlandDaemon}/bin/battery-refresh")
-      end)
-    '';
-
-    # GNOME attr (.#yoga-gnome): desktop.hyprland.enable is false there
-    systemd.user.services.battery-refresh = lib.mkIf (!config.desktop.hyprland.enable) {
+    # One service shape for both sessions, bound to the graphical session.
+    # Unlike the old hyprland.start spawn, a user service restarts on a
+    # rebuild `switch` (fixes land mid-session, no relogin) and its stderr
+    # lands in the journal.
+    systemd.user.services.battery-refresh = {
       Unit = {
         Description = "Switch internal panel to ${toString cfg.refreshRate} Hz on battery";
         PartOf = [ "graphical-session.target" ];
         After = [ "graphical-session.target" ];
       };
       Service = {
-        ExecStart = "${gnomeDaemon}/bin/battery-refresh";
+        ExecStart =
+          if config.desktop.hyprland.enable then
+            "${hyprlandDaemon}/bin/battery-refresh"
+          else
+            "${gnomeDaemon}/bin/battery-refresh";
         Restart = "on-failure";
         RestartSec = "5s";
       };

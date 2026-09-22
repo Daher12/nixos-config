@@ -111,6 +111,19 @@ let
       ${setting "cornerRadius" "16"}
       ${setting "fontFamily" "\"Inter\""}
 
+      # Idle policy (user spec 2026-09-22): DPMS off / lock / suspend
+      # per power state, in seconds — 3/5/15 min on battery, 10/15/60 on
+      # AC. suspendBehavior stays DMS's default Suspend (0): the Hibernate
+      # behaviors are parked on this firmware (see hosts/yoga yoga-s2h).
+      # DMS's IdleService honors idle inhibitors, so video playback holds
+      # the timers off; plain downloads do not.
+      ${setting "batteryMonitorTimeout" "180"}
+      ${setting "batteryLockTimeout" "300"}
+      ${setting "batterySuspendTimeout" "900"}
+      ${setting "acMonitorTimeout" "600"}
+      ${setting "acLockTimeout" "900"}
+      ${setting "acSuspendTimeout" "3600"}
+
       # Bar: decluttered island (info-on-demand via control center and
       # spotlight instead of always-visible meters), slightly translucent
       # so the compositor blur reads, soft shadow for depth
