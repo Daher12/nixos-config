@@ -205,9 +205,27 @@ let
     -- Firefox Bitwarden popup (German-locale title, as before)
     hl.window_rule({ name = "float-bitwarden-popup", match = { class = "firefox", title = "Erweiterung: .*Bitwarden.*" }, float = true })
 
+    -- DMS surface blur. Hyprland lacks ext-bg-effect-v1, so DMS cannot blur
+    -- itself — dms doctor keeps reporting blur "unsupported" (expected);
+    -- compositor-side layer rules do the job instead (DMS "Layer Namespaces"
+    -- docs). Visibility needs transparent surfaces: lower Surface Opacity in
+    -- DMS Settings → Theme & Colors.
+    hl.layer_rule({
+        name = "dms-blur-modals",
+        match = { namespace = "dms:(color-picker|clipboard|spotlight|settings|polkit|power-menu|notification-center-modal|workspace-overview|process-list-modal|hyprkeybinds|file-browser|bluetooth-pairing|network-info|network-info-wired|wifi-password|confirm-modal|modal)" },
+        blur = true,
+        ignore_alpha = 0,
+    })
+    hl.layer_rule({
+        name = "dms-blur-shell",
+        match = { namespace = "dms:(bar|control-center|dash|battery|app-launcher|popout|notification-center-popout|process-list-popout|tooltip|toast|tray-menu-window|osd|dock|slideout)|dock-context-menu" },
+        blur = true,
+        ignore_alpha = 0,
+    })
+
     -- Autostart. DMS itself starts via the dms.service user unit, wanted by
-    -- wayland-session@hyprland.desktop.target (modules/features/desktop-hyprland.nix),
-    -- so it only runs in Hyprland sessions. Cursor theme/size arrive via the
+    -- graphical-session.target (modules/features/desktop-hyprland.nix), so it
+    -- only runs in graphical sessions. Cursor theme/size arrive via the
     -- systemd user manager (home/theme.nix) through uwsm — no env vars needed.
     hl.on("hyprland.start", function()
         -- Polkit authentication agent (GNOME Shell is not running here)

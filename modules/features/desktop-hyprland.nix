@@ -52,18 +52,20 @@ in
 
       systemdTarget = lib.mkOption {
         type = lib.types.str;
-        default = "wayland-session@hyprland.desktop.target";
+        default = "graphical-session.target";
         description = ''
-          User target that pulls in dms.service. The package default
-          (graphical-session.target) would start DMS in any graphical session;
-          binding to the uwsm session target keeps it scoped to Hyprland.
-          CAREFUL with the instance name: uwsm derives it from the
-          compositor's desktop entry id — "hyprland.desktop", NOT "Hyprland".
-          With wayland-session@Hyprland.target the target never activates,
-          dms.service never starts, and every dms-ipc keybind (FN keys, lock,
-          power menu) is silently dead — exactly what happened live on
-          2026-09-21. Verify with
-          `systemctl --user list-units 'wayland-session*'`.
+          User target that pulls in dms.service. Keep this at the package
+          default (graphical-session.target) — scoping to a uwsm session
+          target does NOT work: dms.service carries After=graphical-session.target
+          (plus Requisite), and modern systemd orders a target after the units
+          it pulls in, so a uwsm instance target (which uwsm orders BEFORE
+          graphical-session.target) closes an ordering cycle and systemd
+          silently deletes the dms.service start job (observed live
+          2026-09-21: no bar, no lock, dead dms-ipc keybinds). Scoping is
+          still correct: the unit's Requisite=graphical-session.target keeps
+          it out of non-graphical sessions, uwsm's stop propagation ends it
+          with the Hyprland session, and dms-shell only exists on the
+          Hyprland attr anyway.
         '';
       };
     };
@@ -183,6 +185,12 @@ in
         # TLP (laptop profile) owns power management; power-profiles-daemon
         # (mkDefault true via programs.dms-shell) would conflict with it.
         services.power-profiles-daemon.enable = false;
+
+        # DMS's battery bar widget and control-center pill read battery
+        # state from org.freedesktop.UPower; without the daemon they render
+        # empty ("No battery"). Pure monitoring — does not touch TLP's
+        # CPU/platform-profile management.
+        services.upower.enable = true;
       })
 
       (lib.mkIf cfg.greeter.enable {
@@ -228,12 +236,13 @@ in
         security.pam.services.dankshell.enableGnomeKeyring = true;
 
         # Autologin boots into a running session; lock it as soon as the DMS
-        # shell can show its lock screen. Wanted by the same uwsm target as
-        # dms.service, ordered after it.
+        # shell can show its lock screen. NO After=dms.service here: ordered
+        # after dms while being wanted by the same target re-creates the
+        # ordering cycle that keeps DMS from starting — the script's own
+        # retry loop already tolerates a not-yet-ready shell.
         home-manager.users.${mainUser}.systemd.user.services.dms-lock-at-boot = {
           Unit = {
             Description = "Lock the session after greetd autologin (auth moves to the DMS lock screen)";
-            After = [ "dms.service" ];
           };
           Service = {
             Type = "oneshot";
