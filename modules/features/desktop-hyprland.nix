@@ -28,15 +28,15 @@ let
     done
   '';
 
-  # Caelestia-look seeding for DMS's runtime-owned files (settings.json,
-  # plugin_settings.json). Both stores are written by the shell's Settings UI
+  # Elegant seeding for DMS's runtime-owned files (settings.json,
+  # plugin_settings.json). Both stores are written by the shell (Settings UI)
   # and pruned to non-default values, so they must not become home-manager
-  # symlinks; this only fills ABSENT top-level keys and never touches
-  # existing ones — anything the user set in the GUI always wins. Runs as an
-  # ExecStartPre drop-in on dms.service (NixOS emits it as
-  # /etc/systemd/user/dms.service.d/overrides.conf, merged with the package
-  # unit), i.e. strictly before the shell reads the files; changing the seed
-  # changes the unit text, so a switch restarts dms and re-runs it.
+  # symlinks; the helpers below only fill ABSENT keys/fields and never touch
+  # existing ones — anything the user set in the GUI always wins. Runs as an ExecStartPre drop-in on dms.service
+  # (NixOS emits it as /etc/systemd/user/dms.service.d/overrides.conf,
+  # merged with the package unit), i.e. strictly before the shell reads the
+  # files; changing the seed changes the unit text, so a switch restarts dms
+  # and re-runs it.
   # Values: animationVariant 1 = Fluent, animationSpeed 2 = Medium
   # (100/150/300/500/1000 ms presets) — DMS's Fluent curves plus a touch of
   # spring bounce approximate the Caelestia shell's quick, glidey motion. The
@@ -46,6 +46,7 @@ let
     let
       dmsConfig = "/home/${mainUser}/.config/DankMaterialShell";
       setting = key: json: "seed '${dmsConfig}/settings.json' '${key}' '${json}'";
+      bar = field: json: "seed_bar '${field}' '${json}'";
       plugin = id: "seed '${dmsConfig}/plugin_settings.json' '${id}' '{\"enabled\":true}'";
     in
     pkgs.writeShellScript "dms-seed-caelestia-look" ''
@@ -66,12 +67,36 @@ let
         $jq --arg k "$key" --argjson v "$val" '. + { ($k): $v }' "$file" > "$tmp" \
           && mv "$tmp" "$file"
       }
+      seed_bar() { # <barConfigs[0]-field> <json-value>: set field only when absent
+        file='${dmsConfig}/settings.json'
+        field=$1
+        val=$2
+        mkdir -p "$(dirname "$file")"
+        if [ ! -s "$file" ] || ! $jq -e . "$file" >/dev/null 2>&1; then
+          printf '{}' > "$file"
+        fi
+        tmp="$file.seed-tmp"
+        # Ensure barConfigs[0] exists, then fill the field when absent
+        $jq 'if ((.barConfigs | type) != "array") or ((.barConfigs | length) == 0) then .barConfigs = [{}] else . end' \
+          "$file" > "$tmp" && mv "$tmp" "$file"
+        if $jq -e --arg f "$field" '.barConfigs[0] | has($f)' "$file" >/dev/null 2>&1; then
+          return 0
+        fi
+        $jq --arg f "$field" --argjson v "$val" '.barConfigs[0][$f] = $v' "$file" > "$tmp" \
+          && mv "$tmp" "$file"
+      }
 
-      # Theme: select the declarative caelestia theme.json. Absolute path on
-      # purpose: DankGreeter (running as its own user) themes itself from
-      # configHome's settings.json and cannot expand "~" to /home/dk.
-      ${setting "currentThemeName" "\"custom\""}
-      ${setting "currentThemeCategory" "\"custom\""}
+      # Theme: dynamic — matugen derives the whole palette (shell, GTK, Qt,
+      # ghostty, Hyprland border colors) from the wallpaper image, so the
+      # look follows whatever wallpaper is set. BOTH keys are required:
+      # Theme.qml routes to the dynamic image loader only when name AND
+      # category are "dynamic" (name alone keeps the custom-file loader).
+      # customThemeFile stays seeded as an inert fallback (Settings UI can
+      # switch back to custom); absolute path on purpose — DankGreeter
+      # (running as its own user) themes itself from configHome's
+      # settings.json and cannot expand "~" to /home/dk.
+      ${setting "currentThemeName" "\"dynamic\""}
+      ${setting "currentThemeCategory" "\"dynamic\""}
       ${setting "customThemeFile" "\"${dmsConfig}/themes/caelestia/theme.json\""}
 
       # Motion: Fluent variant, Medium speed, noticeable spring bounce
@@ -79,9 +104,25 @@ let
       ${setting "animationSpeed" "2"}
       ${setting "springBounce" "2"}
 
-      # Shape & type: rounder corners, Caelestia's font
-      ${setting "cornerRadius" "18"}
-      ${setting "fontFamily" "\"Rubik\""}
+      # Shape & type: rounder corners, Inter (verified in fontconfig;
+      # Rubik never resolved — fonts.packages ships Inter, not Rubik, and
+      # `dms doctor` reported 'Rubik not found', so the shell fell back
+      # to a default sans)
+      ${setting "cornerRadius" "16"}
+      ${setting "fontFamily" "\"Inter\""}
+
+      # Bar: decluttered island (info-on-demand via control center and
+      # spotlight instead of always-visible meters), slightly translucent
+      # so the compositor blur reads, soft shadow for depth
+      ${bar "leftWidgets" ''["launcherButton","workspaceSwitcher"]''}
+      ${bar "centerWidgets" ''["clock"]''}
+      ${bar "rightWidgets" ''["systemTray","battery","controlCenterButton"]''}
+      ${bar "transparency" "0.85"}
+      ${bar "widgetTransparency" "0.9"}
+      ${bar "spacing" "8"}
+      ${bar "innerPadding" "8"}
+      ${bar "widgetPadding" "10"}
+      ${bar "shadowIntensity" "1"}
 
       # Registry plugins are installed system-wide but disabled until their
       # plugin_settings.json entry says otherwise
@@ -281,11 +322,15 @@ in
         # CPU/platform-profile management.
         services.upower.enable = true;
 
-        # Backend for the screenRecorder plugin (VAAPI on the 680M) and the
-        # font the seeded settings point DMS at (icons are bundled in DMS).
+        # Backend for the screenRecorder plugin (VAAPI on the 680M).
+        # adw-gtk3: proper GTK3 live light/dark theming for matugen
+        # (dms doctor flagged it missing — without it GTK falls back to a
+        # static dank-colors.css import). dsearch: filesystem backend for
+        # spotlight file search.
         environment.systemPackages = with pkgs; [
           gpu-screen-recorder
-          rubik
+          adw-gtk3
+          dsearch
         ];
       })
 

@@ -58,15 +58,17 @@ let
     -- Monitors
     ${monitorsLua}
 
-    -- Look & feel (from the old config)
+    -- Look & feel: elegant dynamic. Geometry/shadow/blur/motion are owned
+    -- here (Nix); border *colors* are owned by DMS matugen at runtime via
+    -- ~/.config/hypr/dms/colors.lua (sourced last, wins when present).
+    -- Static Nord below is fallback only (first boot before matugen runs).
     hl.config({
         general = {
-            gaps_in  = 5,
-            gaps_out = 5,
+            gaps_in  = 8,
+            gaps_out = 12,
             border_size = 1,
             col = {
-                -- Nord frost gradient (was teal/green in the old config)
-                active_border = { colors = { "rgba(81a1c1ff)", "rgba(88c0d0ff)" }, angle = 45 },
+                active_border = "rgba(7d7eaaff)",
                 inactive_border = "rgba(4c566aaa)",
             },
             resize_on_border = false,
@@ -74,24 +76,35 @@ let
             layout = "dwindle",
         },
         decoration = {
-            rounding       = 8,
+            -- 16 matches DMS cornerRadius (seeded in the dms feature module)
+            -- so windows and shell popouts share one radius
+            rounding       = 16,
             rounding_power = 2,
-            active_opacity   = 0.99,
-            inactive_opacity = 0.90,
+            active_opacity   = 1.0,
+            -- 0.96 keeps unfocused windows distinguishable without the
+            -- washed-out gray look stronger dimming produces
+            inactive_opacity = 0.96,
             shadow = {
                 enabled = true,
-                range = 4,
+                range = 24,
                 render_power = 3,
             },
             blur = {
                 enabled  = true,
-                size     = 3,
-                passes   = 1,
-                vibrancy = 0.1696,
+                size     = 10,
+                passes   = 2,
+                vibrancy = 0.2,
             },
         },
         animations = { enabled = true },
     })
+
+    -- Calmer Fluent-ish motion (matches DMS animationVariant=Fluent):
+    -- quick pop-in windows, sliding workspaces, fading layers.
+    hl.curve("fluent", { type = "bezier", points = { {0.3, 0.9}, {0.3, 1} } })
+    hl.animation({ leaf = "windows",    enabled = true, speed = 5.5, bezier = "fluent", style = "popin 86%" })
+    hl.animation({ leaf = "workspaces", enabled = true, speed = 4,   bezier = "fluent", style = "slide" })
+    hl.animation({ leaf = "layers",     enabled = true, speed = 5,   bezier = "fluent", style = "fade" })
 
     -- dwindle.pseudotile no longer exists in the 0.55 Lua config; pseudo is a
     -- per-window toggle via hl.dsp.window.pseudo() now.
@@ -204,6 +217,13 @@ let
     hl.window_rule({ name = "float-loupe",       match = { class = "org.gnome.Loupe" }, float = true })
     -- Firefox Bitwarden popup (German-locale title, as before)
     hl.window_rule({ name = "float-bitwarden-popup", match = { class = "firefox", title = "Erweiterung: .*Bitwarden.*" }, float = true })
+
+    -- DMS-managed runtime rules/colors. colors.lua (matugen border colors)
+    -- wins over the static fallback above when present; windowrules.lua
+    -- floats DMS surfaces. layout.lua is deliberately NOT sourced — Nix
+    -- owns geometry (gaps/rounding/border) above.
+    pcall(require, "dms.colors")
+    pcall(require, "dms.windowrules")
 
     -- DMS surface blur. Hyprland lacks ext-bg-effect-v1, so DMS cannot blur
     -- itself — dms doctor keeps reporting blur "unsupported" (expected);

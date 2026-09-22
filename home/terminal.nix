@@ -69,15 +69,30 @@ in
         enable = true;
         package = pkgs.ghostty;
 
+        # Elegant dynamic: on the Hyprland attr DMS matugen owns the
+        # palette (theme = dankcolors, generated at
+        # ~/.config/ghostty/themes/dankcolors). Hardcoded
+        # background/foreground would pin Nord and fight the wallpaper.
+        # GNOME attr has no DMS — keep the static Nord look there.
         settings = {
-          theme = "Nord";
-          background = nord.nord0;
-          foreground = nord.nord4;
           font-family = cfg.ghostty.fontFamily;
           font-size = cfg.ghostty.fontSize;
           window-decoration = "auto";
           command = "fish --login --interactive";
-        };
+        }
+        // (
+          if config.desktop.hyprland.enable then
+            {
+              theme = "dankcolors";
+              background-opacity = 0.93;
+            }
+          else
+            {
+              theme = "Nord";
+              background = nord.nord0;
+              foreground = nord.nord4;
+            }
+        );
       };
     })
 
