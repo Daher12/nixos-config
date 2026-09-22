@@ -27,12 +27,79 @@ let
       ${pkgs.coreutils}/bin/sleep 0.2
     done
   '';
+
+  # Caelestia-look seeding for DMS's runtime-owned files (settings.json,
+  # plugin_settings.json). Both stores are written by the shell's Settings UI
+  # and pruned to non-default values, so they must not become home-manager
+  # symlinks; this only fills ABSENT top-level keys and never touches
+  # existing ones — anything the user set in the GUI always wins. Runs as an
+  # ExecStartPre drop-in on dms.service (NixOS emits it as
+  # /etc/systemd/user/dms.service.d/overrides.conf, merged with the package
+  # unit), i.e. strictly before the shell reads the files; changing the seed
+  # changes the unit text, so a switch restarts dms and re-runs it.
+  # Values: animationVariant 1 = Fluent, animationSpeed 2 = Medium
+  # (100/150/300/500/1000 ms presets) — DMS's Fluent curves plus a touch of
+  # spring bounce approximate the Caelestia shell's quick, glidey motion. The
+  # theme itself is a declarative custom theme (home/hyprland.nix) selected
+  # via currentThemeName/customThemeFile here.
+  dmsCaelestiaSeed =
+    let
+      dmsConfig = "/home/${mainUser}/.config/DankMaterialShell";
+      setting = key: json: "seed '${dmsConfig}/settings.json' '${key}' '${json}'";
+      plugin = id: "seed '${dmsConfig}/plugin_settings.json' '${id}' '{\"enabled\":true}'";
+    in
+    pkgs.writeShellScript "dms-seed-caelestia-look" ''
+      set -eu
+      jq=${pkgs.jq}/bin/jq
+      seed() { # <file> <top-level-key> <json-value>: set key only when absent
+        file=$1
+        key=$2
+        val=$3
+        mkdir -p "$(dirname "$file")"
+        if [ ! -s "$file" ] || ! $jq -e . "$file" >/dev/null 2>&1; then
+          printf '{}' > "$file"
+        fi
+        if $jq -e --arg k "$key" 'has($k)' "$file" >/dev/null 2>&1; then
+          return 0
+        fi
+        tmp="$file.seed-tmp"
+        $jq --arg k "$key" --argjson v "$val" '. + { ($k): $v }' "$file" > "$tmp" \
+          && mv "$tmp" "$file"
+      }
+
+      # Theme: select the declarative caelestia theme.json. Absolute path on
+      # purpose: DankGreeter (running as its own user) themes itself from
+      # configHome's settings.json and cannot expand "~" to /home/dk.
+      ${setting "currentThemeName" "\"custom\""}
+      ${setting "currentThemeCategory" "\"custom\""}
+      ${setting "customThemeFile" "\"${dmsConfig}/themes/caelestia/theme.json\""}
+
+      # Motion: Fluent variant, Medium speed, noticeable spring bounce
+      ${setting "animationVariant" "1"}
+      ${setting "animationSpeed" "2"}
+      ${setting "springBounce" "2"}
+
+      # Shape & type: rounder corners, Caelestia's font
+      ${setting "cornerRadius" "18"}
+      ${setting "fontFamily" "\"Rubik\""}
+
+      # Registry plugins are installed system-wide but disabled until their
+      # plugin_settings.json entry says otherwise
+      ${plugin "batteryPlus"}
+      ${plugin "systemMonitor"}
+      ${plugin "screenRecorder"}
+    '';
 in
 {
   # DankGreeter's module is imported unconditionally (option declarations
   # only — programs.dms-greeter); its config is gated behind
-  # cfg.greeter.enable below.
-  imports = [ inputs.dank-greeter.nixosModules.default ];
+  # cfg.greeter.enable below. The plugin registry module likewise only
+  # declares defaults for programs.dms-shell.plugins (all disabled) — the
+  # enabled subset is picked in the dms block.
+  imports = [
+    inputs.dank-greeter.nixosModules.default
+    inputs.dms-plugin-registry.nixosModules.default
+  ];
 
   options.features.desktop-hyprland = {
     enable = lib.mkEnableOption "Hyprland desktop with DankMaterialShell and DankGreeter (mutually exclusive with features.desktop-gnome)";
@@ -174,13 +241,35 @@ in
           # Wallpaper-driven colors: matugen recolors the DMS shell, GTK and
           # Firefox from the current wallpaper. darkman + switch-theme are
           # auto-disabled on this attr (home/theme.nix) so they don't fight
-          # matugen over ~/.config/gtk-4.0 and GTK_THEME. A static Nord DMS
-          # theme stays shipped (home/hyprland.nix) as the fallback for when
-          # you turn dynamic theming off in DMS Settings.
+          # matugen over ~/.config/gtk-4.0 and GTK_THEME. Static Nord and
+          # Caelestia DMS themes stay shipped (home/hyprland.nix): Nord as
+          # the fallback for dynamic-theming-off, Caelestia as the seeded
+          # default look (see dmsCaelestiaSeed above).
           enableDynamicTheming = true;
           # No khal/vdirsyncer calendar backend in use.
           enableCalendarEvents = false;
+          # External plugins from the dms-plugin-registry flake input,
+          # installed system-wide (/etc/xdg/quickshell/dms-plugins — the
+          # `dms plugin` CLI refuses to uninstall system plugins, so they
+          # cannot drift). Enabling at runtime is seeded via
+          # plugin_settings.json (dmsCaelestiaSeed).
+          plugins = {
+            # Battery charge history + detailed stats (bar widget and CC
+            # pill; reads upower). Its power-profile section self-hides
+            # without power-profiles-daemon (TLP owns power here).
+            batteryPlus.enable = true;
+            # CPU/RAM/network/disk line charts for the DankBar, fed by the
+            # dms daemon's embedded dgop metrics.
+            systemMonitor.enable = true;
+            # gpu-screen-recorder frontend: CC toggle, bar widget, recorder
+            # daemon with audio-source config.
+            screenRecorder.enable = true;
+          };
         };
+
+        # Caelestia-look seed (theme selection, Fluent motion, fonts,
+        # plugin enablement) — ExecStartPre drop-in on dms.service.
+        systemd.user.services.dms.serviceConfig.ExecStartPre = [ "${dmsCaelestiaSeed}" ];
 
         # TLP (laptop profile) owns power management; power-profiles-daemon
         # (mkDefault true via programs.dms-shell) would conflict with it.
@@ -191,6 +280,13 @@ in
         # empty ("No battery"). Pure monitoring — does not touch TLP's
         # CPU/platform-profile management.
         services.upower.enable = true;
+
+        # Backend for the screenRecorder plugin (VAAPI on the 680M) and the
+        # font the seeded settings point DMS at (icons are bundled in DMS).
+        environment.systemPackages = with pkgs; [
+          gpu-screen-recorder
+          rubik
+        ];
       })
 
       (lib.mkIf cfg.greeter.enable {

@@ -298,52 +298,174 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    xdg.configFile."hypr/hyprland.lua".text = hyprlandLua;
+    xdg.configFile = {
+      "hypr/hyprland.lua".text = hyprlandLua;
 
-    # Static Nord theme for the DMS shell (bar/launcher/lock), matching the
-    # ghostty Nord palette. Optional: dynamic matugen theming is ON by default
-    # (features.desktop-hyprland) and overrides the shell theme from the
-    # wallpaper — select this file instead if you turn dynamic theming off in
-    # DMS Settings: ~/.config/DankMaterialShell/themes/nord/theme.json.
-    # Color roles follow DMS's StockThemes schema; the dark/light pair is
-    # picked automatically by the shell's color mode.
-    xdg.configFile."DankMaterialShell/themes/nord/theme.json".text = builtins.toJSON {
-      id = "nord";
-      dark = {
-        name = "Nord";
-        primary = "#88C0D0";
-        primaryText = "#2E3440";
-        primaryContainer = "#5E81AC";
-        secondary = "#81A1C1";
-        surface = "#2E3440";
-        surfaceText = "#ECEFF4";
-        surfaceVariant = "#4C566A";
-        surfaceVariantText = "#D8DEE9";
-        surfaceTint = "#88C0D0";
-        background = "#2E3440";
-        backgroundText = "#ECEFF4";
-        outline = "#4C566A";
-        surfaceContainer = "#3B4252";
-        surfaceContainerHigh = "#434C5E";
-        surfaceContainerHighest = "#4C566A";
+      # Static Nord theme for the DMS shell (bar/launcher/lock), matching the
+      # ghostty Nord palette. Optional: dynamic matugen theming is ON by default
+      # (features.desktop-hyprland) and overrides the shell theme from the
+      # wallpaper — select this file instead if you turn dynamic theming off in
+      # DMS Settings: ~/.config/DankMaterialShell/themes/nord/theme.json.
+      # Color roles follow DMS's StockThemes schema; the dark/light pair is
+      # picked automatically by the shell's color mode.
+      "DankMaterialShell/themes/nord/theme.json".text = builtins.toJSON {
+        id = "nord";
+        dark = {
+          name = "Nord";
+          primary = "#88C0D0";
+          primaryText = "#2E3440";
+          primaryContainer = "#5E81AC";
+          secondary = "#81A1C1";
+          surface = "#2E3440";
+          surfaceText = "#ECEFF4";
+          surfaceVariant = "#4C566A";
+          surfaceVariantText = "#D8DEE9";
+          surfaceTint = "#88C0D0";
+          background = "#2E3440";
+          backgroundText = "#ECEFF4";
+          outline = "#4C566A";
+          surfaceContainer = "#3B4252";
+          surfaceContainerHigh = "#434C5E";
+          surfaceContainerHighest = "#4C566A";
+        };
+        light = {
+          name = "Nord";
+          primary = "#5E81AC";
+          primaryText = "#ECEFF4";
+          primaryContainer = "#81A1C1";
+          secondary = "#81A1C1";
+          surface = "#ECEFF4";
+          surfaceText = "#2E3440";
+          surfaceVariant = "#D8DEE9";
+          surfaceVariantText = "#2E3440";
+          surfaceTint = "#5E81AC";
+          background = "#ECEFF4";
+          backgroundText = "#2E3440";
+          outline = "#4C566A";
+          surfaceContainer = "#E5E9F0";
+          surfaceContainerHigh = "#D8DEE9";
+          surfaceContainerHighest = "#D8DEE9";
+        };
       };
-      light = {
-        name = "Nord";
-        primary = "#5E81AC";
-        primaryText = "#ECEFF4";
-        primaryContainer = "#81A1C1";
-        secondary = "#81A1C1";
-        surface = "#ECEFF4";
-        surfaceText = "#2E3440";
-        surfaceVariant = "#D8DEE9";
-        surfaceVariantText = "#2E3440";
-        surfaceTint = "#5E81AC";
-        background = "#ECEFF4";
-        backgroundText = "#2E3440";
-        outline = "#4C566A";
-        surfaceContainer = "#E5E9F0";
-        surfaceContainerHigh = "#D8DEE9";
-        surfaceContainerHighest = "#D8DEE9";
+
+      # Caelestia-look theme for DMS: the exact palette the Caelestia shell
+      # had live on this machine (matugen tonal-spot from its catppuccin/mocha
+      # wallpaper — dark values transcribed 1:1 from Caelestia's
+      # ~/.local/state/caelestia/scheme.json). The light variant is what
+      # Caelestia/matugen derives from the same source color in light mode, so
+      # the auto light/dark switch (DMS session themeModeAuto) keeps working.
+      # Selected at runtime via the dmsCaelestiaSeed ExecStartPre
+      # (modules/features/desktop-hyprland.nix): currentThemeName=custom +
+      # this file. DMS regenerates roles we leave out from the theme's primary
+      # via matugen, so the subset below is exact where it matters. Turn the
+      # clock back to wallpaper-driven colors anytime: DMS Settings → Theme →
+      # Dynamic.
+      "DankMaterialShell/themes/caelestia/theme.json".text = builtins.toJSON {
+        id = "caelestia";
+        dark = {
+          name = "Caelestia";
+          primary = "#C2C1FF";
+          primaryText = "#2A2A60";
+          primaryContainer = "#7171AC";
+          primaryContainerText = "#FFFFFF";
+          secondary = "#C6C4E0";
+          secondaryText = "#2E2E44";
+          secondaryContainer = "#45455C";
+          secondaryContainerText = "#B4B2CE";
+          tertiary = "#F5B2E0";
+          tertiaryText = "#4E1E44";
+          tertiaryContainer = "#BB7DA9";
+          tertiaryContainerText = "#000000";
+          error = "#FFB4AB";
+          errorText = "#690005";
+          errorContainer = "#93000A";
+          errorContainerText = "#FFDAD6";
+          surface = "#131317";
+          surfaceText = "#E5E1E7";
+          surfaceVariant = "#47464F";
+          surfaceVariantText = "#C8C5D1";
+          surfaceTint = "#C2C1FF";
+          background = "#131317";
+          backgroundText = "#E5E1E7";
+          outline = "#918F9A";
+          outlineVariant = "#47464F";
+          surfaceContainerLowest = "#0E0E12";
+          surfaceContainerLow = "#1C1B1F";
+          surfaceContainer = "#201F23";
+          surfaceContainerHigh = "#2A292E";
+          surfaceContainerHighest = "#353438";
+          surfaceBright = "#39393D";
+          surfaceDim = "#131317";
+          inverseSurface = "#E5E1E7";
+          inverseOnSurface = "#313034";
+          inversePrimary = "#595992";
+          scrim = "#000000";
+          shadow = "#000000";
+          primaryFixed = "#E2DFFF";
+          primaryFixedDim = "#C2C1FF";
+          onPrimaryFixed = "#14134A";
+          onPrimaryFixedVariant = "#414178";
+          secondaryFixed = "#E2E0FD";
+          secondaryFixedDim = "#C6C4E0";
+          onSecondaryFixed = "#19192E";
+          onSecondaryFixedVariant = "#45455C";
+          tertiaryFixed = "#FFD7F0";
+          tertiaryFixedDim = "#F5B2E0";
+          onTertiaryFixed = "#35082E";
+          onTertiaryFixedVariant = "#68355C";
+        };
+        light = {
+          name = "Caelestia";
+          primary = "#595992";
+          primaryText = "#FFFFFF";
+          primaryContainer = "#E2DFFF";
+          primaryContainerText = "#14134A";
+          secondary = "#5D5C72";
+          secondaryText = "#FFFFFF";
+          secondaryContainer = "#E2E0F9";
+          secondaryContainerText = "#1A1A2C";
+          tertiary = "#795369";
+          tertiaryText = "#FFFFFF";
+          tertiaryContainer = "#FFD8EB";
+          tertiaryContainerText = "#2F1124";
+          error = "#BA1A1A";
+          errorText = "#FFFFFF";
+          errorContainer = "#FFDAD6";
+          errorContainerText = "#410002";
+          surface = "#FCF8FF";
+          surfaceText = "#1B1B21";
+          surfaceVariant = "#E4E1EC";
+          surfaceVariantText = "#47464F";
+          surfaceTint = "#595992";
+          background = "#FCF8FF";
+          backgroundText = "#1B1B21";
+          outline = "#777680";
+          outlineVariant = "#C8C5D0";
+          surfaceContainerLowest = "#FFFFFF";
+          surfaceContainerLow = "#F6F2FA";
+          surfaceContainer = "#F0ECF4";
+          surfaceContainerHigh = "#EAE7EF";
+          surfaceContainerHighest = "#E4E1E9";
+          surfaceBright = "#FCF8FF";
+          surfaceDim = "#DCD9E0";
+          inverseSurface = "#303036";
+          inverseOnSurface = "#F3EFF7";
+          inversePrimary = "#C2C1FF";
+          scrim = "#000000";
+          shadow = "#000000";
+          primaryFixed = "#E2DFFF";
+          primaryFixedDim = "#C2C1FF";
+          onPrimaryFixed = "#14134A";
+          onPrimaryFixedVariant = "#414178";
+          secondaryFixed = "#E2E0F9";
+          secondaryFixedDim = "#C6C4DD";
+          onSecondaryFixed = "#1A1A2C";
+          onSecondaryFixedVariant = "#454559";
+          tertiaryFixed = "#FFD8EB";
+          tertiaryFixedDim = "#E9B9D2";
+          onTertiaryFixed = "#2F1124";
+          onTertiaryFixedVariant = "#5F3C51";
+        };
       };
     };
   };

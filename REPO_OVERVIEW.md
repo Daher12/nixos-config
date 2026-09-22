@@ -73,7 +73,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | File | Purpose |
 |------|---------|
 | `desktop-gnome.nix` | GNOME 50, GDM, dconf, XDG portals |
-| `desktop-hyprland.nix` | Hyprland desktop (uwsm) + DankMaterialShell (`programs.dms-shell`, wanted by `graphical-session.target`) + DankGreeter (standalone 1.6.2 via upstream `programs.dms-greeter` module from the `dank-greeter` flake input; dms-shell/dms-greeter/quickshell pinned from unstable via overlay), gnome-keyring + PAM, gtk portal, baseline GTK apps; mutually exclusive with `desktop-gnome` |
+| `desktop-hyprland.nix` | Hyprland desktop (uwsm) + DankMaterialShell (`programs.dms-shell`, wanted by `graphical-session.target`; dms-caelestia-look branch: dms-shell pinned to upstream v1.6.2 via src override on the unstable package, Caelestia-look theming — declarative `themes/caelestia/theme.json` + the `dmsCaelestiaSeed` ExecStartPre drop-in that fills absent runtime-settings keys: custom theme selection, Fluent animation variant/Medium speed/spring bounce, Rubik font — plus external registry plugins under `/etc/xdg/quickshell/dms-plugins` via the `dms-plugin-registry` flake input) + DankGreeter (standalone 1.6.2 via upstream `programs.dms-greeter` module from the `dank-greeter` flake input; dms-greeter/quickshell pinned from unstable via overlay), gnome-keyring + PAM, gtk portal, baseline GTK apps; mutually exclusive with `desktop-gnome` |
 | `bluetooth.nix` | BlueZ stack |
 | `fonts.nix` | Font packages, fontconfig |
 | `impermanence.nix` | Btrfs root wipe on boot, persist to `/persist` |
@@ -108,7 +108,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 |------|----------|
 | `laptop.nix` | bluetooth, TLP, zram, network-optimization, zen kernel, oomd, SecureBoot, Tailscale |
 | `desktop-gnome.nix` | GNOME desktop, fonts |
-| `desktop-hyprland.nix` | Hyprland + DankMaterialShell desktop, fonts |
+| `desktop-hyprland.nix` | Hyprland + DankMaterialShell desktop (dms-caelestia-look branch: v1.6.2 + Caelestia look + registry plugins; plain-DMS baseline = `dms-testing` branch), fonts |
 
 ---
 
@@ -150,7 +150,7 @@ Shared across all hosts via `home/default.nix`:
 | `battery-refresh.nix` | Panel refresh-rate switch on battery (`desktop.battery-refresh.*`) — works in both sessions: Hyprland daemon (spawned via `hyprland.start`) and GNOME systemd user service (via `gnome-monitor-config`); panel definition comes from `desktop.hyprland.monitors`, which hosts set even on GNOME attrs |
 | `browsers.nix` | Firefox + Brave with forced extensions (uBlock, Bitwarden), policies |
 | `terminal.nix` | Ghostty (Nord), Fish shell (hydro, fzf-fish), btop, fastfetch, CLI tools |
-| `hyprland.nix` | Generates `~/.config/hypr/hyprland.lua` (Hyprland 0.55+ Lua format) — `desktop.hyprland.*` options (monitors, terminal/browser/file manager binds, extraConfig); keybinds/media keys use DMS IPC (incl. clipboard SUPER+V, notifications SUPER+N, process list SUPER+M, settings SUPER+comma, control center SUPER+C, keybind cheatsheet SUPER+slash); autostarts hyprpolkitagent + cliphist watcher |
+| `hyprland.nix` | Generates `~/.config/hypr/hyprland.lua` (Hyprland 0.55+ Lua format) — `desktop.hyprland.*` options (monitors, terminal/browser/file manager binds, extraConfig); keybinds/media keys use DMS IPC (incl. clipboard SUPER+V, notifications SUPER+N, process list SUPER+M, settings SUPER+comma, control center SUPER+C, keybind cheatsheet SUPER+slash); autostarts hyprpolkitagent + cliphist watcher. Also ships DMS custom themes to `~/.config/DankMaterialShell/themes/`: `nord/theme.json` (fallback) and `caelestia/theme.json` (exact transcription of the Caelestia shell's live matugen tonal-spot palette — dark from its `scheme.json`, light derived with matugen from the same source color) |
 | `theme.nix` | Colloid GTK (Nord), Fluent icons, Posy cursors, `switch-theme` script, darkman |
 | `git.nix` | Git config (delta, SSH, rebase on pull) |
 | `opencode.nix` | Shared opencode config (models, providers, permissions, MCP, libstdc++ wrap) — opt-in per host via `opencode.enable = true`; impermanence persistence stays in the host files (`hosts/yoga/opencode.nix`) |
@@ -237,7 +237,7 @@ Steps:
 4. `nix build` — builds the host's toplevel derivation
 5. Optionally activates: `test` (temporary), `boot` (next boot), `switch` (live)
 
-Safe inputs are updated; locked inputs (lanzaboote, opencode, `nixpkgs-unstable` + `dank-greeter` DMS pins) are NOT updated by this script.
+Safe inputs are updated; locked inputs (lanzaboote, opencode, `nixpkgs-unstable` + `dank-greeter` DMS pins, `dms-plugin-registry`) are NOT updated by this script.
 
 ---
 
@@ -351,6 +351,17 @@ Two rounds, same symptom (no bar, no lock screen, no power menu, every FN-key/me
 2. **Ordering cycle (2026-09-21 generation):** with the corrected instance target, systemd (260) reported `Found ordering cycle: dms.service/start after graphical-session.target/verify-active after wayland-session@hyprland.desktop.target/start - after dms.service` and **deleted the dms.service start job**. Cause: dms.service ships `After=graphical-session.target`, modern systemd implicitly orders a target AFTER the units it pulls in, and uwsm orders its session target BEFORE `graphical-session.target` — a closed loop. The boot-lock unit (After=dms.service, same WantedBy) cycled the same way.
 
 **Fix:** `features.desktop-hyprland.dms.systemdTarget` stays at the package default `graphical-session.target` (scoping is preserved: the unit's `Requisite=graphical-session.target` gates it to graphical sessions, uwsm's stop propagation ends it with the session, and dms-shell is only enabled on the Hyprland attr). The `dms-lock-at-boot` unit has NO `After=dms.service` — its retry loop handles a not-yet-ready shell, and explicit ordering re-creates the cycle. Mechanics worth knowing: **home-manager turns a unit's `Install.WantedBy=<target>` into a generated target fragment with `After=`+`Wants=` on that unit** — binding session services to a uwsm instance target this way is what closes loops through uwsm's `Before=graphical-session.target` chain. Plain `.wants` symlinks (the NixOS-side binding of dms.service) add no ordering and are cycle-free. Also: `nixos-rebuild switch` does NOT pull newly-wanted units into an already-running target — after changing target bindings mid-session, start the unit manually (`systemctl --user start dms.service`) or reboot. If DMS is ever missing again, check the user journal first: `journalctl --user -b | grep -iE "dms|cycle"`.
+
+### DMS runtime-seeding & plugins (dms-caelestia-look, 2026-09-22)
+
+DMS's `settings.json` / `session.json` / `plugin_settings.json` are **runtime-owned** (the Settings GUI writes them; default-equal keys get pruned on save) and live in persisted dirs — they must NOT become home-manager symlinks or rebuilds would fight the GUI. Declarative look is delivered in two halves:
+
+- **Static data is hm-managed:** `themes/*/theme.json` are plain read-only data files (symlinks are fine — DMS only reads them).
+- **Runtime stores get seeded, never overwritten:** `dmsCaelestiaSeed` (ExecStartPre drop-in on `dms.service`; NixOS renders `systemd.user.services.dms.serviceConfig.*` as `/etc/systemd/user/dms.service.d/overrides.conf` merged with the package unit — verified: the main unit stays a symlink into the dms-shell store path, so `ExecStart` survives) merges **only absent top-level keys** via jq. Consequence: anything the user ever set in the GUI wins forever (live example: `cornerRadius` was already 12 in the user's settings.json, so the seeded 18 does not apply — change it in DMS Settings → Appearance if wanted). Editing the seed changes the unit text → a switch restarts dms and re-runs it.
+
+Plugins: the `dms-plugin-registry` flake input packages every registry plugin from pinned fetchgit revs and its `nixosModules.default` maps them into `programs.dms-shell.plugins` (nixpkgs module) — enabled ones land in `/etc/xdg/quickshell/dms-plugins/`, which the `dms plugin` CLI refuses to uninstall (cannot drift). Installation alone does NOT activate a plugin: enable-state lives in `~/.config/DankMaterialShell/plugin_settings.json` (`{"<pluginId>": {"enabled": true}}`), which is what the seed writes. `batteryPlus` (upower; power-profile section self-hides without PPD), `systemMonitor` (daemon-embedded dgop metrics), `screenRecorder` (needs `gpu-screen-recorder`, installed; output defaults to `~/Videos/Screencasting` — persisted).
+
+Startup gotcha (verified 2026-09-22, strict QC): the dms Go binary execs `qs` **by name** (`exec.Command("qs", …)` in core/cmd/dms/shell.go) — the dms.service unit carries `path = []` (nixpkgs module), so `qs` must resolve from the user-manager environment. It does in practice: uwsm imports the session PATH (incl. `/run/current-system/sw/bin`, where programs.dms-shell puts quickshell) before activating `graphical-session.target`, which dms is ordered after, and the unit's `Restart=on-failure` covers the import race. Do not strip PATH from the manager env or move quickshell out of systemPackages. Greeter theming for the custom theme works because the greeter module's root `preStart` copies `customThemeFile` (absolute path — `~` forms fail its `-f` test) into the greeter cache and rewrites the path in the greeter's own settings copy.
 
 ### Jellyfin on nix-media — versioning & operations notes
 
