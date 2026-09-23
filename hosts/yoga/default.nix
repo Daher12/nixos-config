@@ -379,6 +379,12 @@
     persistence."/persist" = {
       hideMounts = true;
       allowTrash = true;
+      # DankGreeter remembers last user + last session in /var/cache
+      # (greeterRememberLastSession defaults true) — ephemeral on this
+      # impermanence setup, so without this the greeter forgets the choice
+      # every boot and re-preselects the bare (non-uwsm) Hyprland session
+      # after a logout. Selecting the uwsm session once makes it stick.
+      directories = [ "/var/cache/dms-greeter" ];
       users.${mainUser} = {
         directories = [
           "Schreibtisch"
