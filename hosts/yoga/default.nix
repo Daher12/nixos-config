@@ -390,11 +390,6 @@
           "Vorlagen"
           "Videos"
           "nixos-config"
-          # Worktree of the lucid-testing branch — lived outside /persist and
-          # was WIPED by the first reboot 2026-09-23 (uncommitted branch work
-          # recoverable only via the flake source store paths). Pre-seeded in
-          # /persist so the mount is never empty at boot.
-          "nixos-config-lucid"
         ];
       };
     };
