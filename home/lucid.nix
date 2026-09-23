@@ -286,6 +286,16 @@ in
       };
     };
 
+    # NOTE: deliberately NO systemd.user.services.hypridle here. Lucid's
+    # Idle settings page OWNS the unit name `hypridle` — it generates
+    # ~/.config/hypr/hypridle.conf itself and runs `systemctl --user
+    # enable/start/stop hypridle` against the hypridle package unit
+    # (/run/current-system/sw/share/systemd/user/hypridle.service).
+    # An HM unit of the same name claims the same filename
+    # (~/.config/systemd/user/hypridle.service) and collides with the
+    # symlink Lucid creates → every rebuild fails with "would be
+    # clobbered" (2026-09-23). The binary stays available via
+    # environment.systemPackages (modules/features/desktop-hyprland.nix).
     systemd.user.services = {
       # The shell itself. launch-shell.sh picks the Qt render backend
       # (Vulkan only on proprietary NVIDIA) and execs `quickshell` — the
@@ -318,25 +328,6 @@ in
           ];
         };
         Install.WantedBy = [ "graphical-session.target" ];
-      };
-
-      # Bare unit, deliberately WITHOUT the HM hypridle module and WITHOUT
-      # an Install section: Lucid's Idle settings page OWNS hypridle — it
-      # generates ~/.config/hypr/hypridle.conf itself (marker: "generated
-      # by lucid settings") and enables/restarts/stops this exact unit name
-      # via `systemctl --user` (Idle.qml). HM config management or autostart
-      # would fight it.
-      hypridle = {
-        Unit = {
-          Description = "Hyprland idle daemon (managed by Lucid settings)";
-          After = [ "graphical-session.target" ];
-          PartOf = [ "graphical-session.target" ];
-        };
-        Service = {
-          ExecStart = "${pkgs.hypridle}/bin/hypridle";
-          Restart = "always";
-          RestartSec = 2;
-        };
       };
     };
   };
