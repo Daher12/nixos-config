@@ -225,7 +225,9 @@ in
 
     terminal = lib.mkOption {
       type = lib.types.str;
-      default = "ghostty";
+      # kitty (single-instance wrap, home/terminal.nix) — ghostty stays
+      # installed and keeps lucid's F9 terminal bind.
+      default = "kitty";
       description = "Terminal command for the SUPER+T bind";
     };
 

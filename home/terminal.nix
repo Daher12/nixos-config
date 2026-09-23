@@ -40,6 +40,26 @@ in
       };
     };
 
+    kitty = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Enable Kitty terminal (single-instance wrapped)";
+      };
+
+      fontSize = lib.mkOption {
+        type = lib.types.int;
+        default = 11;
+        description = "Font size";
+      };
+
+      fontFamily = lib.mkOption {
+        type = lib.types.str;
+        default = "CaskaydiaCove Nerd Font";
+        description = "Font family";
+      };
+    };
+
     fish = {
       enable = lib.mkOption {
         type = lib.types.bool;
@@ -103,6 +123,41 @@ in
               foreground = nord.nord4;
             }
         );
+      };
+    })
+
+    (lib.mkIf cfg.kitty.enable {
+      # Kitty alongside ghostty: SUPER+T opens kitty (desktop.hyprland.terminal),
+      # ghostty stays installed and keeps lucid's F9 bind. Single-instance wrap:
+      # --single-instance is CLI-only (no kitty.conf equivalent), and it is the
+      # startup-time tweak — the first launch pays the full cost (GL init,
+      # embedded Python), every later `kitty` just IPCs the running instance and
+      # opens a new window near-instantly. Caveats: a running instance keeps its
+      # loaded config until reload (ctrl+shift+f5) or restart, so rebuilds don't
+      # hot-apply; all windows share one process, so a crash takes them all.
+      programs.kitty = {
+        enable = true;
+        package = pkgs.symlinkJoin {
+          name = "kitty-single-instance";
+          paths = [ pkgs.kitty ];
+          buildInputs = [ pkgs.makeWrapper ];
+          postBuild = ''
+            wrapProgram $out/bin/kitty --add-flags "--single-instance"
+          '';
+        };
+        # Nord from kitty-themes — same palette ghostty's theme = "Nord" loads.
+        # HM writes the include BEFORE `settings` (order 520 vs 540), so colors
+        # are deliberately left to the theme here.
+        themeFile = "Nord";
+        settings = {
+          font_family = cfg.kitty.fontFamily;
+          font_size = cfg.kitty.fontSize;
+          background_opacity = "0.93";
+          hide_window_decorations = "yes";
+          shell = "fish --login --interactive";
+          scrollback_lines = 10000;
+          update_check_interval = 0;
+        };
       };
     })
 
