@@ -238,6 +238,48 @@ in
           -e 's|find "$d/$t" \\(|find -L "$d/$t" \\(|' \
           "$QS_DIR/luciddocks/resolve-icons.sh"
       fi
+
+      #  6) German UI strings for the daily surfaces: launcher headers and
+      #     search field, power menu, quick-settings section titles and
+      #     tiles, lock screen. Unlike the behavioral patches above these
+      #     are pattern-translations WITHOUT markers — replacing the string
+      #     removes the English pattern, so they are naturally idempotent
+      #     and re-apply automatically whenever upstream ships the English
+      #     text (if upstream renames a string it silently shows English
+      #     again — same drift caveat, self-healing by re-set). The
+      #     settings app (lucidprefs) is deliberately not translated.
+      ${pkgs.gnused}/bin/sed -i \
+        -e 's/headerRow("Frequent")/headerRow("Häufig")/' \
+        -e 's/headerRow("All applications")/headerRow("Alle Anwendungen")/' \
+        "$QS_DIR/luciddocks/Dock.qml"
+      ${pkgs.gnused}/bin/sed -i \
+        -e 's/"Log Out"/"Abmelden"/' \
+        -e 's/"Reboot"/"Neustart"/' \
+        -e 's/"Shutdown"/"Herunterfahren"/' \
+        -e 's/"Suspend"/"Bereitschaft"/' \
+        -e 's/"Hibernate"/"Ruhezustand"/' \
+        -e 's/"Lock"/"Sperren"/' \
+        "$QS_DIR/luciddocks/PowerRow.qml"
+      ${pkgs.gnused}/bin/sed -i \
+        -e 's/Search apps, or type > for commands/Apps suchen, »>« für Befehle/' \
+        -e 's/Search clipboard history/Zwischenablage durchsuchen/' \
+        "$QS_DIR/luciddocks/LauncherFace.qml"
+      ${pkgs.gnused}/bin/sed -i \
+        -e 's/"Control Centre"/"Kontrollzentrum"/' \
+        -e 's/text: "SOUND \& DISPLAY"/text: "KLANG \& ANZEIGE"/' \
+        -e 's/"NOW PLAYING"/"LÄUFT GERADE"/' \
+        -e 's/text: "DISK"/text: "FESTPLATTE"/' \
+        -e 's/name: "Do Not Disturb"/name: "Nicht stören"/' \
+        -e 's/name: "Game Mode"/name: "Spielmodus"/' \
+        -e 's/name: "Airplane"/name: "Flugmodus"/' \
+        -e 's/name: "Wi-Fi"/name: "WLAN"/' \
+        -e 's/name: "Location"/name: "Standort"/' \
+        -e 's/name: "Power"/name: "Energie"/' \
+        -e 's/return "Set up in Settings";/return "In Einstellungen einrichten";/' \
+        "$QS_DIR/lucidbar/System.qml"
+      ${pkgs.gnused}/bin/sed -i \
+        -e 's/"Caps Lock"/"Feststell"/' \
+        "$QS_DIR/lucidlock/LockAuthCard.qml"
     '';
 
     xdg.configFile = {
