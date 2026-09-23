@@ -82,6 +82,99 @@ let
     "layerrules"
     "glass"
   ];
+
+  # Mirrors of home/theme.nix's theme names (plain let-bindings there, so
+  # they cannot be imported) — the auto-mode wrapper needs them for the
+  # light/dark gsettings swaps. Keep in sync.
+  themeDark = "Colloid-Dark-Nord";
+  themeLight = "Colloid-Light-Nord";
+  iconDark = "Fluent-dark";
+  iconLight = "Fluent";
+
+  # Auto light/dark (user decision 2026-09-23: fixed times, NOT solar —
+  # darkman is disabled on this host for fighting matugen over GTK, and a
+  # trigger that shifts daily is hard to audit). One timer fires at both
+  # boundaries; the service also runs at session start, so a boundary missed
+  # while the laptop is off self-corrects at next login. Manual flips from
+  # the Theme page keep working and last until the next boundary.
+  lightHour = 8;
+  darkHour = 19;
+
+  # The wrapper mirrors what Prefs.setColorMode does in-QML: Lucid's own
+  # set-mode.sh for the palette (matugen re-run in the new mode, current_mode
+  # watched by the shell) plus the app-facing theme swaps — gsettings for
+  # running and portal-aware clients, and the gtk3/gtk4/gtk2 ini name fields
+  # (via lucid's own envtool writer) for freshly launched plain GTK apps.
+  # Theme names are owned by
+  # home/theme.nix — keep the two pairs below in sync there. prefs
+  # envColorScheme deliberately stays "auto": envtool apply only writes
+  # color-scheme for dark/light, so it never rewrites these values behind
+  # the timer's back.
+  lucidAutoMode = pkgs.writeShellApplication {
+    name = "lucid-auto-mode";
+    runtimeInputs = with pkgs; [
+      glib # gsettings
+      coreutils # date
+    ];
+    text = ''
+            set -euo pipefail
+
+            mode="''${1:-}"
+            if [[ -z "$mode" ]]; then
+              hour=$(date +%H)
+              if (( 10#$hour >= ${toString lightHour} && 10#$hour < ${toString darkHour} )); then
+                mode=light
+              else
+                mode=dark
+              fi
+            fi
+            case "$mode" in
+            light | dark) ;;
+            *)
+              echo "usage: lucid-auto-mode [light|dark]" >&2
+              exit 2
+              ;;
+            esac
+
+            # Palette + matugen templates through Lucid's own flip. Fails while no
+            # wallpaper is set through lucid yet (matugen has nothing to derive
+            # from) — the gsettings swaps below still land, so downgrade to a
+            # warning instead of aborting.
+            "$HOME/.config/lucid/set-mode.sh" "$mode" \
+              || echo "warning: set-mode.sh failed — swapped gsettings only" >&2
+
+            gsettings set org.gnome.desktop.interface color-scheme "prefer-$mode"
+            if [[ "$mode" == light ]]; then
+              gtk="${themeLight}"
+              icon="${iconLight}"
+            else
+              gtk="${themeDark}"
+              icon="${iconDark}"
+            fi
+            gsettings set org.gnome.desktop.interface icon-theme "$icon"
+            gsettings set org.gnome.desktop.interface gtk-theme "$gtk"
+
+            # Running and portal-aware clients follow gsettings, but a freshly
+            # launched plain GTK app reads the ini files instead. Mirror the two
+            # names through lucid's own envtool writer — same keys, format and
+            # file policy as the apply a manual Theme-page flip triggers. Guarded:
+            # if upstream moves the helper, this degrades to gsettings-only.
+            if [[ -f "$HOME/.config/quickshell/lucidprefs/envtool.py" ]]; then
+              GTK_NAME="$gtk" ICON_NAME="$icon" python3 - <<'PYEOF'
+      import os, sys
+      sys.path.insert(0, os.path.expanduser("~/.config/quickshell/lucidprefs"))
+      import envtool
+      common = {
+          "gtk-theme-name": os.environ["GTK_NAME"],
+          "gtk-icon-theme-name": os.environ["ICON_NAME"],
+      }
+      for path in (envtool.GTK3, envtool.GTK4):
+          envtool.ini_set(path, "Settings", common)
+      envtool.gtk2_set(common)
+      PYEOF
+            fi
+    '';
+  };
 in
 {
   options.desktop.lucid = {
@@ -239,7 +332,24 @@ in
           "$QS_DIR/luciddocks/resolve-icons.sh"
       fi
 
-      #  6) German UI strings for the daily surfaces: launcher headers and
+      #  6) Appearance probe (lucidprefs/envtool.py): upstream scans only the
+      #     Arch theme paths (~/.icons, ~/.local/share/icons, /usr/share/icons
+      #     and the theme equivalents), so on NixOS the probe sees no
+      #     home-manager-installed themes and Lucid Settings > Environment
+      #     marks "Fluent-dark" as "not installed on this machine any more",
+      #     with an empty icon picker and blank previews. The installed lists
+      #     also gate Env.variantOf — the light/dark counterpart swap that
+      #     runs on every colour-mode change — so the same miss silently
+      #     disabled icon/GTK theme switching on a mode flip. Adds the NixOS
+      #     profile env paths (basename of HOME is the main user).
+      if ! grep -q 'nixos-config local patch' "$QS_DIR/lucidprefs/envtool.py"; then
+        ${pkgs.gnused}/bin/sed -i \
+          -e 's|^ICON_DIRS = .*|ICON_DIRS = [f"{HOME}/.icons", f"{HOME}/.local/share/icons", "/usr/share/icons", "/run/current-system/sw/share/icons", f"/etc/profiles/per-user/{os.path.basename(HOME)}/share/icons", f"{HOME}/.nix-profile/share/icons"]  # nixos-config local patch|' \
+          -e 's|^THEME_DIRS = .*|THEME_DIRS = [f"{HOME}/.themes", f"{HOME}/.local/share/themes", "/usr/share/themes", "/run/current-system/sw/share/themes", f"/etc/profiles/per-user/{os.path.basename(HOME)}/share/themes", f"{HOME}/.nix-profile/share/themes"]  # nixos-config local patch|' \
+          "$QS_DIR/lucidprefs/envtool.py"
+      fi
+
+      #  7) German UI strings for the daily surfaces: launcher headers and
       #     search field, power menu, quick-settings section titles and
       #     tiles, lock screen. Unlike the behavioral patches above these
       #     are pattern-translations WITHOUT markers — replacing the string
@@ -371,6 +481,44 @@ in
         };
         Install.WantedBy = [ "graphical-session.target" ];
       };
+
+      # Auto light/dark. One oneshot for all three triggers (08:00, 19:00,
+      # session start): the script itself decides which mode the clock calls
+      # for unless a mode is passed. Timer-activated AND wanted by the
+      # graphical session — the timer unit below shares the base name, so
+      # systemd wires them together without an explicit Unit=.
+      lucid-auto-mode = {
+        Unit = {
+          Description = "Lucid light/dark mode: light ${toString lightHour}:00–${toString darkHour}:00, dark otherwise; corrects at login";
+          After = [ "graphical-session.target" ];
+          PartOf = [ "graphical-session.target" ];
+        };
+        Service = {
+          Type = "oneshot";
+          ExecStart = "${lucidAutoMode}/bin/lucid-auto-mode";
+          # Same PATH discipline as lucid.service: set-mode.sh shells out to
+          # matugen, awww, jq, python3 — all system deps.
+          Environment = [
+            "PATH=/run/current-system/sw/bin:/etc/profiles/per-user/${mainUser}/bin:%h/.local/bin"
+          ];
+        };
+        Install.WantedBy = [ "graphical-session.target" ];
+      };
+    };
+
+    systemd.user.timers.lucid-auto-mode = {
+      Unit.Description = "Flip Lucid light/dark at ${toString lightHour}:00 and ${toString darkHour}:00";
+      Timer = {
+        OnCalendar = [
+          "*-*-* ${toString lightHour}:00:00"
+          "*-*-* ${toString darkHour}:00:00"
+        ];
+        # A boundary missed while powered off is not caught up retroactively —
+        # the login run of lucid-auto-mode.service applies the correct mode
+        # for the current time instead.
+        Persistent = false;
+      };
+      Install.WantedBy = [ "timers.target" ];
     };
   };
 }
