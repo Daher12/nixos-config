@@ -115,10 +115,30 @@ in
           ".config/BraveSoftware/Brave-Browser"
           # DankMaterialShell settings, themes, wallpapers (hyprland session);
           # session state + matugen colors are what the greeter syncs from
-          # configHome at boot (programs.dms-greeter.configHome)
+          # configHome at boot (programs.dms-greeter.configHome). Kept on the
+          # lucid branch: greeter theming reads it + rollback friendliness.
           ".config/DankMaterialShell"
           ".local/state/DankMaterialShell"
           ".cache/DankMaterialShell"
+          # Lucid shell (home/lucid.nix): settings live INSIDE the synced
+          # shell tree (~/.config/quickshell/lucidprefs/prefs.json etc.) —
+          # the sync excludes exactly these from --delete. Support scripts,
+          # keybinds.json and theme state under ~/.config/lucid.
+          ".config/quickshell"
+          ".config/lucid"
+          ".cache/quickshell"
+          # Lucid's runtime-written Hyprland data: hypridle.conf (Idle
+          # settings page), lucid-specials.lua, lucid-glass.lua. The HM
+          # symlinks (hyprland.lua, modules/, scripts/) re-link every boot.
+          ".config/hypr"
+          # matugen GTK template output (colors.css + the gtk.css import
+          # lucidSync appends)
+          ".config/gtk-3.0"
+          ".config/gtk-4.0"
+          # set-wallpaper.sh state: active wallpaper/mode + theme name
+          ".cache/current_theme"
+          ".cache/current_wallpaper"
+          ".cache/current_mode"
           # Clipboard history (wl-paste --watch cliphist store, home/hyprland.nix)
           ".cache/cliphist"
           # ZCode (Electron AppImage): auth/session + workspace state.

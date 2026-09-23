@@ -65,6 +65,20 @@
       url = "github:AvengeMedia/dms-plugin-registry";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Lucid desktop shell (github:Sn3akyy1/lucid): Material 3 Expressive
+    # Quickshell shell (bar, dock, launcher, lock screen, notifications,
+    # settings GUI). Upstream ships no Nix packaging — the only install path
+    # is an Arch install.sh — so the input is consumed as plain source
+    # (flake = false): home/lucid.nix syncs the shell tree into the writable
+    # ~/.config/quickshell (Lucid keeps runtime settings inside its own
+    # shell directory, so a read-only store path cannot work) and wraps it
+    # in services/deps. Deliberately NOT in the update-safe/CI bump lists
+    # (moves fast, manual pin) — update with `nix flake update lucid`.
+    lucid = {
+      url = "github:Sn3akyy1/lucid";
+      flake = false;
+    };
   };
 
   outputs =

@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }:
 
@@ -9,8 +8,10 @@ let
   cfg = config.desktop.hyprland;
 
   # Hyprland 0.55+ Lua config. Ported from the old hyprlang dots
-  # (~/Downloads/dots-main/hypr/hyprland.conf); DankMaterialShell replaces
-  # waybar, rofi, dunst, hyprpaper, hyprlock and hypridle from that setup.
+  # (~/Downloads/dots-main/hypr/hyprland.conf). The lucid-testing branch:
+  # the Lucid shell (home/lucid.nix) replaces DMS as bar/launcher/lock/
+  # notifications/idle — its keybinds, surface rules and glass layers are
+  # loaded from the modules required near the end of this file.
   monitorLua = m: ''
     hl.monitor({
         output   = "${m.output}",
@@ -143,7 +144,13 @@ let
         },
     })
 
-    -- Window management
+    -- Keybinds: the DMS-era layout the user asked to keep (2026-09-23),
+    -- mapped onto lucid's IPC surface. Everything not bound here lives in
+    -- ~/.config/lucid/keybinds.json (workspaces 1-10, arrows/split, mouse,
+    -- XF86 media/brightness, screenshots, tap-Super launcher) — loaded by
+    -- modules.binds below; edit via Lucid Settings > Keybinds, not here.
+    -- Entries the json used to bind were disabled in its seed where they
+    -- collided with this set (see home/lucid.nix).
     hl.bind(mainMod .. " + Q", hl.dsp.window.close())
     hl.bind(mainMod .. " + SHIFT + V", hl.dsp.window.float({ action = "toggle" }))
     hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))
@@ -152,112 +159,60 @@ let
     hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
     hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
 
-    -- Apps: DMS owns launcher (SUPER+R), power menu incl. suspend/logout
-    -- (SUPER+P), lock (SUPER+L — GNOME style)
+    -- Apps & shell surfaces (lucid IPC equivalents of the old dms-ipc binds)
     hl.bind(mainMod .. " + T",         hl.dsp.exec_cmd(terminal))
     hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exec_cmd(fileManager))
     hl.bind(mainMod .. " + F1",        hl.dsp.exec_cmd(browser))
-    hl.bind(mainMod .. " + R",   hl.dsp.exec_cmd("dms ipc call spotlight toggle"))
-    hl.bind(mainMod .. " + P",   hl.dsp.exec_cmd("dms ipc call powermenu toggle"))
-    hl.bind(mainMod .. " + L",   hl.dsp.exec_cmd("dms ipc call lock lock"))
-    hl.bind(mainMod .. " + TAB", hl.dsp.exec_cmd("dms ipc call hypr toggleOverview"))
+    hl.bind(mainMod .. " + R",     hl.dsp.exec_cmd("qs ipc call launcher toggle"))
+    hl.bind(mainMod .. " + P",     hl.dsp.exec_cmd("qs ipc call launcher power"))
+    hl.bind(mainMod .. " + L",     hl.dsp.exec_cmd("qs ipc call lock lock"))
+    hl.bind(mainMod .. " + TAB",   hl.dsp.exec_cmd("qs ipc call workspaces toggle"))
+    hl.bind(mainMod .. " + V",     hl.dsp.exec_cmd("qs ipc call launcher clipboard"))
+    hl.bind(mainMod .. " + N",     hl.dsp.exec_cmd("qs ipc call notifs toggle"))
+    hl.bind(mainMod .. " + M",     hl.dsp.exec_cmd("${cfg.terminal} -e btop"))
+    hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd("qs ipc call settings toggle"))
 
-    -- DMS surfaces. Old-config binds kept; new ones follow GNOME where a
-    -- default exists (SUPER+V clipboard like GNOME 48+, SUPER+N
-    -- notifications) and DMS's own conventions otherwise. SUPER+M used to
-    -- exit Hyprland raw — dropped as a footgun, the power menu logs out.
-    hl.bind(mainMod .. " + V",      hl.dsp.exec_cmd("dms ipc call clipboard toggle"))
-    hl.bind(mainMod .. " + N",      hl.dsp.exec_cmd("dms ipc call notifications toggle"))
-    hl.bind(mainMod .. " + M",      hl.dsp.exec_cmd("dms ipc call processlist focusOrToggle"))
-    hl.bind(mainMod .. " + comma",  hl.dsp.exec_cmd("dms ipc call settings focusOrToggle"))
-    hl.bind(mainMod .. " + C",      hl.dsp.exec_cmd("dms ipc call control-center toggle"))
-    hl.bind(mainMod .. " + slash",  hl.dsp.exec_cmd("dms ipc call keybinds open"))
-
-    -- Workspaces 1..10 (10th on key 0), move with SHIFT
-    for i = 1, 10 do
-        local key = i % 10
-        hl.bind(mainMod .. " + " .. key,         hl.dsp.focus({ workspace = i }))
-        hl.bind(mainMod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = i }))
-    end
-
-    -- Scratchpad ("magic" special workspace)
+    -- Scratchpad ("magic" special workspace, as before lucid)
     hl.bind(mainMod .. " + S",         hl.dsp.workspace.toggle_special("magic"))
     hl.bind(mainMod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:magic" }))
 
-    -- Scroll through workspaces; move/resize with the mouse
-    hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
-    hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
-    hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
-    hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
-
-    -- Media keys via DMS (shows its OSD): volume, mic, brightness, MPRIS
-    hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("dms ipc call audio increment 5"), { locked = true, repeating = true })
-    hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("dms ipc call audio decrement 5"), { locked = true, repeating = true })
-    hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("dms ipc call audio mute"), { locked = true })
-    hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("dms ipc call mic mute"), { locked = true })
-    hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("dms ipc call brightness increment 5 \"\""), { locked = true, repeating = true })
-    hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("dms ipc call brightness decrement 5 \"\""), { locked = true, repeating = true })
-    hl.bind("XF86AudioNext",  hl.dsp.exec_cmd("dms ipc call mpris next"), { locked = true })
-    hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("dms ipc call mpris previous"), { locked = true })
-    hl.bind("XF86AudioPlay",  hl.dsp.exec_cmd("dms ipc call mpris playPause"), { locked = true })
-    hl.bind("XF86AudioPause", hl.dsp.exec_cmd("dms ipc call mpris playPause"), { locked = true })
-
-    -- Screenshots (DMS CLI: saves file + clipboard)
-    hl.bind("Print",               hl.dsp.exec_cmd("dms screenshot"),       { description = "Screenshot: region" })
-    hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd("dms screenshot full"),  { description = "Screenshot: focused output" })
-
     ${lidSwitchLua}
 
-    -- Window rules (ported; float targets that are actually installed)
-    hl.window_rule({
-        name  = "suppress-maximize-events",
-        match = { class = ".*" },
-        suppress_event = "maximize",
-    })
-    hl.window_rule({
-        name  = "fix-xwayland-drags",
-        match = { class = "^$", title = "^$", xwayland = true, float = true, fullscreen = false, pin = false },
-        no_focus = true,
-    })
+    -- App float rules kept from the ported config (float targets that are
+    -- actually installed). The two generic rules this file used to carry
+    -- (suppress-maximize-events, fix-xwayland-drags) are NOT duplicated
+    -- here: lucid's windowrules module below defines them identically.
     hl.window_rule({ name = "float-file-roller", match = { class = "org.gnome.FileRoller" }, float = true })
     hl.window_rule({ name = "float-loupe",       match = { class = "org.gnome.Loupe" }, float = true })
     -- Firefox Bitwarden popup (German-locale title, as before)
     hl.window_rule({ name = "float-bitwarden-popup", match = { class = "firefox", title = "Erweiterung: .*Bitwarden.*" }, float = true })
 
-    -- DMS-managed runtime rules/colors. colors.lua (matugen border colors)
-    -- wins over the static fallback above when present; windowrules.lua
-    -- floats DMS surfaces. layout.lua is deliberately NOT sourced — Nix
-    -- owns geometry (gaps/rounding/border) above.
-    pcall(require, "dms.colors")
-    pcall(require, "dms.windowrules")
+    -- Lucid runtime modules (deployed from the lucid flake input by
+    -- home/lucid.nix). binds.lua loads ~/.config/lucid/keybinds.json — the
+    -- complete bind set (launcher, workspaces, scratchpads, mouse, media
+    -- and screenshot keys); windowrules floats lucid surfaces; layerrules
+    -- blurs its glass layers (replaces the hand-rolled dms-blur-* rules —
+    -- the dms namespaces are gone); glass is the per-app translucency
+    -- loader (Settings > Glass writes ~/.config/hypr/lucid-glass.lua).
+    -- pcall keeps the compositor alive if a module is mid-sync or missing.
+    pcall(require, "modules.json")
+    pcall(require, "modules.specials")
+    pcall(require, "modules.binds")
+    pcall(require, "modules.windowrules")
+    pcall(require, "modules.layerrules")
+    pcall(require, "modules.glass")
 
-    -- DMS surface blur. Hyprland lacks ext-bg-effect-v1, so DMS cannot blur
-    -- itself — dms doctor keeps reporting blur "unsupported" (expected);
-    -- compositor-side layer rules do the job instead (DMS "Layer Namespaces"
-    -- docs). Visibility needs transparent surfaces: lower Surface Opacity in
-    -- DMS Settings → Theme & Colors.
-    hl.layer_rule({
-        name = "dms-blur-modals",
-        match = { namespace = "dms:(color-picker|clipboard|spotlight|settings|polkit|power-menu|notification-center-modal|workspace-overview|process-list-modal|hyprkeybinds|file-browser|bluetooth-pairing|network-info|network-info-wired|wifi-password|confirm-modal|modal)" },
-        blur = true,
-        ignore_alpha = 0,
-    })
-    hl.layer_rule({
-        name = "dms-blur-shell",
-        match = { namespace = "dms:(bar|control-center|dash|battery|app-launcher|popout|notification-center-popout|process-list-popout|tooltip|toast|tray-menu-window|osd|dock|slideout)|dock-context-menu" },
-        blur = true,
-        ignore_alpha = 0,
-    })
-
-    -- Autostart. DMS itself starts via the dms.service user unit, wanted by
-    -- graphical-session.target (modules/features/desktop-hyprland.nix), so it
-    -- only runs in graphical sessions. Cursor theme/size arrive via the
-    -- systemd user manager (home/theme.nix) through uwsm — no env vars needed.
+    -- Autostart. Lucid itself starts via the lucid.service user unit,
+    -- wanted by graphical-session.target (home/lucid.nix) — upstream's
+    -- modules.autostart.lua is deliberately NOT required here (it would
+    -- start a second shell next to the service). Cursor theme/size arrive
+    -- via the systemd user manager (home/theme.nix) through uwsm — no env
+    -- vars needed. Lucid's polkit agent (lucidpolkit) runs inside the
+    -- shell, so hyprpolkitagent is no longer autostarted (kept installed
+    -- as a manual fallback).
     hl.on("hyprland.start", function()
-        -- Polkit authentication agent (GNOME Shell is not running here)
-        hl.exec_cmd("${pkgs.hyprpolkitagent}/bin/hyprpolkitagent")
-        -- Clipboard history backend for the DMS clipboard modal (DMS
-        -- Compositor Setup docs). Harmless if DMS tracks clips itself.
+        -- Clipboard history backend (kept from the DMS setup; lucid's
+        -- clipboard launcher reads cliphist too).
         hl.exec_cmd("wl-paste --watch cliphist store")
     end)
 

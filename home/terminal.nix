@@ -81,9 +81,19 @@ in
           command = "fish --login --interactive";
         }
         // (
-          if config.desktop.hyprland.enable then
+          if config.desktop.hyprland.enable && !config.desktop.lucid.enable then
             {
               theme = "dankcolors";
+              background-opacity = 0.93;
+            }
+          else if config.desktop.lucid.enable then
+            {
+              # Lucid branch: DMS's matugen no longer writes the dankcolors
+              # theme, and lucid has no ghostty template yet (follow-up) —
+              # static Nord, keep the DMS-era translucency.
+              theme = "Nord";
+              background = nord.nord0;
+              foreground = nord.nord4;
               background-opacity = 0.93;
             }
           else

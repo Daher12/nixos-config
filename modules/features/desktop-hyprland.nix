@@ -28,6 +28,22 @@ let
     done
   '';
 
+  # Lucid variant of dmsLockAtBoot: lucidlock exposes the same IPC shape
+  # (`qs ipc call lock lock`, Lockscreen.qml IPC handler "lock"). Same
+  # uptime gate + retry rationale as above — the lucid.service being up
+  # does not guarantee its IPC socket is listening yet.
+  lucidLockAtBoot = pkgs.writeShellScript "lucid-lock-at-boot" ''
+    if [ "$(${pkgs.coreutils}/bin/cut -d. -f1 /proc/uptime)" -ge 240 ]; then
+      exit 0
+    fi
+    i=0
+    until ${pkgs.quickshell}/bin/qs ipc call lock lock; do
+      i=$((i + 1))
+      [ "$i" -ge 50 ] && exit 1
+      ${pkgs.coreutils}/bin/sleep 0.2
+    done
+  '';
+
   # Elegant seeding for DMS's runtime-owned files (settings.json,
   # plugin_settings.json). Both stores are written by the shell (Settings UI)
   # and pruned to non-default values, so they must not become home-manager
@@ -191,6 +207,24 @@ in
       };
     };
 
+    lucid = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Lucid desktop shell (Material 3 Expressive Quickshell shell) in
+          place of the DMS user-session shell. Deploys the upstream source
+          into ~/.config/quickshell via a home-manager activation sync
+          (home/lucid.nix — Lucid has no Nix packaging and keeps runtime
+          settings inside its shell directory) and provides the user
+          services, PAM/keyring wiring and deps. DankGreeter (greeter.enable)
+          stays: it is a standalone binary. Pick exactly one of dms.enable /
+          lucid.enable — the profile on the lucid-testing branch flips the
+          pair.
+        '';
+      };
+    };
+
     greeter = {
       enable = lib.mkOption {
         type = lib.types.bool;
@@ -209,10 +243,11 @@ in
         default = false;
         description = ''
           Boot straight into the uwsm Hyprland session (greetd initial_session)
-          instead of showing the greeter first, gated by the DMS lock screen.
-          This removes the greeter-to-session handoff: only one compositor ever
-          starts, so there is no VT/console flash at login. Authentication (and
-          gnome-keyring unlock) happens at the DMS lock screen on first unlock;
+          instead of showing the greeter first, gated by the shell lock screen
+          (DMS or lucid — whichever is enabled). This removes the
+          greeter-to-session handoff: only one compositor ever starts, so
+          there is no VT/console flash at login. Authentication (and
+          gnome-keyring unlock) happens at the lock screen on first unlock;
           the greeter still runs after logout and whenever the initial session
           exits.
         '';
@@ -233,8 +268,8 @@ in
             message = "features.desktop-hyprland and features.desktop-gnome are mutually exclusive — switch via the flake attrs (yoga = Hyprland, yoga-gnome = GNOME)";
           }
           {
-            assertion = !cfg.greeter.autoLogin || cfg.dms.enable;
-            message = "features.desktop-hyprland.greeter.autoLogin requires dms.enable — the DMS lock screen is the authentication gate";
+            assertion = !cfg.greeter.autoLogin || cfg.dms.enable || cfg.lucid.enable;
+            message = "features.desktop-hyprland.greeter.autoLogin requires dms.enable or lucid.enable — the shell lock screen is the authentication gate";
           }
         ];
 
@@ -394,7 +429,7 @@ in
         # after dms while being wanted by the same target re-creates the
         # ordering cycle that keeps DMS from starting — the script's own
         # retry loop already tolerates a not-yet-ready shell.
-        home-manager.users.${mainUser}.systemd.user.services.dms-lock-at-boot = {
+        home-manager.users.${mainUser}.systemd.user.services.dms-lock-at-boot = lib.mkIf cfg.dms.enable {
           Unit = {
             Description = "Lock the session after greetd autologin (auth moves to the DMS lock screen)";
           };
@@ -403,6 +438,106 @@ in
             ExecStart = "${dmsLockAtBoot}";
           };
           Install.WantedBy = [ cfg.dms.systemdTarget ];
+        };
+      })
+
+      (lib.mkIf cfg.lucid.enable {
+        # Lucid replaces only the user-session shell; the greeter stack
+        # (greeter.enable block above) is untouched. DankGreeter keeps
+        # theming itself from the persisted ~/.config/DankMaterialShell
+        # settings (cosmetic staleness, by design).
+
+        # Lucid's battery widget reads org.freedesktop.UPower; Users.qml
+        # (lock-screen user list/avatar) talks to accountsservice. Pure
+        # monitoring/lookup — TLP still owns power management (which is why
+        # power-profiles-daemon stays off, as the DMS block had it).
+        services = {
+          upower.enable = true;
+          accounts-daemon.enable = true;
+          power-profiles-daemon.enable = false;
+        };
+
+        # polkitd backend for lucidpolkit: the shell IS the session's polkit
+        # agent (upstream install.sh: "polkitd and its setuid helper are the
+        # backend it drives"). hyprpolkitagent stays installed as a manual
+        # fallback but is no longer autostarted (home/hyprland.nix).
+        security.polkit.enable = true;
+
+        # The lucid lock screen authenticates against PAM service "login"
+        # (Lockscreen.qml: `property string pamConfig: "login"`,
+        # Quickshell.Services.Pam). With autologin no password is entered at
+        # session start, so the keyring stays locked until the first screen
+        # unlock — wire pam_gnome_keyring into that service so unlock opens
+        # the login keyring too. Same wiring the noctalia branch proved
+        # live (journals: `gkr-pam: unlocked login keyring` at lock-screen
+        # unlocks); requires keyring and login passwords to match, true
+        # since the 2026-09-23 keyring reset.
+        security.pam.services.login.enableGnomeKeyring = true;
+
+        # Runtime deps of the shell + its keybind set. System-level on
+        # purpose: keybinds exec from Hyprland (uwsm session PATH) and the
+        # lucid unit shells out constantly — /run/current-system/sw/bin
+        # resolves for both (how the old dms-ipc binds resolved). Python
+        # env = lucidprefs/lucidshot helpers (gi for D-Bus, PIL + numpy +
+        # fontTools for OCR/theme tooling); tesseract with deu+eng for
+        # SUPER+SHIFT+T OCR. adw-gtk3: GTK live-retheming for matugen's
+        # gtk3/gtk4 templates (same reason the DMS block ships it).
+        environment.systemPackages = with pkgs; [
+          adw-gtk3
+          quickshell
+          matugen
+          awww # wallpaper daemon lucid's set-wallpaper.sh prefers (formerly swww)
+          brightnessctl
+          playerctl
+          hyprpicker
+          wtype
+          grim
+          slurp
+          wf-recorder
+          ffmpeg
+          imagemagick
+          hypridle
+          jq
+          libnotify
+          glib # gdbus — Lockscreen.qml watches logind Lock/Unlock via `gdbus monitor`
+          pulseaudio # pactl — lucid's Audio module probes sinks/sources with it
+          (tesseract.override {
+            enableLanguages = [
+              "deu"
+              "eng"
+            ];
+          })
+          (python3.withPackages (
+            p: with p; [
+              pygobject3
+              pillow
+              numpy
+              fonttools
+            ]
+          ))
+        ];
+
+        # Home-manager side: flip home/lucid.nix on (activation sync + user
+        # services) and arm the lock-at-boot unit. Autologin boots into a
+        # running session; lock it as soon as lucid can show its lock
+        # screen. Same shape and no-After reasoning as dms-lock-at-boot
+        # above: ordering it after lucid.service while the same target
+        # wants both would re-create the ordering cycle that keeps shells
+        # from starting; the retry loop tolerates a shell that is not
+        # listening yet.
+        home-manager.users.${mainUser} = {
+          desktop.lucid.enable = lib.mkDefault true;
+
+          systemd.user.services.lucid-lock-at-boot = {
+            Unit = {
+              Description = "Lock the session after greetd autologin (auth moves to the lucid lock screen)";
+            };
+            Service = {
+              Type = "oneshot";
+              ExecStart = "${lucidLockAtBoot}";
+            };
+            Install.WantedBy = [ "graphical-session.target" ];
+          };
         };
       })
     ]
