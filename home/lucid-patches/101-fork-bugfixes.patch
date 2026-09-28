@@ -1,0 +1,150 @@
+diff --git a/Notifs.qml b/Notifs.qml
+index 7efe13c..0a7997c 100644
+--- a/Notifs.qml
++++ b/Notifs.qml
+@@ -21,7 +21,7 @@ Singleton {
+         "close": "M12 13.4L7.1 18.3q-0.275 0.275 -0.7 0.275t-0.7 -0.275q-0.275 -0.275 -0.275 -0.7t0.275 -0.7l4.9 -4.9l-4.9 -4.9q-0.275 -0.275 -0.275 -0.7t0.275 -0.7q0.275 -0.275 0.7 -0.275t0.7 0.275l4.9 4.9l4.9 -4.9q0.275 -0.275 0.7 -0.275t0.7 0.275q0.275 0.275 0.275 0.7t-0.275 0.7L13.4 12l4.9 4.9q0.275 0.275 0.275 0.7t-0.275 0.7q-0.275 0.275 -0.7 0.275t-0.7 -0.275L12 13.4Z",
+         "expand_more": "M12 14.95q-0.2 0 -0.375 -0.062t-0.325 -0.213L6.7 10.075q-0.275 -0.275 -0.275 -0.7t0.275 -0.7q0.275 -0.275 0.7 -0.275t0.7 0.275l3.9 3.9l3.9 -3.9q0.275 -0.275 0.7 -0.275t0.7 0.275q0.275 0.275 0.275 0.7t-0.275 0.7L12.7 14.675q-0.15 0.15 -0.325 0.213t-0.375 0.062Z",
+         "expand_less": "M12 10.775L8.1 14.675q-0.275 0.275 -0.7 0.275t-0.7 -0.275q-0.275 -0.275 -0.275 -0.7t0.275 -0.7l4.6 -4.6q0.15 -0.15 0.325 -0.213t0.375 -0.062q0.2 0 0.375 0.062t0.325 0.213l4.6 4.6q0.275 0.275 0.275 0.7t-0.275 0.7q-0.275 0.275 -0.7 0.275t-0.7 -0.275L12 10.775Z",
+-        "reply": "m6.825 -12l2.9 2.9q0.3 0.3 0.288 0.7T9.7 16.3q-0.3 0.275 -0.7 0.288T8.3 16.3L3.7 11.7q-0.3 -0.3 -0.3 -0.7t0.3 -0.7l4.6 -4.6q0.275 -0.275 0.688 -0.275t0.713 0.275q0.3 0.3 0.3 0.713T9.7 7.125L6.825 10h9.175q2.075 0 3.538 1.463T21 15v3q0 0.425 -0.288 0.713T20 19q-0.425 0 -0.713 -0.288T19 18v-3q0 -1.25 -0.875 -2.125t-2.125 -0.875H6.825Z",
++        "reply": "M6.825 12l2.9 2.9q0.3 0.3 0.288 0.7T9.7 16.3q-0.3 0.275 -0.7 0.288T8.3 16.3L3.7 11.7q-0.3 -0.3 -0.3 -0.7t0.3 -0.7l4.6 -4.6q0.275 -0.275 0.688 -0.275t0.713 0.275q0.3 0.3 0.3 0.713T9.7 7.125L6.825 10h9.175q2.075 0 3.538 1.463T21 15v3q0 0.425 -0.288 0.713T20 19q-0.425 0 -0.713 -0.288T19 18v-3q0 -1.25 -0.875 -2.125t-2.125 -0.875H6.825Z",
+         "send": "M4.4 19.425q-0.5 0.2 -0.95 -0.088T3 18.5v-4.5l8 -2l-8 -2v-4.5q0 -0.55 0.45 -0.838t0.95 -0.088l15.4 6.5q0.625 0.275 0.625 0.925t-0.625 0.925L4.4 19.425Z",
+         "volume_off": "M16.775 19.575q-0.275 0.175 -0.55 0.325t-0.575 0.275q-0.375 0.175 -0.763 0T14.35 19.6q-0.15 -0.375 0.038 -0.738T14.95 18.325q0.175 -0.075 0.325 -0.163t0.3 -0.188L12 14.8v2.775q0 0.675 -0.613 0.938T10.3 18.3L7 15H4q-0.425 0 -0.713 -0.288T3 14v-4q0 -0.425 0.288 -0.713T4 9h2.2L2.1 4.9q-0.275 -0.275 -0.275 -0.7t0.275 -0.7q0.275 -0.275 0.7 -0.275t0.7 0.275l17 17q0.275 0.275 0.275 0.7t-0.275 0.7q-0.275 0.275 -0.7 0.275t-0.7 -0.275l-2.325 -2.325Zm2.225 -7.6q0 -2.075 -1.1 -3.788T14.95 5.625q-0.375 -0.175 -0.55 -0.537t-0.05 -0.738q0.15 -0.4 0.537 -0.575t0.788 0q2.425 1.075 3.875 3.275t1.45 4.925q0 0.825 -0.15 1.638T20.425 15.175q-0.2 0.55 -0.613 0.688t-0.763 0.013q-0.35 -0.125 -0.562 -0.45t-0.013 -0.75q0.275 -0.65 0.4 -1.312t0.125 -1.388ZM14.775 8.425q0.825 0.525 1.275 1.575t0.45 2v0.25q0 0.125 -0.025 0.25q-0.05 0.325 -0.35 0.425t-0.55 -0.15l-1.275 -1.275q-0.15 -0.15 -0.225 -0.338t-0.075 -0.388v-1.925q0 -0.3 0.263 -0.438t0.513 0.013Zm-5.025 -1.475q-0.15 -0.15 -0.15 -0.35t0.15 -0.35l0.55 -0.55q0.475 -0.475 1.088 -0.213T12 6.425v1.575q0 0.35 -0.3 0.475t-0.55 -0.125l-1.4 -1.4Z",
+         "bedtime": "M13.1 23q-2.1 0 -3.938 -0.8t-3.2 -2.163Q4.6 18.675 3.8 16.838T3 12.9q0 -3.2 1.8 -5.8t4.825 -3.65q0.55 -0.2 1.025 0.138t0.45 0.913q-0.075 2.125 0.675 4.05t2.25 3.425q1.5 1.5 3.425 2.25t4.05 0.675q0.65 -0.025 0.963 0.438T22.575 16.375q-1.1 3 -3.688 4.812T13.1 23Z",
+diff --git a/lucidosd/Osd.qml b/lucidosd/Osd.qml
+index b061b25..f1893d3 100644
+--- a/lucidosd/Osd.qml
++++ b/lucidosd/Osd.qml
+@@ -243,7 +243,7 @@ PanelWindow {
+     Process {
+         id: findDeviceProc
+ 
+-        command: ["bash", "-c", "ls /sys/class/backlight | head -1"]
++        command: ["bash", "-c", "brightnessctl -m --list 2>/dev/null | awk -F, '$2 == \"backlight\" { print $1; exit }'"]
+ 
+         stdout: StdioCollector {
+             onStreamFinished: osdWindow.backlightDevice = this.text.trim().replace(/[@/*=|]$/, "")
+@@ -270,6 +270,13 @@ PanelWindow {
+         onFileChanged: reload()
+     }
+ 
++    Timer {
++        interval: 500
++        repeat: true
++        running: osdWindow.backlightDevice !== ""
++        onTriggered: brightnessFile.reload()
++    }
++
+     Process {
+         id: kbStateProc
+ 
+diff --git a/lucidbar/System.qml b/lucidbar/System.qml
+index e059d08..9e16536 100644
+--- a/lucidbar/System.qml
++++ b/lucidbar/System.qml
+@@ -596,7 +595,7 @@ BarPill {
+     Process {
+         id: findDeviceProc
+ 
+-        command: ["bash", "-c", "ls /sys/class/backlight | head -1"]
++        command: ["bash", "-c", "brightnessctl -m --list 2>/dev/null | awk -F, '$2 == \"backlight\" { print $1; exit }'"]
+ 
+         stdout: StdioCollector {
+             onStreamFinished: root.backlightDevice = this.text.trim().replace(/[@/*=|]$/, "")
+@@ -621,7 +620,8 @@ BarPill {
+     Process {
+         id: setBrightnessProc
+ 
+-        command: root.pendingBrightness >= 0 ? ["brightnessctl", "set", root.pendingBrightness + "%"] : []
++        command: root.pendingBrightness >= 0 && root.backlightDevice !== "" ? ["brightnessctl", "-d", root.backlightDevice, "set", root.pendingBrightness + "%"] : []
++        onExited: brightnessFile.reload()
+     }
+ 
+     Process {
+@@ -967,6 +967,13 @@ BarPill {
+         onFileChanged: reload()
+     }
+ 
++    Timer {
++        interval: 500
++        repeat: true
++        running: root.backlightDevice !== ""
++        onTriggered: brightnessFile.reload()
++    }
++
+     compactContent: [
+         Row {
+             id: content
+diff --git a/lucidbar/Mpris.qml b/lucidbar/Mpris.qml
+index 69615b4..d76c5ca 100644
+--- a/lucidbar/Mpris.qml
++++ b/lucidbar/Mpris.qml
+@@ -2210,8 +2210,19 @@ BarPill {
+             running: false
+         }
+ 
++        Text {
++            anchors.left: parent.left
++            anchors.verticalCenter: parent.verticalCenter
++            visible: !mq.overflowing
++            text: mq.content
++            color: mq.textColor
++            font.family: Theme.fontFamily
++            font.bold: mq.bold
++            font.pixelSize: mq.pixelSize
++        }
++
+         Repeater {
+-            model: mq.sliceCount * 2 + 1
++            model: mq.overflowing ? mq.sliceCount * 2 + 1 : 0
+ 
+             Item {
+                 id: slice
+diff --git a/Loc.qml b/Loc.qml
+index 14a0030..8cd907c 100644
+--- a/Loc.qml
++++ b/Loc.qml
+@@ -94,7 +94,9 @@ Singleton {
+         root.busy = true;
+         root.lastError = "";
+         geocodeProc.running = false;
+-        geocodeProc.command = ["sh", "-c", "curl -sf --max-time 10 'https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&format=json&name=" + encodeURIComponent(q) + "'"];
++        // curl gets the url as its own argument: no shell, so nothing typed
++        // here - an apostrophe in a place name included - is ever parsed
++        geocodeProc.command = ["curl", "-sf", "--proto", "=https", "--max-time", "10", "https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&format=json&name=" + encodeURIComponent(q)];
+         geocodeProc.running = true;
+     }
+ 
+@@ -124,7 +126,9 @@ Singleton {
+     Process {
+         id: detectProc
+ 
+-        command: ["sh", "-c", "curl -sf --max-time 8 https://ipapi.co/json/ || curl -sf --max-time 8 http://ip-api.com/json/"]
++        // https only, fallback included: the reply sets your location and
++        // time zone, so it must not be readable or rewritable on the way
++        command: ["sh", "-c", "curl -sf --proto =https --max-time 8 https://ipapi.co/json/ || curl -sf --proto =https --max-time 8 https://ipwho.is/"]
+         onExited: (code) => {
+             root.busy = false;
+             if (code !== 0)
+@@ -136,6 +140,10 @@ Singleton {
+             onStreamFinished: {
+                 try {
+                     const d = JSON.parse(this.text);
++                    if (d.success === false || d.error === true) {
++                        root.lastError = "the lookup service did not return a position";
++                        return ;
++                    }
+                     const lat = d.latitude !== undefined ? d.latitude : d.lat;
+                     const lon = d.longitude !== undefined ? d.longitude : d.lon;
+                     if (typeof lat !== "number" || typeof lon !== "number") {
+@@ -144,7 +152,9 @@ Singleton {
+                     }
+                     const city = d.city || "";
+                     const country = d.country_name || d.country || "";
+-                    root.apply(lat, lon, city !== "" ? (country !== "" ? city + ", " + country : city) : country, d.timezone || "");
++                    // ipwho.is nests the zone: timezone.id
++                    const tz = (d.timezone && typeof d.timezone === "object") ? (d.timezone.id || "") : (d.timezone || "");
++                    root.apply(lat, lon, city !== "" ? (country !== "" ? city + ", " + country : city) : country, tz);
+                 } catch (e) {
+                     root.lastError = "could not read the lookup service reply";
+                 }

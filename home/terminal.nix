@@ -149,6 +149,10 @@ in
           shell = "fish --login --interactive";
           scrollback_lines = 10000;
           update_check_interval = 0;
+          # pts, not px: 12pt ≈ 16px at this DPI, matching Hyprland's
+          # decoration rounding = 16 (home/hyprland.nix). Without padding the
+          # prompt glyphs sit under the rounded corners and get clipped.
+          window_padding_width = 12;
         };
       };
     })

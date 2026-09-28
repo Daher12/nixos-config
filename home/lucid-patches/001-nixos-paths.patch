@@ -1,0 +1,47 @@
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' a/luciddocks/Dock.qml b/luciddocks/Dock.qml
+--- a/luciddocks/Dock.qml	2026-09-28 21:34:24.035003555 +0200
++++ b/luciddocks/Dock.qml	2026-09-28 21:34:45.610843429 +0200
+@@ -1299,7 +1299,7 @@
+     Process {
+         id: appScanner
+ 
+-        command: ["sh", "-c", "for d in /usr/share/applications \"$HOME/.local/share/applications\" " + "/var/lib/flatpak/exports/share/applications \"$HOME/.local/share/flatpak/exports/share/applications\" " + "/var/lib/snapd/desktop/applications; do " + "[ -d \"$d\" ] && find \"$d\" -maxdepth 1 -name '*.desktop' -print0; " + "done | xargs -0 -r awk '" + "function clean(v) { gsub(/\\|/, \" \", v); gsub(/\\r/, \"\", v); return v } " + "function flush(   n, e) { " + "n = clean(name); e = clean(ex); " + "if (nodisp || hidden) return; " + "if (type != \"\" && type != \"Application\") return; " + "if (n == \"\" || e == \"\") return; " + "gsub(/ ?%[a-zA-Z]/, \"\", e); sub(/[ \\t]+$/, \"\", e); " + "if (term == \"true\") e = \"kitty -e \" e; " + "print n \"|\" clean(icon) \"|\" clean(kw \" \" gen \" \" com \" \" cats) \"|\" e \"|\" clean(wm) \"|\" base } " + "BEGINFILE { name=\"\"; icon=\"\"; ex=\"\"; kw=\"\"; gen=\"\"; com=\"\"; cats=\"\"; wm=\"\"; type=\"\"; term=\"\"; nodisp=0; hidden=0; insec=0; " + "base=FILENAME; sub(/.*\\//, \"\", base); sub(/\\.desktop$/, \"\", base) } " + "/^[ \\t]*\\[/ { insec = ($0 ~ /^\\[Desktop Entry\\]/) ? 1 : 0; next } " + "!insec { next } " + "/^Name=/ { if (name == \"\") name = substr($0, 6) } " + "/^Icon=/ { if (icon == \"\") icon = substr($0, 6) } " + "/^Exec=/ { if (ex == \"\") ex = substr($0, 6) } " + "/^Keywords=/ { if (kw == \"\") { kw = substr($0, 10); gsub(/;/, \" \", kw) } } " + "/^GenericName=/ { if (gen == \"\") gen = substr($0, 13) } " + "/^Comment=/ { if (com == \"\") com = substr($0, 9) } " + "/^Categories=/ { if (cats == \"\") { cats = substr($0, 12); gsub(/;/, \" \", cats) } } " + "/^StartupWMClass=/ { if (wm == \"\") wm = substr($0, 16) } " + "/^Type=/ { if (type == \"\") type = substr($0, 6) } " + "/^Terminal=/ { if (term == \"\") term = substr($0, 10) } " + "/^NoDisplay=true/ { nodisp = 1 } " + "/^Hidden=true/ { hidden = 1 } " + "ENDFILE { flush() }'"]
++        command: ["sh", "-c", "for d in \"$HOME/.local/share/applications\" /run/current-system/sw/share/applications /etc/profiles/per-user/$USER/share/applications \"$HOME/.nix-profile/share/applications\" /usr/share/applications " + "/var/lib/flatpak/exports/share/applications \"$HOME/.local/share/flatpak/exports/share/applications\" " + "/var/lib/snapd/desktop/applications; do " + "[ -d \"$d\" ] && find \"$d\" -maxdepth 1 -name '*.desktop' -print0; " + "done | xargs -0 -r awk '" + "function clean(v) { gsub(/\\|/, \" \", v); gsub(/\\r/, \"\", v); return v } " + "function flush(   n, e) { " + "n = clean(name); e = clean(ex); " + "if (nodisp || hidden) return; " + "if (type != \"\" && type != \"Application\") return; " + "if (n == \"\" || e == \"\") return; " + "gsub(/ ?%[a-zA-Z]/, \"\", e); sub(/[ \\t]+$/, \"\", e); " + "if (term == \"true\") e = \"kitty -e \" e; " + "print n \"|\" clean(icon) \"|\" clean(kw \" \" gen \" \" com \" \" cats) \"|\" e \"|\" clean(wm) \"|\" base } " + "BEGIN { l = ENVIRON[\"LANG\"]; sub(/[@.].*/, \"\", l) } BEGINFILE { name=\"\"; icon=\"\"; ex=\"\"; kw=\"\"; gen=\"\"; com=\"\"; cats=\"\"; wm=\"\"; type=\"\"; term=\"\"; nodisp=0; hidden=0; insec=0; " + "base=FILENAME; sub(/.*\\//, \"\", base); sub(/\\.desktop$/, \"\", base) } " + "/^[ \\t]*\\[/ { insec = ($0 ~ /^\\[Desktop Entry\\]/) ? 1 : 0; next } " + "!insec { next } /^Name\\[/ { k = substr($0, 6); sub(/\\].*/, \"\", k); if (index(l \"_\", k \"_\") == 1) name = substr($0, index($0, \"=\") + 1) } " + "/^Name=/ { if (name == \"\") name = substr($0, 6) } " + "/^Icon=/ { if (icon == \"\") icon = substr($0, 6) } " + "/^Exec=/ { if (ex == \"\") ex = substr($0, 6) } " + "/^Keywords=/ { if (kw == \"\") { kw = substr($0, 10); gsub(/;/, \" \", kw) } } " + "/^GenericName=/ { if (gen == \"\") gen = substr($0, 13) } " + "/^Comment=/ { if (com == \"\") com = substr($0, 9) } " + "/^Categories=/ { if (cats == \"\") { cats = substr($0, 12); gsub(/;/, \" \", cats) } } " + "/^StartupWMClass=/ { if (wm == \"\") wm = substr($0, 16) } " + "/^Type=/ { if (type == \"\") type = substr($0, 6) } " + "/^Terminal=/ { if (term == \"\") term = substr($0, 10) } " + "/^NoDisplay=true/ { nodisp = 1 } " + "/^Hidden=true/ { hidden = 1 } " + "ENDFILE { flush() } # nixos-config local patch'"]
+ 
+         stdout: StdioCollector {
+             onStreamFinished: {
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' a/luciddocks/resolve-icons.sh b/luciddocks/resolve-icons.sh
+--- a/luciddocks/resolve-icons.sh	2026-09-28 21:34:24.038052315 +0200
++++ b/luciddocks/resolve-icons.sh	2026-09-28 20:23:23.041347706 +0200
+@@ -11,7 +11,7 @@
+ theme="${1:-hicolor}"
+ shift
+ 
+-dirs="$HOME/.local/share/icons $HOME/.icons /usr/share/icons /usr/local/share/icons"
++dirs="$HOME/.local/share/icons $HOME/.icons /usr/share/icons /usr/local/share/icons /run/current-system/sw/share/icons /etc/profiles/per-user/$USER/share/icons $HOME/.nix-profile/share/icons" # nixos-config local patch
+ 
+ # theme inheritance chain, breadth first, each theme visited once.
+ # hicolor is the spec's mandatory last resort
+@@ -46,7 +46,7 @@
+     i=$((i + 1))
+     for d in $dirs; do
+         [ -d "$d/$t" ] || continue
+-        find "$d/$t" \( -name '*.svg' -o -name '*.png' \) -printf "$i\t%p\n" 2>/dev/null
++        find -L "$d/$t" \( -name '*.svg' -o -name '*.png' \) -printf "$i\t%p\n" 2>/dev/null
+     done
+ done | awk -F'\t' -v want="$want" '
+ BEGIN {
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' a/lucidprefs/envtool.py b/lucidprefs/envtool.py
+--- a/lucidprefs/envtool.py	2026-09-28 21:34:24.045052702 +0200
++++ b/lucidprefs/envtool.py	2026-09-28 20:23:23.045908147 +0200
+@@ -27,8 +27,8 @@
+ QT6CT = f"{HOME}/.config/qt6ct/qt6ct.conf"
+ HYPR_ENV = f"{HOME}/.config/hypr/modules/env.lua"
+ 
+-ICON_DIRS = [f"{HOME}/.icons", f"{HOME}/.local/share/icons", "/usr/share/icons"]
+-THEME_DIRS = [f"{HOME}/.themes", f"{HOME}/.local/share/themes", "/usr/share/themes"]
++ICON_DIRS = [f"{HOME}/.icons", f"{HOME}/.local/share/icons", "/usr/share/icons", "/run/current-system/sw/share/icons", f"/etc/profiles/per-user/{os.path.basename(HOME)}/share/icons", f"{HOME}/.nix-profile/share/icons"]  # nixos-config local patch
++THEME_DIRS = [f"{HOME}/.themes", f"{HOME}/.local/share/themes", "/usr/share/themes", "/run/current-system/sw/share/themes", f"/etc/profiles/per-user/{os.path.basename(HOME)}/share/themes", f"{HOME}/.nix-profile/share/themes"]  # nixos-config local patch
+ QT_BUILTIN_STYLES = ["Fusion", "Windows"]
+ 
+ GSET = "org.gnome.desktop.interface"

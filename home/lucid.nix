@@ -17,12 +17,44 @@ let
   # luciddocks/pinned.json, ...), so a read-only store symlink cannot work.
   lucidSrc = inputs.lucid;
 
+  # Upstream tree + downstream patches applied at BUILD time: upstream drift
+  # then fails the rebuild loudly (patch rejects), instead of activation-time
+  # seds silently stopping. Small drift still applies (GNU patch offsets,
+  # visible as warnings in the build log) — that is the intended gradient.
+  # Patches live in ./lucid-patches/ (001 paths, 002 German UI, 003 mpris
+  # hide; regenerate against a fresh checkout when the lucid pin moves).
+  lucidPatched = pkgs.stdenv.mkDerivation {
+    pname = "lucid-source";
+    version = "1.10.5-local";
+    src = lucidSrc;
+    patches = [
+      ./lucid-patches/001-nixos-paths.patch
+      ./lucid-patches/002-german-ui.patch
+      ./lucid-patches/003-mpris-hide.patch
+      # Cherry-picks from community forks (joeangi fa1261c, joegieee 1f90b01),
+      # rebased onto v1.10.5: notification reply-icon path, brightnessctl
+      # backlight detection, marquee idle cost, HTTPS geolocation. Droppable
+      # one file at a time if a lucid update outpaces them.
+      ./lucid-patches/101-fork-bugfixes.patch
+    ];
+    dontConfigure = true;
+    dontBuild = true;
+    dontFixup = true; # byte-identical output to the sed-era tree
+    installPhase = ''
+      runHook preInstall
+      mkdir -p $out
+      cp -r ./. $out/
+      runHook postInstall
+    '';
+  };
+
   # Every file upstream install.sh treats as runtime state (its tar
   # --exclude list, v1.10.5): excluded from the sync so `--delete` cannot
   # wipe user settings on an update, and seeded from defaults/ when absent.
-  # Keep in lockstep with upstream: when a lucid update adds a state file
-  # there, add it here too — symptom of a miss is exactly one setting
-  # resetting after a rebuild (self-healing: re-set it in Lucid Settings).
+  # Drift-gated: upstreamStateFiles below parses upstream install.sh's
+  # excludes; on mismatch the build fails with both lists instead of
+  # silently resetting one setting per rebuild (add new files here when
+  # the pin moves).
   stateFiles = [
     {
       file = "prefs.json";
@@ -69,6 +101,17 @@ let
       dest = "lucidwidgets/widgets.json";
     }
   ];
+
+  # The same list, parsed out of upstream install.sh at eval time (its tar
+  # excludes are hardcoded as --exclude='./<dest>' lines). stateFilesChecked
+  # below interpolates the comparison into the lucidSync script text, so a
+  # mismatch throws with both lists — caught by flake check and any build.
+  upstreamStateFiles =
+    lib.pipe (lib.splitString "\n" (builtins.readFile (lucidSrc + "/install.sh")))
+      [
+        (lib.filter (l: lib.match ".*--exclude='\\./[^']+'.*" l != null))
+        (map (l: lib.head (builtins.match ".*--exclude='\\./([^']+)'.*" l)))
+      ];
 
   # Lucid's Hyprland Lua modules required from hyprland.lua (home/hyprland.nix).
   # Deliberately NOT deployed: monitors, autostart, decorations, animations,
@@ -196,6 +239,23 @@ let
             fi
     '';
   };
+
+  # Eval-time drift gate for the list above. Interpolated into the lucidSync
+  # script text (always forced when the activation is built), so a mismatch
+  # throws with both lists instead of silently resetting one setting per
+  # rebuild. Lives inside `config`'s scope: a top-level assert reading
+  # cfg.enable recurses through the module-system fixed point.
+  stateFilesChecked =
+    if
+      (lib.sort lib.lessThan upstreamStateFiles) == (lib.sort lib.lessThan (map (s: s.dest) stateFiles))
+    then
+      "ok"
+    else
+      throw ''
+        lucid: stateFiles out of sync with upstream install.sh excludes — update the list.
+        upstream: ${toString (lib.sort lib.lessThan upstreamStateFiles)}
+        ours:     ${toString (lib.sort lib.lessThan (map (s: s.dest) stateFiles))}
+      '';
 in
 {
   options.desktop.lucid = {
@@ -209,7 +269,8 @@ in
     # is content-addressed by rsync, seeds only fill ABSENT files, so
     # anything changed in Lucid Settings always wins over the defaults.
     home.activation.lucidSync = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      LUCID_SRC="${lucidSrc}"
+      LUCID_SRC="${lucidPatched}"
+      # stateFiles cross-check vs upstream install.sh: ${stateFilesChecked}
       QS_DIR="$HOME/.config/quickshell"
       LUCID_DIR="$HOME/.config/lucid"
 
@@ -312,9 +373,9 @@ in
       # matugen overwrites it when the wallpaper applies. install(1) for a
       # defined mode — a plain store cp would land read-only and matugen's
       # rewrite would then fail. WARNING, not fatal: a seed failure must
-      # never abort lucidSync — with the sync having already de-patched the
-      # tree, an abort here left ALL QML patches unapplied (2026-09-27 boot:
-      # wrong kitty-themes path, no launcher apps, media pill back).
+      # never abort lucidSync (2026-09-27 boot: an abort here once left the
+      # desktop without launcher apps — cosmetic seeds must not take the
+      # whole activation down).
       if [ ! -f "$HOME/.config/kitty/matugen-colors.conf" ]; then
         mkdir -p "$HOME/.config/kitty"
         ${pkgs.coreutils}/bin/install -m 644 \
@@ -331,145 +392,13 @@ in
       # upstream's 555 store scripts stay executable, 444 data files do
       # not become so.
       chmod -R u+rwX "$QS_DIR" "$LUCID_DIR"
-
-      # Local look-patches over the synced upstream QML — same idea as the
-      # old caelestia Panels.qml patch. Marker-guarded ("nixos-config local
-      # patch") so re-runs are no-ops; if an upstream edit moves an anchor,
-      # the patch just stops applying — re-check after lucid updates.
-      #  1) Mpris: hide the bar pill entirely while nothing is playing
-      #     (upstream parks a permanent "Nothing playing" pill there).
-      #  2)+3) Weather: user wants German. lucid has no i18n, but the whole
-      #     translatable surface is the WMO-code table in WeatherSource plus
-      #     one "Feels like" label — translated here string-for-string, with
-      #     the coordinates the user set in prefs (locationLat/Lon). Remove
-      #     this block to go back to English/stock.
-      if ! grep -q 'nixos-config local patch' "$QS_DIR/lucidbar/Mpris.qml"; then
-        ${pkgs.gnused}/bin/sed -i 's/^    id: root$/    id: root\n    \/\/ nixos-config local patch: only show the media pill while something plays\n    visible: root.player !== null/' "$QS_DIR/lucidbar/Mpris.qml"
-      fi
-      if ! grep -q 'nixos-config local patch' "$QS_DIR/WeatherSource.qml"; then
-        ${pkgs.gnused}/bin/sed -i \
-          -e 's/return "Clear";/return "Klar";/' \
-          -e 's/return "Mostly Clear";/return "Überwiegend klar";/' \
-          -e 's/return "Partly Cloudy";/return "Wolkig";/' \
-          -e 's/return "Overcast";/return "Bedeckt";/' \
-          -e 's/return "Fog";/return "Nebel";/' \
-          -e 's/return "Drizzle";/return "Nieselregen";/' \
-          -e 's/return "Rain";/return "Regen";/' \
-          -e 's/return "Snow";/return "Schnee";/' \
-          -e 's/return "Rain Showers";/return "Regenschauer";/' \
-          -e 's/return "Snow Showers";/return "Schneeschauer";/' \
-          -e 's/return "Thunderstorm";/return "Gewitter";/' \
-          -e 's/^    function ensure() {$/    function ensure() {\n        \/\/ nixos-config local patch: anchor marker for the weather translation/' \
-          "$QS_DIR/WeatherSource.qml"
-      fi
-      if ! grep -q 'nixos-config local patch' "$QS_DIR/lucidbar/Clock.qml"; then
-        ${pkgs.gnused}/bin/sed -i 's/"Feels like " + root.feelsLike/"Fühlt sich wie " + root.feelsLike/' "$QS_DIR/lucidbar/Clock.qml"
-      fi
-      #  4) Launcher app scan (Dock.qml appScanner): upstream hardcodes the
-      #     Arch .desktop directories (/usr/share/applications, flatpak,
-      #     snapd). On NixOS the entries live in the system/profile env
-      #     paths — without them the launcher (win+R) finds no programs at
-      #     all and dock pins stay unresolved. Also prefers the
-      #     locale-aware Name[xx]= over the untranslated Name= default
-      #     (LANG from lucid.service's inherited environment) so launcher
-      #     rows and dock pin labels come out in the session language —
-      #     pins cache the label at pin time, so re-pin to refresh an
-      #     existing one. The last sed stamps the block's guard marker
-      #     into the awk tail comment; without it the locale rule would
-      #     be appended again on every activation.
-      if ! grep -q 'nixos-config local patch' "$QS_DIR/luciddocks/Dock.qml"; then
-        ${pkgs.gnused}/bin/sed -i \
-          -e 's|for d in /usr/share/applications|for d in /run/current-system/sw/share/applications /etc/profiles/per-user/$USER/share/applications \\"$HOME/.nix-profile/share/applications\\" /usr/share/applications|' \
-          -e 's|!insec { next } |!insec { next } /^Name\\\\[/ { k = substr($0, 6); sub(/\\\\].*/, \\"\\", k); if (index(l \\"_\\", k \\"_\\") == 1) name = substr($0, index($0, \\"=\\") + 1) } |' \
-          -e 's|BEGINFILE { |BEGIN { l = ENVIRON[\\"LANG\\"]; sub(/[@.].*/, \\"\\", l) } BEGINFILE { |' \
-          -e "s|ENDFILE { flush() }'|ENDFILE { flush() } # nixos-config local patch'|" \
-          "$QS_DIR/luciddocks/Dock.qml"
-      fi
-      # Terminal wrapper migration (2026-09-27 kitty consolidation): an
-      # already-synced Dock.qml carries the old ghostty swap from patch 4;
-      # re-point it at upstream's own "kitty -e". Unguarded — the pattern
-      # disappears after the first run, so this is naturally idempotent.
-      ${pkgs.gnused}/bin/sed -i 's/ghostty -e /kitty -e /' "$QS_DIR/luciddocks/Dock.qml"
-      #  5) Icon resolver (luciddocks/resolve-icons.sh): same story — it
-      #     searches /usr/share/icons etc., so the dock fell back to
-      #     non-theme icons. Adds the NixOS icon dirs; the theme itself is
-      #     read live from gsettings (Fluent-dark, set by home-manager
-      #     dconf) and the chain walk picks up its Inherits= from there.
-      #     Also find -L: the profile icon dirs are symlink farms into the
-      #     nix store, and plain find does not descend into them (icons
-      #     silently unresolved, 2026-09-23).
-      if ! grep -q 'nixos-config local patch' "$QS_DIR/luciddocks/resolve-icons.sh"; then
-        ${pkgs.gnused}/bin/sed -i \
-          -e 's|^dirs=.*|dirs="$HOME/.local/share/icons $HOME/.icons /usr/share/icons /usr/local/share/icons /run/current-system/sw/share/icons /etc/profiles/per-user/$USER/share/icons $HOME/.nix-profile/share/icons" # nixos-config local patch|' \
-          -e 's|find "$d/$t" \\(|find -L "$d/$t" \\(|' \
-          "$QS_DIR/luciddocks/resolve-icons.sh"
-      fi
-
-      #  6) Appearance probe (lucidprefs/envtool.py): upstream scans only the
-      #     Arch theme paths (~/.icons, ~/.local/share/icons, /usr/share/icons
-      #     and the theme equivalents), so on NixOS the probe sees no
-      #     home-manager-installed themes and Lucid Settings > Environment
-      #     marks "Fluent-dark" as "not installed on this machine any more",
-      #     with an empty icon picker and blank previews. The installed lists
-      #     also gate Env.variantOf — the light/dark counterpart swap that
-      #     runs on every colour-mode change — so the same miss silently
-      #     disabled icon/GTK theme switching on a mode flip. Adds the NixOS
-      #     profile env paths (basename of HOME is the main user).
-      if ! grep -q 'nixos-config local patch' "$QS_DIR/lucidprefs/envtool.py"; then
-        ${pkgs.gnused}/bin/sed -i \
-          -e 's|^ICON_DIRS = .*|ICON_DIRS = [f"{HOME}/.icons", f"{HOME}/.local/share/icons", "/usr/share/icons", "/run/current-system/sw/share/icons", f"/etc/profiles/per-user/{os.path.basename(HOME)}/share/icons", f"{HOME}/.nix-profile/share/icons"]  # nixos-config local patch|' \
-          -e 's|^THEME_DIRS = .*|THEME_DIRS = [f"{HOME}/.themes", f"{HOME}/.local/share/themes", "/usr/share/themes", "/run/current-system/sw/share/themes", f"/etc/profiles/per-user/{os.path.basename(HOME)}/share/themes", f"{HOME}/.nix-profile/share/themes"]  # nixos-config local patch|' \
-          "$QS_DIR/lucidprefs/envtool.py"
-      fi
-
-      #  7) German UI strings for the daily surfaces: launcher headers and
-      #     search field, power menu, quick-settings section titles and
-      #     tiles, lock screen. Unlike the behavioral patches above these
-      #     are pattern-translations WITHOUT markers — replacing the string
-      #     removes the English pattern, so they are naturally idempotent
-      #     and re-apply automatically whenever upstream ships the English
-      #     text (if upstream renames a string it silently shows English
-      #     again — same drift caveat, self-healing by re-set). The
-      #     settings app (lucidprefs) is deliberately not translated.
-      ${pkgs.gnused}/bin/sed -i \
-        -e 's/headerRow("Frequent")/headerRow("Häufig")/' \
-        -e 's/headerRow("All applications")/headerRow("Alle Anwendungen")/' \
-        "$QS_DIR/luciddocks/Dock.qml"
-      ${pkgs.gnused}/bin/sed -i \
-        -e 's/"Log Out"/"Abmelden"/' \
-        -e 's/"Reboot"/"Neustart"/' \
-        -e 's/"Shutdown"/"Herunterfahren"/' \
-        -e 's/"Suspend"/"Bereitschaft"/' \
-        -e 's/"Hibernate"/"Ruhezustand"/' \
-        -e 's/"Lock"/"Sperren"/' \
-        "$QS_DIR/luciddocks/PowerRow.qml"
-      ${pkgs.gnused}/bin/sed -i \
-        -e 's/Search apps, or type > for commands/Apps suchen, »>« für Befehle/' \
-        -e 's/Search clipboard history/Zwischenablage durchsuchen/' \
-        "$QS_DIR/luciddocks/LauncherFace.qml"
-      ${pkgs.gnused}/bin/sed -i \
-        -e 's/"Control Centre"/"Kontrollzentrum"/' \
-        -e 's/text: "SOUND \& DISPLAY"/text: "KLANG \& ANZEIGE"/' \
-        -e 's/"NOW PLAYING"/"LÄUFT GERADE"/' \
-        -e 's/text: "DISK"/text: "FESTPLATTE"/' \
-        -e 's/name: "Do Not Disturb"/name: "Nicht stören"/' \
-        -e 's/name: "Game Mode"/name: "Spielmodus"/' \
-        -e 's/name: "Airplane"/name: "Flugmodus"/' \
-        -e 's/name: "Wi-Fi"/name: "WLAN"/' \
-        -e 's/name: "Location"/name: "Standort"/' \
-        -e 's/name: "Power"/name: "Energie"/' \
-        -e 's/return "Set up in Settings";/return "In Einstellungen einrichten";/' \
-        "$QS_DIR/lucidbar/System.qml"
-      ${pkgs.gnused}/bin/sed -i \
-        -e 's/"Caps Lock"/"Feststell"/' \
-        "$QS_DIR/lucidlock/LockAuthCard.qml"
     '';
 
     xdg.configFile = {
       # Lucid's reload helper — the SUPER+R bind runs
       # ~/.config/hypr/scripts/reload.sh (just `hyprctl reload`).
       "hypr/scripts/reload.sh" = {
-        source = "${lucidSrc}/support/hypr/scripts/reload.sh";
+        source = "${lucidPatched}/support/hypr/scripts/reload.sh";
         executable = true;
       };
 
@@ -479,13 +408,13 @@ in
       # ~/.cache/current_wallpaper, matugen never initializes). The script
       # starts awww-daemon itself on first use.
       "hypr/scripts/wallpaper" = {
-        source = "${lucidSrc}/support/wallpaper";
+        source = "${lucidPatched}/support/wallpaper";
       };
     }
     // (lib.listToAttrs (
       map (name: {
         name = "hypr/modules/${name}.lua";
-        value.source = "${lucidSrc}/support/hypr/modules/${name}.lua";
+        value.source = "${lucidPatched}/support/hypr/modules/${name}.lua";
       }) lucidLuaModules
     ))
     // {
@@ -498,7 +427,7 @@ in
       # Upstream additionally templates starship/vscode/firefox/… — add
       # blocks here before theming those apps. Run with `matugen image
       # <file> -m dark` (that is what Lucid's wallpaper script does).
-      "matugen/templates".source = "${lucidSrc}/support/matugen/templates";
+      "matugen/templates".source = "${lucidPatched}/support/matugen/templates";
 
       "matugen/config.toml" = {
         # A stale DMS/caelestia-era config.toml from the caelestia
@@ -589,7 +518,7 @@ in
           PartOf = [ "graphical-session.target" ];
         };
         Service = {
-          ExecStart = "/run/current-system/sw/bin/awww-daemon";
+          ExecStart = "${pkgs.awww}/bin/awww-daemon";
           Restart = "on-failure";
           RestartSec = 2;
         };

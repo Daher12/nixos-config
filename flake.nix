@@ -61,11 +61,13 @@
     # Quickshell shell (bar, dock, launcher, lock screen, notifications,
     # settings GUI). Upstream ships no Nix packaging — the only install path
     # is an Arch install.sh — so the input is consumed as plain source
-    # (flake = false): home/lucid.nix syncs the shell tree into the writable
-    # ~/.config/quickshell (Lucid keeps runtime settings inside its own
-    # shell directory, so a read-only store path cannot work) and wraps it
-    # in services/deps. Deliberately NOT in the update-safe/CI bump lists
-    # (moves fast, manual pin) — update with `nix flake update lucid`.
+    # (flake = false): home/lucid.nix applies the downstream patches at BUILD
+    # time (lucidPatched derivation over ./home/lucid-patches/, drift fails
+    # the rebuild loudly) and syncs the result into the writable
+    # ~/.config/quickshell (Lucid keeps runtime settings inside its own shell
+    # directory, so a read-only store path cannot work). Deliberately NOT in
+    # the update-safe/CI bump lists (moves fast, manual pin) — update with
+    # `nix flake update lucid`, then regenerate the patches.
     lucid = {
       url = "github:Sn3akyy1/lucid";
       flake = false;
@@ -94,7 +96,9 @@
         (
           final: _prev:
           let
-            unstable = inputs.nixpkgs-unstable.legacyPackages.${final.system};
+            # stdenv.hostPlatform.system, not final.system: pkgs.system is a
+            # deprecated warnAlias in nixpkgs (2025-10-28) and spams every eval.
+            unstable = inputs.nixpkgs-unstable.legacyPackages.${final.stdenv.hostPlatform.system};
           in
           {
             inherit (unstable)
