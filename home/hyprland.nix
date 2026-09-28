@@ -8,10 +8,10 @@ let
   cfg = config.desktop.hyprland;
 
   # Hyprland 0.55+ Lua config. Ported from the old hyprlang dots
-  # (~/Downloads/dots-main/hypr/hyprland.conf). The lucid-testing branch:
-  # the Lucid shell (home/lucid.nix) replaces DMS as bar/launcher/lock/
-  # notifications/idle — its keybinds, surface rules and glass layers are
-  # loaded from the modules required near the end of this file.
+  # (~/Downloads/dots-main/hypr/hyprland.conf). The Lucid shell
+  # (home/lucid.nix) provides bar/launcher/lock/notifications/idle — its
+  # keybinds, surface rules and glass layers are loaded from the modules
+  # required near the end of this file.
   monitorLua = m: ''
     hl.monitor({
         output   = "${m.output}",
@@ -65,10 +65,10 @@ let
     -- Monitors
     ${monitorsLua}
 
-    -- Look & feel: elegant dynamic. Geometry/shadow/blur/motion are owned
-    -- here (Nix); border *colors* are owned by DMS matugen at runtime via
-    -- ~/.config/hypr/dms/colors.lua (sourced last, wins when present).
-    -- Static Nord below is fallback only (first boot before matugen runs).
+    -- Look & feel. Geometry/shadow/blur/motion are owned here (Nix);
+    -- border colors are the static Nord pair below (the DMS-era matugen
+    -- colors.lua drop-in is gone with DMS; Lucid's matugen only colors
+    -- the shell and GTK).
     hl.config({
         general = {
             gaps_in  = 8,
@@ -83,7 +83,7 @@ let
             layout = "dwindle",
         },
         decoration = {
-            -- 16 matches DMS cornerRadius (seeded in the dms feature module)
+            -- 16 matches Lucid's Material 3 corner rounding
             -- so windows and shell popouts share one radius
             rounding       = 16,
             rounding_power = 2,
@@ -106,8 +106,8 @@ let
         animations = { enabled = true },
     })
 
-    -- Calmer Fluent-ish motion (matches DMS animationVariant=Fluent):
-    -- quick pop-in windows, sliding workspaces, fading layers.
+    -- Calmer Fluent-ish motion: quick pop-in windows, sliding workspaces,
+    -- fading layers.
     hl.curve("fluent", { type = "bezier", points = { {0.3, 0.9}, {0.3, 1} } })
     hl.animation({ leaf = "windows",    enabled = true, speed = 5.5, bezier = "fluent", style = "popin 86%" })
     hl.animation({ leaf = "workspaces", enabled = true, speed = 4,   bezier = "fluent", style = "slide" })
@@ -144,6 +144,23 @@ let
         },
     })
 
+    -- GNOME-style touchpad gestures (0.55 gesture system): the horizontal
+    -- 3-finger swipe is Hyprland's 1:1 workspace swipe (workspaces follow
+    -- the fingers, like GNOME's shell); 3-finger up opens lucid's workspace
+    -- overview, standing in for GNOME's Activities overview (same IPC as
+    -- the SUPER+TAB bind below).
+    hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
+    -- Exec-on-gesture takes a lambda (action is a string naming a builtin
+    -- action or a Lua function — NOT a dispatcher object like hl.dsp.exec_cmd
+    -- returns for hl.bind).
+    hl.gesture({
+        fingers = 3,
+        direction = "up",
+        action = function()
+            hl.exec_cmd("qs ipc call workspaces toggle")
+        end,
+    })
+
     -- Keybinds: the DMS-era layout the user asked to keep (2026-09-23),
     -- mapped onto lucid's IPC surface. Everything not bound here lives in
     -- ~/.config/lucid/keybinds.json (workspaces 1-10, arrows/split, mouse,
@@ -158,6 +175,14 @@ let
     hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
     hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
     hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
+
+    -- ALT + [0-9]: move the active window to workspace N (the dispatcher
+    -- lucid's ws-move entries use). Lucid's keybinds.json owns SUPER+N
+    -- (focus) and SUPER+SHIFT+N (move); bare ALT was unused, so this
+    -- duplicates neither — the layout switch is ALT+SHIFT (grp:alt_shift_toggle).
+    for i = 1, 10 do
+        hl.bind("ALT + " .. i % 10, hl.dsp.window.move({ workspace = i }))
+    end
 
     -- Apps & shell surfaces (lucid IPC equivalents of the old dms-ipc binds)
     hl.bind(mainMod .. " + T",         hl.dsp.exec_cmd(terminal))
@@ -225,8 +250,8 @@ in
 
     terminal = lib.mkOption {
       type = lib.types.str;
-      # kitty (single-instance wrap, home/terminal.nix) — ghostty stays
-      # installed and keeps lucid's F9 terminal bind.
+      # kitty (single-instance wrap, home/terminal.nix) — also lucid's F9
+      # terminal bind since the 2026-09-27 consolidation.
       default = "kitty";
       description = "Terminal command for the SUPER+T bind";
     };
@@ -283,173 +308,6 @@ in
   config = lib.mkIf cfg.enable {
     xdg.configFile = {
       "hypr/hyprland.lua".text = hyprlandLua;
-
-      # Static Nord theme for the DMS shell (bar/launcher/lock), matching the
-      # ghostty Nord palette. Optional: dynamic matugen theming is ON by default
-      # (features.desktop-hyprland) and overrides the shell theme from the
-      # wallpaper — select this file instead if you turn dynamic theming off in
-      # DMS Settings: ~/.config/DankMaterialShell/themes/nord/theme.json.
-      # Color roles follow DMS's StockThemes schema; the dark/light pair is
-      # picked automatically by the shell's color mode.
-      "DankMaterialShell/themes/nord/theme.json".text = builtins.toJSON {
-        id = "nord";
-        dark = {
-          name = "Nord";
-          primary = "#88C0D0";
-          primaryText = "#2E3440";
-          primaryContainer = "#5E81AC";
-          secondary = "#81A1C1";
-          surface = "#2E3440";
-          surfaceText = "#ECEFF4";
-          surfaceVariant = "#4C566A";
-          surfaceVariantText = "#D8DEE9";
-          surfaceTint = "#88C0D0";
-          background = "#2E3440";
-          backgroundText = "#ECEFF4";
-          outline = "#4C566A";
-          surfaceContainer = "#3B4252";
-          surfaceContainerHigh = "#434C5E";
-          surfaceContainerHighest = "#4C566A";
-        };
-        light = {
-          name = "Nord";
-          primary = "#5E81AC";
-          primaryText = "#ECEFF4";
-          primaryContainer = "#81A1C1";
-          secondary = "#81A1C1";
-          surface = "#ECEFF4";
-          surfaceText = "#2E3440";
-          surfaceVariant = "#D8DEE9";
-          surfaceVariantText = "#2E3440";
-          surfaceTint = "#5E81AC";
-          background = "#ECEFF4";
-          backgroundText = "#2E3440";
-          outline = "#4C566A";
-          surfaceContainer = "#E5E9F0";
-          surfaceContainerHigh = "#D8DEE9";
-          surfaceContainerHighest = "#D8DEE9";
-        };
-      };
-
-      # Caelestia-look theme for DMS: the exact palette the Caelestia shell
-      # had live on this machine (matugen tonal-spot from its catppuccin/mocha
-      # wallpaper — dark values transcribed 1:1 from Caelestia's
-      # ~/.local/state/caelestia/scheme.json). The light variant is what
-      # Caelestia/matugen derives from the same source color in light mode, so
-      # the auto light/dark switch (DMS session themeModeAuto) keeps working.
-      # Selected at runtime via the dmsCaelestiaSeed ExecStartPre
-      # (modules/features/desktop-hyprland.nix): currentThemeName=custom +
-      # this file. DMS regenerates roles we leave out from the theme's primary
-      # via matugen, so the subset below is exact where it matters. Turn the
-      # clock back to wallpaper-driven colors anytime: DMS Settings → Theme →
-      # Dynamic.
-      "DankMaterialShell/themes/caelestia/theme.json".text = builtins.toJSON {
-        id = "caelestia";
-        dark = {
-          name = "Caelestia";
-          primary = "#C2C1FF";
-          primaryText = "#2A2A60";
-          primaryContainer = "#7171AC";
-          primaryContainerText = "#FFFFFF";
-          secondary = "#C6C4E0";
-          secondaryText = "#2E2E44";
-          secondaryContainer = "#45455C";
-          secondaryContainerText = "#B4B2CE";
-          tertiary = "#F5B2E0";
-          tertiaryText = "#4E1E44";
-          tertiaryContainer = "#BB7DA9";
-          tertiaryContainerText = "#000000";
-          error = "#FFB4AB";
-          errorText = "#690005";
-          errorContainer = "#93000A";
-          errorContainerText = "#FFDAD6";
-          surface = "#131317";
-          surfaceText = "#E5E1E7";
-          surfaceVariant = "#47464F";
-          surfaceVariantText = "#C8C5D1";
-          surfaceTint = "#C2C1FF";
-          background = "#131317";
-          backgroundText = "#E5E1E7";
-          outline = "#918F9A";
-          outlineVariant = "#47464F";
-          surfaceContainerLowest = "#0E0E12";
-          surfaceContainerLow = "#1C1B1F";
-          surfaceContainer = "#201F23";
-          surfaceContainerHigh = "#2A292E";
-          surfaceContainerHighest = "#353438";
-          surfaceBright = "#39393D";
-          surfaceDim = "#131317";
-          inverseSurface = "#E5E1E7";
-          inverseOnSurface = "#313034";
-          inversePrimary = "#595992";
-          scrim = "#000000";
-          shadow = "#000000";
-          primaryFixed = "#E2DFFF";
-          primaryFixedDim = "#C2C1FF";
-          onPrimaryFixed = "#14134A";
-          onPrimaryFixedVariant = "#414178";
-          secondaryFixed = "#E2E0FD";
-          secondaryFixedDim = "#C6C4E0";
-          onSecondaryFixed = "#19192E";
-          onSecondaryFixedVariant = "#45455C";
-          tertiaryFixed = "#FFD7F0";
-          tertiaryFixedDim = "#F5B2E0";
-          onTertiaryFixed = "#35082E";
-          onTertiaryFixedVariant = "#68355C";
-        };
-        light = {
-          name = "Caelestia";
-          primary = "#595992";
-          primaryText = "#FFFFFF";
-          primaryContainer = "#E2DFFF";
-          primaryContainerText = "#14134A";
-          secondary = "#5D5C72";
-          secondaryText = "#FFFFFF";
-          secondaryContainer = "#E2E0F9";
-          secondaryContainerText = "#1A1A2C";
-          tertiary = "#795369";
-          tertiaryText = "#FFFFFF";
-          tertiaryContainer = "#FFD8EB";
-          tertiaryContainerText = "#2F1124";
-          error = "#BA1A1A";
-          errorText = "#FFFFFF";
-          errorContainer = "#FFDAD6";
-          errorContainerText = "#410002";
-          surface = "#FCF8FF";
-          surfaceText = "#1B1B21";
-          surfaceVariant = "#E4E1EC";
-          surfaceVariantText = "#47464F";
-          surfaceTint = "#595992";
-          background = "#FCF8FF";
-          backgroundText = "#1B1B21";
-          outline = "#777680";
-          outlineVariant = "#C8C5D0";
-          surfaceContainerLowest = "#FFFFFF";
-          surfaceContainerLow = "#F6F2FA";
-          surfaceContainer = "#F0ECF4";
-          surfaceContainerHigh = "#EAE7EF";
-          surfaceContainerHighest = "#E4E1E9";
-          surfaceBright = "#FCF8FF";
-          surfaceDim = "#DCD9E0";
-          inverseSurface = "#303036";
-          inverseOnSurface = "#F3EFF7";
-          inversePrimary = "#C2C1FF";
-          scrim = "#000000";
-          shadow = "#000000";
-          primaryFixed = "#E2DFFF";
-          primaryFixedDim = "#C2C1FF";
-          onPrimaryFixed = "#14134A";
-          onPrimaryFixedVariant = "#414178";
-          secondaryFixed = "#E2E0F9";
-          secondaryFixedDim = "#C6C4DD";
-          onSecondaryFixed = "#1A1A2C";
-          onSecondaryFixedVariant = "#454559";
-          tertiaryFixed = "#FFD8EB";
-          tertiaryFixedDim = "#E9B9D2";
-          onTertiaryFixed = "#2F1124";
-          onTertiaryFixedVariant = "#5F3C51";
-        };
-      };
     };
   };
 }

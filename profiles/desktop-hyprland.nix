@@ -8,11 +8,10 @@
   features.desktop-hyprland = {
     enable = lib.mkDefault true;
     withUWSM = lib.mkDefault true;
-    # lucid-testing branch: Lucid replaces the DMS user-session shell
-    # (options in modules/features/desktop-hyprland.nix; deployment in
-    # home/lucid.nix). Flip both back for a DMS rebuild — dms.enable=true,
-    # lucid.enable=false.
-    dms.enable = lib.mkDefault false;
+    # Lucid is the desktop shell (options in
+    # modules/features/desktop-hyprland.nix; deployment in home/lucid.nix).
+    # DankGreeter stays for the greeter; the DMS user-session shell was
+    # removed 2026-09-27 (rollback: dms-caelestia-look@4b2f965 in history).
     lucid.enable = lib.mkDefault true;
     greeter = {
       configHome = lib.mkDefault "/home/${mainUser}";

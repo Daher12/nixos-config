@@ -113,13 +113,11 @@ in
           ".local/share/keyrings"
           ".config/mozilla/firefox"
           ".config/BraveSoftware/Brave-Browser"
-          # DankMaterialShell settings, themes, wallpapers (hyprland session);
-          # session state + matugen colors are what the greeter syncs from
-          # configHome at boot (programs.dms-greeter.configHome). Kept on the
-          # lucid branch: greeter theming reads it + rollback friendliness.
+          # DankMaterialShell settings: DankGreeter themes itself from
+          # configHome at boot (programs.dms-greeter.configHome). Only the
+          # config dir has a live reader since the DMS shell was removed
+          # (2026-09-27) — the shell-owned state/state-cache dirs are gone.
           ".config/DankMaterialShell"
-          ".local/state/DankMaterialShell"
-          ".cache/DankMaterialShell"
           # Lucid shell (home/lucid.nix): settings live INSIDE the synced
           # shell tree (~/.config/quickshell/lucidprefs/prefs.json etc.) —
           # the sync excludes exactly these from --delete. Support scripts,
@@ -135,10 +133,6 @@ in
           # lucidSync appends)
           ".config/gtk-3.0"
           ".config/gtk-4.0"
-          # set-wallpaper.sh state: active wallpaper/mode + theme name
-          ".cache/current_theme"
-          ".cache/current_wallpaper"
-          ".cache/current_mode"
           # Clipboard history (wl-paste --watch cliphist store, home/hyprland.nix)
           ".cache/cliphist"
           # ZCode (Electron AppImage): auth/session + workspace state.
@@ -155,6 +149,17 @@ in
           ".oxrc"
           ".config/user-dirs.locale"
           ".config/monitors.xml"
+          # set-wallpaper.sh state: active wallpaper/mode + theme name. Must
+          # be FILES, not directories: lucid's shell scripts and QML FileViews
+          # read/write a file at exactly these paths. Persisted as directories
+          # from 2026-09-23, impermanence bind-mounted empty dirs over them
+          # and every read failed "Not a file" (journal spam each shell start;
+          # wallpaper/theme state markers unwritable). First switch after this
+          # move needs the stale /persist-side DIRS removed (empty):
+          #   sudo rmdir /persist/home/dk/.cache/current_{theme,wallpaper,mode}
+          ".cache/current_theme"
+          ".cache/current_wallpaper"
+          ".cache/current_mode"
         ];
       };
     };

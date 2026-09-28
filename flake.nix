@@ -41,10 +41,11 @@
 
     opencode.url = "github:anomalyco/opencode";
 
-    # DMS desktop stack pinned newer than nixpkgs 26.05: 26.05 ships
-    # dms-shell 1.4.6 with the greeter still bundled inside the shell
-    # package; upstream split the greeter out in 1.6.0. Both inputs are
-    # deliberately NOT in the update-safe/CI bump lists (explicit pins).
+    # Desktop stack pieces pinned newer than nixpkgs 26.05: unstable supplies
+    # dms-greeter (standalone since DMS 1.6.0 — 26.05's dms-shell 1.4.6 still
+    # bundles an older greeter) and the matching newer quickshell that the
+    # Lucid shell runs on. Deliberately NOT in the update-safe/CI bump lists
+    # (explicit pin).
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
 
     # DankGreeter NixOS module (programs.dms-greeter) from upstream — newer
@@ -54,16 +55,6 @@
     dank-greeter = {
       url = "github:AvengeMedia/dank-greeter";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
-
-    # DMS plugin registry (plugins.danklinux.com): packages every registry
-    # plugin from pinned fetchgit revs and its nixosModule maps them into
-    # programs.dms-shell.plugins (each defaulting to disabled). Deliberately
-    # NOT in the update-safe/CI bump lists (registry moves fast) — update
-    # manually with `nix flake update dms-plugin-registry`.
-    dms-plugin-registry = {
-      url = "github:AvengeMedia/dms-plugin-registry";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Lucid desktop shell (github:Sn3akyy1/lucid): Material 3 Expressive
@@ -95,33 +86,17 @@
           zcode = final.callPackage ./pkgs/zcode.nix { };
           mikromcp = final.callPackage ./pkgs/mikromcp.nix { };
         })
-        # DMS 1.6 line from unstable (see nixpkgs-unstable input): standalone
-        # dms-greeter and matching quickshell. dms-shell is the newest
-        # upstream release (the `stable` branch — v1.6.2 at pin time; unstable
-        # still carried 1.6.1), applied as a src override on the binary-cached
-        # unstable expression so only the source/vendor hashes differ. The
-        # programs.dms-shell / programs.dms-greeter modules from 26.05 work
-        # against these packages unchanged.
+        # dms-greeter (standalone, DMS 1.6 line) + matching quickshell from
+        # unstable, binary-cached: the greeter runs at every boot and Lucid
+        # (home/lucid.nix) runs on quickshell. The DMS shell itself was
+        # removed 2026-09-27 (rollback: rebuild dms-caelestia-look@4b2f965
+        # from history).
         (
           final: _prev:
           let
             unstable = inputs.nixpkgs-unstable.legacyPackages.${final.system};
           in
           {
-            dms-shell = unstable.dms-shell.overrideAttrs (
-              _finalAttrs: _prevAttrs: {
-                version = "1.6.2";
-                src = final.fetchFromGitHub {
-                  owner = "AvengeMedia";
-                  repo = "DankMaterialShell";
-                  tag = "v1.6.2";
-                  fetchSubmodules = true;
-                  hash = "sha256-U1D/RVtIULXwywT5BgOrhW5qge4AdBfTLSXxCSLn4F0=";
-                };
-                # dgop v1.6 line + testify 1.12 between v1.6.1 and v1.6.2
-                vendorHash = "sha256-ejDi+TzstUtxtWpcl5yYw4UZuTnZraOsIdJuXPKxJ6s=";
-              }
-            );
             inherit (unstable)
               dms-greeter
               quickshell
@@ -184,7 +159,7 @@
       };
 
       nixosConfigurations = {
-        # Physical Laptop: Yoga (AMD) — Hyprland + DankMaterialShell + DankGreeter.
+        # Physical Laptop: Yoga (AMD) — Hyprland + Lucid + DankGreeter.
         # Desktop switch (no config edits): rebuild from .#yoga-gnome for GNOME.
         yoga = mkHost {
           hostname = "yoga";

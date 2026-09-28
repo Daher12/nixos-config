@@ -49,7 +49,7 @@ Design principles, visible throughout the repo:
 
 | Host | Hardware | Role | Highlights |
 |------|----------|------|------------|
-| **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | Hyprland + DMS (`.#yoga`) or GNOME 50 (`.#yoga-gnome`) · Secure Boot (Lanzaboote) · LUKS + Btrfs impermanence · Windows 11 VMs · ZRAM |
+| **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | Hyprland + Lucid (`.#yoga`) or GNOME 50 (`.#yoga-gnome`) · Secure Boot (Lanzaboote) · LUKS + Btrfs impermanence · Windows 11 VMs · ZRAM |
 | **latitude** | Dell Latitude E7450 (Intel) | Legacy laptop | GNOME · TLP · preload-ng · Disko (LUKS + ext4) · opencode |
 | **nix-media** | Intel N100 Mini PC | Headless media server | Jellyfin · Audiobookshelf · Prometheus/Grafana · Caddy · NFS · Docker |
 
@@ -63,11 +63,10 @@ Daily driver: encrypted, impermanence-wiped, secure-booted work machine.
   `@nix` and `@persist` survive). systemd-boot replaced by **Lanzaboote
   Secure Boot**; Plymouth on simpledrm (amdgpu deliberately kept out of the
   initrd — see REPO_OVERVIEW § Known Gotchas).
-- **Desktop:** two exclusive builds — Hyprland + DankMaterialShell +
+- **Desktop:** two exclusive builds — Hyprland + the Lucid shell +
   DankGreeter (`.#yoga`) or GNOME 50 with auto-login (`.#yoga-gnome`);
   switching desktops = rebuilding the other attr, no config edits.
-  Colloid-Nord GTK theme, Fluent icons, Posy cursors and darkman
-  light/dark switching are shared by both.
+  Colloid-Nord GTK theme, Fluent icons and Posy cursors are shared by both.
 - **Power:** custom suspend-then-hibernate sleep hook (`yoga-s2h`) working
   around systemd 260 firmware bugs; TLP; ryzenadj TDP profiles; automatic
   120→60 Hz panel switch on battery (both sessions); hibernation
@@ -188,7 +187,7 @@ Full architecture, re-encryption and rotation procedures: **`SOPS_RUNBOOK.md`**.
   hosts.
 - **NixOS VM tests** in `tests/` (run explicitly, kept out of CI for speed):
   `nix build .#nixosTests.x86_64-linux.litellm-gateway` and `.#ssh-firewall`.
-- **CI** (`.github/workflows/bump.yml`): weekly (Sundays 02:00 UTC) — update
+- **CI** (`.github/workflows/bump.yml`): weekly (Saturdays 02:00 UTC) — update
   the safe flake inputs → check → dry-build all three hosts → format →
   auto-commit. Locked inputs (lanzaboote, opencode) only move on explicit
   request.

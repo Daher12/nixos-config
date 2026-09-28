@@ -23,7 +23,9 @@ in
     ghostty = {
       enable = lib.mkOption {
         type = lib.types.bool;
-        default = true;
+        # 2026-09-27: kitty won the default slot (SUPER+T, matugen-themed).
+        # Flip to true per host to bring ghostty back.
+        default = false;
         description = "Enable Ghostty terminal";
       };
 
@@ -89,46 +91,28 @@ in
         enable = true;
         package = pkgs.ghostty;
 
-        # Elegant dynamic: on the Hyprland attr DMS matugen owns the
-        # palette (theme = dankcolors, generated at
-        # ~/.config/ghostty/themes/dankcolors). Hardcoded
-        # background/foreground would pin Nord and fight the wallpaper.
-        # GNOME attr has no DMS — keep the static Nord look there.
+        # Static Nord everywhere (2026-09-27: kitty is the default terminal,
+        # so the DMS-era dankcolors matugen branch is gone with DMS). The
+        # 0.93 translucency only makes sense under the Wayland compositor.
         settings = {
           font-family = cfg.ghostty.fontFamily;
           font-size = cfg.ghostty.fontSize;
           window-decoration = "auto";
           command = "fish --login --interactive";
+          theme = "Nord";
+          background = nord.nord0;
+          foreground = nord.nord4;
         }
-        // (
-          if config.desktop.hyprland.enable && !config.desktop.lucid.enable then
-            {
-              theme = "dankcolors";
-              background-opacity = 0.93;
-            }
-          else if config.desktop.lucid.enable then
-            {
-              # Lucid branch: DMS's matugen no longer writes the dankcolors
-              # theme, and lucid has no ghostty template yet (follow-up) —
-              # static Nord, keep the DMS-era translucency.
-              theme = "Nord";
-              background = nord.nord0;
-              foreground = nord.nord4;
-              background-opacity = 0.93;
-            }
-          else
-            {
-              theme = "Nord";
-              background = nord.nord0;
-              foreground = nord.nord4;
-            }
-        );
+        // (lib.optionalAttrs config.desktop.hyprland.enable {
+          background-opacity = 0.93;
+        });
       };
     })
 
     (lib.mkIf cfg.kitty.enable {
-      # Kitty alongside ghostty: SUPER+T opens kitty (desktop.hyprland.terminal),
-      # ghostty stays installed and keeps lucid's F9 bind. Single-instance wrap:
+      # The default terminal (2026-09-27 consolidation): SUPER+T
+      # (desktop.hyprland.terminal) and lucid's F9 bind both open kitty.
+      # Single-instance wrap:
       # --single-instance is CLI-only (no kitty.conf equivalent), and it is the
       # startup-time tweak — the first launch pays the full cost (GL init,
       # embedded Python), every later `kitty` just IPCs the running instance and
@@ -145,10 +129,18 @@ in
             wrapProgram $out/bin/kitty --add-flags "--single-instance"
           '';
         };
-        # Nord from kitty-themes — same palette ghostty's theme = "Nord" loads.
-        # HM writes the include BEFORE `settings` (order 520 vs 540), so colors
-        # are deliberately left to the theme here.
-        themeFile = "Nord";
+        # Colors, two regimes: on the lucid attr matugen owns the palette —
+        # its config.toml (home/lucid.nix) renders
+        # ~/.config/kitty/matugen-colors.conf from the wallpaper (lucidSync
+        # seeds that file with Nord until then), included via extraConfig.
+        # Everywhere else: static Nord from kitty-themes, the same palette
+        # ghostty's theme = "Nord" loads. HM writes a themeFile include
+        # BEFORE `settings` (order 520 vs 540), so colors are deliberately
+        # left to the theme/include here either way.
+        themeFile = lib.mkIf (!config.desktop.lucid.enable) "Nord";
+        extraConfig = lib.mkIf config.desktop.lucid.enable ''
+          include matugen-colors.conf
+        '';
         settings = {
           font_family = cfg.kitty.fontFamily;
           font_size = cfg.kitty.fontSize;

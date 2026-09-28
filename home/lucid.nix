@@ -83,13 +83,20 @@ let
     "glass"
   ];
 
-  # Mirrors of home/theme.nix's theme names (plain let-bindings there, so
-  # they cannot be imported) — the auto-mode wrapper needs them for the
-  # light/dark gsettings swaps. Keep in sync.
-  themeDark = "Colloid-Dark-Nord";
-  themeLight = "Colloid-Light-Nord";
-  iconDark = "Fluent-dark";
-  iconLight = "Fluent";
+  # Theme/icon names for the auto-mode wrapper's light/dark gsettings swaps —
+  # single-sourced from home/theme.nix's desktop.theme options (previously
+  # mirrored here as plain let-bindings with a "keep in sync" comment).
+  inherit (config.desktop.theme)
+    gtkDark
+    gtkLight
+    iconDark
+    iconLight
+    ;
+
+  # Pinned PATH for the lucid units (see lucid.service below): the shell and
+  # its scripts shell out constantly (python helpers, gdbus, systemctl,
+  # matugen, wallpaper scripts, hyprctl) — all system deps.
+  lucidPath = "/run/current-system/sw/bin:/etc/profiles/per-user/${mainUser}/bin:%h/.local/bin";
 
   # Auto light/dark (user decision 2026-09-23: fixed times, NOT solar —
   # darkman is disabled on this host for fighting matugen over GTK, and a
@@ -143,16 +150,30 @@ let
             "$HOME/.config/lucid/set-mode.sh" "$mode" \
               || echo "warning: set-mode.sh failed — swapped gsettings only" >&2
 
-            gsettings set org.gnome.desktop.interface color-scheme "prefer-$mode"
+            # gsettings races the uwsm environment import on the login run
+            # (schemas not visible yet → "Keine Schemata installiert",
+            # 2026-09-27 boot): retry briefly, then degrade — set-wallpaper.sh
+            # has already landed wallpaper + palette, and the next boundary
+            # re-applies.
+            gs_set() {
+              for _ in 1 2 3 4 5; do
+                if gsettings set "$@" 2>/dev/null; then
+                  return 0
+                fi
+                sleep 2
+              done
+              echo "warning: gsettings unavailable, skipped $*" >&2
+            }
+            gs_set org.gnome.desktop.interface color-scheme "prefer-$mode"
             if [[ "$mode" == light ]]; then
-              gtk="${themeLight}"
+              gtk="${gtkLight}"
               icon="${iconLight}"
             else
-              gtk="${themeDark}"
+              gtk="${gtkDark}"
               icon="${iconDark}"
             fi
-            gsettings set org.gnome.desktop.interface icon-theme "$icon"
-            gsettings set org.gnome.desktop.interface gtk-theme "$gtk"
+            gs_set org.gnome.desktop.interface icon-theme "$icon"
+            gs_set org.gnome.desktop.interface gtk-theme "$gtk"
 
             # Running and portal-aware clients follow gsettings, but a freshly
             # launched plain GTK app reads the ini files instead. Mirror the two
@@ -212,6 +233,16 @@ in
         ${lib.concatMapStringsSep " \\\n        " (s: "--exclude '${s.dest}'") stateFiles} \
         "$LUCID_SRC/" "$QS_DIR/"
 
+      # Modes EARLY, not only at the end: on a fresh (non-persisted) tree
+      # the rsync above just created directories carrying the store's
+      # read-only modes — the seed steps below and the keybinds jq write
+      # into them and would EACCES-abort the whole activation (the
+      # 2026-09-23 failure class; proven by running this script body
+      # against a throwaway HOME). The final chmod below stays as the
+      # catch-all for everything after this point.
+      mkdir -p "$LUCID_DIR"
+      chmod -R u+rwX "$QS_DIR" "$LUCID_DIR"
+
       # Seed-if-absent (upstream's seed step; existing state always wins).
       ${lib.concatMapStrings (s: ''
         if [ ! -s "$QS_DIR/${s.dest}" ]; then
@@ -248,8 +279,19 @@ in
         mkdir -p "$LUCID_DIR"
         ${pkgs.jq}/bin/jq \
           '(.binds[] | select(.id == "exit" or .id == "theme" or .id == "launcher-commands" or .id == "settings" or .id == "clipboard" or .id == "float" or .id == "scratchpad" or .id == "reload" or .id == "split" or .id == "focus-left" or .id == "focus-right" or .id == "focus-up" or .id == "focus-down") | .enabled) = false
-           | (.binds[] | select(.id == "f9-terminal") | .cmd) = "ghostty"' \
+           | (.binds[] | select(.id == "f9-terminal") | .cmd) = "kitty"' \
           "$LUCID_SRC/support/hypr/keybinds.json" > "$LUCID_DIR/keybinds.json"
+      fi
+      # 2026-09-27 terminal consolidation (ghostty -> kitty): the seed above
+      # only fills an ABSENT keybinds.json, so migrate an existing one in
+      # place — but only while F9 still says ghostty (a cmd the user edited
+      # in Lucid Settings must survive activations).
+      if [ -s "$LUCID_DIR/keybinds.json" ] \
+        && ${pkgs.jq}/bin/jq -e '.binds[] | select(.id == "f9-terminal") | .cmd == "ghostty"' \
+             "$LUCID_DIR/keybinds.json" > /dev/null; then
+        ${pkgs.jq}/bin/jq '(.binds[] | select(.id == "f9-terminal") | .cmd) = "kitty"' \
+          "$LUCID_DIR/keybinds.json" > "$LUCID_DIR/keybinds.json.tmp" \
+          && mv "$LUCID_DIR/keybinds.json.tmp" "$LUCID_DIR/keybinds.json"
       fi
 
       # GTK colors hook (upstream install.sh): GTK only applies colors.css
@@ -262,6 +304,24 @@ in
           printf "@import url('colors.css');\n" >> "$gtkdir/gtk.css"
         fi
       done
+
+      # Kitty palette seed (2026-09-27 terminal consolidation): kitty.conf
+      # includes matugen-colors.conf (home/terminal.nix), which only exists
+      # after the first wallpaper ran matugen. Seed it with the same static
+      # Nord the non-lucid attrs use so kitty never includes a missing file;
+      # matugen overwrites it when the wallpaper applies. install(1) for a
+      # defined mode — a plain store cp would land read-only and matugen's
+      # rewrite would then fail. WARNING, not fatal: a seed failure must
+      # never abort lucidSync — with the sync having already de-patched the
+      # tree, an abort here left ALL QML patches unapplied (2026-09-27 boot:
+      # wrong kitty-themes path, no launcher apps, media pill back).
+      if [ ! -f "$HOME/.config/kitty/matugen-colors.conf" ]; then
+        mkdir -p "$HOME/.config/kitty"
+        ${pkgs.coreutils}/bin/install -m 644 \
+          "${pkgs.kitty-themes}/share/kitty-themes/themes/Nord.conf" \
+          "$HOME/.config/kitty/matugen-colors.conf" \
+          || echo "warning: kitty Nord seed failed — matugen will provide colors" >&2
+      fi
 
       # Fix modes LAST, covering everything above: rsync -rt copies the
       # store's read-only file modes, and cp-seeded defaults carry the
@@ -309,14 +369,27 @@ in
       #     Arch .desktop directories (/usr/share/applications, flatpak,
       #     snapd). On NixOS the entries live in the system/profile env
       #     paths — without them the launcher (win+R) finds no programs at
-      #     all and dock pins stay unresolved. Also swaps the hardcoded
-      #     "kitty -e" terminal wrapper for ghostty.
+      #     all and dock pins stay unresolved. Also prefers the
+      #     locale-aware Name[xx]= over the untranslated Name= default
+      #     (LANG from lucid.service's inherited environment) so launcher
+      #     rows and dock pin labels come out in the session language —
+      #     pins cache the label at pin time, so re-pin to refresh an
+      #     existing one. The last sed stamps the block's guard marker
+      #     into the awk tail comment; without it the locale rule would
+      #     be appended again on every activation.
       if ! grep -q 'nixos-config local patch' "$QS_DIR/luciddocks/Dock.qml"; then
         ${pkgs.gnused}/bin/sed -i \
           -e 's|for d in /usr/share/applications|for d in /run/current-system/sw/share/applications /etc/profiles/per-user/$USER/share/applications \\"$HOME/.nix-profile/share/applications\\" /usr/share/applications|' \
-          -e 's/kitty -e /ghostty -e /' \
+          -e 's|!insec { next } |!insec { next } /^Name\\\\[/ { k = substr($0, 6); sub(/\\\\].*/, \\"\\", k); if (index(l \\"_\\", k \\"_\\") == 1) name = substr($0, index($0, \\"=\\") + 1) } |' \
+          -e 's|BEGINFILE { |BEGIN { l = ENVIRON[\\"LANG\\"]; sub(/[@.].*/, \\"\\", l) } BEGINFILE { |' \
+          -e "s|ENDFILE { flush() }'|ENDFILE { flush() } # nixos-config local patch'|" \
           "$QS_DIR/luciddocks/Dock.qml"
       fi
+      # Terminal wrapper migration (2026-09-27 kitty consolidation): an
+      # already-synced Dock.qml carries the old ghostty swap from patch 4;
+      # re-point it at upstream's own "kitty -e". Unguarded — the pattern
+      # disappears after the first run, so this is naturally idempotent.
+      ${pkgs.gnused}/bin/sed -i 's/ghostty -e /kitty -e /' "$QS_DIR/luciddocks/Dock.qml"
       #  5) Icon resolver (luciddocks/resolve-icons.sh): same story — it
       #     searches /usr/share/icons etc., so the dock fell back to
       #     non-theme icons. Adds the NixOS icon dirs; the theme itself is
@@ -399,6 +472,15 @@ in
         source = "${lucidSrc}/support/hypr/scripts/reload.sh";
         executable = true;
       };
+
+      # Wallpaper setter. Upstream install.sh deploys support/wallpaper/ to
+      # this exact path, which Dock.qml's applyWallpaper execs; without it
+      # every wallpaper pick silently no-ops (black screen, no
+      # ~/.cache/current_wallpaper, matugen never initializes). The script
+      # starts awww-daemon itself on first use.
+      "hypr/scripts/wallpaper" = {
+        source = "${lucidSrc}/support/wallpaper";
+      };
     }
     // (lib.listToAttrs (
       map (name: {
@@ -410,10 +492,12 @@ in
       # matugen: templates symlinked from upstream; config authored here
       # with only the templates this setup consumes. The quickshell palette
       # (~/.cache/quickshell/matugen.json) is what Theme.qml reads; the GTK
-      # pair lands in the persisted gtk-3.0/gtk-4.0 dirs. Upstream
-      # additionally templates kitty/starship/vscode/firefox/… — add blocks
-      # here before theming those apps. Run with `matugen image <file> -m
-      # dark` (that is what Lucid's wallpaper script does).
+      # pair lands in the persisted gtk-3.0/gtk-4.0 dirs; kitty gets
+      # matugen-colors.conf (included from kitty.conf, home/terminal.nix —
+      # lucidSync seeds it with Nord until the first wallpaper lands).
+      # Upstream additionally templates starship/vscode/firefox/… — add
+      # blocks here before theming those apps. Run with `matugen image
+      # <file> -m dark` (that is what Lucid's wallpaper script does).
       "matugen/templates".source = "${lucidSrc}/support/matugen/templates";
 
       "matugen/config.toml" = {
@@ -434,6 +518,10 @@ in
           [templates.gtk4]
           input_path = '~/.config/matugen/templates/gtk-colors.css'
           output_path = '~/.config/gtk-4.0/colors.css'
+
+          [templates.kitty]
+          input_path = '~/.config/matugen/templates/kitty.conf'
+          output_path = '~/.config/kitty/matugen-colors.conf'
         '';
       };
     };
@@ -468,16 +556,42 @@ in
           ExecStart = "${config.home.homeDirectory}/.config/lucid/launch-shell.sh";
           Restart = "always";
           RestartSec = 1;
-          # Lucid shells out constantly (python helpers, gdbus, systemctl,
-          # matugen, wallpaper scripts, hyprctl). Pin PATH instead of
-          # trusting what the user manager inherited — the caelestia lesson:
-          # a stripped PATH broke execDetached clicks silently. All system
-          # deps are in environment.systemPackages
+          # Default KillMode=control-group kills this unit's whole cgroup on
+          # restart — dock/launcher spawns are execDetached children and live
+          # there, so every shell restart took them down too (2026-09-26: a
+          # reload closed a zcode session started from the dock). process
+          # only replaces quickshell itself; helpers like wl-paste watchers
+          # survive and self-exit via SIGPIPE once their pipe closes.
+          KillMode = "process";
+          # Pin PATH instead of trusting what the user manager inherited —
+          # the caelestia lesson: a stripped PATH broke execDetached clicks
+          # silently. All system deps are in environment.systemPackages
           # (modules/features/desktop-hyprland.nix, lucid block).
           Environment = [
-            "PATH=/run/current-system/sw/bin:/etc/profiles/per-user/${mainUser}/bin:%h/.local/bin"
+            "PATH=${lucidPath}"
             "QT_QPA_PLATFORM=wayland"
           ];
+        };
+        Install.WantedBy = [ "graphical-session.target" ];
+      };
+
+      # Wallpaper daemon, supervised. set-wallpaper.sh starts one on demand,
+      # but a daemon spawned as a background child of the lucid-auto-mode
+      # oneshot lived in that unit's cgroup — when the unit deactivated, the
+      # daemon went with it and the desktop went black after every boot
+      # (2026-09-27), fixed only by manually re-picking the wallpaper. A
+      # supervised service is up before the shell applies state and restarts
+      # on crashes; set-wallpaper.sh's `awww query` check cooperates.
+      awww-daemon = {
+        Unit = {
+          Description = "awww wallpaper daemon";
+          After = [ "graphical-session.target" ];
+          PartOf = [ "graphical-session.target" ];
+        };
+        Service = {
+          ExecStart = "/run/current-system/sw/bin/awww-daemon";
+          Restart = "on-failure";
+          RestartSec = 2;
         };
         Install.WantedBy = [ "graphical-session.target" ];
       };
@@ -496,10 +610,10 @@ in
         Service = {
           Type = "oneshot";
           ExecStart = "${lucidAutoMode}/bin/lucid-auto-mode";
-          # Same PATH discipline as lucid.service: set-mode.sh shells out to
-          # matugen, awww, jq, python3 — all system deps.
+          # Same PATH discipline as lucid.service (lucidPath there): set-mode.sh
+          # shells out to matugen, awww, jq, python3 — all system deps.
           Environment = [
-            "PATH=/run/current-system/sw/bin:/etc/profiles/per-user/${mainUser}/bin:%h/.local/bin"
+            "PATH=${lucidPath}"
           ];
         };
         Install.WantedBy = [ "graphical-session.target" ];
