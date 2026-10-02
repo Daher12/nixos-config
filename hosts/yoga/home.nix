@@ -125,6 +125,11 @@ in
           ".config/quickshell"
           ".config/lucid"
           ".cache/quickshell"
+          # awww wallpaper daemon image cache — its restore-on-start source.
+          # Unpersisted, every reboot came up black under a static theme
+          # (2026-09-30); lucid-auto-mode repairs the image at login too,
+          # this also covers mid-session daemon restarts.
+          ".cache/awww"
           # Lucid's runtime-written Hyprland data: hypridle.conf (Idle
           # settings page), lucid-specials.lua, lucid-glass.lua. The HM
           # symlinks (hyprland.lua, modules/, scripts/) re-link every boot.

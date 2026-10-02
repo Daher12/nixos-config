@@ -63,19 +63,36 @@ let
 
       dbus-update-activation-environment --systemd GTK_THEME 2>/dev/null || true
 
-      # Runtime owns ~/.config/gtk-4.0/*
-      XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
-      GTK4_DIR="$XDG_CONFIG_HOME/gtk-4.0"
-      THEME_BASE="${colloid}/share/themes"
+      ${
+        if config.desktop.lucid.enable then
+          ''
+            # Lucid host: ~/.config/gtk-4.0 is owned by lucid — envtool writes
+            # the settings.ini theme names, matugen writes colors.css, and
+            # lucidSync appends `@import url('colors.css')` to a WRITABLE
+            # gtk.css. The colloid symlink farm of the non-lucid branch would
+            # point gtk.css into the read-only store; the next lucidSync
+            # append would then write through it and abort the whole HM
+            # activation (EACCES — the 2026-09-24 failure class). The
+            # gsettings swaps above still apply.
+            echo "switch-theme: lucid owns ~/.config/gtk-4.0 — css/assets symlinks skipped" >&2
+          ''
+        else
+          ''
+            # Runtime owns ~/.config/gtk-4.0/*
+            XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
+            GTK4_DIR="$XDG_CONFIG_HOME/gtk-4.0"
+            THEME_BASE="${colloid}/share/themes"
 
-      mkdir -p "$GTK4_DIR"
-      for item in gtk.css gtk-dark.css assets; do
-        src="$THEME_BASE/$theme/gtk-4.0/$item"
-        dst="$GTK4_DIR/$item"
-        [ -e "$src" ] || continue
-        [ ! -L "$dst" ] && [ -d "$dst" ] && mv "$dst" "$dst.rm" && rm -rf "$dst.rm"
-        ln -sfn "$src" "$dst"
-      done
+            mkdir -p "$GTK4_DIR"
+            for item in gtk.css gtk-dark.css assets; do
+              src="$THEME_BASE/$theme/gtk-4.0/$item"
+              dst="$GTK4_DIR/$item"
+              [ -e "$src" ] || continue
+              [ ! -L "$dst" ] && [ -d "$dst" ] && mv "$dst" "$dst.rm" && rm -rf "$dst.rm"
+              ln -sfn "$src" "$dst"
+            done
+          ''
+      }
     '';
   };
 

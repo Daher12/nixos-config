@@ -18,7 +18,12 @@
 
   # MikroTik MCP (mikromcp): flip to false to disable the opencode MCP server
   # (keeps ~/.mikromcp data persisted either way).
-  home-manager.users.${mainUser}.custom.mikrotikMcp.enable = false;
+  # windows-mcp runs inside the windows11 VM (192.168.122.139, NAT bridge);
+  # the opencode MCP entry only works while the VM and its server are up.
+  home-manager.users.${mainUser}.custom = {
+    mikrotikMcp.enable = false;
+    windowsMcp.enable = true;
+  };
 
   users.users.root.hashedPasswordFile = config.sops.secrets.root_password_hash.path;
 
@@ -90,10 +95,15 @@
         slow = 50;
         temp = 85;
       };
+      # Battery: sustained 15W (was 18) caps total system draw at ~25W
+      # under constant load (measured 28.3W @18W STAPM; ~10W is board/
+      # screen/rest-of-system outside the SMU package budget). FAST stays
+      # 25W on purpose — it only governs the short burst window, which is
+      # the latency-relevant knob; STAPM/SLOW do the battery saving.
       battery = {
-        stapm = 18;
+        stapm = 15;
         fast = 25;
-        slow = 18;
+        slow = 15;
         temp = 75;
       };
     };
@@ -139,10 +149,13 @@
     # allowedTCPPorts — that would re-open it on every interface.
     #
     # nftables backend (switched 2026-09-13 after a repo-wide check: nothing
-    # pins iptables explicitly — libvirtd/Docker operate through the
-    # iptables-nft compat layer and coexist with the native table). NOTE:
-    # extraInputRules below is nftables-ONLY — it is silently ignored when the
-    # iptables backend is active.
+    # pins iptables explicitly). CAUTION: enabling this silently auto-flips
+    # libvirt's firewall backend to nftables too (nixpkgs default), which
+    # broke VM NAT 2026-09 — libvirt is therefore explicitly pinned back to
+    # the iptables backend in modules/features/virtualization.nix; its
+    # iptables-nft rules (LIBVIRT_* chains) coexist with the native table.
+    # NOTE: extraInputRules below is nftables-ONLY — it is silently ignored
+    # when the iptables backend is active.
     nftables.enable = true;
     firewall = {
       allowPing = true;
@@ -220,21 +233,15 @@
     virtualization = {
       enable = true;
       guests = {
+        # Domain XML is manual virt-manager state. Fresh 26H2 install
+        # (2026-10-02), renamed into the old identity — MAC/IP inherited
+        # so the launcher and the SSH/mcp wiring (.139) carried over.
+        # Before risky guest updates (iTunes & co):
+        # virsh snapshot-create-as windows11 <label>
         windows11 = {
           desktopName = "Windows 11";
           ip = "192.168.122.139";
           mac = "52:54:00:03:b9:49";
-        };
-        # Work VM: Intune/Entra-managed. Needs UEFI Secure Boot firmware
-        # (edk2-x86_64-secure-code.fd, offered for q35 machines) and an
-        # emulated TPM 2.0 device in virt-manager to satisfy compliance.
-        win11-work = {
-          desktopName = "Windows 11 (Work)";
-          description = "Managed work VM (Entra ID joined, Intune enrolled)";
-          iconColor = "#2b579a";
-          badge = "WORK";
-          ip = "192.168.122.140";
-          mac = "52:54:00:6a:1c:0e";
         };
       };
     };

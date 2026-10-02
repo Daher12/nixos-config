@@ -21,6 +21,11 @@ in
     # server without touching the rest of the opencode config (yoga flips it
     # in hosts/yoga/default.nix; ~/.mikromcp data is persisted either way).
     custom.mikrotikMcp.enable = lib.mkEnableOption "MikroTik MCP server (mikromcp)";
+
+    # windows-mcp: remote SSE server running INSIDE the windows11 VM
+    # (libvirt NAT, 192.168.122.139). Only meaningful where that VM exists;
+    # the server must be started in the guest and dies with the VM.
+    custom.windowsMcp.enable = lib.mkEnableOption "Windows 11 VM MCP server (remote SSE)";
   };
 
   config = lib.mkIf cfg.enable {
@@ -129,6 +134,15 @@ in
               "${lib.getExe pkgs.mikromcp}"
               "serve"
             ];
+          };
+        }
+        // lib.optionalAttrs config.custom.windowsMcp.enable {
+          windows-mcp = {
+            type = "remote";
+            # windows11 VM on the libvirt NAT bridge; server runs in the
+            # guest (`windows-mcp serve --transport sse --host 0.0.0.0
+            # --port 8000 --allow-insecure-remote`) and dies with the VM.
+            url = "http://192.168.122.139:8000/sse";
           };
         };
       };

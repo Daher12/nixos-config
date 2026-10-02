@@ -41,20 +41,28 @@
 
     opencode.url = "github:anomalyco/opencode";
 
-    # Desktop stack pieces pinned newer than nixpkgs 26.05: unstable supplies
-    # dms-greeter (standalone since DMS 1.6.0 — 26.05's dms-shell 1.4.6 still
-    # bundles an older greeter) and the matching newer quickshell that the
-    # Lucid shell runs on. Deliberately NOT in the update-safe/CI bump lists
-    # (explicit pin).
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+    # Quickshell engine — upstream flake (docs: the GitHub mirror is
+    # equivalent to git.outfoxxed.me). follows is upstream-mandated
+    # ("mismatched system dependencies will lead to crashes") and keeps
+    # ONE nixpkgs eval in this flake. Manual pin like lucid/dank-greeter:
+    # bump deliberately with `nix flake update quickshell`, then smoke-test
+    # shell AND greeter (lucid v1.10.5 + DankGreeter 1.6.2 tested against
+    # 0.3.1 — floor enforced in home/lucid.nix). No binary cache upstream:
+    # first build per pin bump compiles locally.
+    quickshell = {
+      url = "github:quickshell-mirror/quickshell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # DankGreeter NixOS module (programs.dms-greeter) from upstream — newer
-    # standalone greeter. Only the module is consumed here; the package it
-    # should run comes from the nixpkgs-unstable overlay (binary-cached
-    # instead of the module's default from-source build).
+    # standalone greeter (1.6.2). Both module and package come from this
+    # flake now, built against the main nixpkgs (follows; pure Go build).
+    # Since 2026-09-30 the nixpkgs-unstable input is GONE — quickshell and
+    # dms-greeter no longer ride it, so there is exactly one nixpkgs eval
+    # in this flake and no binary cache for the desktop stack.
     dank-greeter = {
       url = "github:AvengeMedia/dank-greeter";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Lucid desktop shell (github:Sn3akyy1/lucid): Material 3 Expressive
@@ -88,25 +96,20 @@
           zcode = final.callPackage ./pkgs/zcode.nix { };
           mikromcp = final.callPackage ./pkgs/mikromcp.nix { };
         })
-        # dms-greeter (standalone, DMS 1.6 line) + matching quickshell from
-        # unstable, binary-cached: the greeter runs at every boot and Lucid
-        # (home/lucid.nix) runs on quickshell. The DMS shell itself was
-        # removed 2026-09-27 (rollback: rebuild dms-caelestia-look@4b2f965
+        # Desktop stack from upstream flakes, built against the main nixpkgs
+        # (quickshell's docs mark the follows "THIS IS IMPORTANT" — mismatched
+        # system deps crash). nixpkgs-unstable is GONE: no second nixpkgs
+        # eval, and no binary cache — the first build per pin bump compiles
+        # quickshell locally. Greeter (AvengeMedia 1.6.2) runs at every boot;
+        # Lucid (home/lucid.nix) runs on quickshell; both exec the SYSTEM
+        # quickshell — any bump of quickshell/lucid/greeter is a three-way
+        # pairing, see the floor gate in home/lucid.nix. The DMS shell itself
+        # was removed 2026-09-27 (rollback: rebuild dms-caelestia-look@4b2f965
         # from history).
-        (
-          final: _prev:
-          let
-            # stdenv.hostPlatform.system, not final.system: pkgs.system is a
-            # deprecated warnAlias in nixpkgs (2025-10-28) and spams every eval.
-            unstable = inputs.nixpkgs-unstable.legacyPackages.${final.stdenv.hostPlatform.system};
-          in
-          {
-            inherit (unstable)
-              dms-greeter
-              quickshell
-              ;
-          }
-        )
+        (final: _prev: {
+          dms-greeter = inputs.dank-greeter.packages.${final.stdenv.hostPlatform.system}.dms-greeter;
+          quickshell = inputs.quickshell.packages.${final.stdenv.hostPlatform.system}.quickshell;
+        })
       ];
 
       # Rationale: Defer architecture binding to per-host evaluation. Avoids breaking non-x86 builds.

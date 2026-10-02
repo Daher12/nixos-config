@@ -129,18 +129,15 @@ in
             wrapProgram $out/bin/kitty --add-flags "--single-instance"
           '';
         };
-        # Colors, two regimes: on the lucid attr matugen owns the palette —
-        # its config.toml (home/lucid.nix) renders
-        # ~/.config/kitty/matugen-colors.conf from the wallpaper (lucidSync
-        # seeds that file with Nord until then), included via extraConfig.
-        # Everywhere else: static Nord from kitty-themes, the same palette
-        # ghostty's theme = "Nord" loads. HM writes a themeFile include
-        # BEFORE `settings` (order 520 vs 540), so colors are deliberately
-        # left to the theme/include here either way.
-        themeFile = lib.mkIf (!config.desktop.lucid.enable) "Nord";
-        extraConfig = lib.mkIf config.desktop.lucid.enable ''
-          include matugen-colors.conf
-        '';
+        # Colors: static Nord from kitty-themes — the same palette ghostty's
+        # theme = "Nord" loads. Kitty deliberately does NOT follow lucid's
+        # light/dark mode (2026-09-30: a bright terminal feels wrong): the
+        # desktop flips at 08:00/19:00 via lucid-auto-mode, the terminal
+        # stays dark. lucid's apply-theme.sh / matugen keep rewriting
+        # ~/.config/kitty/matugen-colors.conf, but nothing includes it.
+        # HM writes the themeFile include BEFORE `settings` (order 520 vs
+        # 540), so colors are left to the theme here.
+        themeFile = "Nord";
         settings = {
           font_family = cfg.kitty.fontFamily;
           font_size = cfg.kitty.fontSize;

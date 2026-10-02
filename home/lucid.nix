@@ -25,7 +25,8 @@ let
   # hide; regenerate against a fresh checkout when the lucid pin moves).
   lucidPatched = pkgs.stdenv.mkDerivation {
     pname = "lucid-source";
-    version = "1.10.5-local";
+    # derived from upstream's VERSION file — a pin bump can't leave it stale
+    version = "${lib.trim (builtins.readFile (lucidSrc + "/VERSION"))}-local";
     src = lucidSrc;
     patches = [
       ./lucid-patches/001-nixos-paths.patch
@@ -36,6 +37,11 @@ let
       # backlight detection, marquee idle cost, HTTPS geolocation. Droppable
       # one file at a time if a lucid update outpaces them.
       ./lucid-patches/101-fork-bugfixes.patch
+      # Saved-network connect resilience: no forced disconnect before
+      # ActivateConnection (raced iwd into connect-failed status 1 on every
+      # BSS after a manual switch), one silent retry, and no password box
+      # for saved networks on failure/timeout.
+      ./lucid-patches/102-wifi-connect-resilience.patch
     ];
     dontConfigure = true;
     dontBuild = true;
@@ -138,8 +144,13 @@ let
 
   # Pinned PATH for the lucid units (see lucid.service below): the shell and
   # its scripts shell out constantly (python helpers, gdbus, systemctl,
-  # matugen, wallpaper scripts, hyprctl) — all system deps.
-  lucidPath = "/run/current-system/sw/bin:/etc/profiles/per-user/${mainUser}/bin:%h/.local/bin";
+  # matugen, wallpaper scripts, hyprctl) — all system deps. /run/wrappers/bin
+  # must come first: dock/launcher children inherit this PATH, and NixOS's
+  # privileged helpers (spice-client-glib-usb-acl-helper, fusermount,
+  # newuidmap) exist ONLY there — without the dir they resolve to the
+  # unelevated store copies and fail (USB redirect: "Error setting facl:
+  # Operation not permitted", observed 2026-10-01).
+  lucidPath = "/run/wrappers/bin:/run/current-system/sw/bin:/etc/profiles/per-user/${mainUser}/bin:%h/.local/bin";
 
   # Auto light/dark (user decision 2026-09-23: fixed times, NOT solar —
   # darkman is disabled on this host for fighting matugen over GTK, and a
@@ -150,21 +161,34 @@ let
   lightHour = 8;
   darkHour = 19;
 
+  # Quickshell engine floor — empirical (upstream lucid declares no
+  # requirement; install.sh PKG_REQUIRED is unpinned). 0.3.1 = the version
+  # lucid v1.10.5 AND DankGreeter 1.6.2 are tested against (quickshell is
+  # pinned via its own flake input since 2026-09-30). Bump together with
+  # the lucid pin.
+  minQuickshell = "0.3.1";
+
   # The wrapper mirrors what Prefs.setColorMode does in-QML: Lucid's own
   # set-mode.sh for the palette (matugen re-run in the new mode, current_mode
   # watched by the shell) plus the app-facing theme swaps — gsettings for
   # running and portal-aware clients, and the gtk3/gtk4/gtk2 ini name fields
   # (via lucid's own envtool writer) for freshly launched plain GTK apps.
   # Theme names are owned by
-  # home/theme.nix — keep the two pairs below in sync there. prefs
-  # envColorScheme deliberately stays "auto": envtool apply only writes
-  # color-scheme for dark/light, so it never rewrites these values behind
-  # the timer's back.
+  # home/theme.nix — keep the two pairs below in sync there. The shell
+  # re-applies its persisted env prefs at every start (Env.qml envAdopted
+  # → envtool.apply), and a manual Theme-page flip persists them — so the
+  # wrapper syncs envColorScheme/envGtkTheme/envIconTheme to the flipped
+  # mode below, or every lucid restart rewrites the stale last-manual
+  # mode over the timer's values (observed 2026-09-30: prefs "dark"
+  # re-darkening gsettings in daytime).
   lucidAutoMode = pkgs.writeShellApplication {
     name = "lucid-auto-mode";
     runtimeInputs = with pkgs; [
       glib # gsettings
-      coreutils # date
+      dconf # schema-less fallback for the login-run gsettings race
+      jq # lucidprefs/prefs.json env sync
+      gnugrep # awww query check in the wallpaper repair
+      coreutils # date, mktemp, mv
     ];
     text = ''
             set -euo pipefail
@@ -193,21 +217,46 @@ let
             "$HOME/.config/lucid/set-mode.sh" "$mode" \
               || echo "warning: set-mode.sh failed — swapped gsettings only" >&2
 
+            # Wallpaper repair for STATIC themes: set-mode.sh re-applies the
+            # image only for matugen/pywal, and impermanence wipes awww's
+            # cache (~/.cache/awww) at boot — after a reboot nothing puts the
+            # image back (observed 2026-09-30: black desktop, state files
+            # intact). Repair only when awww is not showing an image, so
+            # boundary flips mid-session don't re-fade the same picture.
+            # awww query: "currently displaying: image: <path>" vs
+            # "color: <hex>" when nothing is set (verified live 2026-09-30).
+            theme="$(cat "$HOME/.cache/current_theme" 2>/dev/null || echo matugen)"
+            wallpaper="$(cat "$HOME/.cache/current_wallpaper" 2>/dev/null || true)"
+            if [[ "$theme" != matugen && "$theme" != pywal \
+                  && -n "$wallpaper" && -f "$wallpaper" ]] \
+               && ! awww query 2>/dev/null | grep -q 'image:'; then
+              "$HOME/.config/hypr/scripts/wallpaper/set-wallpaper.sh" "$wallpaper" "$mode" \
+                || echo "warning: wallpaper re-apply failed" >&2
+            fi
+
             # gsettings races the uwsm environment import on the login run
             # (schemas not visible yet → "Keine Schemata installiert",
-            # 2026-09-27 boot): retry briefly, then degrade — set-wallpaper.sh
-            # has already landed wallpaper + palette, and the next boundary
-            # re-applies.
+            # 2026-09-27 boot): retry briefly, then fall back to dconf — it
+            # needs no schemas, so it is immune to the race, while writing
+            # the same key on the same bus. Without the fallback, Firefox
+            # and every color-scheme-following app stayed dark all day
+            # (both boots 2026-09-30: all three keys "skipped", ini files
+            # light, dconf dark).
             gs_set() {
+              key="$1" value="$2"
               for _ in 1 2 3 4 5; do
-                if gsettings set "$@" 2>/dev/null; then
+                if gsettings set org.gnome.desktop.interface "$key" "$value" 2>/dev/null; then
                   return 0
                 fi
                 sleep 2
               done
-              echo "warning: gsettings unavailable, skipped $*" >&2
+              if dconf write "/org/gnome/desktop/interface/$key" "'$value'"; then
+                echo "warning: gsettings unavailable, wrote $key=$value via dconf" >&2
+                return 0
+              fi
+              echo "warning: could not write $key at all" >&2
             }
-            gs_set org.gnome.desktop.interface color-scheme "prefer-$mode"
+            gs_set color-scheme "prefer-$mode"
             if [[ "$mode" == light ]]; then
               gtk="${gtkLight}"
               icon="${iconLight}"
@@ -215,8 +264,26 @@ let
               gtk="${gtkDark}"
               icon="${iconDark}"
             fi
-            gs_set org.gnome.desktop.interface icon-theme "$icon"
-            gs_set org.gnome.desktop.interface gtk-theme "$gtk"
+            gs_set icon-theme "$icon"
+            gs_set gtk-theme "$gtk"
+
+            # Keep lucid's persisted env prefs in lockstep with this flip —
+            # exactly the payload Prefs.setColorMode persists on a manual
+            # Theme-page flip. Left at the last manual flip, every lucid
+            # restart re-applied that stale mode over the timer's values
+            # (observed 2026-09-30: prefs "dark" re-darkening gsettings in
+            # daytime).
+            prefs="$HOME/.config/quickshell/lucidprefs/prefs.json"
+            if [ -s "$prefs" ]; then
+              tmp="$(mktemp "''${prefs}.XXXXXX")"
+              if jq --arg scheme "$mode" --arg gtk "$gtk" --arg icon "$icon" \
+                '.envColorScheme = $scheme | .envGtkTheme = $gtk | .envIconTheme = $icon' \
+                "$prefs" > "$tmp"; then
+                mv "$tmp" "$prefs"
+              else
+                rm -f "$tmp"
+              fi
+            fi
 
             # Running and portal-aware clients follow gsettings, but a freshly
             # launched plain GTK app reads the ini files instead. Mirror the two
@@ -224,7 +291,7 @@ let
             # file policy as the apply a manual Theme-page flip triggers. Guarded:
             # if upstream moves the helper, this degrades to gsettings-only.
             if [[ -f "$HOME/.config/quickshell/lucidprefs/envtool.py" ]]; then
-              GTK_NAME="$gtk" ICON_NAME="$icon" python3 - <<'PYEOF'
+              GTK_NAME="$gtk" ICON_NAME="$icon" MODE="$mode" python3 - <<'PYEOF'
       import os, sys
       sys.path.insert(0, os.path.expanduser("~/.config/quickshell/lucidprefs"))
       import envtool
@@ -233,7 +300,12 @@ let
           "gtk-icon-theme-name": os.environ["ICON_NAME"],
       }
       for path in (envtool.GTK3, envtool.GTK4):
-          envtool.ini_set(path, "Settings", common)
+          envtool.ini_set(path, "Settings", dict(common, **{
+              # without this, a manual dark flip leaves prefer-dark=1 behind
+              # after the timer flips light (observed live: Colloid-Light-Nord
+              # + gtk-application-prefer-dark-theme=1 in the same ini)
+              "gtk-application-prefer-dark-theme": "1" if os.environ["MODE"] == "dark" else "0",
+          }))
       envtool.gtk2_set(common)
       PYEOF
             fi
@@ -256,6 +328,20 @@ let
         upstream: ${toString (lib.sort lib.lessThan upstreamStateFiles)}
         ours:     ${toString (lib.sort lib.lessThan (map (s: s.dest) stateFiles))}
       '';
+
+  # Engine gate: quickshell rides its own flake input, lucid another —
+  # nothing ties them, and a mismatch surfaces as runtime QML breakage.
+  # Forced via the same activation-comment interpolation as
+  # stateFilesChecked (lazy: unevaluated when the module is disabled).
+  quickshellChecked =
+    if builtins.compareVersions pkgs.quickshell.version minQuickshell >= 0 then
+      "ok"
+    else
+      throw ''
+        lucid: quickshell ${pkgs.quickshell.version} (quickshell flake input)
+        is older than the tested minimum ${minQuickshell}. Bump it first:
+        nix flake update quickshell
+      '';
 in
 {
   options.desktop.lucid = {
@@ -271,6 +357,7 @@ in
     home.activation.lucidSync = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       LUCID_SRC="${lucidPatched}"
       # stateFiles cross-check vs upstream install.sh: ${stateFilesChecked}
+      # quickshell engine floor: ${quickshellChecked}
       QS_DIR="$HOME/.config/quickshell"
       LUCID_DIR="$HOME/.config/lucid"
 
@@ -333,9 +420,16 @@ in
       #   split/focus-* (J, arrows)  — bound statically with the same action
       #                                (home/hyprland.nix); avoids duplicate
       #                                compositor binds
+      # themes/ is runtime state too: add-theme.py (Lucid Settings theme
+      # import) writes ~/.config/lucid/themes/<id>/ — excluded from --delete
+      # here and synced separately WITHOUT it, so user imports survive
+      # activations while upstream's shipped themes still land/refresh.
       ${pkgs.rsync}/bin/rsync -rt --delete \
         --exclude 'keybinds.json' --exclude 'wallpaper-outputs.conf' \
+        --exclude 'themes' \
         "$LUCID_SRC/support/lucid/" "$LUCID_DIR/"
+      ${pkgs.rsync}/bin/rsync -rt \
+        "$LUCID_SRC/support/lucid/themes/" "$LUCID_DIR/themes/"
       if [ ! -s "$LUCID_DIR/keybinds.json" ]; then
         mkdir -p "$LUCID_DIR"
         ${pkgs.jq}/bin/jq \
@@ -366,24 +460,6 @@ in
         fi
       done
 
-      # Kitty palette seed (2026-09-27 terminal consolidation): kitty.conf
-      # includes matugen-colors.conf (home/terminal.nix), which only exists
-      # after the first wallpaper ran matugen. Seed it with the same static
-      # Nord the non-lucid attrs use so kitty never includes a missing file;
-      # matugen overwrites it when the wallpaper applies. install(1) for a
-      # defined mode — a plain store cp would land read-only and matugen's
-      # rewrite would then fail. WARNING, not fatal: a seed failure must
-      # never abort lucidSync (2026-09-27 boot: an abort here once left the
-      # desktop without launcher apps — cosmetic seeds must not take the
-      # whole activation down).
-      if [ ! -f "$HOME/.config/kitty/matugen-colors.conf" ]; then
-        mkdir -p "$HOME/.config/kitty"
-        ${pkgs.coreutils}/bin/install -m 644 \
-          "${pkgs.kitty-themes}/share/kitty-themes/themes/Nord.conf" \
-          "$HOME/.config/kitty/matugen-colors.conf" \
-          || echo "warning: kitty Nord seed failed — matugen will provide colors" >&2
-      fi
-
       # Fix modes LAST, covering everything above: rsync -rt copies the
       # store's read-only file modes, and cp-seeded defaults carry the
       # store's 444 as well — both leave lucid unable to save its own
@@ -395,8 +471,10 @@ in
     '';
 
     xdg.configFile = {
-      # Lucid's reload helper — the SUPER+R bind runs
-      # ~/.config/hypr/scripts/reload.sh (just `hyprctl reload`).
+      # Lucid's reload helper (just `hyprctl reload`). Executed by lucid's
+      # `reload` keybind action at exactly this path — disabled in the
+      # keybinds.json seed (SUPER+R is the launcher's, home/hyprland.nix),
+      # deployed so re-enabling it in Lucid Settings works.
       "hypr/scripts/reload.sh" = {
         source = "${lucidPatched}/support/hypr/scripts/reload.sh";
         executable = true;
@@ -421,12 +499,13 @@ in
       # matugen: templates symlinked from upstream; config authored here
       # with only the templates this setup consumes. The quickshell palette
       # (~/.cache/quickshell/matugen.json) is what Theme.qml reads; the GTK
-      # pair lands in the persisted gtk-3.0/gtk-4.0 dirs; kitty gets
-      # matugen-colors.conf (included from kitty.conf, home/terminal.nix —
-      # lucidSync seeds it with Nord until the first wallpaper lands).
-      # Upstream additionally templates starship/vscode/firefox/… — add
-      # blocks here before theming those apps. Run with `matugen image
-      # <file> -m dark` (that is what Lucid's wallpaper script does).
+      # pair lands in the persisted gtk-3.0/gtk-4.0 dirs. kitty no longer
+      # consumes matugen output — static Nord since 2026-09-30
+      # (home/terminal.nix); lucid's apply-theme.sh still writes an unused
+      # ~/.config/kitty/matugen-colors.conf. Upstream additionally templates
+      # starship/vscode/firefox/… — add blocks here before theming those
+      # apps. Run with `matugen image <file> -m dark` (that is what Lucid's
+      # wallpaper script does).
       "matugen/templates".source = "${lucidPatched}/support/matugen/templates";
 
       "matugen/config.toml" = {
@@ -447,10 +526,6 @@ in
           [templates.gtk4]
           input_path = '~/.config/matugen/templates/gtk-colors.css'
           output_path = '~/.config/gtk-4.0/colors.css'
-
-          [templates.kitty]
-          input_path = '~/.config/matugen/templates/kitty.conf'
-          output_path = '~/.config/kitty/matugen-colors.conf'
         '';
       };
     };
