@@ -17,9 +17,9 @@ in
   options = {
     opencode.enable = lib.mkEnableOption "opencode (shared settings)";
 
-    # MikroTik MCP (mikromcp): separate toggle so a host can disable the MCP
-    # server without touching the rest of the opencode config (yoga flips it
-    # in hosts/yoga/default.nix; ~/.mikromcp data is persisted either way).
+    # MikroTik MCP (mikromcp): toggles only the opencode entry below — the
+    # binary itself is always in home.packages so configs outside this module
+    # (ZCode workspaces, RouterOS opencode.jsonc) can call it by bare name.
     custom.mikrotikMcp.enable = lib.mkEnableOption "MikroTik MCP server (mikromcp)";
 
     # windows-mcp: remote SSE server running INSIDE the windows11 VM
@@ -31,6 +31,10 @@ in
   config = lib.mkIf cfg.enable {
     home.packages = [
       pkgs.mcp-nixos
+      # Unconditional (not behind mikrotikMcp): MCP configs outside opencode
+      # reference "mikromcp" by name — hardcoded /nix/store paths rot on GC
+      # (the 1.10.0 path in the RouterOS project already did).
+      pkgs.mikromcp
     ];
 
     # NOTE: no opencode-cache-clean service — it previously deleted
@@ -57,11 +61,11 @@ in
         # zai-coding-plan provider below stays pickable while the plan lives
         # and turns into a harmless dead entry when it ends — no edits needed
         # on that day.
-        model = "openrouter/deepseek-v4-flash";
-        small_model = "openrouter/deepseek-v4-flash";
+        model = "openrouter/deepseek/deepseek-v4-flash";
+        small_model = "openrouter/deepseek/deepseek-v4-flash";
         agent = {
           build = {
-            model = "openrouter/deepseek-v4-flash";
+            model = "openrouter/deepseek/deepseek-v4-flash";
             variant = "high";
           };
           plan = {
