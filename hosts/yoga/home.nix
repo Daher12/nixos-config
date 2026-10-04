@@ -149,6 +149,13 @@ in
           # itself lives in ~/Dokumente/Notes, persisted via the system-level
           # Dokumente entry in hosts/yoga/default.nix.
           ".config/obsidian"
+          # Nautilus (the Hyprland file manager): view/sort preferences in
+          # .config, starred files + metadata in .local/share — unpersisted,
+          # both reset on every boot of the impermanence host.
+          ".config/nautilus"
+          ".local/share/nautilus"
+          # Browser-imported certificates (NSS shared DB)
+          ".pki/nssdb"
           ".local/state/wireplumber"
 
           ".local/share/applications"

@@ -39,7 +39,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    opencode.url = "github:anomalyco/opencode";
+    # follows keeps this on the single main nixpkgs eval — opencode's own
+    # lock pinned nixpkgs-unstable, and the stdenv mismatch is what the
+    # libstdc++ LD_LIBRARY_PATH wrap in home/opencode.nix papers over.
+    opencode = {
+      url = "github:anomalyco/opencode";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # Quickshell engine — upstream flake (docs: the GitHub mirror is
     # equivalent to git.outfoxxed.me). follows is upstream-mandated

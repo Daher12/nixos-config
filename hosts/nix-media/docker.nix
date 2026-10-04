@@ -89,6 +89,10 @@ in
             "${storagePath}/shows:/data/shows:ro"
             "${storagePath}/kinder:/data/kinder:ro"
           ];
+          # 0.0.0.0 is deliberate: two LAN devices (without tailscale) call
+          # Jellyfin directly on :8096. Docker's DNAT never traverses the
+          # nftables INPUT chain, so this one port is LAN-open by design —
+          # everything else on this host stays tailnet-only.
           ports = [ "8096:8096" ];
           extraOptions = [
             "--network=${dockerNetwork.name}"

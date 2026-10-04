@@ -39,19 +39,14 @@ in
   users.users.${mainUser}.uid = 1000;
 
   # --- Core Configuration ---
+  # Boot (bgrt, 2G tmpfs) and the fish shell come from core module
+  # defaults; only the description differs from the fleet default.
   core = {
-    users = {
-      description = "David";
-      defaultShell = "fish";
+    users.description = "David";
+    openssh = {
+      enable = true;
+      mgmtLanCidr = "192.168.88.0/24";
     };
-    boot = {
-      plymouth.theme = "bgrt";
-      tmpfs = {
-        enable = true;
-        size = "2G";
-      };
-    };
-    openssh.enable = true;
   };
 
   hardware = {
@@ -103,21 +98,13 @@ in
   };
 
   # Mirror of yoga's firewall hardening: default-deny input, SSH only from
-  # the home management LAN (192.168.88.0/24). tailscale0 stays trusted via
-  # features.vpn.tailscale.trustInterface (laptop profile) — that remains
-  # the remote-management path on foreign networks. Port 22 must NOT
-  # re-enter allowedTCPPorts; that would re-open it on every interface.
-  # NOTE: extraInputRules is nftables-ONLY — silently ignored when the
-  # iptables backend is active.
-  networking = {
-    nftables.enable = true;
-    firewall = {
-      allowPing = true;
-      extraInputRules = ''
-        ip saddr 192.168.88.0/24 tcp dport 22 ct state new accept comment "ssh from home management LAN"
-      '';
-    };
-  };
+  # the home management LAN — the accept rule is emitted from
+  # core.openssh.mgmtLanCidr (nftables-only, see the option description).
+  # tailscale0 stays trusted via features.vpn.tailscale.trustInterface
+  # (laptop profile) — that remains the remote-management path on foreign
+  # networks. Port 22 must NOT re-enter allowedTCPPorts; that would re-open
+  # it on every interface.
+  networking.nftables.enable = true;
   services = {
     # thermald comes from hardware.intel-gpu (mkDefault)
 
