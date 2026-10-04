@@ -34,13 +34,6 @@ let
     episode
     ;
 
-  inherit (cfg.apiKeys)
-    tmdb
-    omdb
-    tvdb
-    tvmaze
-    ;
-
   resolvedPackage =
     if cfg.package != null then
       cfg.package
@@ -76,18 +69,6 @@ let
 
       replace_before = replaceBefore;
       replace_after = replaceAfter;
-    }
-    // lib.optionalAttrs (tmdb != null) {
-      api_key_tmdb = tmdb;
-    }
-    // lib.optionalAttrs (omdb != null) {
-      api_key_omdb = omdb;
-    }
-    // lib.optionalAttrs (tvdb != null) {
-      api_key_tvdb = tvdb;
-    }
-    // lib.optionalAttrs (tvmaze != null) {
-      api_key_tvmaze = tvmaze;
     }
     // extraSettings
   );
@@ -325,32 +306,10 @@ in
       description = "Replacement mapping applied after formatting.";
     };
 
-    apiKeys = {
-      tmdb = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "TMDb API key.";
-      };
-
-      omdb = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "OMDb API key.";
-      };
-
-      tvdb = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "TVDb API key.";
-      };
-
-      tvmaze = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "TvMaze API key.";
-      };
-    };
-
+    # No apiKeys.* options on purpose: any key value would be serialized
+    # into settingsFile — a world-readable /nix/store path — violating the
+    # repo's sops-only secrets rule. If keys are ever needed, render the
+    # config from a sops secret instead (see features.litellm configFile).
     extraSettings = lib.mkOption {
       type = lib.types.attrsOf lib.types.anything;
       default = { };

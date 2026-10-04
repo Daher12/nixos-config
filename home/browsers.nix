@@ -104,6 +104,12 @@ in
 
         extensions = map (id: { inherit id; }) cfg.brave.extensions;
 
+        # --password-store=basic is deliberate: under Hyprland autologin
+        # gnome-keyring isn't reliably unlocked before Brave starts, which
+        # blocks saved-logins autofill behind a keyring prompt. "basic"
+        # keeps passwords inside the (persisted) Brave profile dir instead.
+        # Revisit only if keyring-before-browser ordering is ever solved.
+        #
         # --no-default-browser-check: Brave otherwise prompts (and sometimes
         # succeeds silently) at startup. Backed up by the Firefox mimeApps
         # pin above and DefaultBrowserSettingEnabled=false in

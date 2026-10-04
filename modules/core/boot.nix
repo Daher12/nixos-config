@@ -12,6 +12,8 @@ in
 {
   options.core.boot = {
     silent = lib.mkEnableOption "silent boot with Plymouth";
+    # Defaults are the fleet values (bgrt + 2G RAM /tmp on every host);
+    # servers override size (nix-media: 4G) in their host module.
     plymouth.theme = lib.mkOption {
       type = lib.types.enum [
         "bgrt"
@@ -19,17 +21,18 @@ in
         "script"
         "text"
       ];
-      default = "spinner";
+      default = "bgrt";
       description = "Plymouth theme to use";
     };
     tmpfs = {
       enable = lib.mkOption {
         type = lib.types.bool;
-        default = false;
+        default = true;
         description = "Mount /tmp in RAM";
       };
       size = lib.mkOption {
         type = lib.types.str;
+        default = "2G";
         description = "Size of tmpfs";
       };
     };

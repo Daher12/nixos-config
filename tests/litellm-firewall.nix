@@ -50,8 +50,8 @@
           enable = true;
           openFirewall = false;
         };
-        # Mirrors the nftables-backend source restriction from
-        # hosts/yoga/default.nix (networking.nftables.enable + extraInputRules).
+        # Mirrors core.openssh.mgmtLanCidr from modules/core/openssh.nix
+        # (kept inline: this VM builds the rule without the core module).
         networking = {
           nftables.enable = true;
           useNetworkd = true;

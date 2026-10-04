@@ -118,19 +118,16 @@
 
   # --- System Core ---
   system.stateVersion = "25.11";
+  # Boot (bgrt, 2G tmpfs) and the fish shell come from core module
+  # defaults; only the description differs from the fleet default.
   core = {
-    boot = {
-      plymouth.theme = "bgrt";
-      tmpfs = {
-        enable = true;
-        size = "2G";
-      };
+    users.description = "David";
+    openssh = {
+      enable = true;
+      # SSH restricted to the home management LAN — accept rule emitted by
+      # modules/core/openssh.nix (nftables required, see its description).
+      mgmtLanCidr = "192.168.88.0/24";
     };
-    users = {
-      description = "David";
-      defaultShell = "fish";
-    };
-    openssh.enable = true;
   };
 
   networking = {
@@ -161,15 +158,7 @@
     # broke VM NAT 2026-09 — libvirt is therefore explicitly pinned back to
     # the iptables backend in modules/features/virtualization.nix; its
     # iptables-nft rules (LIBVIRT_* chains) coexist with the native table.
-    # NOTE: extraInputRules below is nftables-ONLY — it is silently ignored
-    # when the iptables backend is active.
     nftables.enable = true;
-    firewall = {
-      allowPing = true;
-      extraInputRules = ''
-        ip saddr 192.168.88.0/24 tcp dport 22 ct state new accept comment "ssh from home management LAN"
-      '';
-    };
   };
   services.openssh.openFirewall = false;
 
