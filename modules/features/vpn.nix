@@ -37,7 +37,7 @@ in
     };
 
     networking.firewall = {
-      checkReversePath = "loose";
+      checkReversePath = lib.mkDefault "loose";
       trustedInterfaces = lib.mkIf cfg.tailscale.trustInterface [ "tailscale0" ];
     };
   };

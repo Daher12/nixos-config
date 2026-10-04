@@ -52,15 +52,20 @@ in
         '';
       });
       settings = {
-        model = "zai-coding-plan/glm-5.3-flash";
-        small_model = "zai-coding-plan/glm-5.3-flash";
+        # OpenRouter is the post-coding-plan baseline: both mains (deepseek
+        # flash + glm flash) live there under one key (auth.json). The
+        # zai-coding-plan provider below stays pickable while the plan lives
+        # and turns into a harmless dead entry when it ends — no edits needed
+        # on that day.
+        model = "openrouter/deepseek-v4-flash";
+        small_model = "openrouter/deepseek-v4-flash";
         agent = {
           build = {
-            model = "zai-coding-plan/glm-5.3-flash";
+            model = "openrouter/deepseek-v4-flash";
             variant = "high";
           };
           plan = {
-            model = "zai-coding-plan/glm-5.3";
+            model = "openrouter/z-ai/glm-5.3-flash";
             variant = "high";
           };
         };
@@ -74,7 +79,10 @@ in
           };
           openrouter = {
             models = {
+              # deepseek-v4-pro kept as the strong fallback pick; glm-5.3-flash
+              # is the second main (agent.plan default).
               "deepseek/deepseek-v4-flash" = { };
+              "z-ai/glm-5.3-flash" = { };
               "deepseek/deepseek-v4-pro" = {
                 options = {
                   provider = {

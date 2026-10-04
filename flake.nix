@@ -148,9 +148,15 @@
 
       # VM tests — run explicitly, not part of `checks` (CI stays fast):
       # nix build .#nixosTests.x86_64-linux.litellm-gateway / .ssh-firewall
-      nixosTests.${system} = pkgs.callPackage ./tests/litellm-firewall.nix {
-        litellmModule = ./modules/features/litellm.nix;
-      };
+      #   / .virbr0-firewall
+      nixosTests.${system} =
+        (pkgs.callPackage ./tests/litellm-firewall.nix {
+          litellmModule = ./modules/features/litellm.nix;
+        })
+        // (pkgs.callPackage ./tests/virbr0-firewall.nix {
+          virtualizationModule = ./modules/features/virtualization.nix;
+          filesystemModule = ./modules/features/filesystem.nix;
+        });
 
       # Secrets/ops toolshell (SOPS_RUNBOOK.md): `nix develop` puts sops, yq,
       # age, ssh-to-age and jq on PATH — no per-command `nix shell nixpkgs#…`

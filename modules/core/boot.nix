@@ -113,7 +113,6 @@ in
       tmp = lib.mkIf cfg.tmpfs.enable {
         useTmpfs = true;
         tmpfsSize = cfg.tmpfs.size;
-        cleanOnBoot = true;
       };
     };
 

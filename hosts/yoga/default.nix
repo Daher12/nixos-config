@@ -25,10 +25,17 @@
     windowsMcp.enable = true;
   };
 
-  users.users.root.hashedPasswordFile = config.sops.secrets.root_password_hash.path;
+  users = {
+    users.root.hashedPasswordFile = config.sops.secrets.root_password_hash.path;
 
-  # ADB group for android-tools (not in core/users.nix since only yoga needs it)
-  users.users.${mainUser}.extraGroups = [ "adbusers" ];
+    # ADB/fastboot over USB (not in core/users.nix since only yoga needs
+    # it). Two halves, both required: the group must exist or the
+    # extraGroups entry is silently dropped, and android-tools ships no
+    # udev rules — the matching rule lives in the services block below
+    # (one services attrset per file keeps statix happy).
+    groups.adbusers = { };
+    users.${mainUser}.extraGroups = [ "adbusers" ];
+  };
 
   # --- Hardware & Boot ---
   boot = {
@@ -176,6 +183,11 @@
     secureboot.enable = true;
     # serverIp uses the features.nas option default (Tailscale IP of nix-media)
     nas.enable = true;
+
+    # Managed Brave policies (/etc/brave/policies/managed/origin.json):
+    # Origin mode + debloat. Replaces the hand-maintained bloat.json that
+    # used to live at the same path via this persistence module.
+    brave.enable = true;
 
     desktop-gnome.autoLogin = true; # only effective in the yoga-gnome attr (GDM)
 
@@ -334,6 +346,16 @@
     journald.extraConfig = "SystemMaxUse=200M";
     # sshd hardening via core.openssh (PasswordAuthentication=no,
     # PermitRootLogin=no, UseDns=no).
+
+    # Generic ADB/fastboot rule for the adbusers group (see the users
+    # block above): match the Android debug interface (class ff,
+    # subclass 42, proto 01, exposed by udev's usb_id as
+    # ID_USB_INTERFACES) — covers adb AND fastboot for any vendor, no
+    # vendor-ID list to maintain. TAG+=uaccess additionally ACLs the
+    # node for the seated user.
+    udev.extraRules = ''
+      SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{ID_USB_INTERFACES}=="*ff4201*", MODE="0664", GROUP="adbusers", TAG+="uaccess"
+    '';
   };
 
   # --- Environment & Filesystems ---
@@ -379,7 +401,6 @@
           parentDirectory.mode = "0755";
         }
         "/etc/ssh/ssh_host_rsa_key.pub"
-        "/etc/brave/policies/managed/bloat.json"
       ];
     };
 

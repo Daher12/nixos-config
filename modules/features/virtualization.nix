@@ -271,13 +271,22 @@ in
       environment.variables.LIBVIRT_DEFAULT_URI = "qemu:///system";
 
       # The NixOS nftables firewall's input chain has policy drop and
-      # only trusts lo/tailscale0 — DHCP and other guest→host traffic
-      # arriving on virbr0 were dropped even though libvirt's own
-      # iptables chains accept them: an ACCEPT in one nft table cannot
-      # override another table's drop. Trust the NAT bridge so the
-      # default network's DHCP/DNS reach the host (guests "identifying
-      # → unidentified network", observed 2026-09-30).
-      networking.firewall.trustedInterfaces = [ "virbr0" ];
+      # only trusts lo/tailscale0 — DHCP/DNS guest→host traffic arriving
+      # on virbr0 was dropped even though libvirt's own iptables chains
+      # accept it: an ACCEPT in one nft table cannot override another
+      # table's drop (guests "identifying → unidentified network",
+      # observed 2026-09-30). Open the two ports the default network's
+      # dnsmasq actually needs instead of blanket-trusting the bridge —
+      # guests keep reaching ONLY DHCP and DNS on the host, nothing else.
+      # extraInputRules is nftables-only (silently ignored on the
+      # iptables backend, where libvirt's rules coexist with the NixOS
+      # firewall in the same table anyway). Behavior is pinned by
+      # tests/virbr0-firewall.nix.
+      networking.firewall.extraInputRules = ''
+        iifname "virbr0" udp dport 67 accept comment "libvirt default network: DHCP"
+        iifname "virbr0" udp dport 53 accept comment "libvirt default network: DNS"
+        iifname "virbr0" tcp dport 53 accept comment "libvirt default network: DNS (TCP fallback)"
+      '';
 
       users.users.${mainUser}.extraGroups = lib.mkAfter [
         "libvirtd"

@@ -71,6 +71,10 @@ in
     # serverIp uses the features.nas option default (Tailscale IP of nix-media)
     nas.enable = true;
 
+    # Managed Brave policies (/etc/brave/policies/managed/origin.json):
+    # Origin mode + debloat (Brave runs here per hosts/latitude/home.nix).
+    brave.enable = true;
+
     desktop-gnome = {
       autoLogin = true;
     };

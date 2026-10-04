@@ -1,8 +1,9 @@
-# LiteLLM API gateway — local OpenAI-compatible proxy for coding assistants.
+# LiteLLM API gateway — OpenAI-compatible proxy for AI clients.
 #
-# Point IDE/agent tools at http://127.0.0.1:4001 instead of provider endpoints;
-# provider routing changes stay inside the LiteLLM config. Disabled by default:
-# enabling requires a real config file (model list + master key) that carries no
+# Point tools at http://127.0.0.1:4001 (or the host's tailscale IP when
+# listenAddress is exposed) instead of provider endpoints; provider routing
+# changes stay inside the LiteLLM config. Disabled by default: enabling
+# requires a real config file (model list + master key) that carries no
 # secrets in this repo.
 #
 # Secret provisioning (sops-nix): sops renders secrets root:root 0400 by
@@ -30,12 +31,24 @@ let
 in
 {
   options.features.litellm = {
-    enable = lib.mkEnableOption "LiteLLM API gateway (127.0.0.1 only)";
+    enable = lib.mkEnableOption "LiteLLM API gateway";
 
     port = lib.mkOption {
       type = lib.types.port;
       default = 4001;
-      description = "TCP port the gateway listens on (loopback only).";
+      description = "TCP port the gateway listens on.";
+    };
+
+    listenAddress = lib.mkOption {
+      type = lib.types.str;
+      default = "127.0.0.1";
+      example = "0.0.0.0";
+      description = ''
+        Address the gateway binds to. The default keeps it loopback-only;
+        "0.0.0.0" exposes it on every interface — pair that with a firewall
+        that only admits the intended source (e.g. nix-media: tailscale0 is
+        the only trusted interface, everything else stays dropped).
+      '';
     };
 
     configFile = lib.mkOption {
@@ -72,7 +85,7 @@ in
         ExecStart = lib.concatStringsSep " " [
           "${lib.getExe pkgs.litellm}"
           "--config \${CREDENTIALS_DIRECTORY}/litellm-config"
-          "--host 127.0.0.1"
+          "--host ${cfg.listenAddress}"
           "--port ${toString cfg.port}"
         ];
         # systemd expands $CREDENTIALS_DIRECTORY itself; the source file may be

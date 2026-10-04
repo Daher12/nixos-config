@@ -145,6 +145,10 @@ in
           ".config/ZCode"
           # ZCode auth/history lives here, not in ~/.config/ZCode
           ".zcode"
+          # Obsidian (Electron): vault registry + window state. The vault
+          # itself lives in ~/Dokumente/Notes, persisted via the system-level
+          # Dokumente entry in hosts/yoga/default.nix.
+          ".config/obsidian"
           ".local/state/wireplumber"
 
           ".local/share/applications"
@@ -175,31 +179,38 @@ in
     # Owning the file via xdg.desktopEntries makes it a read-only store
     # symlink the app cannot overwrite; it logs a registration error and
     # continues, while the wrapper-based Exec keeps working.
-    xdg.desktopEntries.zcode = {
-      type = "Application";
-      name = "ZCode";
-      genericName = "ZCode Desktop App";
-      exec = "zcode --no-sandbox %U";
-      terminal = false;
-      icon = "zcode";
-      settings.StartupWMClass = "ZCode";
-      mimeType = [ "x-scheme-handler/zcode" ];
-      categories = [ "Development" ];
-    };
+    xdg = {
+      desktopEntries.zcode = {
+        type = "Application";
+        name = "ZCode";
+        genericName = "ZCode Desktop App";
+        exec = "zcode --no-sandbox %U";
+        terminal = false;
+        icon = "zcode";
+        settings.StartupWMClass = "ZCode";
+        mimeType = [ "x-scheme-handler/zcode" ];
+        categories = [ "Development" ];
+      };
 
-    xdg.userDirs = {
-      enable = true;
-      createDirectories = true;
-      setSessionVariables = false;
+      # Deep-link handler folded into the HM-owned mimeapps.list (home/browsers.nix
+      # makes it a store symlink, so ZCode's runtime write of this entry stops
+      # working — this is its declarative replacement).
+      mimeApps.defaultApplications."x-scheme-handler/zcode" = [ "zcode.desktop" ];
 
-      desktop = "$HOME/Schreibtisch";
-      documents = "$HOME/Dokumente";
-      download = "$HOME/Downloads";
-      music = "$HOME/Musik";
-      pictures = "$HOME/Bilder";
-      publicShare = "$HOME/Öffentlich";
-      templates = "$HOME/Vorlagen";
-      videos = "$HOME/Videos";
+      userDirs = {
+        enable = true;
+        createDirectories = true;
+        setSessionVariables = false;
+
+        desktop = "$HOME/Schreibtisch";
+        documents = "$HOME/Dokumente";
+        download = "$HOME/Downloads";
+        music = "$HOME/Musik";
+        pictures = "$HOME/Bilder";
+        publicShare = "$HOME/Öffentlich";
+        templates = "$HOME/Vorlagen";
+        videos = "$HOME/Videos";
+      };
     };
 
     home.file.".config/gtk-3.0/bookmarks".text = gtkBookmarksText;
@@ -232,6 +243,7 @@ in
 
     home.packages = [
       pkgs.zcode
+      pkgs.obsidian
     ];
 
     programs = {
