@@ -204,6 +204,43 @@ in
       # working — this is its declarative replacement).
       mimeApps.defaultApplications."x-scheme-handler/zcode" = [ "zcode.desktop" ];
 
+      # obsidian:// handler for Remotely Save's OneDrive OAuth, which redirects
+      # back through this scheme (remotely-save docs/linux.md + Obsidian URI
+      # "Register Obsidian URI": Linux needs a real obsidian.desktop with
+      # MimeType=x-scheme-handler/obsidian and Exec=... %u in a standard
+      # applications dir). The mimeApps pin alone was not enough: it resolved
+      # only via the per-user profile share in XDG_DATA_DIRS, left
+      # ~/.local/share/applications without any obsidian.desktop, and the
+      # mimeinfo.cache there was empty (update-desktop-database never ran) —
+      # so Chromium/Brave, which read the desktop database, never saw the
+      # handler. Note xdg.desktopEntries would NOT fix this: it installs into
+      # the profile share, not the user applications dir. xdg.dataFile puts
+      # the file exactly where the doc says, as a read-only store symlink
+      # runtime self-registration cannot overwrite (same rationale as zcode
+      # above); absolute Exec keeps portal-launched callbacks working even
+      # with a minimal PATH. Built via makeDesktopItem so the entry is
+      # validated at build time.
+      dataFile."applications/obsidian.desktop".source =
+        let
+          entry = pkgs.makeDesktopItem {
+            name = "obsidian";
+            desktopName = "Obsidian";
+            comment = "Knowledge base";
+            exec = "${pkgs.obsidian}/bin/obsidian %u";
+            icon = "obsidian";
+            categories = [ "Office" ];
+            mimeTypes = [ "x-scheme-handler/obsidian" ];
+            extraConfig.StartupWMClass = "md.Obsidian";
+          };
+        in
+        "${entry}/share/applications/obsidian.desktop";
+
+      # Deep-link default + added association (mimeapps.list). Firefox already
+      # delegates obsidian:// to the system default (handlers.json action 4 =
+      # useSystemDefault); this pin is what it resolves through.
+      mimeApps.defaultApplications."x-scheme-handler/obsidian" = [ "obsidian.desktop" ];
+      mimeApps.associations.added."x-scheme-handler/obsidian" = [ "obsidian.desktop" ];
+
       userDirs = {
         enable = true;
         createDirectories = true;
@@ -222,6 +259,14 @@ in
 
     home.file.".config/gtk-3.0/bookmarks".text = gtkBookmarksText;
     home.file.".config/gtk-4.0/bookmarks".text = gtkBookmarksText;
+
+    # Refresh the user desktop database after the obsidian.desktop entry
+    # above is (re)linked: Chromium/Brave resolve protocol handlers through
+    # mimeinfo.cache, not mimeapps.list, and nothing else on this system
+    # regenerates it (desktop-file-utils is not in PATH otherwise).
+    home.activation.obsidianDesktopDb = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      ${pkgs.desktop-file-utils}/bin/update-desktop-database "${config.xdg.dataHome}/applications"
+    '';
 
     browsers = {
       firefox.enable = true;
