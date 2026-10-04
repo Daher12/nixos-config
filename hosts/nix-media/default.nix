@@ -120,6 +120,11 @@ in
     enableGuc = true;
   };
 
+  # ncurses 6.6 doesn't ship xterm-kitty, so an ssh session from kitty (or a
+  # stale ghostty) hits "can't find terminal definition for xterm-kitty" via
+  # /etc/set-environment. This pulls the kitty/ghostty/tmux terminfo outputs.
+  environment.enableAllTerminfo = true;
+
   environment.systemPackages = [
     pkgs.mergerfs
     pkgs.xfsprogs

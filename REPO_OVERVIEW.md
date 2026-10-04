@@ -420,6 +420,7 @@ The container runs `:latest` and follows the weekly `docker-image-refresh` timer
 | WinApps removed | `flake.nix`, `home/`, `hosts/yoga/` | Replaced by virt-manager/libvirt |
 | opencode `libstdc++.so.6` missing | `home/opencode.nix` | Wrap binary with `LD_LIBRARY_PATH` pointing to `stdenv.cc.cc.lib` (moved from `home/terminal.nix` → `hosts/yoga/opencode.nix` → shared `home/opencode.nix` when opencode was extracted to a shared module) |
 | Docker 28 marked insecure | `hosts/nix-media/docker.nix` | Pin `package = pkgs.docker_29` |
+| `environment.extraTerminfo` removed | `hosts/nix-media/default.nix` | Use `environment.enableAllTerminfo = true` (pulls kitty/ghostty/tmux/… terminfo outputs) |
 
 **First switch after upgrade requires reboot** — dbus-broker replaces dbus-daemon, needs full restart.
 
