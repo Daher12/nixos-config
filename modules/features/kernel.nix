@@ -18,9 +18,7 @@ let
 in
 {
   options.features.kernel = {
-    enable = lib.mkEnableOption "custom kernel variant and parameters" // {
-      default = true;
-    };
+    enable = lib.mkEnableOption "custom kernel variant and parameters";
 
     variant = lib.mkOption {
       type = lib.types.enum [

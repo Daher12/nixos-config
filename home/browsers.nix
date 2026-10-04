@@ -80,6 +80,22 @@ in
           // cfg.firefox.extraSettings;
         };
       };
+
+      # Default-browser pin. HM owns ~/.config/mimeapps.list as a store
+      # symlink: Brave's runtime write attempts fail, and the default
+      # survives reboots without a persistence entry. Changing the default
+      # browser is a flake edit from now on. PDF/image mimes stay unpinned
+      # (Brave's desktop files claim them; previous behavior kept).
+      xdg.mimeApps = {
+        enable = true;
+        defaultApplications = {
+          "text/html" = [ "firefox.desktop" ];
+          "text/xml" = [ "firefox.desktop" ];
+          "application/xhtml+xml" = [ "firefox.desktop" ];
+          "x-scheme-handler/http" = [ "firefox.desktop" ];
+          "x-scheme-handler/https" = [ "firefox.desktop" ];
+        };
+      };
     })
 
     (lib.mkIf cfg.brave.enable {
@@ -88,7 +104,17 @@ in
 
         extensions = map (id: { inherit id; }) cfg.brave.extensions;
 
-        commandLineArgs = lib.unique ([ "--password-store=basic" ] ++ cfg.brave.extraCommandLineArgs);
+        # --no-default-browser-check: Brave otherwise prompts (and sometimes
+        # succeeds silently) at startup. Backed up by the Firefox mimeApps
+        # pin above and DefaultBrowserSettingEnabled=false in
+        # modules/features/brave.nix.
+        commandLineArgs = lib.unique (
+          [
+            "--password-store=basic"
+            "--no-default-browser-check"
+          ]
+          ++ cfg.brave.extraCommandLineArgs
+        );
       };
     })
   ];

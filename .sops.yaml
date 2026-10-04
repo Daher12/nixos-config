@@ -16,7 +16,11 @@
 #   host_latitude   classic age key.txt identity at /var/lib/sops-nix/key.txt
 #                   on the device (provisioned; no impermanence on that host).
 #                   Its file is still encrypted to the retired admin key —
-#                   pending re-encryption per SOPS_RUNBOOK.md §3.
+#                   pending re-encryption per SOPS_RUNBOOK.md §3. Same for
+#                   nix-media.yaml (verified 2026-10-04: neither of its two
+#                   recipients is the current admin key); new nix-media
+#                   secrets go into nix-media-litellm.yaml-style side files
+#                   until that re-encryption happens.
 #
 # NOTE: dk_password_hash is consumed on EVERY sops-enabled host via
 # modules/core/users.nix ("${mainUser}_password_hash") — do not remove it
@@ -33,7 +37,7 @@ creation_rules:
       - age:
           - *admin_david
           - *host_yoga
-  - path_regex: secrets/hosts/nix-media\.yaml$
+  - path_regex: secrets/hosts/nix-media(-litellm)?\.yaml$
     key_groups:
       - age:
           - *admin_david

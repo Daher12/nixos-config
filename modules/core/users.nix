@@ -41,6 +41,26 @@ in
   };
 
   config = {
+    # With mutableUsers = false, a main user with neither sops-provided nor
+    # explicitly set credentials simply cannot log in — fail the eval
+    # loudly instead of producing an unloginable system.
+    assertions = [
+      {
+        assertion =
+          sopsEnabled
+          || lib.any (v: v != null) (
+            map (k: config.users.users.${mainUser}.${k}) [
+              "password"
+              "hashedPassword"
+              "initialPassword"
+              "initialHashedPassword"
+              "hashedPasswordFile"
+            ]
+          );
+        message = "core.users: features.sops is disabled and no password option is set for ${mainUser}; with users.mutableUsers = false this creates a user that cannot log in. Enable features.sops or set users.users.${mainUser}.hashedPasswordFile.";
+      }
+    ];
+
     sops.secrets = lib.mkIf sopsEnabled {
       "${mainUser}_password_hash" = {
         neededForUsers = true;
@@ -71,9 +91,10 @@ in
 
     security.sudo = {
       wheelNeedsPassword = true;
+      # Per-tty tickets stay enabled (the default): one successful sudo
+      # must not unlock every terminal for the timeout window.
       extraConfig = ''
         Defaults timestamp_timeout=${toString cfg.sudoTimeout}
-        Defaults !tty_tickets
       '';
     };
 

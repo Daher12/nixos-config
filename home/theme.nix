@@ -6,14 +6,19 @@
 }:
 
 let
-  themeDark = "Colloid-Dark-Nord";
-  themeLight = "Colloid-Light-Nord";
+  # Single source for the light/dark theme + icon names: declared as options
+  # above so home/lucid.nix (auto light/dark wrapper) reads the same values
+  # instead of mirroring plain let-bindings with a "keep in sync" comment.
+  inherit (config.desktop.theme)
+    gtkDark
+    gtkLight
+    iconDark
+    iconLight
+    ;
 
   colloid = pkgs.colloid-gtk-theme.override { tweaks = [ "nord" ]; };
 
   iconPkg = pkgs.fluent-icon-theme;
-  iconDark = "Fluent-dark";
-  iconLight = "Fluent";
 
   cursorPkg = pkgs.posy-cursors;
   cursorName = "Posy_Cursor_Black";
@@ -33,12 +38,12 @@ let
       mode="''${1:-}"
       case "$mode" in
         dark)
-          theme="${themeDark}"
+          theme="${gtkDark}"
           icon="${iconDark}"
           color="prefer-dark"
           ;;
         light)
-          theme="${themeLight}"
+          theme="${gtkLight}"
           icon="${iconLight}"
           color="prefer-light"
           ;;
@@ -58,19 +63,36 @@ let
 
       dbus-update-activation-environment --systemd GTK_THEME 2>/dev/null || true
 
-      # Runtime owns ~/.config/gtk-4.0/*
-      XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
-      GTK4_DIR="$XDG_CONFIG_HOME/gtk-4.0"
-      THEME_BASE="${colloid}/share/themes"
+      ${
+        if config.desktop.lucid.enable then
+          ''
+            # Lucid host: ~/.config/gtk-4.0 is owned by lucid — envtool writes
+            # the settings.ini theme names, matugen writes colors.css, and
+            # lucidSync appends `@import url('colors.css')` to a WRITABLE
+            # gtk.css. The colloid symlink farm of the non-lucid branch would
+            # point gtk.css into the read-only store; the next lucidSync
+            # append would then write through it and abort the whole HM
+            # activation (EACCES — the 2026-09-24 failure class). The
+            # gsettings swaps above still apply.
+            echo "switch-theme: lucid owns ~/.config/gtk-4.0 — css/assets symlinks skipped" >&2
+          ''
+        else
+          ''
+            # Runtime owns ~/.config/gtk-4.0/*
+            XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
+            GTK4_DIR="$XDG_CONFIG_HOME/gtk-4.0"
+            THEME_BASE="${colloid}/share/themes"
 
-      mkdir -p "$GTK4_DIR"
-      for item in gtk.css gtk-dark.css assets; do
-        src="$THEME_BASE/$theme/gtk-4.0/$item"
-        dst="$GTK4_DIR/$item"
-        [ -e "$src" ] || continue
-        [ ! -L "$dst" ] && [ -d "$dst" ] && mv "$dst" "$dst.rm" && rm -rf "$dst.rm"
-        ln -sfn "$src" "$dst"
-      done
+            mkdir -p "$GTK4_DIR"
+            for item in gtk.css gtk-dark.css assets; do
+              src="$THEME_BASE/$theme/gtk-4.0/$item"
+              dst="$GTK4_DIR/$item"
+              [ -e "$src" ] || continue
+              [ ! -L "$dst" ] && [ -d "$dst" ] && mv "$dst" "$dst.rm" && rm -rf "$dst.rm"
+              ln -sfn "$src" "$dst"
+            done
+          ''
+      }
     '';
   };
 
@@ -87,6 +109,31 @@ let
   };
 in
 {
+  # Single source for the light/dark GTK + icon theme names (home/lucid.nix's
+  # auto light/dark wrapper reads these instead of mirroring let-bindings).
+  options.desktop.theme = {
+    gtkDark = lib.mkOption {
+      type = lib.types.str;
+      default = "Colloid-Dark-Nord";
+      description = "GTK theme name for dark mode";
+    };
+    gtkLight = lib.mkOption {
+      type = lib.types.str;
+      default = "Colloid-Light-Nord";
+      description = "GTK theme name for light mode";
+    };
+    iconDark = lib.mkOption {
+      type = lib.types.str;
+      default = "Fluent-dark";
+      description = "Icon theme name for dark mode";
+    };
+    iconLight = lib.mkOption {
+      type = lib.types.str;
+      default = "Fluent";
+      description = "Icon theme name for light mode";
+    };
+  };
+
   config = {
     # Cursor and session environment — set once at login, not per mode-switch.
     # NOTE: modules/features/onlyoffice.nix may override XCURSOR_SIZE at the
@@ -126,15 +173,22 @@ in
 
       # Required for GNOME Shell theme discovery by User Themes: expose in ~/.themes
       file = {
-        ".themes/${themeDark}".source = "${colloid}/share/themes/${themeDark}";
-        ".themes/${themeLight}".source = "${colloid}/share/themes/${themeLight}";
+        ".themes/${gtkDark}".source = "${colloid}/share/themes/${gtkDark}";
+        ".themes/${gtkLight}".source = "${colloid}/share/themes/${gtkLight}";
       };
     };
 
+    # HM's gtk module would own ~/.config/gtk-{3.0,4.0}/settings.ini, but
+    # Lucid's envtool rewrites those files at every shell start (atomic
+    # rename — replaces the HM store symlink with a real file). The stale
+    # .backup HM keeps then aborts the next boot-time activation entirely
+    # (2026-09-24: no lucid.service, default cursor). Lucid owns the ini
+    # files on its host (dconf above covers the gsettings side); hosts
+    # without the shell keep the declarative HM theme.
     gtk = {
-      enable = true;
+      enable = !config.desktop.lucid.enable;
       theme = {
-        name = themeDark;
+        name = gtkDark;
         package = colloid;
       };
       gtk4.theme = null;

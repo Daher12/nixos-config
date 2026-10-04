@@ -23,8 +23,30 @@ in
     ghostty = {
       enable = lib.mkOption {
         type = lib.types.bool;
-        default = true;
+        # 2026-09-27: kitty won the default slot (SUPER+T, matugen-themed).
+        # Flip to true per host to bring ghostty back.
+        default = false;
         description = "Enable Ghostty terminal";
+      };
+
+      fontSize = lib.mkOption {
+        type = lib.types.int;
+        default = 11;
+        description = "Font size";
+      };
+
+      fontFamily = lib.mkOption {
+        type = lib.types.str;
+        default = "CaskaydiaCove Nerd Font";
+        description = "Font family";
+      };
+    };
+
+    kitty = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Enable Kitty terminal (single-instance wrapped)";
       };
 
       fontSize = lib.mkOption {
@@ -69,14 +91,65 @@ in
         enable = true;
         package = pkgs.ghostty;
 
+        # Static Nord everywhere (2026-09-27: kitty is the default terminal,
+        # so the DMS-era dankcolors matugen branch is gone with DMS). The
+        # 0.93 translucency only makes sense under the Wayland compositor.
         settings = {
-          theme = "Nord";
-          background = nord.nord0;
-          foreground = nord.nord4;
           font-family = cfg.ghostty.fontFamily;
           font-size = cfg.ghostty.fontSize;
           window-decoration = "auto";
           command = "fish --login --interactive";
+          theme = "Nord";
+          background = nord.nord0;
+          foreground = nord.nord4;
+        }
+        // (lib.optionalAttrs config.desktop.hyprland.enable {
+          background-opacity = 0.93;
+        });
+      };
+    })
+
+    (lib.mkIf cfg.kitty.enable {
+      # The default terminal (2026-09-27 consolidation): SUPER+T
+      # (desktop.hyprland.terminal) and lucid's F9 bind both open kitty.
+      # Single-instance wrap:
+      # --single-instance is CLI-only (no kitty.conf equivalent), and it is the
+      # startup-time tweak — the first launch pays the full cost (GL init,
+      # embedded Python), every later `kitty` just IPCs the running instance and
+      # opens a new window near-instantly. Caveats: a running instance keeps its
+      # loaded config until reload (ctrl+shift+f5) or restart, so rebuilds don't
+      # hot-apply; all windows share one process, so a crash takes them all.
+      programs.kitty = {
+        enable = true;
+        package = pkgs.symlinkJoin {
+          name = "kitty-single-instance";
+          paths = [ pkgs.kitty ];
+          buildInputs = [ pkgs.makeWrapper ];
+          postBuild = ''
+            wrapProgram $out/bin/kitty --add-flags "--single-instance"
+          '';
+        };
+        # Colors: static Nord from kitty-themes — the same palette ghostty's
+        # theme = "Nord" loads. Kitty deliberately does NOT follow lucid's
+        # light/dark mode (2026-09-30: a bright terminal feels wrong): the
+        # desktop flips at 08:00/19:00 via lucid-auto-mode, the terminal
+        # stays dark. lucid's apply-theme.sh / matugen keep rewriting
+        # ~/.config/kitty/matugen-colors.conf, but nothing includes it.
+        # HM writes the themeFile include BEFORE `settings` (order 520 vs
+        # 540), so colors are left to the theme here.
+        themeFile = "Nord";
+        settings = {
+          font_family = cfg.kitty.fontFamily;
+          font_size = cfg.kitty.fontSize;
+          background_opacity = "0.93";
+          hide_window_decorations = "yes";
+          shell = "fish --login --interactive";
+          scrollback_lines = 10000;
+          update_check_interval = 0;
+          # pts, not px: 12pt ≈ 16px at this DPI, matching Hyprland's
+          # decoration rounding = 16 (home/hyprland.nix). Without padding the
+          # prompt glyphs sit under the rounded corners and get clipped.
+          window_padding_width = 12;
         };
       };
     })

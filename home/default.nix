@@ -10,6 +10,7 @@
     ./browsers.nix
     ./git.nix
     ./hyprland.nix
+    ./lucid.nix
     ./opencode.nix
     ./terminal.nix
     ./theme.nix

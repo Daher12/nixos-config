@@ -1,4 +1,9 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.core.sysctl;
@@ -32,9 +37,12 @@ in
         "fs.file-max" = lib.mkDefault 2097152;
         # systemd.coredump is force-disabled (core/systemd.nix), which leaves
         # kernel.core_pattern at the default "core" — crashing processes then
-        # dump multi-GB files into their cwd. Piping to a failing handler
-        # discards cores instead.
-        "kernel.core_pattern" = "|/bin/false";
+        # dump multi-GB files into their cwd. Piping into a true-exiting
+        # handler consumes the core instead. NOTE: the path must actually
+        # exist — NixOS ships no /bin/false (only /bin/sh), and a missing
+        # helper makes the kernel log a coredump-failure line per crash —
+        # hence the absolute store path.
+        "kernel.core_pattern" = "|${pkgs.coreutils}/bin/false";
       }
       // (if cfg.optimizeForServer then serverSysctl else desktopSysctl);
     };

@@ -1,6 +1,7 @@
 {
   imports = [
     ./bluetooth.nix
+    ./brave.nix
     ./desktop-gnome.nix
     ./desktop-hyprland.nix
     ./filesystem.nix

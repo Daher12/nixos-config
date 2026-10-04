@@ -1,0 +1,12 @@
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' a/lucidbar/Mpris.qml b/lucidbar/Mpris.qml
+--- a/lucidbar/Mpris.qml	2026-09-28 21:34:24.033052039 +0200
++++ b/lucidbar/Mpris.qml	2026-09-28 20:23:23.017000155 +0200
+@@ -10,6 +10,8 @@
+ 
+ BarPill {
+     id: root
++    // nixos-config local patch: only show the media pill while something plays
++    visible: root.player !== null
+ 
+     property string page: "player"
+     readonly property var easeStandard: [0.2, 0, 0, 1, 1, 1]

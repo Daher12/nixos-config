@@ -17,15 +17,24 @@ in
   options = {
     opencode.enable = lib.mkEnableOption "opencode (shared settings)";
 
-    # MikroTik MCP (mikromcp): separate toggle so a host can disable the MCP
-    # server without touching the rest of the opencode config (yoga flips it
-    # in hosts/yoga/default.nix; ~/.mikromcp data is persisted either way).
+    # MikroTik MCP (mikromcp): toggles only the opencode entry below — the
+    # binary itself is always in home.packages so configs outside this module
+    # (ZCode workspaces, RouterOS opencode.jsonc) can call it by bare name.
     custom.mikrotikMcp.enable = lib.mkEnableOption "MikroTik MCP server (mikromcp)";
+
+    # windows-mcp: remote SSE server running INSIDE the windows11 VM
+    # (libvirt NAT, 192.168.122.139). Only meaningful where that VM exists;
+    # the server must be started in the guest and dies with the VM.
+    custom.windowsMcp.enable = lib.mkEnableOption "Windows 11 VM MCP server (remote SSE)";
   };
 
   config = lib.mkIf cfg.enable {
     home.packages = [
       pkgs.mcp-nixos
+      # Unconditional (not behind mikrotikMcp): MCP configs outside opencode
+      # reference "mikromcp" by name — hardcoded /nix/store paths rot on GC
+      # (the 1.10.0 path in the RouterOS project already did).
+      pkgs.mikromcp
     ];
 
     # NOTE: no opencode-cache-clean service — it previously deleted
@@ -47,15 +56,20 @@ in
         '';
       });
       settings = {
-        model = "zai-coding-plan/glm-5.3-flash";
-        small_model = "zai-coding-plan/glm-5.3-flash";
+        # OpenRouter is the post-coding-plan baseline: both mains (deepseek
+        # flash + glm flash) live there under one key (auth.json). The
+        # zai-coding-plan provider below stays pickable while the plan lives
+        # and turns into a harmless dead entry when it ends — no edits needed
+        # on that day.
+        model = "openrouter/deepseek/deepseek-v4-flash";
+        small_model = "openrouter/deepseek/deepseek-v4-flash";
         agent = {
           build = {
-            model = "zai-coding-plan/glm-5.3-flash";
+            model = "openrouter/deepseek/deepseek-v4-flash";
             variant = "high";
           };
           plan = {
-            model = "zai-coding-plan/glm-5.3";
+            model = "openrouter/z-ai/glm-5.3-flash";
             variant = "high";
           };
         };
@@ -69,7 +83,10 @@ in
           };
           openrouter = {
             models = {
+              # deepseek-v4-pro kept as the strong fallback pick; glm-5.3-flash
+              # is the second main (agent.plan default).
               "deepseek/deepseek-v4-flash" = { };
+              "z-ai/glm-5.3-flash" = { };
               "deepseek/deepseek-v4-pro" = {
                 options = {
                   provider = {
@@ -129,6 +146,15 @@ in
               "${lib.getExe pkgs.mikromcp}"
               "serve"
             ];
+          };
+        }
+        // lib.optionalAttrs config.custom.windowsMcp.enable {
+          windows-mcp = {
+            type = "remote";
+            # windows11 VM on the libvirt NAT bridge; server runs in the
+            # guest (`windows-mcp serve --transport sse --host 0.0.0.0
+            # --port 8000 --allow-insecure-remote`) and dies with the VM.
+            url = "http://192.168.122.139:8000/sse";
           };
         };
       };

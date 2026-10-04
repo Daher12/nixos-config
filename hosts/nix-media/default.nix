@@ -59,6 +59,17 @@ in
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
   };
 
+  # LiteLLM gateway config (model list + provider keys + master key) for
+  # features.litellm below. Dedicated side file: nix-media.yaml itself is
+  # still encrypted to the retired admin key (see .sops.yaml), so new
+  # nix-media secrets go into separate files until the re-encryption.
+  # Root:root 0400 by sops default — the DynamicUser service reads it via
+  # systemd LoadCredential.
+  sops.secrets."litellm_config" = {
+    sopsFile = ../../secrets/hosts/nix-media-litellm.yaml;
+    restartUnits = [ "litellm.service" ];
+  };
+
   # Features enabled via standardized options
   features = {
     sops.enable = true;
@@ -67,6 +78,18 @@ in
       enable = true;
       trustInterface = true;
       routingFeatures = "server";
+    };
+
+    # OpenAI-compatible gateway for Obsidian Copilot on the tailnet devices
+    # (yoga + iPhone): they call http://100.123.189.29:4001/v1 with the
+    # master key from the litellm_config secret. 0.0.0.0 is safe here —
+    # tailscale0 is the only firewall-trusted interface (see below), LAN
+    # stays closed. Runs on the always-on server so AI survives yoga
+    # being asleep/off.
+    litellm = {
+      enable = true;
+      listenAddress = "0.0.0.0";
+      configFile = config.sops.secrets."litellm_config".path;
     };
 
     mnamer = {
@@ -121,8 +144,13 @@ in
 
     firewall = {
       allowedTCPPorts = [ ];
-      # Close global access; roles.media handles exports, we allow traffic here
-      interfaces."tailscale0".allowedTCPPorts = [ nfsPort ];
+      # Close global access; roles.media handles exports, we allow traffic here.
+      # tailscale0 is trusted wholesale via features.vpn.tailscale anyway —
+      # listing the ports documents intent and survives trustInterface=false.
+      interfaces."tailscale0".allowedTCPPorts = [
+        nfsPort
+        config.features.litellm.port
+      ];
     };
   };
 

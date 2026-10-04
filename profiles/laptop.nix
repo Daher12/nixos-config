@@ -6,6 +6,9 @@
     power-tlp.enable = lib.mkDefault true;
     zram.enable = lib.mkDefault true;
     network-optimization.enable = lib.mkDefault true;
+    # Laptops want the zen kernel; the module itself stays opt-in
+    # (features.kernel default-true would force it onto every host).
+    kernel.enable = lib.mkDefault true;
     kernel.variant = lib.mkDefault "zen";
     oomd.enable = lib.mkDefault true;
     secureboot.enable = lib.mkDefault true;
@@ -36,9 +39,9 @@
   };
 
   services.logind.settings.Login = {
-    HandleLidSwitch = "suspend";
-    HandleLidSwitchExternalPower = "ignore";
-    HandleLidSwitchDocked = "ignore";
+    HandleLidSwitch = lib.mkDefault "suspend";
+    HandleLidSwitchExternalPower = lib.mkDefault "ignore";
+    HandleLidSwitchDocked = lib.mkDefault "ignore";
   };
 
 }
