@@ -39,12 +39,19 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # follows keeps this on the single main nixpkgs eval — opencode's own
-    # lock pinned nixpkgs-unstable, and the stdenv mismatch is what the
-    # libstdc++ LD_LIBRARY_PATH wrap in home/opencode.nix papers over.
+    # Pinned to the v2 line: Obsidian Copilot >= 4.0.12 requires opencode
+    # 2.0.3+, while the default branch still tracks 1.x. Flakes cannot
+    # express "latest v2.*", so bump by editing the tag below, then
+    # `nix flake update opencode`. Find the newest tag with:
+    #   git ls-remote --tags https://github.com/anomalyco/opencode 'v2.*'
+    # Deliberately NO `nixpkgs.follows` here: upstream requires its pinned
+    # nixpkgs-unstable (packageManager bun@1.4.2; nixos-26.05 only ships
+    # bun 1.3.13, whose `bun install` fails extracting the big native
+    # tarballs and hangs the build). Cost is one extra nixpkgs eval.
+    # The libstdc++ LD_LIBRARY_PATH wrap in home/opencode.nix covers the
+    # resulting stdenv mismatch.
     opencode = {
-      url = "github:anomalyco/opencode";
-      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:anomalyco/opencode/v2.0.22";
     };
 
     # Quickshell engine — upstream flake (docs: the GitHub mirror is

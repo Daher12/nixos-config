@@ -50,9 +50,16 @@ in
       # `libstdc++.so.6: version GLIBCXX not found` (REPO_OVERVIEW Known
       # Gotchas). NixOS-generic, applies to every host using this module.
       package = inputs.opencode.packages.x86_64-linux.default.overrideAttrs (previousAttrs: {
+        # Upstream v2.0.22 removed the `completion` subcommand (effect/cli
+        # rewrite) but nix/opencode.nix still runs `installShellCompletion
+        # --cmd opencode --bash <($out/bin/opencode completion) ...`, which
+        # treats "completion" as a directory argument, chdirs, ENOENTs, and
+        # aborts the build. Completions are nice-to-have — skip them until
+        # upstream re-adds generation.
+        postInstall = ":";
         postFixup = (previousAttrs.postFixup or "") + ''
           wrapProgram $out/bin/opencode \
-            --set LD_LIBRARY_PATH "${lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}"
+            --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}"
         '';
       });
       settings = {
