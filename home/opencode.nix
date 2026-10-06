@@ -50,13 +50,6 @@ in
       # `libstdc++.so.6: version GLIBCXX not found` (REPO_OVERVIEW Known
       # Gotchas). NixOS-generic, applies to every host using this module.
       package = inputs.opencode.packages.x86_64-linux.default.overrideAttrs (previousAttrs: {
-        # Upstream v2.0.22 removed the `completion` subcommand (effect/cli
-        # rewrite) but nix/opencode.nix still runs `installShellCompletion
-        # --cmd opencode --bash <($out/bin/opencode completion) ...`, which
-        # treats "completion" as a directory argument, chdirs, ENOENTs, and
-        # aborts the build. Completions are nice-to-have — skip them until
-        # upstream re-adds generation.
-        postInstall = ":";
         postFixup = (previousAttrs.postFixup or "") + ''
           wrapProgram $out/bin/opencode \
             --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}"
@@ -162,6 +155,13 @@ in
             # guest (`windows-mcp serve --transport sse --host 0.0.0.0
             # --port 8000 --allow-insecure-remote`) and dies with the VM.
             url = "http://192.168.122.139:8000/sse";
+            # opencode v2 connects to every non-disabled remote server at
+            # startup, so a shut-off VM meant a connect-error banner on
+            # every launch. v2 has no conditional loading (the old command
+            # form of `enabled` is gone; booleans only), so ship the entry
+            # disabled and connect on demand while the VM runs:
+            # `/mcp` -> select windows-mcp -> Enter.
+            enabled = false;
           };
         };
       };

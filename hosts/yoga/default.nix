@@ -136,9 +136,23 @@
     # switch for 802.11r FT, so the AX210 roaming handoff failures can't be
     # disabled here — only worked around. RoamRetryInterval spaces out retries
     # after a failed FT handover.
+    #
+    # Band-flap damping (2026-10-06): home SSID is one mesh SSID across several
+    # APs/radios; both bands hover right at iwd's default roam thresholds
+    # (-70/-76 dBm), so every roam-scan flips to the other band and back
+    # (617 roam-info events in one boot). Lower thresholds = lazier roaming —
+    # only switch when the link is genuinely weak (CriticalRoam* stays at
+    # defaults -80/-82 as the must-roam floor). BandModifier5GHz biases BSS
+    # ranking toward 5GHz when both bands are viable. Spellings per iwd 3.12
+    # iwd.config(5): RoamThreshold5G, BandModifier5GHz.
     wireless.iwd.settings = {
       General = {
         RoamRetryInterval = 120;
+        RoamThreshold = -74;
+        RoamThreshold5G = -80;
+      };
+      Rank = {
+        BandModifier5GHz = 2.0;
       };
     };
 

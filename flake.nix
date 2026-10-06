@@ -51,7 +51,7 @@
     # The libstdc++ LD_LIBRARY_PATH wrap in home/opencode.nix covers the
     # resulting stdenv mismatch.
     opencode = {
-      url = "github:anomalyco/opencode/v2.0.22";
+      url = "github:anomalyco/opencode/v2.0.23";
     };
 
     # Quickshell engine — upstream flake (docs: the GitHub mirror is

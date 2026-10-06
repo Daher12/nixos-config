@@ -495,6 +495,10 @@ Deliberately **not** done (documented so it isn't re-litigated):
 
 Expectations: 70 Wh battery with the 25 W battery cap ≈ 2 h under genuinely heavy load regardless of tuning; software tuning pays off in light load and browsing, where panel + iGPU dominate. s2idle drain 0.25–0.5%/h is healthy (see the suspend-then-hibernate section above).
 
+### yoga WiFi: iwd band-flapping between mesh BSSIDs (mitigated 2026-10-06)
+
+Symptom: constant 5GHz↔2.4GHz switching on the home mesh SSID (`FRITZ!Box 7590`, one SSID across several AVM/MikroTik radios) — 617 `roam-info` events in one boot (previous boots: 1–3), ping-ponging between exactly two BSSIDs. NetworkManager is exonerated (zero roam lines in its journal): with the iwd backend all roam decisions are iwd's (`roam-scan` → `ft-roaming`, 802.11r FT). Mechanism: both bands hover at iwd's default roam thresholds (-70 dBm 2.4GHz / -76 dBm 5GHz), so every roam-scan finds the other band marginally better. Fix (`hosts/yoga/default.nix`, `networking.wireless.iwd.settings`): `RoamThreshold=-74`, `RoamThreshold5G=-80` (lazier roaming; `CriticalRoam*` stays at defaults -80/-82 as the must-roam floor), `Rank.BandModifier5GHz=2.0` (5GHz bias when both bands are viable). Option spellings per deployed iwd 3.12 `iwd.config(5)`: `RoamThreshold5G` and `BandModifier5GHz` — not "5Ghz". Dead ends already ruled out: NM per-connection `band=`/`wifi.powersave` are inert under the iwd backend (e5ca1e1); kernel-level wifi powersave was already off. Revert = delete the three new keys and re-switch; note the `/etc/iwd/main.conf` change needs `systemctl restart iwd` (or reboot) to apply — a switch alone may not restart the daemon.
+
 ### Intel GPU Metrics (nix-media)
 
 `intel-gpu-tools` 2.2→2.3 changed output format. The awk parser in `hosts/nix-media/monitoring.nix` was updated to handle the new format. If metrics break after an update, check the parser.
