@@ -1,0 +1,40 @@
+--- base/lucidlock/LockField.qml	2026-10-08 00:25:16.169167873 +0200
++++ b2/lucidlock/LockField.qml	2026-10-08 00:25:45.102835302 +0200
+@@ -194,23 +194,29 @@
+             }
+ 
+             Repeater {
+-                model: input.text.length
++                // a pooled row, not one bead per character: an int model
++                // regenerates every delegate on each keystroke, which re-ran
++                // the settle animation on all dots at once. pooled beads just
++                // fill, so only the one the caret just dropped ever moves
++                model: 256
+ 
+                 Item {
+                     id: bead
+ 
+                     // 0 is still a caret line, 1 is a settled dot
+-                    property real born: 0
++                    property bool filled: index < input.text.length
++                    property real born: filled ? 1 : 0
++                    visible: bead.filled
+ 
+                     width: 9
+                     height: 18
+ 
+-                    NumberAnimation on born {
+-                        from: 0
+-                        to: 1
+-                        duration: Theme.ms(300)
+-                        easing.type: Easing.Bezier
+-                        easing.bezierCurve: Theme.easeEmphasizedDecel
++                    Behavior on born {
++                        NumberAnimation {
++                            duration: Theme.ms(300)
++                            easing.type: Easing.Bezier
++                            easing.bezierCurve: Theme.easeEmphasizedDecel
++                        }
+                     }
+ 
+                     Rectangle {

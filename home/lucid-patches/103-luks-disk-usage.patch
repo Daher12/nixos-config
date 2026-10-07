@@ -1,0 +1,99 @@
+--- a/lucidbar/System.qml
++++ b/lucidbar/System.qml
+@@ -194,6 +194,7 @@
+ 
+     property int pendingBrightness: -1
+     property var _lsblkDisks: []
++    property var _parentMap: ({})
+     property var diskList: []
+     readonly property var extraDiskPartitions: ["nvme0n1p3", "nvme0n1p4"]
+     property string selectedDisk: ""
+@@ -702,7 +703,7 @@
+     Process {
+         id: lsblkProc
+ 
+-        command: ["lsblk", "-b", "-n", "-o", "NAME,SIZE,TYPE"]
++        command: ["lsblk", "-b", "-n", "-o", "NAME,SIZE,TYPE,PKNAME"]
+ 
+         stdout: StdioCollector {
+             onStreamFinished: {
+@@ -710,6 +711,7 @@
+                     return l.length > 0;
+                 });
+                 const disks = [];
++                const parents = {};
+                 for (const line of lines) {
+                     const parts = line.trim().split(/\s+/);
+                     if (parts.length < 3)
+@@ -718,6 +720,10 @@
+                     const name = parts[0].replace(/^[\s│├└─]+/, "");
+                     const size = parseInt(parts[1]);
+                     const type = parts[2];
++                    const pkname = parts.length > 3 ? parts[3] : "";
++                    if (name && pkname)
++                        parents[name] = pkname;
++
+                     const isWholeDisk = type === "disk" && !/^(zram|loop)/.test(name);
+                     const isExtraPartition = type === "part" && root.extraDiskPartitions.includes(name);
+                     if (!isWholeDisk && !isExtraPartition)
+@@ -730,6 +736,7 @@
+                     });
+                 }
+                 root._lsblkDisks = disks;
++                root._parentMap = parents;
+                 dfProc.running = true;
+             }
+         }
+@@ -752,6 +759,7 @@
+                         "mounted": false
+                     });
+                 });
++                const seen = {};
+                 for (const line of lines) {
+                     const parts = line.trim().split(/\s+/);
+                     if (parts.length < 2)
+@@ -766,19 +774,40 @@
+                         continue;
+ 
+                     const devName = source.slice(5);
++                    if (seen[devName])
++                        continue;
++
++                    seen[devName] = true;
++                    // LUKS/LVM mapper devices (e.g. mapper/cryptroot) must be attributed to
++                    // their backing disk via the lsblk parent chain; btrfs mounts the same
++                    // device once per subvolume, so dedupe keeps the sum single-counted.
++                    let resolved = devName.replace(/^mapper\//, "");
++                    for (let hop = 0; hop < 4; hop++) {
++                        const hit = disks.find((d) => {
++                            return d.name === resolved;
++                        });
++                        if (hit)
++                            break;
++
++                        const parent = root._parentMap[resolved];
++                        if (!parent)
++                            break;
++
++                        resolved = parent;
++                    }
+                     const exactDisk = disks.find((d) => {
+-                        return d.name === devName;
++                        return d.name === resolved;
+                     });
+                     if (exactDisk) {
+                         exactDisk.used += used;
+                         exactDisk.mounted = true;
+                     }
+-                    let base = devName;
+-                    let m = devName.match(/^(nvme\d+n\d+|mmcblk\d+)p\d+$/);
++                    let base = resolved;
++                    let m = resolved.match(/^(nvme\d+n\d+|mmcblk\d+)p\d+$/);
+                     if (m) {
+                         base = m[1];
+                     } else {
+-                        m = devName.match(/^([a-z]+)\d+$/);
++                        m = resolved.match(/^([a-z]+)\d+$/);
+                         if (m)
+                             base = m[1];
+ 

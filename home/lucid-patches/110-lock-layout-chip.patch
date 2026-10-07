@@ -1,0 +1,20 @@
+--- base/Lockscreen.qml	2026-10-08 00:25:16.330767065 +0200
++++ b2/Lockscreen.qml	2026-10-08 00:25:45.129835917 +0200
+@@ -63,13 +63,15 @@
+     // ── keyboard ───────────────────────────────────────────────────────────
+     property bool capsLock: false
+     property string layout: ""
+-    // "English (US)" is too much for a 20px chip; keep the short half
++    // "English (US)" is too much for a 20px chip; keep the short half — but
++    // the parenthetical is only the short half when it is a tag like "US";
++    // a variant phrase like "no dead keys" must not oust the layout's name
+     readonly property string layoutShort: {
+         if (root.layout === "")
+             return "";
+ 
+         var m = /\(([^)]+)\)/.exec(root.layout);
+-        var t = m ? m[1] : root.layout.split(/[\s,]+/)[0];
++        var t = m && m[1].length <= 4 ? m[1] : root.layout.split(/[\s,]+/)[0];
+         return t.substring(0, 6).toUpperCase();
+     }
+ 

@@ -1,0 +1,28 @@
+--- a/lucidbar/System.qml
++++ b/lucidbar/System.qml
+@@ -1120,13 +1120,16 @@
+                 id: volIndicator
+ 
+                 svgPath: root.volumeIconFor(root.volumePercent)
+-                labelText: root.volMuted ? "Muted" : root.volumePercent
++                // nixos-config local patch: no percentage label, the icon carries the state
++                labelText: ""
+                 isMuted: root.volMuted
+             }
+ 
+             StatusIndicator {
+                 id: micIndicator
+ 
++                // nixos-config local patch: no mic indicator in the bar
++                visible: false
+                 svgPath: root.micIconPath
+                 labelText: root.micMuted ? "Off" : "On"
+                 isMuted: root.micMuted
+@@ -3204,6 +3207,7 @@
+         }
+ 
+         Text {
++            visible: labelText !== ""
+             anchors.verticalCenter: parent.verticalCenter
+             text: labelText
+             color: Theme.text

@@ -1,0 +1,21 @@
+--- a/lucidbar/Mpris.qml
++++ b/lucidbar/Mpris.qml
+@@ -10,8 +10,6 @@
+ 
+ BarPill {
+     id: root
+-    // nixos-config local patch: only show the media pill while something plays
+-    visible: root.player !== null
+ 
+     property string page: "player"
+     readonly property var easeStandard: [0.2, 0, 0, 1, 1, 1]
+@@ -414,7 +412,8 @@
+         root.cancelListening();
+     }
+ 
+-    shown: Prefs.showMedia
++    // nixos-config local patch: only occupy bar space while something plays
++    shown: Prefs.showMedia && root.player !== null
+     compactWidth: compactRow.implicitWidth + 20
+     panelWidth: Math.min(400, root.screenW - 34)
+     panelHeight: 28 + (root.page === "player" ? playerColumn.implicitHeight : shazamColumn.implicitHeight)

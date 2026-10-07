@@ -1,0 +1,61 @@
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' b2/lucidbar/Clock.qml c2/lucidbar/Clock.qml
+--- b2/lucidbar/Clock.qml	2026-10-07 01:12:25.439515164 +0200
++++ c2/lucidbar/Clock.qml	2026-10-07 01:13:13.837008935 +0200
+@@ -212,17 +212,19 @@
+         if (!name)
+             return ;
+ 
+-        let hour12 = parseInt(reminderHourInput.text, 10);
++        let hourIn = parseInt(reminderHourInput.text, 10);
+         let minute = parseInt(reminderMinuteInput.text, 10);
+-        if (isNaN(hour12) || hour12 < 1 || hour12 > 12)
+-            hour12 = 9;
++        const hourMin = Prefs.clock24h ? 0 : 1;
++        const hourMax = Prefs.clock24h ? 23 : 12;
++        if (isNaN(hourIn) || hourIn < hourMin || hourIn > hourMax)
++            hourIn = 9;
+ 
+         if (isNaN(minute))
+             minute = 0;
+ 
+         minute = Math.max(0, Math.min(59, minute));
+-        let hour = hour12 % 12;
+-        if (root.reminderMeridiem === "PM")
++        let hour = Prefs.clock24h ? hourIn : hourIn % 12;
++        if (!Prefs.clock24h && root.reminderMeridiem === "PM")
+             hour += 12;
+ 
+         root.addReminder(root.editingDate.year, root.editingDate.month, root.editingDate.day, hour, minute, name);
+@@ -241,9 +243,12 @@
+         if (!r)
+             return "";
+ 
++        const mm = r.minute < 10 ? "0" + r.minute : r.minute;
++        if (Prefs.clock24h)
++            return (r.hour < 10 ? "0" + r.hour : "" + r.hour) + ":" + mm;
++
+         const h = r.hour % 12 === 0 ? 12 : r.hour % 12;
+         const ap = r.hour < 12 ? "AM" : "PM";
+-        const mm = r.minute < 10 ? "0" + r.minute : r.minute;
+         return h + ":" + mm + " " + ap;
+     }
+ 
+@@ -1247,8 +1252,8 @@
+                                     maximumLength: 2
+ 
+                                     validator: IntValidator {
+-                                        bottom: 1
+-                                        top: 12
++                                        bottom: Prefs.clock24h ? 0 : 1
++                                        top: Prefs.clock24h ? 23 : 12
+                                     }
+ 
+                                 }
+@@ -1294,6 +1299,7 @@
+                             Rectangle {
+                                 id: meridiemToggle
+ 
++                                visible: !Prefs.clock24h
+                                 width: 62
+                                 height: 26
+                                 radius: 999

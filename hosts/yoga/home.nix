@@ -199,11 +199,6 @@ in
         categories = [ "Development" ];
       };
 
-      # Deep-link handler folded into the HM-owned mimeapps.list (home/browsers.nix
-      # makes it a store symlink, so ZCode's runtime write of this entry stops
-      # working — this is its declarative replacement).
-      mimeApps.defaultApplications."x-scheme-handler/zcode" = [ "zcode.desktop" ];
-
       # obsidian:// handler for Remotely Save's OneDrive OAuth, which redirects
       # back through this scheme (remotely-save docs/linux.md + Obsidian URI
       # "Register Obsidian URI": Linux needs a real obsidian.desktop with
@@ -235,11 +230,18 @@ in
         in
         "${entry}/share/applications/obsidian.desktop";
 
-      # Deep-link default + added association (mimeapps.list). Firefox already
-      # delegates obsidian:// to the system default (handlers.json action 4 =
-      # useSystemDefault); this pin is what it resolves through.
-      mimeApps.defaultApplications."x-scheme-handler/obsidian" = [ "obsidian.desktop" ];
-      mimeApps.associations.added."x-scheme-handler/obsidian" = [ "obsidian.desktop" ];
+      # Deep-link handlers folded into the HM-owned mimeapps.list, as one
+      # attrset (statix: no repeated mimeApps keys; home/browsers.nix makes
+      # the file a store symlink, so the runtimes' own writes of these
+      # entries stop working — these pins are the declarative replacements).
+      # Firefox already delegates obsidian:// to the system default
+      # (handlers.json action 4 = useSystemDefault); the pin is what it
+      # resolves through.
+      mimeApps = {
+        defaultApplications."x-scheme-handler/zcode" = [ "zcode.desktop" ];
+        defaultApplications."x-scheme-handler/obsidian" = [ "obsidian.desktop" ];
+        associations.added."x-scheme-handler/obsidian" = [ "obsidian.desktop" ];
+      };
 
       userDirs = {
         enable = true;

@@ -42,6 +42,34 @@ let
       # BSS after a manual switch), one silent retry, and no password box
       # for saved networks on failure/timeout.
       ./lucid-patches/102-wifi-connect-resilience.patch
+      # 2026-10-07 local fixes, generated against the fully-patched tree:
+      # 103 LUKS disk attribution + btrfs dedupe (dashboard showed 0 GB),
+      # 104 hide mic indicator + volume percentage label, 105 drop the
+      # inert Spielmodus/Energie tiles (no PPD on TLP hosts), 106 media
+      # pill shown-state collapses the bar slot (tray no longer floats).
+      ./lucid-patches/103-luks-disk-usage.patch
+      ./lucid-patches/104-bar-indicators.patch
+      ./lucid-patches/105-dashboard-tiles.patch
+      ./lucid-patches/106-mpris-shown-slot.patch
+      # 2026-10-07: 107 German UI part 2 — full sweep of the non-settings
+      # surfaces (bar, lock screen, panels, notifications, OSD, media,
+      # polkit, screenshot/OCR, dock/launcher, desktop menu, widgets, emoji
+      # picker); upstream has no i18n, so strings stay patch-translated.
+      # Also lifts the lock clock into light tones for light themes (the
+      # lock scrim is black in both modes).
+      # 108 makes the calendar reminder editor honor Prefs.clock24h
+      # (validator 0-23, AM/PM toggle hidden, 24h fmtReminderTime) instead
+      # of its hardcoded 12h picker.
+      ./lucid-patches/107-german-ui-2.patch
+      ./lucid-patches/108-calendar-reminder-24h.patch
+      # 2026-10-08 lock screen fixes, generated against the fully-patched
+      # tree: 109 pools the password beads (an int Repeater model regenerates
+      # every delegate per keystroke, re-running the settle animation on all
+      # dots at once — now only the newest bead animates), 110 keeps the
+      # layout chip readable for long variant names ("German (no dead keys)"
+      # truncated to "NO DEA"; short tags like "US" still win).
+      ./lucid-patches/109-lockfield-beads.patch
+      ./lucid-patches/110-lock-layout-chip.patch
     ];
     dontConfigure = true;
     dontBuild = true;
@@ -433,7 +461,7 @@ in
       if [ ! -s "$LUCID_DIR/keybinds.json" ]; then
         mkdir -p "$LUCID_DIR"
         ${pkgs.jq}/bin/jq \
-          '(.binds[] | select(.id == "exit" or .id == "theme" or .id == "launcher-commands" or .id == "settings" or .id == "clipboard" or .id == "float" or .id == "scratchpad" or .id == "reload" or .id == "split" or .id == "focus-left" or .id == "focus-right" or .id == "focus-up" or .id == "focus-down") | .enabled) = false
+          '(.binds[] | select(.id == "exit" or .id == "theme" or .id == "launcher-commands" or .id == "settings" or .id == "clipboard" or .id == "float" or .id == "scratchpad" or .id == "reload" or .id == "split" or .id == "focus-left" or .id == "focus-right" or .id == "focus-up" or .id == "focus-down" or .id == "f1-mute" or .id == "f2-vol-down" or .id == "f3-vol-up" or .id == "f4-mic-mute" or .id == "f5-bright-down" or .id == "f6-bright-up" or .id == "f8-rfkill" or .id == "f9-terminal" or .id == "f10-lock" or .id == "f12-calc") | .enabled) = false
            | (.binds[] | select(.id == "f9-terminal") | .cmd) = "kitty"' \
           "$LUCID_SRC/support/hypr/keybinds.json" > "$LUCID_DIR/keybinds.json"
       fi
@@ -445,6 +473,22 @@ in
         && ${pkgs.jq}/bin/jq -e '.binds[] | select(.id == "f9-terminal") | .cmd == "ghostty"' \
              "$LUCID_DIR/keybinds.json" > /dev/null; then
         ${pkgs.jq}/bin/jq '(.binds[] | select(.id == "f9-terminal") | .cmd) = "kitty"' \
+          "$LUCID_DIR/keybinds.json" > "$LUCID_DIR/keybinds.json.tmp" \
+          && mv "$LUCID_DIR/keybinds.json.tmp" "$LUCID_DIR/keybinds.json"
+      fi
+
+      # 2026-10-06 F-row fix: upstream lucid binds the BARE F1-F12 to media
+      # actions ("Function keys" category). With fn_lock=1 (F-keys default
+      # on this EC — proven by evdev capture: bare F1 delivers KEY_F1,
+      # Fn+F1 delivers XF86AudioMute) lucid eats every real F-key, so the
+      # row ALWAYS acts as media regardless of Fn/FnLock. Disable the bare
+      # F-key binds in place; guard on f1-mute still enabled so a user
+      # re-enabling single keys in Lucid Settings later survives
+      # activations (same pattern as the ghostty->kitty migration above).
+      if [ -s "$LUCID_DIR/keybinds.json" ] \
+        && ${pkgs.jq}/bin/jq -e '.binds[] | select(.id == "f1-mute") | (.enabled != false)' \
+             "$LUCID_DIR/keybinds.json" > /dev/null; then
+        ${pkgs.jq}/bin/jq '(.binds[] | select(.id == "f1-mute" or .id == "f2-vol-down" or .id == "f3-vol-up" or .id == "f4-mic-mute" or .id == "f5-bright-down" or .id == "f6-bright-up" or .id == "f8-rfkill" or .id == "f9-terminal" or .id == "f10-lock" or .id == "f12-calc") | .enabled) = false' \
           "$LUCID_DIR/keybinds.json" > "$LUCID_DIR/keybinds.json.tmp" \
           && mv "$LUCID_DIR/keybinds.json.tmp" "$LUCID_DIR/keybinds.json"
       fi

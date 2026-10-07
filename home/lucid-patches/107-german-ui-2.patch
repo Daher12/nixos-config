@@ -1,0 +1,2871 @@
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/Bt.qml b2/Bt.qml
+--- base/Bt.qml	2026-10-07 17:38:47.404909984 +0200
++++ b2/Bt.qml	2026-10-07 17:38:47.801263674 +0200
+@@ -29,7 +29,7 @@
+             return "A hardware switch or an Fn key has Bluetooth blocked. The radio cannot come on until that is released.";
+ 
+         if (root.softBlocked && !root.on)
+-            return "Bluetooth is blocked in software. Turning it on here releases the block.";
++            return "Bluetooth ist per Software blockiert. Hier einschalten, um die Sperre aufzuheben.";
+ 
+         return "";
+     }
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/KdeConnect.qml b2/KdeConnect.qml
+--- base/KdeConnect.qml	2026-10-07 17:38:47.405384411 +0200
++++ b2/KdeConnect.qml	2026-10-07 17:38:47.801425159 +0200
+@@ -400,7 +400,7 @@
+         }
+ 
+         function ping(id: string): void {
+-            root.ping(id, "Ping from Lucid");
++            root.ping(id, "Ping von Lucid");
+         }
+ 
+         function clipboard(id: string): void {
+@@ -408,7 +408,7 @@
+         }
+ 
+         function files(id: string): void {
+-            root.pickFiles(id, "Send files");
++            root.pickFiles(id, "Dateien senden");
+         }
+ 
+         function send(id: string, path: string): void {
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/Lockscreen.qml b2/Lockscreen.qml
+--- base/Lockscreen.qml	2026-10-07 17:38:47.405648030 +0200
++++ b2/Lockscreen.qml	2026-10-07 17:38:47.801589660 +0200
+@@ -89,28 +89,28 @@
+     }
+     readonly property string statusText: {
+         if (root.granted)
+-            return "Welcome back";
++            return "Willkommen zurück";
+ 
+         if (root.lockedOut)
+-            return "Too many attempts — try again in " + root.humanSecs(root.lockoutLeft);
++            return "Zu viele Versuche — erneut versuchen in " + root.humanSecs(root.lockoutLeft);
+ 
+         if (root.phase === "checking")
+-            return "Checking…";
++            return "Prüfen…";
+ 
+         if (root.phase === "error")
+-            return root.pamText !== "" ? root.pamText : "Authentication is unavailable right now";
++            return root.pamText !== "" ? root.pamText : "Authentifizierung ist momentan nicht verfügbar";
+ 
+         if (root.phase === "failed") {
+             if (root.pamText !== "")
+                 return root.pamText;
+ 
+             if (root.triesLeft === 1)
+-                return "Incorrect password — one try left";
++                return "Falsches Passwort — noch ein Versuch";
+ 
+             if (root.triesLeft > 1)
+-                return "Incorrect password — " + root.triesLeft + " tries left";
++                return "Falsches Passwort — noch " + root.triesLeft + " Versuche";
+ 
+-            return "Incorrect password";
++            return "Falsches Passwort";
+         }
+         if (root.phase === "prompting" && root.prompt !== "")
+             return root.prompt;
+@@ -120,12 +120,12 @@
+ 
+     function humanSecs(s) {
+         if (s >= 90)
+-            return Math.round(s / 60) + " minutes";
++            return Math.round(s / 60) + " Minuten";
+ 
+         if (s > 45)
+-            return "a minute";
++            return "eine Minute";
+ 
+-        return Math.max(1, s) + " seconds";
++        return Math.max(1, s) + " Sekunden";
+     }
+ 
+     // ── session control ────────────────────────────────────────────────────
+@@ -218,7 +218,7 @@
+         if (!pam.start()) {
+             root.pending = "";
+             root.phase = "error";
+-            root.pamText = "Cannot reach PAM (/etc/pam.d/" + root.pamConfig + ")";
++            root.pamText = "PAM nicht erreichbar (/etc/pam.d/" + root.pamConfig + ")";
+         } else {
+             authTimeout.restart();
+         }
+@@ -280,13 +280,13 @@
+             if (result === PamResult.Success)
+                 root.grant();
+             else if (result === PamResult.MaxTries)
+-                root.fail("Too many attempts — the account is locked");
++                root.fail("Zu viele Versuche — das Konto ist gesperrt");
+             else if (result === PamResult.Error)
+                 root.error("PAM could not complete the check");
+             else
+                 root.fail(root.pamText);
+         }
+-        onError: (e) => root.error(PamError.toString(e) === "StartFailed" ? "PAM refused to start a session" : "PAM failed: " + PamError.toString(e))
++        onError: (e) => root.error(PamError.toString(e) === "StartFailed" ? "PAM verweigerte den Sitzungsstart" : "PAM-Fehler: " + PamError.toString(e))
+     }
+ 
+     function error(text) {
+@@ -304,7 +304,7 @@
+         interval: 20000
+         onTriggered: {
+             pam.abort();
+-            root.error("The check timed out");
++            root.error("Zeitüberschreitung bei der Prüfung");
+         }
+     }
+ 
+@@ -466,7 +466,7 @@
+             return root.activeNetwork.name;
+ 
+         if (root.wifiUp)
+-            return "Wi-Fi";
++            return "WLAN";
+ 
+         return "Offline";
+     }
+@@ -501,10 +501,10 @@
+     }) : []
+     readonly property string btLabel: {
+         if (!root.btAdapter)
+-            return "No adapter";
++            return "Kein Adapter";
+ 
+         if (!root.btOn)
+-            return "Bluetooth off";
++            return "Bluetooth aus";
+ 
+         if (root.btDevices.length === 1)
+             return root.btDevices[0].name;
+@@ -512,7 +512,7 @@
+         if (root.btDevices.length > 1)
+             return root.btDevices.length + " devices";
+ 
+-        return "Bluetooth on";
++        return "Bluetooth an";
+     }
+ 
+     // ── the day ────────────────────────────────────────────────────────────
+@@ -544,18 +544,18 @@
+     readonly property string greeting: {
+         var h = root.now.getHours();
+         if (h < 5)
+-            return "Still up?";
++            return "Noch wach?";
+ 
+         if (h < 12)
+-            return "Good morning";
++            return "Guten Morgen";
+ 
+         if (h < 18)
+-            return "Good afternoon";
++            return "Guten Tag";
+ 
+         if (h < 22)
+-            return "Good evening";
++            return "Guten Abend";
+ 
+-        return "Good night";
++        return "Gute Nacht";
+     }
+ 
+     // ── wallpaper ──────────────────────────────────────────────────────────
+@@ -577,31 +577,31 @@
+     readonly property var powerActions: [
+         {
+             "id": "suspend",
+-            "label": "Suspend",
++            "label": "Bereitschaft",
+             "glyph": "suspend",
+             "confirm": false
+         },
+         {
+             "id": "hibernate",
+-            "label": "Hibernate",
++            "label": "Ruhezustand",
+             "glyph": "hibernate",
+             "confirm": false
+         },
+         {
+             "id": "logout",
+-            "label": "Log out",
++            "label": "Abmelden",
+             "glyph": "logout",
+             "confirm": true
+         },
+         {
+             "id": "reboot",
+-            "label": "Restart",
++            "label": "Neustart",
+             "glyph": "restart",
+             "confirm": true
+         },
+         {
+             "id": "shutdown",
+-            "label": "Shut down",
++            "label": "Herunterfahren",
+             "glyph": "power",
+             "confirm": true
+         }
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidbar/BluetoothPanel.qml b2/lucidbar/BluetoothPanel.qml
+--- base/lucidbar/BluetoothPanel.qml	2026-10-07 17:38:47.411297966 +0200
++++ b2/lucidbar/BluetoothPanel.qml	2026-10-07 17:38:47.801779625 +0200
+@@ -22,7 +22,7 @@
+ 
+     readonly property string label: {
+         if (!root.btEnabled)
+-            return "Off";
++            return "Aus";
+ 
+         if (root.connectedDevices.length === 1) {
+             let d = root.connectedDevices[0];
+@@ -33,12 +33,12 @@
+             return root.connectedDevices.length + " devices connected";
+ 
+         if (root.anyConnecting)
+-            return "Connecting...";
++            return "Verbinden…";
+ 
+         if (root.discovering)
+-            return "Scanning...";
++            return "Suche…";
+ 
+-        return "Not connected";
++        return "Nicht verbunden";
+     }
+ 
+     function getBatteryText(dev) {
+@@ -174,7 +174,7 @@
+ 
+                 Text {
+                     anchors.verticalCenter: parent.verticalCenter
+-                    text: root.discovering ? "Searching" + ".".repeat(scanButton.dotCount) : "Search for devices"
++                    text: root.discovering ? "Suche" + ".".repeat(scanButton.dotCount) : "Nach Geräten suchen"
+                     color: root.discovering ? Theme.accent : (scanArea.containsMouse ? Theme.text : Theme.subtext)
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(12)
+@@ -195,7 +195,7 @@
+                 anchors.rightMargin: 4
+                 anchors.verticalCenter: parent.verticalCenter
+                 visible: root.discovering
+-                text: "tap to stop"
++                text: "Tippen zum Stoppen"
+                 color: Theme.accentMuted
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fs(10)
+@@ -225,7 +225,7 @@
+                 anchors.left: parent.left
+                 anchors.leftMargin: 4
+                 anchors.verticalCenter: parent.verticalCenter
+-                text: "Visible to other devices"
++                text: "Für andere Geräte sichtbar"
+                 color: Theme.subtext
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fs(11)
+@@ -286,7 +286,7 @@
+ 
+             Text {
+                 anchors.horizontalCenter: parent.horizontalCenter
+-                text: "Bluetooth is off"
++                text: "Bluetooth ist aus"
+                 color: Theme.subtext
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fs(12)
+@@ -294,7 +294,7 @@
+ 
+             Text {
+                 anchors.horizontalCenter: parent.horizontalCenter
+-                text: "Turn it on to see nearby devices"
++                text: "Einschalten, um Geräte in der Nähe zu sehen"
+                 color: Theme.outlineStrong
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fs(10)
+@@ -315,7 +315,7 @@
+                 visible: root.connectedDevices.length > 0
+ 
+                 Text {
+-                    text: "CONNECTED"
++                    text: "VERBUNDEN"
+                     color: Theme.subtextDim
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -342,7 +342,7 @@
+                 visible: root.pairedDevices.length > 0
+ 
+                 Text {
+-                    text: "PAIRED"
++                    text: "GEKOPPELT"
+                     color: Theme.subtextDim
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -369,7 +369,7 @@
+                 visible: root.nearbyDevices.length > 0
+ 
+                 Text {
+-                    text: "NEARBY"
++                    text: "IN DER NÄHE"
+                     color: Theme.subtextDim
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -399,7 +399,7 @@
+ 
+                 Text {
+                     anchors.horizontalCenter: parent.horizontalCenter
+-                    text: root.discovering ? "Looking for devices…" : "No devices found"
++                    text: root.discovering ? "Suche nach Geräten…" : "Keine Geräte gefunden"
+                     color: Theme.subtext
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(12)
+@@ -408,7 +408,7 @@
+                 Text {
+                     anchors.horizontalCenter: parent.horizontalCenter
+                     visible: !root.discovering
+-                    text: "Tap “Search for devices” to scan"
++                    text: "Tippe auf „Nach Geräten suchen“, um zu scannen"
+                     color: Theme.outlineStrong
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(10)
+@@ -776,19 +776,19 @@
+                             anchors.verticalCenter: parent.verticalCenter
+                             text: {
+                                 if (devItem.isPairing)
+-                                    return "Pairing…";
++                                    return "Koppeln…";
+ 
+                                 if (devItem.isConnecting)
+-                                    return "Connecting…";
++                                    return "Verbinden…";
+ 
+                                 if (devItem.isConnected) {
+                                     let batt = root.getBatteryText(devItem.modelData);
+-                                    return "Connected" + (batt !== "" ? " · " + batt : "");
++                                    return "Verbunden" + (batt !== "" ? " · " + batt : "");
+                                 }
+                                 if (devItem.isPaired)
+-                                    return devItem.modelData.trusted ? "Paired · Trusted" : "Paired";
++                                    return devItem.modelData.trusted ? "Gekoppelt · Vertraut" : "Gekoppelt";
+ 
+-                                return "Available";
++                                return "Verfügbar";
+                             }
+                             color: devItem.isConnected ? Theme.accent : Theme.subtext
+                             font.family: Theme.fontFamily
+@@ -901,13 +901,13 @@
+                             anchors.centerIn: parent
+                             text: {
+                                 if (devItem.isPairing)
+-                                    return "Pairing…";
++                                    return "Koppeln…";
+ 
+                                 if (devItem.isConnecting)
+-                                    return "Connecting…";
++                                    return "Verbinden…";
+ 
+                                 if (devItem.group === "nearby")
+-                                    return "Pair";
++                                    return "Koppeln";
+ 
+                                 return devItem.isConnected ? "Disconnect" : "Connect";
+                             }
+@@ -966,7 +966,7 @@
+ 
+                         Text {
+                             anchors.centerIn: parent
+-                            text: "Forget"
++                            text: "Vergessen"
+                             color: Theme.text
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -1006,7 +1006,7 @@
+ 
+                 Text {
+                     visible: devItem.isPairing
+-                    text: "Cancel pairing"
++                    text: "Koppeln abbrechen"
+                     color: Theme.subtext
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(11)
+@@ -1026,7 +1026,7 @@
+                 Text {
+                     visible: devItem.actionFailed && !devItem.isConnected && !devItem.isPairing && !devItem.isConnecting
+                     width: parent.width - 46
+-                    text: devItem.group === "nearby" ? "Pairing failed. Please try again." : "Failed to connect. The device may be out of range."
++                    text: devItem.group === "nearby" ? "Koppeln fehlgeschlagen. Bitte erneut versuchen." : "Verbindung fehlgeschlagen. Das Gerät ist vielleicht außer Reichweite."
+                     color: Theme.error
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(10)
+@@ -1066,7 +1066,7 @@
+                         }
+ 
+                         Text {
+-                            text: "Auto-reconnect"
++                            text: "Automatisch neu verbinden"
+                             color: Theme.subtext
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -1112,7 +1112,7 @@
+                         }
+ 
+                         Text {
+-                            text: "Allow wake"
++                            text: "Aufwecken erlauben"
+                             color: Theme.subtext
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -1157,7 +1157,7 @@
+                         }
+ 
+                         Text {
+-                            text: "Block"
++                            text: "Blockieren"
+                             color: Theme.subtext
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -1178,7 +1178,7 @@
+ 
+                 Text {
+                     visible: devItem.group !== "nearby" && !devItem.renaming
+-                    text: "Rename"
++                    text: "Umbenennen"
+                     color: Theme.subtext
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(11)
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidbar/Clock.qml b2/lucidbar/Clock.qml
+--- base/lucidbar/Clock.qml	2026-10-07 17:39:11.684483513 +0200
++++ b2/lucidbar/Clock.qml	2026-10-07 17:39:22.656412306 +0200
+@@ -82,17 +82,17 @@
+ 
+         const mins = Math.round((at - Loc.now()) / 60000);
+         if (mins < 1)
+-            return "now";
++            return "jetzt";
+ 
+         if (mins < 60)
+-            return "in " + mins + " min";
++            return "in " + mins + " Min.";
+ 
+         const hrs = Math.round(mins / 60);
+         if (hrs < 24)
+-            return "in " + hrs + (hrs === 1 ? " hour" : " hours");
++            return "in " + hrs + (hrs === 1 ? " Stunde" : " Stunden");
+ 
+         const days = Math.round(hrs / 24);
+-        return days === 1 ? "tomorrow" : "in " + days + " days";
++        return days === 1 ? "morgen" : "in " + days + " Tagen";
+     }
+ 
+     function buildCalendarModel(year, month) {
+@@ -677,7 +677,7 @@
+                             id: snoozeLabel
+ 
+                             anchors.centerIn: parent
+-                            text: "Snooze"
++                            text: "Später"
+                             color: Theme.text
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -720,7 +720,7 @@
+                             id: closeLabel
+ 
+                             anchors.centerIn: parent
+-                            text: "Close"
++                            text: "Schließen"
+                             color: Theme.fgAccent
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -916,7 +916,7 @@
+                                 }
+ 
+                                 Text {
+-                                    text: WeatherSource.descFor(root.weatherCode) + " • " + root.humidity + "% Hum"
++                                    text: WeatherSource.descFor(root.weatherCode) + " • " + root.humidity + "% Luftfeuchtigkeit"
+                                     color: Theme.subtext
+                                     font.family: Theme.fontFamily
+                                     font.pixelSize: Theme.fontLabel
+@@ -961,7 +961,7 @@
+                             spacing: 3
+ 
+                             Text {
+-                                text: "UP NEXT"
++                                text: "ALS NÄCHSTES"
+                                 color: Theme.subtextDim
+                                 font.family: Theme.fontFamily
+                                 font.bold: true
+@@ -971,7 +971,7 @@
+ 
+                             Text {
+                                 width: parent.width
+-                                text: root.nextReminder ? root.nextReminder.item.name : "Nothing scheduled"
++                                text: root.nextReminder ? root.nextReminder.item.name : "Nichts geplant"
+                                 color: root.nextReminder ? Theme.text : Theme.subtext
+                                 font.family: Theme.fontFamily
+                                 font.bold: true
+@@ -1025,7 +1025,7 @@
+                                 id: monthText
+ 
+                                 anchors.centerIn: parent
+-                                text: new Date(root.viewYear, root.viewMonth, 1).toLocaleDateString(Qt.locale(), "MMMM yyyy") + (root.isViewingCurrentMonth ? "  •  Today" : "")
++                                text: new Date(root.viewYear, root.viewMonth, 1).toLocaleDateString(Qt.locale(), "MMMM yyyy") + (root.isViewingCurrentMonth ? "  •  Heute" : "")
+                                 color: root.isViewingCurrentMonth ? Theme.accent : Theme.text
+                                 font.family: Theme.fontFamily
+                                 font.bold: true
+@@ -1216,7 +1216,7 @@
+ 
+                             Text {
+                                 anchors.verticalCenter: parent.verticalCenter
+-                                text: "Reminder name"
++                                text: "Name der Erinnerung"
+                                 color: Theme.subtextDim
+                                 font.family: Theme.fontFamily
+                                 font.pixelSize: Theme.fontBody
+@@ -1401,7 +1401,7 @@
+                                     id: addLabel
+ 
+                                     anchors.centerIn: parent
+-                                    text: "Add"
++                                    text: "Hinzufügen"
+                                     color: Theme.fgAccent
+                                     font.family: Theme.fontFamily
+                                     font.bold: true
+@@ -1553,7 +1553,7 @@
+             columns: 7
+ 
+             Repeater {
+-                model: ["S", "M", "T", "W", "T", "F", "S"]
++                model: ["S", "M", "D", "M", "D", "F", "S"]
+ 
+                 Text {
+                     width: parent.width / 7
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidbar/Mpris.qml b2/lucidbar/Mpris.qml
+--- base/lucidbar/Mpris.qml	2026-10-07 17:38:47.636253591 +0200
++++ b2/lucidbar/Mpris.qml	2026-10-07 17:38:47.802610411 +0200
+@@ -52,7 +52,7 @@
+         return list.length > 0 ? list[0] : null;
+     }
+     readonly property bool isPlaying: root.player ? root.player.isPlaying : false
+-    readonly property string title: root.player ? (root.player.trackTitle || "Unknown") : "Nothing playing"
++    readonly property string title: root.player ? (root.player.trackTitle || "Unbekannt") : "Nichts läuft"
+     readonly property string artist: root.player ? root.player.trackArtist : ""
+     readonly property string album: root.player ? root.player.trackAlbum : ""
+     readonly property string artUrl: root.player ? root.player.trackArtUrl : ""
+@@ -136,15 +136,15 @@
+     function agoText(ts, now) {
+         const diff = Math.max(0, now - ts) / 1000;
+         if (diff < 60)
+-            return "just now";
++            return "gerade eben";
+ 
+         if (diff < 3600)
+-            return Math.floor(diff / 60) + "m ago";
++            return "vor " + Math.floor(diff / 60) + " Min.";
+ 
+         if (diff < 86400)
+-            return Math.floor(diff / 3600) + "h ago";
++            return "vor " + Math.floor(diff / 3600) + " Std.";
+ 
+-        return Math.floor(diff / 86400) + "d ago";
++        return "vor " + Math.floor(diff / 86400) + " T.";
+     }
+ 
+     function volumeGlyphFor(vol) {
+@@ -1322,7 +1322,7 @@
+ 
+                     Text {
+                         anchors.verticalCenter: parent.verticalCenter
+-                        text: root.player ? "LIVE  ·  " + root.fmt(root.livePosSec) : "NOTHING QUEUED"
++                        text: root.player ? "LIVE  ·  " + root.fmt(root.livePosSec) : "NICHTS IN DER WARTESCHLANGE"
+                         color: Theme.subtext
+                         font.family: Theme.fontFamily
+                         font.bold: true
+@@ -1460,7 +1460,7 @@
+                 PillBtn {
+                     anchors.centerIn: parent
+                     visible: root.player === null
+-                    label: "Identify what's playing"
++                    label: "Erkenne, was läuft"
+                     path: root.identifyGlyph
+                     accented: true
+                     onActivated: root.openPanel("shazam")
+@@ -1536,7 +1536,7 @@
+ 
+                     Text {
+                         anchors.verticalCenter: parent.verticalCenter
+-                        text: "IDENTIFY"
++                        text: "ERKENNEN"
+                         color: Theme.subtextDim
+                         font.family: Theme.fontFamily
+                         font.bold: true
+@@ -1755,13 +1755,13 @@
+                             text: {
+                                 switch (root.shazamState) {
+                                 case "listening":
+-                                    return "Listening…";
++                                    return "Höre…";
+                                 case "nomatch":
+-                                    return "No match";
++                                    return "Kein Treffer";
+                                 case "error":
+-                                    return "Couldn't listen";
++                                    return "Erkennen fehlgeschlagen";
+                                 default:
+-                                    return root.listenSource === "mic" ? "Identify what's in the room" : "Identify what's playing here";
++                                    return root.listenSource === "mic" ? "Erkenne, was im Raum läuft" : "Erkenne, was hier läuft";
+                                 }
+                             }
+                             color: Theme.text
+@@ -1776,11 +1776,11 @@
+                             text: {
+                                 switch (root.shazamState) {
+                                 case "listening":
+-                                    return root.listenElapsed + "s  ·  tap to stop";
++                                    return root.listenElapsed + "s  ·  tippen zum Stoppen";
+                                 case "nomatch":
+-                                    return "Nothing recognisable in the last " + root.listenLimit + "s — tap to try again";
++                                    return "Nichts Erkennbares in den letzten " + root.listenLimit + "s — tippen zum Wiederholen";
+                                 case "error":
+-                                    return "songrec couldn't reach the mic, the device or Shazam";
++                                    return "songrec konnte Mikrofon, Gerät oder Shazam nicht erreichen";
+                                 default:
+                                     return "via songrec  ·  " + (root.listenDevice === "" ? "default device" : "takes about 10s");
+                                 }
+@@ -1922,7 +1922,7 @@
+                     Text {
+                         anchors.left: parent.left
+                         anchors.verticalCenter: parent.verticalCenter
+-                        text: "RECENT"
++                        text: "NEULICH"
+                         color: Theme.subtextDim
+                         font.family: Theme.fontFamily
+                         font.bold: true
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidbar/Notifications.qml b2/lucidbar/Notifications.qml
+--- base/lucidbar/Notifications.qml	2026-10-07 17:38:47.411755191 +0200
++++ b2/lucidbar/Notifications.qml	2026-10-07 17:38:47.802943100 +0200
+@@ -578,7 +578,7 @@
+                 Text {
+                     anchors.left: parent.left
+                     anchors.verticalCenter: parent.verticalCenter
+-                    text: "Notifications"
++                    text: "Benachrichtigungen"
+                     color: Theme.text
+                     font.family: Theme.fontFamily
+                     font.weight: Font.DemiBold
+@@ -620,15 +620,15 @@
+                     anchors.verticalCenter: parent.verticalCenter
+                     text: {
+                         if (Notifs.dnd)
+-                            return "Do Not Disturb · " + root.notifCount + " waiting";
++                            return "Nicht stören · " + root.notifCount + " warten";
+ 
+                         if (Notifs.quietNow)
+-                            return "Quiet hours · " + root.notifCount + " waiting";
++                            return "Ruhezeiten · " + root.notifCount + " warten";
+ 
+                         if (root.notifCount === 0)
+-                            return "Nothing waiting";
++                            return "Nichts vorhanden";
+ 
+-                        return root.notifCount === 1 ? "1 notification" : root.notifCount + " notifications";
++                        return root.notifCount === 1 ? "1 Benachrichtigung" : root.notifCount + " Benachrichtigungen";
+                     }
+                     color: (Notifs.dnd || Notifs.quietNow) ? Theme.accent : Theme.subtext
+                     font.family: Theme.fontFamily
+@@ -639,7 +639,7 @@
+                     anchors.right: parent.right
+                     anchors.verticalCenter: parent.verticalCenter
+                     visible: Notifs.rows.length > 0 && Prefs.notifGrouping
+-                    label: "Expand all"
++                    label: "Alle aufklappen"
+                     labelColor: Theme.subtext
+                     onClicked: Notifs.expandAll()
+                 }
+@@ -667,7 +667,7 @@
+ 
+                     Text {
+                         anchors.horizontalCenter: parent.horizontalCenter
+-                        text: "You're all caught up"
++                        text: "Du bist auf dem neuesten Stand"
+                         color: Theme.subtext
+                         font.family: Theme.fontFamily
+                         font.weight: Font.DemiBold
+@@ -676,7 +676,7 @@
+ 
+                     Text {
+                         anchors.horizontalCenter: parent.horizontalCenter
+-                        text: Notifs.dnd ? "Notifications are being held back" : "New notifications will show up here"
++                        text: Notifs.dnd ? "Benachrichtigungen werden zurückgehalten" : "Neue Benachrichtigungen erscheinen hier"
+                         color: Theme.subtextDim
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fs(10)
+@@ -850,7 +850,7 @@
+                 NotifTextButton {
+                     anchors.right: parent.right
+                     anchors.bottom: parent.bottom
+-                    label: "Clear all"
++                    label: "Alle löschen"
+                     enabled: root.notifCount > 0
+                     onClicked: Notifs.clearAll()
+                 }
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidbar/PowerPanel.qml b2/lucidbar/PowerPanel.qml
+--- base/lucidbar/PowerPanel.qml	2026-10-07 17:38:47.411823570 +0200
++++ b2/lucidbar/PowerPanel.qml	2026-10-07 17:38:47.803131517 +0200
+@@ -172,8 +172,8 @@
+                 if (!h)
+                     return "";
+ 
+-                const extra = Power.holds.length > 1 ? " (and " + (Power.holds.length - 1) + " more)" : "";
+-                return (h.applicationId || "An application") + " is holding " + Power.name(h.profile) + (h.reason ? " - " + h.reason : "") + extra + ".";
++                const extra = Power.holds.length > 1 ? " (und " + (Power.holds.length - 1) + " weitere)" : "";
++                return (h.applicationId || "Eine Anwendung") + " blockiert " + Power.name(h.profile) + (h.reason ? " - " + h.reason : "") + extra + ".";
+             }
+             color: Theme.subtext
+             font.family: Theme.fontFamily
+@@ -187,7 +187,7 @@
+             leftPadding: 4
+             rightPadding: 4
+             topPadding: 4
+-            text: "Game mode is on, and may set a profile of its own when it turns off."
++            text: "Spielmodus ist an und kann beim Ausschalten ein eigenes Profil setzen."
+             color: Theme.subtext
+             font.family: Theme.fontFamily
+             font.pixelSize: Theme.fs(10)
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidbar/System.qml b2/lucidbar/System.qml
+--- base/lucidbar/System.qml	2026-10-07 17:38:47.633523046 +0200
++++ b2/lucidbar/System.qml	2026-10-07 17:39:22.666341856 +0200
+@@ -361,11 +361,11 @@
+         case "bluetooth":
+             return "BLUETOOTH";
+         case "volume":
+-            return "VOLUME";
++            return "LAUTSTÄRKE";
+         case "mic":
+-            return "MICROPHONE";
++            return "MIKROFON";
+         case "battery":
+-            return "BATTERY";
++            return "AKKU";
+         }
+         return "";
+     }
+@@ -373,10 +373,10 @@
+         switch (root.tipViewKind) {
+         case "wifi":
+             if (wifiPanel.primaryIsEthernet)
+-                return "Wired connection";
++                return "Kabelgebunden";
+ 
+             if (!Networking.wifiEnabled)
+-                return "Wi-Fi off";
++                return "WLAN aus";
+ 
+             if (wifiPanel.connecting)
+                 return "Connecting…";
+@@ -384,10 +384,10 @@
+             if (wifiPanel.wifiConnected && wifiPanel.activeNetwork)
+                 return wifiPanel.activeNetwork.name;
+ 
+-            return "Not connected";
++            return "Nicht verbunden";
+         case "bluetooth":
+             if (!root.btEnabled)
+-                return "Bluetooth off";
++                return "Bluetooth aus";
+ 
+             if (btPanel.connectedDevices.length === 1)
+                 return btPanel.connectedDevices[0].name;
+@@ -398,13 +398,13 @@
+             if (btPanel.anyConnecting)
+                 return "Connecting…";
+ 
+-            return "Not connected";
++            return "Nicht verbunden";
+         case "volume":
+-            return root.volMuted ? "Muted" : root.volumePercent + "%";
++            return root.volMuted ? "Stumm" : root.volumePercent + "%";
+         case "mic":
+-            return root.micMuted ? "Muted" : "Active";
++            return root.micMuted ? "Stumm" : "Aktiv";
+         case "battery":
+-            return root.batteryPresent ? root.batteryPercent + "%" : "No battery";
++            return root.batteryPresent ? root.batteryPercent + "%" : "Kein Akku";
+         }
+         return "";
+     }
+@@ -412,10 +412,10 @@
+         switch (root.tipViewKind) {
+         case "wifi":
+             if (wifiPanel.primaryIsEthernet)
+-                return wifiPanel.wiredDevice ? wifiPanel.wiredDevice.name : "Wired";
++                return wifiPanel.wiredDevice ? wifiPanel.wiredDevice.name : "Kabelgebunden";
+ 
+             if (!Networking.wifiEnabled)
+-                return "Radio disabled";
++                return "Funk deaktiviert";
+ 
+             if (!wifiPanel.wifiConnected)
+                 return wifiPanel.nearbyNetworks.length + " networks nearby";
+@@ -429,7 +429,7 @@
+ 
+             if (btPanel.connectedDevices.length === 1) {
+                 const b = btPanel.getBatteryText(btPanel.connectedDevices[0]);
+-                return b !== "" ? "Connected · " + b + " battery" : "Connected";
++                return b !== "" ? "Verbunden · " + b + " Akku" : "Verbunden";
+             }
+             if (btPanel.connectedDevices.length > 1)
+                 return btPanel.connectedDevices.map((d) => {
+@@ -437,9 +437,9 @@
+                 }).join(", ");
+ 
+             if (btPanel.discovering)
+-                return "Scanning…";
++                return "Suche…";
+ 
+-            return btPanel.pairedDevices.length + " paired";
++            return "Gekoppelt: " + btPanel.pairedDevices.length;
+         case "volume":
+             return root.deviceLabel(root.sink);
+         case "mic":
+@@ -457,9 +457,9 @@
+             return "";
+ 
+         if (root.battery.state === UPowerDeviceState.FullyCharged)
+-            return "Fully charged";
++            return "Vollständig geladen";
+ 
+-        return root.batteryCharging ? "Charging" : "On battery";
++        return root.batteryCharging ? "Wird geladen" : "Im Akkubetrieb";
+     }
+     readonly property string tipBatteryTime: {
+         if (!root.battery)
+@@ -472,13 +472,13 @@
+         const h = Math.floor(secs / 3600);
+         const m = Math.round((secs % 3600) / 60);
+         const body = h > 0 ? h + "h " + m + "m" : m + "m";
+-        return root.batteryCharging ? body + " to full" : body + " left";
++        return root.batteryCharging ? body + " bis voll" : body + " übrig";
+     }
+ 
+     // the stat card's second line: draw while discharging, else time
+     readonly property string batteryDetail: {
+         if (!root.batteryPresent)
+-            return "no battery";
++            return "kein Akku";
+ 
+         const rate = root.battery ? root.battery.changeRate : 0;
+         if (!root.batteryCharging && rate > 0.05)
+@@ -487,7 +487,7 @@
+         if (root.tipBatteryTime !== "")
+             return root.tipBatteryTime;
+ 
+-        return root.batteryCharging ? "charging" : "on battery";
++        return root.batteryCharging ? "lädt" : "im Akkubetrieb";
+     }
+ 
+     onTipWantedChanged: {
+@@ -1131,7 +1131,7 @@
+                 // nixos-config local patch: no mic indicator in the bar
+                 visible: false
+                 svgPath: root.micIconPath
+-                labelText: root.micMuted ? "Off" : "On"
++                labelText: root.micMuted ? "Aus" : "An"
+                 isMuted: root.micMuted
+             }
+ 
+@@ -1401,7 +1401,7 @@
+                             ToggleTile {
+                                 iconPath: "M22,16v-2l-8.5-5V3.5C13.5,2.67,12.83,2,12,2s-1.5,0.67-1.5,1.5V9L2,14v2l8.5-2.5V19L8,20.5L8,22l4-1l4,1l0-1.5L13.5,19 v-5.5L22,16z"
+                                 name: "Flugmodus"
+-                                sub: root.airplaneMode ? "Radios off" : "Off"
++                                sub: root.airplaneMode ? "Funk aus" : "Aus"
+                                 checked: root.airplaneMode
+                                 onToggled: root.toggleAirplane()
+                             }
+@@ -1409,7 +1409,7 @@
+                             ToggleTile {
+                                 iconPath: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z"
+                                 name: "Nicht stören"
+-                                sub: root.dndOn ? "Silenced" : "Off"
++                                sub: root.dndOn ? "Stumm" : "Aus"
+                                 checked: root.dndOn
+                                 onToggled: Notifs.toggleDnd()
+                             }
+@@ -1417,7 +1417,7 @@
+                             ToggleTile {
+                                 iconPath: "M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.9 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z"
+                                 name: "Caffeine"
+-                                sub: Prefs.idleKeepAwake ? "Staying awake" : "Idle allowed"
++                                sub: Prefs.idleKeepAwake ? "Bleibt wach" : "Ruhezeit erlaubt"
+                                 checked: Prefs.idleKeepAwake
+                                 onToggled: Prefs.idleKeepAwake = !Prefs.idleKeepAwake
+                             }
+@@ -1427,12 +1427,12 @@
+                                 name: "Standort"
+                                 sub: {
+                                     if (!Prefs.gpsEnabled)
+-                                        return "Off";
++                                        return "Aus";
+ 
+                                     if (Loc.busy)
+-                                        return "Locating…";
++                                        return "Ortung läuft…";
+ 
+-                                    return Loc.place !== "" ? Loc.place : "No fix yet";
++                                    return Loc.place !== "" ? Loc.place : "Noch kein Fix";
+                                 }
+                                 checked: Prefs.gpsEnabled
+                                 onToggled: {
+@@ -1702,7 +1702,7 @@
+ 
+                                 StatCard {
+                                     width: (root.contentWidth - root.sp2 * 2) / 3
+-                                    label: "BATTERY"
++                                    label: "AKKU"
+                                     valueText: root.batteryPresent ? root.batteryPercent + "%" : "N/A"
+                                     detailText: root.batteryDetail
+                                     showBar: root.batteryPresent
+@@ -1841,10 +1841,10 @@
+                                         width: parent.width
+                                         text: {
+                                             if (!diskCard.selectedDiskInfo)
+-                                                return "No disks found";
++                                                return "Keine Datenträger gefunden";
+ 
+                                             if (diskCard.unmounted)
+-                                                return "Not mounted";
++                                                return "Nicht eingebunden";
+ 
+                                             return Math.round(diskCard.usedGB) + " / " + Math.round(diskCard.totalGB) + " GB";
+                                         }
+@@ -2040,13 +2040,13 @@
+                         text: {
+                             switch (root.view) {
+                             case "wifi":
+-                                return "Network";
++                                return "Netzwerk";
+                             case "bluetooth":
+                                 return "Bluetooth";
+                             case "output":
+-                                return "Output device";
++                                return "Ausgabegerät";
+                             case "power":
+-                                return "Power profile";
++                                return "Energieprofil";
+                             }
+                             return "";
+                         }
+@@ -2128,7 +2128,7 @@
+                         visible: root.view === "output"
+                         nodes: root.outputNodes
+                         current: root.sink
+-                        emptyText: "No output devices"
++                        emptyText: "Keine Ausgabegeräte"
+                         iconPath: root.speakerPath
+                         availability: root.sinkAvailable
+                         onPicked: (node) => {
+@@ -2820,7 +2820,7 @@
+                     Text {
+                         width: parent.width
+                         visible: text !== ""
+-                        text: devOpt.isCurrent ? "Default device" : (devOpt.usable ? "" : "Not connected")
++                        text: devOpt.isCurrent ? "Standardgerät" : (devOpt.usable ? "" : "Nicht verbunden")
+                         color: devOpt.isCurrent ? Theme.alpha(Theme.fgAccent, 0.75) : Theme.subtextDim
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fontLabelSm
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidbar/WifiPanel.qml b2/lucidbar/WifiPanel.qml
+--- base/lucidbar/WifiPanel.qml	2026-10-07 17:38:47.626422106 +0200
++++ b2/lucidbar/WifiPanel.qml	2026-10-07 17:38:47.803779657 +0200
+@@ -205,7 +205,7 @@
+                     }
+ 
+                     Text {
+-                        text: netItem.isConnected ? "Connected · " + root.strengthLabel(netItem.modelData.signalStrength || 0) : root.strengthLabel(netItem.modelData.signalStrength || 0)
++                        text: netItem.isConnected ? "Verbunden · " + root.strengthLabel(netItem.modelData.signalStrength || 0) : root.strengthLabel(netItem.modelData.signalStrength || 0)
+                         color: netItem.isConnected ? Theme.accent : Theme.subtext
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fs(10)
+@@ -285,7 +285,7 @@
+                         anchors.left: parent.left
+                         anchors.leftMargin: 10
+                         anchors.verticalCenter: parent.verticalCenter
+-                        text: "Enter password..."
++                        text: "Passwort eingeben…"
+                         color: Theme.outlineStrong
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fs(11)
+@@ -400,7 +400,7 @@
+ 
+                         Text {
+                             anchors.centerIn: parent
+-                            text: "Forget Network"
++                            text: "Netzwerk vergessen"
+                             color: Theme.text
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -453,7 +453,7 @@
+ 
+                     visible: netItem.connectFailed && !netItem.isConnected && !netItem.isConnecting
+                     width: parent.width - 46
+-                    text: netItem.failReason || (netItem.attemptedWithNewPassword ? "Incorrect password." : "Connection failed.")
++                    text: netItem.failReason || (netItem.attemptedWithNewPassword ? "Falsches Passwort." : "Verbindung fehlgeschlagen.")
+                     color: Theme.error
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(10)
+@@ -492,7 +492,7 @@
+                     }
+ 
+                     Text {
+-                        text: "Connect automatically"
++                        text: "Automatisch verbinden"
+                         color: Theme.subtext
+                         font.family: Theme.fontFamily
+                         font.bold: true
+@@ -565,7 +565,7 @@
+     property string hiddenSsid: ""
+     property string hiddenPsk: ""
+     property bool hiddenFailed: false
+-    readonly property string hiddenErrorDetail: root.hiddenFailed ? (hiddenStderr.text.trim().length > 0 ? hiddenStderr.text.trim() : "nmcli failed to connect (no further detail available).") : ""
++    readonly property string hiddenErrorDetail: root.hiddenFailed ? (hiddenStderr.text.trim().length > 0 ? hiddenStderr.text.trim() : "nmcli konnte sich nicht verbinden (keine weiteren Details).") : ""
+     readonly property bool ethernetConnected: !!(root.wiredDevice && root.wiredDevice.connected)
+     readonly property bool connecting: wifiDevice && wifiDevice.state === ConnectionState.Connecting
+     readonly property bool wifiConnected: wifiDevice ? wifiDevice.connected : false
+@@ -584,12 +584,12 @@
+             return "Ethernet";
+ 
+         if (root.connecting)
+-            return "Connecting...";
++            return "Verbinden…";
+ 
+         if (root.wifiConnected && root.activeNetwork)
+             return root.activeNetwork.name;
+ 
+-        return "Disconnected";
++        return "Getrennt";
+     }
+     property real lastRx: -1
+     property real lastTx: -1
+@@ -625,15 +625,15 @@
+     function failReasonText(reason) {
+         switch (reason) {
+         case ConnectionFailReason.NoSecrets:
+-            return "No password saved for this network.";
++            return "Kein Passwort für dieses Netzwerk gespeichert.";
+         case ConnectionFailReason.WifiAuthTimeout:
+-            return "Authentication timed out.";
++            return "Authentifizierung hat zu lange gedauert.";
+         case ConnectionFailReason.WifiClientFailed:
+-            return "The Wi-Fi client failed to connect.";
++            return "Der WLAN-Client konnte sich nicht verbinden.";
+         case ConnectionFailReason.WifiClientDisconnected:
+-            return "Disconnected during the connection attempt.";
++            return "Verbindung während des Verbindungsversuchs getrennt.";
+         case ConnectionFailReason.WifiNetworkLost:
+-            return "The network went out of range.";
++            return "Das Netzwerk ist außer Reichweite.";
+         default:
+             return ConnectionFailReason.toString(reason);
+         }
+@@ -724,12 +724,12 @@
+ 
+     function strengthLabel(s) {
+         if (s >= 66)
+-            return "Strong";
++            return "Stark";
+ 
+         if (s >= 33)
+-            return "Good";
++            return "Gut";
+ 
+-        return "Weak";
++        return "Schwach";
+     }
+ 
+     function refreshActiveNetwork() {
+@@ -776,11 +776,11 @@
+     function connectivityLabel() {
+         switch (Networking.connectivity) {
+         case NetworkConnectivity.None:
+-            return "No internet access";
++            return "Kein Internetzugang";
+         case NetworkConnectivity.Portal:
+-            return "Sign-in required";
++            return "Anmeldung erforderlich";
+         case NetworkConnectivity.Limited:
+-            return "Limited connectivity";
++            return "Eingeschränkte Konnektivität";
+         default:
+             return "";
+         }
+@@ -827,7 +827,7 @@
+             const savedNet = targetNetwork.known === true && !root.uiStateFor(targetNetwork.name).attemptedWithNewPassword;
+             root.setUiState(targetNetwork.name, {
+                 "connectFailed": true,
+-                "failReason": "Timed out waiting for a response from the network.",
++                "failReason": "Zeitüberschreitung beim Warten auf eine Antwort des Netzwerks.",
+                 "showPasswordInput": secured && !savedNet,
+                 "isUntrustedAttempt": secured && !savedNet
+             });
+@@ -968,7 +968,7 @@
+                 anchors.right: parent.right
+                 anchors.verticalCenter: parent.verticalCenter
+                 visible: Networking.canCheckConnectivity
+-                text: "Recheck"
++                text: "Erneut prüfen"
+                 color: Theme.accentMuted
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fs(10)
+@@ -1019,15 +1019,15 @@
+                 Text {
+                     text: {
+                         if (!root.wiredDevice)
+-                            return "No cable connected";
++                            return "Kein Kabel verbunden";
+ 
+                         if (root.ethernetConnected)
+-                            return "Connected" + (root.wiredDevice.linkSpeed > 0 ? " · " + root.wiredDevice.linkSpeed + " Mbps" : "");
++                            return "Verbunden" + (root.wiredDevice.linkSpeed > 0 ? " · " + root.wiredDevice.linkSpeed + " Mbps" : "");
+ 
+                         if (root.wiredDevice.hasLink)
+-                            return "Cable connected · not configured";
++                            return "Kabel verbunden · nicht konfiguriert";
+ 
+-                        return "No cable connected";
++                        return "Kein Kabel verbunden";
+                     }
+                     color: root.ethernetConnected ? Theme.accent : Theme.subtext
+                     font.family: Theme.fontFamily
+@@ -1049,7 +1049,7 @@
+ 
+                 Text {
+                     anchors.centerIn: parent
+-                    text: "Disconnect"
++                    text: "Trennen"
+                     color: Theme.text
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -1142,7 +1142,7 @@
+         Text {
+             visible: !Networking.wifiHardwareEnabled
+             width: parent.width
+-            text: "Wi-Fi is disabled by a hardware switch"
++            text: "WLAN ist per Hardware-Schalter deaktiviert"
+             color: Theme.subtext
+             font.family: Theme.fontFamily
+             font.pixelSize: Theme.fs(11)
+@@ -1200,7 +1200,7 @@
+ 
+                 Text {
+                     anchors.verticalCenter: parent.verticalCenter
+-                    text: scanButton.scanning ? "Scanning" + ".".repeat(scanButton.dotCount) : "Search for networks"
++                    text: scanButton.scanning ? "Suche" + ".".repeat(scanButton.dotCount) : "Nach Netzwerken suchen"
+                     color: scanButton.scanning ? Theme.accent : (scanArea.containsMouse ? Theme.text : Theme.subtext)
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(12)
+@@ -1221,7 +1221,7 @@
+                 anchors.rightMargin: 4
+                 anchors.verticalCenter: parent.verticalCenter
+                 visible: scanButton.scanning
+-                text: "tap to stop"
++                text: "Tippen zum Stoppen"
+                 color: Theme.accentMuted
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fs(10)
+@@ -1255,7 +1255,7 @@
+                 visible: root.connectedNetworks.length > 0
+ 
+                 Text {
+-                    text: "CONNECTED"
++                    text: "VERBUNDEN"
+                     color: Theme.subtextDim
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -1281,7 +1281,7 @@
+                 visible: root.savedNetworks.length > 0
+ 
+                 Text {
+-                    text: "SAVED"
++                    text: "GESPEICHERT"
+                     color: Theme.subtextDim
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -1307,7 +1307,7 @@
+                 visible: root.nearbyNetworks.length > 0
+ 
+                 Text {
+-                    text: "NEARBY"
++                    text: "IN DER NÄHE"
+                     color: Theme.subtextDim
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -1336,7 +1336,7 @@
+ 
+                 Text {
+                     anchors.horizontalCenter: parent.horizontalCenter
+-                    text: scanButton.scanning ? "Looking for networks…" : "No networks found"
++                    text: scanButton.scanning ? "Suche nach Netzwerken…" : "Keine Netzwerke gefunden"
+                     color: Theme.subtext
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(12)
+@@ -1351,7 +1351,7 @@
+ 
+                 Text {
+                     visible: !root.hiddenFormOpen
+-                    text: "Connect to hidden network"
++                    text: "Mit verborgenem Netzwerk verbinden"
+                     color: Theme.subtext
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(11)
+@@ -1388,7 +1388,7 @@
+                             anchors.left: parent.left
+                             anchors.leftMargin: 10
+                             anchors.verticalCenter: parent.verticalCenter
+-                            text: "Network name (SSID)"
++                            text: "Netzwerkname (SSID)"
+                             color: Theme.outlineStrong
+                             font.family: Theme.fontFamily
+                             font.pixelSize: Theme.fs(11)
+@@ -1430,7 +1430,7 @@
+                             anchors.left: parent.left
+                             anchors.leftMargin: 10
+                             anchors.verticalCenter: parent.verticalCenter
+-                            text: "Password (leave blank if open)"
++                            text: "Passwort (leer lassen bei offenem Netz)"
+                             color: Theme.outlineStrong
+                             font.family: Theme.fontFamily
+                             font.pixelSize: Theme.fs(11)
+@@ -1485,7 +1485,7 @@
+ 
+                             Text {
+                                 anchors.centerIn: parent
+-                                text: "Connect"
++                                text: "Verbinden"
+                                 color: Theme.bg
+                                 font.family: Theme.fontFamily
+                                 font.bold: true
+@@ -1513,7 +1513,7 @@
+ 
+                             Text {
+                                 anchors.centerIn: parent
+-                                text: "Cancel"
++                                text: "Abbrechen"
+                                 color: Theme.text
+                                 font.family: Theme.fontFamily
+                                 font.bold: true
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/luciddesktop/DesktopMenu.qml b2/luciddesktop/DesktopMenu.qml
+--- base/luciddesktop/DesktopMenu.qml	2026-10-07 17:38:47.412671675 +0200
++++ b2/luciddesktop/DesktopMenu.qml	2026-10-07 17:38:47.804277674 +0200
+@@ -20,20 +20,20 @@
+         var arr = [];
+         arr.push({
+             "id": "wallpaper",
+-            "label": "Change Wallpaper",
++            "label": "Hintergrund ändern",
+             "glyph": DockIcons.wallpaper,
+             "divider": false
+         });
+         arr.push({
+             "id": "theme",
+-            "label": "Change Theme",
++            "label": "Thema ändern",
+             "glyph": DockIcons.palette,
+             "divider": false
+         });
+         if (Prefs.widgetsEnabled)
+             arr.push({
+             "id": "addWidget",
+-            "label": "Add a Widget",
++            "label": "Widget hinzufügen",
+             "glyph": DockIcons.widgets,
+             "divider": true
+         });
+@@ -41,31 +41,31 @@
+         if (Widgets.count > 0)
+             arr.push(Prefs.widgetsEnabled ? {
+             "id": "hideWidgets",
+-            "label": "Hide Widgets",
++            "label": "Widgets ausblenden",
+             "glyph": DockIcons.hidden,
+             "divider": false
+         } : {
+             "id": "showWidgets",
+-            "label": "Show Widgets",
++            "label": "Widgets einblenden",
+             "glyph": DockIcons.visible,
+             "divider": true
+         });
+ 
+         arr.push({
+             "id": "screenshot",
+-            "label": "Take a Screenshot",
++            "label": "Screenshot aufnehmen",
+             "glyph": DockIcons.camera,
+             "divider": true
+         });
+         arr.push({
+             "id": "keyboard",
+-            "label": "On-Screen Keyboard",
++            "label": "Bildschirmtastatur",
+             "glyph": DockIcons.keyboard,
+             "divider": false
+         });
+         arr.push({
+             "id": "settings",
+-            "label": "Settings",
++            "label": "Einstellungen",
+             "glyph": DockIcons.settings,
+             "divider": true
+         });
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/luciddocks/ContextMenu.qml b2/luciddocks/ContextMenu.qml
+--- base/luciddocks/ContextMenu.qml	2026-10-07 17:38:47.412784789 +0200
++++ b2/luciddocks/ContextMenu.qml	2026-10-07 17:38:47.804402951 +0200
+@@ -19,13 +19,13 @@
+         var arr = [];
+         arr.push(menu.isPinned ? {
+             "id": "unpin",
+-            "label": "Unpin from Dock",
++            "label": "Vom Dock lösen",
+             "glyph": DockIcons.unpin,
+             "danger": false,
+             "divider": false
+         } : {
+             "id": "pin",
+-            "label": "Pin to Dock",
++            "label": "Ans Dock anheften",
+             "glyph": DockIcons.pin,
+             "danger": false,
+             "divider": false
+@@ -33,7 +33,7 @@
+         if (menu.command !== "")
+             arr.push({
+                 "id": "newWindow",
+-                "label": "New Window",
++                "label": "Neues Fenster",
+                 "glyph": DockIcons.newWindow,
+                 "danger": false,
+                 "divider": false
+@@ -42,7 +42,7 @@
+         if (menu.windowCount > 0)
+             arr.push({
+                 "id": "close",
+-                "label": "Close Window",
++                "label": "Fenster schließen",
+                 "glyph": DockIcons.closeWindow,
+                 "danger": true,
+                 "divider": true
+@@ -51,7 +51,7 @@
+         if (menu.windowCount > 1)
+             arr.push({
+                 "id": "closeAll",
+-                "label": "Close All (" + menu.windowCount + ")",
++                "label": "Alle schließen (" + menu.windowCount + ")",
+                 "glyph": DockIcons.closeWindow,
+                 "danger": true,
+                 "divider": false
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/luciddocks/Dock.qml b2/luciddocks/Dock.qml
+--- base/luciddocks/Dock.qml	2026-10-07 17:38:47.616734542 +0200
++++ b2/luciddocks/Dock.qml	2026-10-07 17:38:47.804587470 +0200
+@@ -230,43 +230,43 @@
+ 
+     readonly property var allCommands: [{
+         "id": "wallpaper",
+-        "name": "Choose Wallpaper",
+-        "desc": "Browse and set a new desktop wallpaper",
++        "name": "Hintergrund wählen",
++        "desc": "Neuen Desktop-Hintergrund auswählen und festlegen",
+         "glyph": DockIcons.wallpaper
+     }, {
+         "id": "shuffle",
+-        "name": "Shuffle Wallpaper",
+-        "desc": "Pick a random wallpaper from this theme's folder",
++        "name": "Hintergrund zufällig",
++        "desc": "Zufälligen Hintergrund aus dem Themen-Ordner wählen",
+         "glyph": DockIcons.shuffle
+     }, {
+         "id": "theme",
+-        "name": "Switch Theme",
+-        "desc": "Change the colour scheme",
++        "name": "Thema wechseln",
++        "desc": "Farbschema wechseln",
+         "glyph": DockIcons.palette
+     }, {
+         "id": "clipboard",
+-        "name": "Clipboard History",
+-        "desc": "Copy something you copied earlier",
++        "name": "Zwischenablage-Verlauf",
++        "desc": "Etwas kopieren, das du zuvor kopiert hast",
+         "glyph": DockIcons.clipboard
+     }, {
+         "id": "power",
+-        "name": "Power",
+-        "desc": "Lock, suspend, restart or shut down",
++        "name": "Energie",
++        "desc": "Sperren, Bereitschaft, Neustart oder Herunterfahren",
+         "glyph": DockIcons.power
+     }, {
+         "id": "widgets",
+-        "name": "Desktop Widgets",
+-        "desc": "Place clocks, meters and notes on the desktop",
++        "name": "Desktop-Widgets",
++        "desc": "Uhren, Anzeigen und Notizen auf dem Desktop platzieren",
+         "glyph": DockIcons.widgets
+     }, {
+         "id": "keyboard",
+-        "name": "On-Screen Keyboard",
+-        "desc": "Type with the pointer when there is no keyboard",
++        "name": "Bildschirmtastatur",
++        "desc": "Mit dem Zeiger tippen, wenn keine Tastatur vorhanden ist",
+         "glyph": DockIcons.keyboard
+     }, {
+         "id": "settings",
+-        "name": "Settings",
+-        "desc": "Open Lucid's settings",
++        "name": "Einstellungen",
++        "desc": "Lucids Einstellungen öffnen",
+         "glyph": DockIcons.settings
+     }]
+     // shared with the settings app, see Prefs.themeCatalogue
+@@ -500,7 +500,7 @@
+         if (mode === "apps") {
+             var calc = DockCalc.evaluate(dockWindow.queryFor(raw));
+             if (calc !== "")
+-                rows.push(dockWindow.makeRow("calc", "calc", "= " + calc, "Press Return to copy", {
++                rows.push(dockWindow.makeRow("calc", "calc", "= " + calc, "Eingabetaste zum Kopieren", {
+                     "glyph": DockIcons.equals,
+                     "payload": calc
+                 }));
+@@ -1284,7 +1284,7 @@
+                 "iconName": "system-file-manager",
+                 "command": "xdg-open " + Quickshell.env("HOME"),
+                 "appId": "files",
+-                "name": "Files"
++                "name": "Dateien"
+             }, {
+                 "appKey": "terminal",
+                 "iconName": "utilities-terminal",
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/luciddocks/LauncherFace.qml b2/luciddocks/LauncherFace.qml
+--- base/luciddocks/LauncherFace.qml	2026-10-07 17:38:47.617017518 +0200
++++ b2/luciddocks/LauncherFace.qml	2026-10-07 17:38:47.804853564 +0200
+@@ -122,15 +122,15 @@
+             stableHeight: face.stableContentHeight
+             emptyLabel: {
+                 if (face.displayMode === "commands")
+-                    return "No commands found";
++                    return "Keine Befehle gefunden";
+ 
+                 if (face.displayMode === "theme")
+-                    return "No themes found";
++                    return "Keine Themen gefunden";
+ 
+                 if (face.displayMode === "clipboard")
+-                    return Clip.available ? "Clipboard history is empty" : "Install cliphist to keep clipboard history";
++                    return Clip.available ? "Zwischenablage-Verlauf ist leer" : "cliphist installieren, um den Verlauf zu behalten";
+ 
+-                return "No apps found";
++                return "Keine Apps gefunden";
+             }
+             onActivated: (index) => face.activated(index)
+             onDeleteRequested: (index) => face.deleteRequested(index)
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/luciddocks/StackPopup.qml b2/luciddocks/StackPopup.qml
+--- base/luciddocks/StackPopup.qml	2026-10-07 17:38:47.413690772 +0200
++++ b2/luciddocks/StackPopup.qml	2026-10-07 17:38:47.804987527 +0200
+@@ -330,7 +330,7 @@
+                     anchors.top: openHereCard.bottom
+                     anchors.topMargin: 7
+                     anchors.horizontalCenter: openHereCard.horizontalCenter
+-                    text: "Open here"
++                    text: "Hier öffnen"
+                     color: openHereEntry.hovered ? Theme.text : Theme.subtext
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fontLabel
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/luciddocks/WallpaperStrip.qml b2/luciddocks/WallpaperStrip.qml
+--- base/luciddocks/WallpaperStrip.qml	2026-10-07 17:38:47.413761686 +0200
++++ b2/luciddocks/WallpaperStrip.qml	2026-10-07 17:38:47.805108336 +0200
+@@ -395,7 +395,7 @@
+ 
+         Text {
+             anchors.horizontalCenter: parent.horizontalCenter
+-            text: "No wallpapers in this folder"
++            text: "Keine Hintergrundbilder in diesem Ordner"
+             color: Theme.subtext
+             font.family: Theme.fontFamily
+             font.pixelSize: Theme.fontBody
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidlock/LockClock.qml b2/lucidlock/LockClock.qml
+--- base/lucidlock/LockClock.qml	2026-10-07 17:38:47.415111730 +0200
++++ b2/lucidlock/LockClock.qml	2026-10-07 17:40:18.812246278 +0200
+@@ -11,6 +11,12 @@
+     // so the date underneath rides up with the clock instead of jumping
+     property real k: Lockscreen.focused ? 0.52 : 1
+ 
++    // the lock scrim stays black in both modes, so a light theme's dark
++    // clock colors sink into the backdrop — lift them into light tones
++    readonly property color paperText: Theme.isLight ? Theme.atTone(Theme.cOnSurface, 96) : Theme.text
++    readonly property color paperMinute: Theme.isLight ? Theme.atTone(Theme.withSat(Theme.cPrimary, 0.55), 80) : Theme.accentMuted
++    readonly property color paperSubtext: Theme.isLight ? Theme.atTone(Theme.cOnSurfaceVariant, 84) : Theme.subtext
++
+     implicitWidth: Math.max(stack.implicitWidth, meta.implicitWidth)
+     implicitHeight: stack.implicitHeight * clock.k + 18 + meta.implicitHeight
+ 
+@@ -40,7 +46,7 @@
+             height: Math.round(clock.unit * 0.82)
+             verticalAlignment: Text.AlignVCenter
+             text: Lockscreen.hourText
+-            color: Theme.text
++            color: paperText
+             font.family: Theme.fontFamily
+             font.pixelSize: Math.round(clock.unit)
+             font.weight: Font.DemiBold
+@@ -54,7 +60,7 @@
+             height: Math.round(clock.unit * 0.82)
+             verticalAlignment: Text.AlignVCenter
+             text: Lockscreen.minuteText
+-            color: Theme.accentMuted
++            color: paperMinute
+             font.family: Theme.fontFamily
+             font.pixelSize: Math.round(clock.unit)
+             font.weight: Font.DemiBold
+@@ -70,7 +76,7 @@
+             anchors.bottomMargin: Math.round(clock.unit * 0.16)
+             text: Lockscreen.meridiem
+             visible: Lockscreen.meridiem !== ""
+-            color: Theme.alpha(Theme.accentMuted, 0.7)
++            color: Theme.alpha(paperMinute, 0.7)
+             font.family: Theme.fontFamily
+             font.pixelSize: Math.round(clock.unit * 0.16)
+             font.weight: Font.Medium
+@@ -87,7 +93,7 @@
+ 
+         Text {
+             text: Lockscreen.dateText
+-            color: Theme.text
++            color: paperText
+             font.family: Theme.fontFamily
+             font.pixelSize: Theme.fontTitleLg
+             font.weight: Font.Medium
+@@ -95,7 +101,7 @@
+ 
+         Text {
+             text: Lockscreen.greeting + (Lockscreen.displayName !== "" ? ", " + Lockscreen.displayName.split(" ")[0] : "")
+-            color: Theme.subtext
++            color: paperSubtext
+             font.family: Theme.fontFamily
+             font.pixelSize: Theme.fontBodyLg
+         }
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidlock/LockField.qml b2/lucidlock/LockField.qml
+--- base/lucidlock/LockField.qml	2026-10-07 17:38:47.415171984 +0200
++++ b2/lucidlock/LockField.qml	2026-10-07 17:38:47.805235536 +0200
+@@ -142,7 +142,7 @@
+         anchors.left: leading.right
+         anchors.leftMargin: 14
+         anchors.verticalCenter: parent.verticalCenter
+-        text: Lockscreen.lockedOut ? "Locked" : (Lockscreen.phase === "prompting" && Lockscreen.prompt !== "" ? Lockscreen.prompt : "Password")
++        text: Lockscreen.lockedOut ? "Gesperrt" : (Lockscreen.phase === "prompting" && Lockscreen.prompt !== "" ? Lockscreen.prompt : "Passwort")
+         color: Theme.subtextDim
+         font.family: Theme.fontFamily
+         font.pixelSize: Theme.fontBodyLg
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidlock/LockMedia.qml b2/lucidlock/LockMedia.qml
+--- base/lucidlock/LockMedia.qml	2026-10-07 17:38:47.415348427 +0200
++++ b2/lucidlock/LockMedia.qml	2026-10-07 17:38:47.805356695 +0200
+@@ -19,7 +19,7 @@
+         return media.players.length > 0 ? media.players[0] : null;
+     }
+     readonly property bool playing: !!media.player && media.player.playbackState === MprisPlaybackState.Playing
+-    readonly property string title: media.player ? (media.player.trackTitle || "Unknown track") : ""
++    readonly property string title: media.player ? (media.player.trackTitle || "Unbekannter Titel") : ""
+     readonly property string artist: media.player ? (media.player.trackArtist || media.player.identity || "") : ""
+     readonly property real length: media.player ? media.player.length : 0
+     property real livePos: 0
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidlock/LockNotifs.qml b2/lucidlock/LockNotifs.qml
+--- base/lucidlock/LockNotifs.qml	2026-10-07 17:38:47.415418260 +0200
++++ b2/lucidlock/LockNotifs.qml	2026-10-07 17:38:47.805467124 +0200
+@@ -38,7 +38,7 @@
+ 
+             Text {
+                 anchors.verticalCenter: parent.verticalCenter
+-                text: "Notifications"
++                text: "Benachrichtigungen"
+                 color: Theme.text
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fontTitleSm
+@@ -99,7 +99,7 @@
+ 
+         Text {
+             anchors.horizontalCenter: parent.horizontalCenter
+-            text: Notifs.dnd ? "Notifications are paused" : "You are all caught up"
++            text: Notifs.dnd ? "Benachrichtigungen sind pausiert" : "Du bist auf dem neuesten Stand"
+             color: Theme.subtextDim
+             font.family: Theme.fontFamily
+             font.pixelSize: Theme.fontBodySm
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidlock/LockPower.qml b2/lucidlock/LockPower.qml
+--- base/lucidlock/LockPower.qml	2026-10-07 17:38:47.415477001 +0200
++++ b2/lucidlock/LockPower.qml	2026-10-07 17:38:47.805568065 +0200
+@@ -193,7 +193,7 @@
+                 id: cancelText
+ 
+                 anchors.centerIn: parent
+-                text: "Cancel"
++                text: "Abbrechen"
+                 color: Theme.subtext
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fontLabelLg
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidlock/LockStatusChips.qml b2/lucidlock/LockStatusChips.qml
+--- base/lucidlock/LockStatusChips.qml	2026-10-07 17:38:47.415576599 +0200
++++ b2/lucidlock/LockStatusChips.qml	2026-10-07 17:38:47.805674346 +0200
+@@ -134,7 +134,7 @@
+ 
+     Chip {
+         glyph: "bellOff"
+-        label: "Do not disturb"
++        label: "Nicht stören"
+         tone: Theme.warning
+         visible: Notifs.dnd
+     }
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidlock/LockSurface.qml b2/lucidlock/LockSurface.qml
+--- base/lucidlock/LockSurface.qml	2026-10-07 17:38:47.415633907 +0200
++++ b2/lucidlock/LockSurface.qml	2026-10-07 17:38:47.805772271 +0200
+@@ -345,7 +345,7 @@
+ 
+                 Text {
+                     anchors.verticalCenter: parent.verticalCenter
+-                    text: "Locked"
++                    text: "Gesperrt"
+                     color: Theme.subtextDim
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fontBodyMd
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidmoji/GifPane.qml b2/lucidmoji/GifPane.qml
+--- base/lucidmoji/GifPane.qml	2026-10-07 17:38:47.415826672 +0200
++++ b2/lucidmoji/GifPane.qml	2026-10-07 17:38:47.805931833 +0200
+@@ -234,13 +234,13 @@
+             pane.loading = false;
+             if (xhr.status !== 200) {
+                 var who = pane.provider === "giphy" ? "Giphy" : "Tenor";
+-                pane.errorText = xhr.status === 0 ? ("No connection to " + who) : (who + " returned " + xhr.status + " — check your key");
++                pane.errorText = xhr.status === 0 ? ("Keine Verbindung zu " + who) : (who + " lieferte " + xhr.status + " — prüfe deinen Schlüssel");
+                 return ;
+             }
+             try {
+                 onOk(xhr.responseText);
+             } catch (e) {
+-                pane.errorText = "Could not read the response";
++                pane.errorText = "Antwort konnte nicht gelesen werden";
+             }
+         };
+         xhr.open("GET", url);
+@@ -390,7 +390,7 @@
+             anchors.left: parent.left
+             anchors.leftMargin: 6
+             anchors.verticalCenter: parent.verticalCenter
+-            text: pane.mode === "results" ? "‹  " + pane.resultsTitle : (pane.loading ? "Loading…" : "Browse")
++            text: pane.mode === "results" ? "‹  " + pane.resultsTitle : (pane.loading ? "Lädt…" : "Stöbern")
+             color: pane.errorText !== "" ? Theme.error : Theme.subtext
+             font.family: Theme.fontFamily
+             font.pixelSize: Theme.fontLabel
+@@ -671,7 +671,7 @@
+ 
+         Text {
+             anchors.horizontalCenter: parent.horizontalCenter
+-            text: "🔑  Add a Giphy key for Trending and search"
++            text: "🔑  Giphy-Schlüssel für Trends und Suche hinzufügen"
+             color: Theme.subtext
+             font.family: Theme.fontFamily
+             font.pixelSize: Theme.fontLabel
+@@ -708,21 +708,21 @@
+             wrapMode: Text.WordWrap
+             text: {
+                 if (!pane.hasKey)
+-                    return "Add a free Giphy API key to browse and search GIFs";
++                    return "Füge einen kostenlosen Giphy-API-Schlüssel hinzu, um GIFs zu durchsuchen";
+ 
+                 if (pane.errorText !== "")
+                     return pane.errorText;
+ 
+                 if (pane.resultsKind === "fav")
+-                    return "Hover a GIF and hit ☆ to keep it here";
++                    return "Fahre über ein GIF und drücke ☆, um es zu behalten";
+ 
+                 if (pane.resultsKind === "recent")
+-                    return "GIFs you send show up here";
++                    return "Gesendete GIFs erscheinen hier";
+ 
+                 if (pane.resultsKind === "local")
+-                    return "No .gif files in " + (pane.host ? pane.host.gifDir : "");
++                    return "Keine .gif-Dateien in " + (pane.host ? pane.host.gifDir : "");
+ 
+-                return "No GIFs found";
++                return "Keine GIFs gefunden";
+             }
+             color: Theme.subtext
+             font.family: Theme.fontFamily
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidmoji/MojiFace.qml b2/lucidmoji/MojiFace.qml
+--- base/lucidmoji/MojiFace.qml	2026-10-07 17:38:47.416004148 +0200
++++ b2/lucidmoji/MojiFace.qml	2026-10-07 17:38:47.806125530 +0200
+@@ -50,7 +50,7 @@
+     readonly property var rail: {
+         var out = [{
+             "icon": face.isKaomoji ? "↺" : "🕘",
+-            "name": "Recent"
++            "name": "Kürzlich"
+         }, {
+             "icon": face.isKaomoji ? "★" : "⭐",
+             "name": "Favourites"
+@@ -447,7 +447,7 @@
+                     Text {
+                         anchors.verticalCenter: parent.verticalCenter
+                         x: 2
+-                        text: face.isGif ? "Search GIFs…" : (face.isKaomoji ? "Search text faces…" : "Search emoji…")
++                        text: face.isGif ? "GIFs suchen…" : (face.isKaomoji ? "Textgesichter suchen…" : "Emoji suchen…")
+                         color: Theme.subtextDim
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fontBody
+@@ -758,12 +758,12 @@
+                     anchors.horizontalCenter: parent.horizontalCenter
+                     text: {
+                         if (face.searching)
+-                            return "Nothing matches “" + face.query.trim() + "”";
++                            return "Nichts passt zu „" + face.query.trim() + "“";
+ 
+                         if (face.catIndex === 0)
+-                            return "Nothing used yet";
++                            return "Noch nichts benutzt";
+ 
+-                        return "Right-click anything to favourite it";
++                        return "Rechtsklick markiert etwas als Favorit";
+                     }
+                     color: Theme.subtext
+                     font.family: Theme.fontFamily
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidnotif/NotifActions.qml b2/lucidnotif/NotifActions.qml
+--- base/lucidnotif/NotifActions.qml	2026-10-07 17:38:47.416700194 +0200
++++ b2/lucidnotif/NotifActions.qml	2026-10-07 17:38:47.806291153 +0200
+@@ -71,7 +71,7 @@
+         // reply leads, because it is the one that needs no reading
+         NotifChip {
+             visible: actions.canReply
+-            label: actions.notification && actions.notification.inlineReplyPlaceholder ? actions.notification.inlineReplyPlaceholder : "Reply"
++            label: actions.notification && actions.notification.inlineReplyPlaceholder ? actions.notification.inlineReplyPlaceholder : "Antworten"
+             iconPath: Notifs.icons.reply
+             onClicked: actions.replyOpen = true
+         }
+@@ -120,7 +120,7 @@
+                 anchors.leftMargin: 12
+                 anchors.verticalCenter: parent.verticalCenter
+                 visible: replyInput.text.length === 0
+-                text: "Message…"
++                text: "Nachricht…"
+                 color: Theme.subtextDim
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fs(11)
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidosd/Osd.qml b2/lucidosd/Osd.qml
+--- base/lucidosd/Osd.qml	2026-10-07 17:38:47.622482204 +0200
++++ b2/lucidosd/Osd.qml	2026-10-07 17:38:47.806421489 +0200
+@@ -77,15 +77,15 @@
+     readonly property string currentLabel: {
+         switch (osdWindow.oscType) {
+         case "volume":
+-            return "Volume";
++            return "Lautstärke";
+         case "brightness":
+-            return "Brightness";
++            return "Helligkeit";
+         case "mic":
+-            return "Microphone";
++            return "Mikrofon";
+         case "capslock":
+-            return "Caps Lock";
++            return "Feststell";
+         case "numlock":
+-            return "Num Lock";
++            return "Num";
+         default:
+             return "";
+         }
+@@ -94,7 +94,7 @@
+     readonly property string toggleOnText: {
+         switch (osdWindow.oscType) {
+         case "mic":
+-            return "Unmuted";
++            return "Aktiv";
+         case "capslock":
+             return "ABC";
+         case "numlock":
+@@ -106,11 +106,11 @@
+     readonly property string toggleOffText: {
+         switch (osdWindow.oscType) {
+         case "mic":
+-            return "Muted";
++            return "Stumm";
+         case "capslock":
+             return "abc";
+         case "numlock":
+-            return "Arrows";
++            return "Pfeile";
+         default:
+             return "";
+         }
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidosd/ToastEvents.qml b2/lucidosd/ToastEvents.qml
+--- base/lucidosd/ToastEvents.qml	2026-10-07 17:38:47.417484277 +0200
++++ b2/lucidosd/ToastEvents.qml	2026-10-07 17:38:47.806592763 +0200
+@@ -110,7 +110,7 @@
+ 
+                     const name = kb.active_keymap || "";
+                     if (root.layoutName !== "" && name !== root.layoutName && Prefs.toastOnLayout)
+-                        root.send("layout", root.glyphPath("keyboard"), name, "Keyboard layout");
++                        root.send("layout", root.glyphPath("keyboard"), name, "Tastaturlayout");
+ 
+                     root.layoutName = name;
+                 } catch (e) {
+@@ -131,7 +131,7 @@
+         if (!Prefs.toastOnDisplays)
+             return ;
+ 
+-        root.send("display-" + name, root.glyphPath("desktop"), root.displayDescriptions[name] || name, added ? "Display connected" : "Display disconnected");
++        root.send("display-" + name, root.glyphPath("desktop"), root.displayDescriptions[name] || name, added ? "Display verbunden" : "Display getrennt");
+     }
+ 
+     Connections {
+@@ -171,7 +171,7 @@
+ 
+         root.gameModeAt = Date.now();
+         if (Prefs.toastOnGameMode)
+-            root.send("gamemode", "game", on ? "Game mode on" : "Game mode off", "");
++            root.send("gamemode", "game", on ? "Spielmodus an" : "Spielmodus aus", "");
+ 
+     }
+ 
+@@ -205,7 +205,7 @@
+ 
+             root.profile = p;
+             if (Prefs.toastOnPower && Date.now() - root.gameModeAt > 5000)
+-                root.send("power", Power.icon(p), Power.name(p), "Power profile");
++                root.send("power", Power.icon(p), Power.name(p), "Energieprofil");
+ 
+         }
+     }
+@@ -244,8 +244,8 @@
+         if (!Prefs.toastOnBattery)
+             return ;
+ 
+-        const title = t === 5 ? "Battery critical" : (t === 10 ? "Battery very low" : "Battery low");
+-        root.send("battery-low", root.batteryAlertPath, title, root.batteryPct + "% left", true, t === 5 ? 6000 : 4000);
++        const title = t === 5 ? "Akku kritisch" : (t === 10 ? "Akku fast leer" : "Akku schwach");
++        root.send("battery-low", root.batteryAlertPath, title, root.batteryPct + "% übrig", true, t === 5 ? 6000 : 4000);
+     }
+ 
+     onBatteryPctChanged: root.checkLow()
+@@ -256,7 +256,7 @@
+ 
+         root.fullAnnounced = true;
+         if (Prefs.toastOnBattery)
+-            root.send("charger", root.batteryPath(100), "Fully charged", root.batteryPct + "%");
++            root.send("charger", root.batteryPath(100), "Vollständig geladen", root.batteryPct + "%");
+ 
+     }
+ 
+@@ -276,7 +276,7 @@
+             else
+                 root.fullAnnounced = false;
+             if (Prefs.toastOnBattery)
+-                root.send("charger", s === 1 ? root.chargingPath : root.batteryPath(root.batteryPct), s === 1 ? "Charging" : "On battery", root.batteryPct + "%");
++                root.send("charger", s === 1 ? root.chargingPath : root.batteryPath(root.batteryPct), s === 1 ? "Wird geladen" : "Im Akkubetrieb", root.batteryPct + "%");
+ 
+             root.checkLow();
+         }
+@@ -318,7 +318,7 @@
+             "name": address,
+             "icon": ""
+         };
+-        let detail = connected ? "Connected" : "Disconnected";
++        let detail = connected ? "Verbunden" : "Getrennt";
+         const dev = connected ? Bt.deviceAt(address) : null;
+         if (dev && dev.batteryAvailable && dev.battery > 0)
+             detail += " · " + (dev.battery <= 1 ? Math.round(dev.battery * 100) : Math.round(dev.battery)) + "%";
+@@ -392,9 +392,9 @@
+                 return ;
+ 
+             if (name !== "")
+-                root.send("wifi", "󰤨", name, "Wi-Fi connected");
++                root.send("wifi", "󰤨", name, "WLAN verbunden");
+             else
+-                root.send("wifi", "󰤮", Networking.wifiEnabled ? "Wi-Fi disconnected" : "Wi-Fi off", "");
++                root.send("wifi", "󰤮", Networking.wifiEnabled ? "WLAN getrennt" : "WLAN aus", "");
+         }
+     }
+ 
+@@ -419,7 +419,7 @@
+                 return ;
+ 
+             const text = s.description || s.nickname || s.name;
+-            root.send("sink", root.glyphPath(/headphone|headset|bluez/i.test(s.name + " " + text) ? "headphones" : "speaker"), text, "Sound output");
++            root.send("sink", root.glyphPath(/headphone|headset|bluez/i.test(s.name + " " + text) ? "headphones" : "speaker"), text, "Tonausgabe");
+         }
+     }
+ 
+@@ -434,15 +434,15 @@
+             root.armed = true;
+             // one of each is more than a real burst may hold
+             root.toast.queueCap = 16;
+-            root.send("preview-layout", root.glyphPath("keyboard"), root.layoutName || "English (US)", "Keyboard layout");
+-            root.send("preview-game", "game", "Game mode on", "");
+-            root.send("preview-charger", root.chargingPath, "Charging", pct + "%");
+-            root.send("preview-low", root.batteryAlertPath, "Battery low", "20% left", true);
++            root.send("preview-layout", root.glyphPath("keyboard"), root.layoutName || "English (US)", "Tastaturlayout");
++            root.send("preview-game", "game", "Spielmodus an", "");
++            root.send("preview-charger", root.chargingPath, "Wird geladen", pct + "%");
++            root.send("preview-low", root.batteryAlertPath, "Akku schwach", "20% übrig", true);
+             root.send("preview-bt", root.glyphPath("headphones"), "Headphones", "Connected · 80%");
+-            root.send("preview-wifi", "󰤨", root.wifiName || "Home network", "Wi-Fi connected");
++            root.send("preview-wifi", "󰤨", root.wifiName || "Heimnetzwerk", "WLAN verbunden");
+             root.send("preview-sink", root.glyphPath("speaker"), "Speakers", "Sound output");
+             root.send("preview-display", root.glyphPath("desktop"), "HDMI-A-1", "Display connected");
+-            root.send("preview-power", Power.icon(PowerProfile.Performance), Power.name(PowerProfile.Performance), "Power profile");
++            root.send("preview-power", Power.icon(PowerProfile.Performance), Power.name(PowerProfile.Performance), "Energieprofil");
+             root.toast.queueCap = cap;
+             root.armed = was;
+         }
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidpolkit/AuthCard.qml b2/lucidpolkit/AuthCard.qml
+--- base/lucidpolkit/AuthCard.qml	2026-10-07 17:38:47.417644350 +0200
++++ b2/lucidpolkit/AuthCard.qml	2026-10-07 17:38:47.806795397 +0200
+@@ -10,7 +10,7 @@
+     property bool shown: false
+ 
+     readonly property var identity: Polkit.identities[Polkit.identityIndex] !== undefined ? Polkit.identities[Polkit.identityIndex] : null
+-    readonly property string headline: Polkit.title !== "" ? Polkit.title : "Authentication required"
++    readonly property string headline: Polkit.title !== "" ? Polkit.title : "Authentifizierung erforderlich"
+     readonly property bool busy: Polkit.checking || (!Polkit.prompting && !Polkit.preview && !Polkit.granted)
+     readonly property bool canSubmit: !card.busy && pwInput.text !== ""
+ 
+@@ -147,7 +147,7 @@
+                 anchors.verticalCenter: parent.verticalCenter
+ 
+                 Text {
+-                    text: "Authentication required"
++                    text: "Authentifizierung erforderlich"
+                     color: Theme.accent
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fontLabelMd
+@@ -188,7 +188,7 @@
+             visible: card.identity !== null
+ 
+             Text {
+-                text: Polkit.multiUser ? "Continue as" : "Signing in as"
++                text: Polkit.multiUser ? "Fortfahren als" : "Anmelden als"
+                 color: Theme.subtextDim
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fontLabelSm
+@@ -441,7 +441,7 @@
+         Item {
+             id: status
+ 
+-            readonly property string line: Polkit.errorText !== "" ? Polkit.errorText : (Polkit.infoText !== "" ? Polkit.infoText : (card.busy ? "Checking with the authentication service…" : ""))
++            readonly property string line: Polkit.errorText !== "" ? Polkit.errorText : (Polkit.infoText !== "" ? Polkit.infoText : (card.busy ? "Prüfe mit dem Authentifizierungsdienst…" : ""))
+ 
+             width: parent.width
+             height: status.line !== "" ? 18 : 0
+@@ -531,13 +531,13 @@
+                 spacing: 8
+ 
+                 M3Button {
+-                    text: "Cancel"
++                    text: "Abbrechen"
+                     variant: "text"
+                     onClicked: Polkit.cancel()
+                 }
+ 
+                 M3Button {
+-                    text: "Authenticate"
++                    text: "Authentifizieren"
+                     variant: "filled"
+                     enabled: card.canSubmit
+                     onClicked: card.submit()
+@@ -572,7 +572,7 @@
+ 
+                     Text {
+                         width: parent.width
+-                        text: "Action  " + Polkit.actionId
++                        text: "Aktion  " + Polkit.actionId
+                         color: Theme.subtextDim
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fontBodySm
+@@ -581,7 +581,7 @@
+ 
+                     Text {
+                         width: parent.width
+-                        text: "Vendor  " + Polkit.vendor
++                        text: "Anbieter  " + Polkit.vendor
+                         color: Theme.subtextDim
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fontBodySm
+@@ -637,7 +637,7 @@
+ 
+         Text {
+             anchors.horizontalCenter: parent.horizontalCenter
+-            text: "Authorised"
++            text: "Autorisiert"
+             color: Theme.text
+             font.family: Theme.fontFamily
+             font.pixelSize: Theme.fontTitleMd
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidshot/Screenshot.qml b2/lucidshot/Screenshot.qml
+--- base/lucidshot/Screenshot.qml	2026-10-07 17:38:47.422548606 +0200
++++ b2/lucidshot/Screenshot.qml	2026-10-07 17:38:47.806996888 +0200
+@@ -91,7 +91,7 @@
+             "grim -g '" + geometry + "' '" + file + "' && " +
+             "$IM '" + file + "' \\( +clone -alpha extract -fill black -colorize 100 -fill white -draw \"roundrectangle 0,0 " + maxX + "," + maxY + " " + r + "," + r + "\" \\) -alpha off -compose CopyOpacity -composite '" + file + "' && " +
+             "wl-copy < '" + file + "' && " +
+-            "ACTION=$(notify-send 'Screenshot taken!' 'Saved to " + file + "' -i '" + file + "' -A 'open=Open Screenshot' --wait) && " +
++            "ACTION=$(notify-send 'Screenshot erstellt!' 'Gespeichert unter " + file + "' -i '" + file + "' -A 'open=Screenshot öffnen' --wait) && " +
+             "[ \"$ACTION\" = \"open\" ] && swappy -f '" + file + "'; true"
+         ]);
+     }
+@@ -274,7 +274,7 @@
+             flashWindow.captured();
+             Quickshell.execDetached(["sh", "-c",
+                 "wl-copy < '" + grimProcess.targetFile + "' && " +
+-                "ACTION=$(notify-send 'Screenshot taken!' 'Saved to " + grimProcess.targetFile + "' -i '" + grimProcess.targetFile + "' -A 'open=Open Screenshot' --wait) && " +
++                "ACTION=$(notify-send 'Screenshot erstellt!' 'Gespeichert unter " + grimProcess.targetFile + "' -i '" + grimProcess.targetFile + "' -A 'open=Screenshot öffnen' --wait) && " +
+                 "[ \"$ACTION\" = \"open\" ] && swappy -f '" + grimProcess.targetFile + "'; " +
+                 "true"
+             ]);
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidshot/SnapOverlay.qml b2/lucidshot/SnapOverlay.qml
+--- base/lucidshot/SnapOverlay.qml	2026-10-07 17:38:47.422650128 +0200
++++ b2/lucidshot/SnapOverlay.qml	2026-10-07 17:38:47.807163072 +0200
+@@ -173,7 +173,7 @@
+             mergeCmd +
+             finalCmd + "; " +
+             "rm -f '" + listFile + "' " + cleanupSegs + " " + cleanupMerged + "; " +
+-            "notify-send 'Recording saved' 'Saved to " + file + "'"
++            "notify-send 'Aufnahme gespeichert' 'Gespeichert unter " + file + "'"
+         ]);
+     }
+ 
+@@ -803,7 +803,7 @@
+ 
+                     IconAction {
+                         iconPath: "M3,3H9V5H5V9H3V3M15,3H21V9H19V5H15V3M19,15H21V21H15V19H19V15M3,15H5V19H9V21H3V15Z"
+-                        label: snapWindow.captureMode === "text" ? "Copy Text in Region" : "Snap Select"
++                        label: snapWindow.captureMode === "text" ? "Text im Bereich kopieren" : "Auswahl zuschneiden"
+                         active: snapWindow.activeTool === "select"
+                         disabled: snapWindow.ocrBusy || (snapWindow.captureMode === "video" && snapWindow.recordingState !== "idle")
+                         onTapped: snapWindow.runTool("select")
+@@ -811,7 +811,7 @@
+ 
+                     IconAction {
+                         iconPath: "M21,16H3V4H21M21,2H3C1.89,2 1,2.89 1,4V16A2,2 0 0,0 3,18H10V20H8V22H16V20H14V18H21A2,2 0 0,0 23,16V4C23,2.89 22.1,2 21,2Z"
+-                        label: snapWindow.captureMode === "text" ? "Copy All Text on Screen" : "Fullscreen"
++                        label: snapWindow.captureMode === "text" ? "Gesamten Text auf dem Bildschirm kopieren" : "Vollbild"
+                         active: snapWindow.activeTool === "fullscreen"
+                         disabled: snapWindow.ocrBusy || (snapWindow.captureMode === "video" && snapWindow.recordingState !== "idle")
+                         onTapped: snapWindow.runTool("fullscreen")
+@@ -828,7 +828,7 @@
+                     IconAction {
+                         anchors.verticalCenter: parent.verticalCenter
+                         iconPath: "M19.35,11.72L17.22,13.85L15.81,12.43L8.1,20.14L3.5,21.5L2.5,20.5L3.86,15.9L11.57,8.19L10.15,6.78L12.28,4.65L19.35,11.72Z"
+-                        label: "Pick a Colour"
++                        label: "Farbe wählen"
+                         activeColor: Theme.accent
+                         onTapped: snapWindow.startColorPick()
+                     }
+@@ -878,8 +878,8 @@
+                                 if (snapWindow.recordingState === "recording")
+                                     return "Pause";
+                                 if (snapWindow.recordingState === "paused")
+-                                    return "Resume";
+-                                return "Start Recording";
++                                    return "Fortsetzen";
++                                return "Aufnahme starten";
+                             }
+                             active: snapWindow.recordingState !== "idle"
+                             activeColor: snapWindow.recordingState === "recording" ? Theme.error : Theme.accent
+@@ -896,7 +896,7 @@
+ 
+                         IconAction {
+                             iconPath: "M11.83,9L15,12.16C15,12.11 15,12.05 15,12A3,3 0 0,0 12,9C11.94,9 11.89,9 11.83,9M7.53,9.8L9.08,11.35C9.03,11.56 9,11.77 9,12A3,3 0 0,0 12,15C12.22,15 12.44,14.97 12.65,14.92L14.2,16.47C13.53,16.8 12.79,17 12,17A5,5 0 0,1 7,12C7,11.21 7.2,10.47 7.53,9.8M2,4.27L4.28,6.55L4.73,7C3.08,8.3 1.78,10 1,12C2.73,16.39 7,19.5 12,19.5C13.55,19.5 15.03,19.2 16.38,18.66L16.81,19.08L19.73,22L21,20.73L3.27,3M12,7A5,5 0 0,1 17,12C17,12.64 16.87,13.26 16.64,13.82L19.57,16.75C21.07,15.5 22.27,13.86 23,12C21.27,7.61 17,4.5 12,4.5C10.6,4.5 9.26,4.75 8,5.2L10.17,7.35C10.74,7.13 11.35,7 12,7Z"
+-                            label: "Hide (switch to Video to bring back)"
++                            label: "Ausblenden (unter Video wieder einblenden)"
+                             disabled: snapWindow.recordingState === "idle"
+                             onTapped: snapWindow.hideToolbar()
+                         }
+@@ -1291,7 +1291,7 @@
+                 anchors.margins: 3
+ 
+                 ModeSegment {
+-                    label: "Photo"
++                    label: "Foto"
+                     iconPath: "M9,2L7.17,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6A2,2 0 0,0 20,4H16.83L15,2H9M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z"
+                     active: snapWindow.captureMode === "camera"
+                     disabled: modeSwitch.recording || snapWindow.ocrBusy
+@@ -1319,7 +1319,7 @@
+                 }
+ 
+                 ModeSegment {
+-                    label: "Colour"
++                    label: "Farbe"
+                     iconPath: "M19.35,11.72L17.22,13.85L15.81,12.43L8.1,20.14L3.5,21.5L2.5,20.5L3.86,15.9L11.57,8.19L10.15,6.78L12.28,4.65L19.35,11.72Z"
+                     active: snapWindow.captureMode === "color"
+                     disabled: modeSwitch.recording || snapWindow.ocrBusy
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/BatteryWidget.qml b2/lucidwidgets/BatteryWidget.qml
+--- base/lucidwidgets/BatteryWidget.qml	2026-10-07 17:38:47.422880143 +0200
++++ b2/lucidwidgets/BatteryWidget.qml	2026-10-07 17:38:47.807430678 +0200
+@@ -18,18 +18,18 @@
+     readonly property color tint: w.low ? Theme.error : Theme.accent
+     readonly property string stateText: {
+         if (!w.present)
+-            return "No battery";
++            return "Kein Akku";
+ 
+         if (w.full)
+-            return "Fully charged";
++            return "Vollständig geladen";
+ 
+         if (w.charging)
+-            return "Charging";
++            return "Wird geladen";
+ 
+         if (w.state === UPowerDeviceState.Empty)
+-            return "Empty";
++            return "Leer";
+ 
+-        return "On battery";
++        return "Im Akkubetrieb";
+     }
+     // only the figures this battery actually reports, so no column reads as a dash
+     readonly property var stats: {
+@@ -78,7 +78,7 @@
+         var h = Math.floor(secs / 3600);
+         var m = Math.round((secs % 3600) / 60);
+         var body = h > 0 ? h + " h " + m + " m" : m + " m";
+-        return w.charging ? body + " to full" : body + " left";
++        return w.charging ? body + " bis voll" : body + " übrig";
+     }
+ 
+     Item {
+@@ -282,7 +282,7 @@
+                 spacing: -2
+ 
+                 Text {
+-                    text: w.present ? w.percent + "%" : "No battery"
++                    text: w.present ? w.percent + "%" : "Kein Akku"
+                     color: Theme.text
+                     font.family: Theme.fontFamily
+                     font.pixelSize: 30
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/GamesWidget.qml b2/lucidwidgets/GamesWidget.qml
+--- base/lucidwidgets/GamesWidget.qml	2026-10-07 17:38:47.423102714 +0200
++++ b2/lucidwidgets/GamesWidget.qml	2026-10-07 17:38:47.807573148 +0200
+@@ -59,33 +59,33 @@
+     readonly property var hoverGame: w.shown.find((g) => {
+         return g.id === w.hoverId;
+     }) || null
+-    readonly property string emptyText: !w.scanned && !w.preview ? "" : (!w.found ? "Steam is not installed" : "No games installed yet")
++    readonly property string emptyText: !w.scanned && !w.preview ? "" : (!w.found ? "Steam ist nicht installiert" : "Noch keine Spiele installiert")
+ 
+     function ago(ts) {
+         if (!ts)
+-            return "Not played yet";
++            return "Noch nicht gespielt";
+ 
+         var s = Date.now() / 1000 - ts;
+         if (s < 3600)
+-            return "Played just now";
++            return "Gerade gespielt";
+ 
+         if (s < 86400)
+-            return "Played " + Math.floor(s / 3600) + " h ago";
++            return "Vor " + Math.floor(s / 3600) + " Std. gespielt";
+ 
+         var d = Math.floor(s / 86400);
+         if (d === 1)
+-            return "Played yesterday";
++            return "Gestern gespielt";
+ 
+         if (d < 14)
+-            return "Played " + d + " days ago";
++            return "Vor " + d + " Tagen gespielt";
+ 
+         if (d < 60)
+-            return "Played " + Math.floor(d / 7) + " weeks ago";
++            return "Vor " + Math.floor(d / 7) + " Wochen gespielt";
+ 
+         if (d < 730)
+-            return "Played " + Math.floor(d / 30) + " months ago";
++            return "Vor " + Math.floor(d / 30) + " Monaten gespielt";
+ 
+-        return "Played " + Math.floor(d / 365) + " years ago";
++        return "Vor " + Math.floor(d / 365) + " Jahren gespielt";
+     }
+ 
+     function hours(minutes) {
+@@ -391,7 +391,7 @@
+             spacing: 6
+ 
+             Text {
+-                text: "LAST PLAYED"
++                text: "ZULETZT GESPIELT"
+                 color: Theme.accent
+                 font.family: Theme.fontFamily
+                 font.pixelSize: 10
+@@ -517,7 +517,7 @@
+ 
+                 anchors.left: parent.left
+                 anchors.verticalCenter: parent.verticalCenter
+-                text: "GAMES"
++                text: "SPIELE"
+                 color: Theme.accent
+                 font.family: Theme.fontFamily
+                 font.pixelSize: 10
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/KdeconnectWidget.qml b2/lucidwidgets/KdeconnectWidget.qml
+--- base/lucidwidgets/KdeconnectWidget.qml	2026-10-07 17:38:47.423220096 +0200
++++ b2/lucidwidgets/KdeconnectWidget.qml	2026-10-07 17:38:47.807741506 +0200
+@@ -31,7 +31,7 @@
+     }
+ 
+     readonly property bool connected: w.dev ? (w.dev.reachable === true) : false
+-    readonly property string phoneName: w.dev ? (w.dev.name || "Phone") : "No phone"
++    readonly property string phoneName: w.dev ? (w.dev.name || "Telefon") : "Kein Telefon"
+     readonly property var batt: w.dev ? w.dev.battery : null
+     readonly property int chargePct: w.batt ? (w.batt.charge !== undefined ? w.batt.charge : -1) : -1
+     readonly property bool charging: w.batt ? !!w.batt.charging : false
+@@ -54,12 +54,12 @@
+     readonly property real battLevel: w.chargePct >= 0 ? w.chargePct / 100 : 0
+     readonly property string stateText: {
+         if (w.chargePct < 0)
+-            return "Connected";
++            return "Verbunden";
+ 
+         if (w.charging)
+-            return w.chargePct >= 100 ? "Fully charged" : "Charging";
++            return w.chargePct >= 100 ? "Vollständig geladen" : "Wird geladen";
+ 
+-        return w.low ? "Battery low" : "On battery";
++        return w.low ? "Akku schwach" : "Im Akkubetrieb";
+     }
+ 
+     component SignalMark: Row {
+@@ -151,8 +151,8 @@
+             iconSize: parent.iconSize
+             surface: true
+             hoverGrow: true
+-            tip: "Send file"
+-            onClicked: if (w.dev) KdeConnect.pickFiles(w.dev.id, "Send to " + w.dev.name)
++            tip: "Datei senden"
++            onClicked: if (w.dev) KdeConnect.pickFiles(w.dev.id, "An " + w.dev.name + " senden")
+         }
+ 
+         WidgetButton {
+@@ -162,7 +162,7 @@
+             iconSize: parent.iconSize
+             surface: true
+             hoverGrow: true
+-            tip: "Ring phone"
++            tip: "Telefon klingeln"
+             onClicked: if (w.dev) KdeConnect.ring(w.dev.id)
+         }
+ 
+@@ -173,7 +173,7 @@
+             iconSize: parent.iconSize
+             surface: true
+             hoverGrow: true
+-            tip: "Send clipboard"
++            tip: "Zwischenablage senden"
+             onClicked: if (w.dev) KdeConnect.sendClipboard(w.dev.id)
+         }
+ 
+@@ -184,8 +184,8 @@
+             iconSize: parent.iconSize
+             surface: true
+             hoverGrow: true
+-            tip: "Ping phone"
+-            onClicked: if (w.dev) KdeConnect.ping(w.dev.id, "Ping from Lucid")
++            tip: "Telefon pingen"
++            onClicked: if (w.dev) KdeConnect.ping(w.dev.id, "Ping von Lucid")
+         }
+ 
+     }
+@@ -224,7 +224,7 @@
+                 iconSize: 15
+                 surface: true
+                 hoverGrow: true
+-                tip: "Rescan devices"
++                tip: "Geräte neu einlesen"
+                 onClicked: KdeConnect.rescan()
+             }
+ 
+@@ -238,7 +238,7 @@
+ 
+                 Text {
+                     width: parent.width
+-                    text: KdeConnect.installed ? "No phone" : "Unavailable"
++                    text: KdeConnect.installed ? "Kein Telefon" : "Nicht verfügbar"
+                     color: Theme.text
+                     font.family: Theme.fontFamily
+                     font.pixelSize: 13
+@@ -248,7 +248,7 @@
+ 
+                 Text {
+                     width: parent.width
+-                    text: KdeConnect.installed ? "Pair in Settings" : "Install kdeconnect"
++                    text: KdeConnect.installed ? "Koppeln in den Einstellungen" : "kdeconnect installieren"
+                     color: Theme.subtextDim
+                     font.family: Theme.fontFamily
+                     font.pixelSize: 11
+@@ -283,7 +283,7 @@
+                 anchors.right: parent.right
+                 anchors.top: roomyIcon.bottom
+                 anchors.topMargin: 14
+-                text: KdeConnect.installed ? "No phone connected" : "KDE Connect unavailable"
++                text: KdeConnect.installed ? "Kein Telefon verbunden" : "KDE Connect nicht verfügbar"
+                 color: Theme.text
+                 font.family: Theme.fontFamily
+                 font.pixelSize: 14
+@@ -296,7 +296,7 @@
+                 anchors.right: parent.right
+                 anchors.top: roomyTitle.bottom
+                 anchors.topMargin: 3
+-                text: KdeConnect.installed ? "Pair a phone in Settings" : "Install kdeconnect to pair a phone"
++                text: KdeConnect.installed ? "Telefon in den Einstellungen koppeln" : "kdeconnect installieren, um ein Telefon zu koppeln"
+                 color: Theme.subtextDim
+                 font.family: Theme.fontFamily
+                 font.pixelSize: 11
+@@ -311,7 +311,7 @@
+                 iconSize: 18
+                 surface: true
+                 hoverGrow: true
+-                tip: "Rescan devices"
++                tip: "Geräte neu einlesen"
+                 onClicked: KdeConnect.rescan()
+             }
+ 
+@@ -657,7 +657,7 @@
+                     iconSize: 15
+                     surface: true
+                     hoverGrow: true
+-                    tip: "Previous track"
++                    tip: "Vorheriger Titel"
+                     onClicked: if (w.dev) KdeConnect.mpris(w.dev.id, "Previous")
+                 }
+ 
+@@ -679,7 +679,7 @@
+                     iconSize: 15
+                     surface: true
+                     hoverGrow: true
+-                    tip: "Next track"
++                    tip: "Nächster Titel"
+                     onClicked: if (w.dev) KdeConnect.mpris(w.dev.id, "Next")
+                 }
+ 
+@@ -699,7 +699,7 @@
+ 
+                 Text {
+                     anchors.horizontalCenter: parent.horizontalCenter
+-                    text: "Nothing playing"
++                    text: "Nichts läuft"
+                     color: Theme.subtextDim
+                     font.family: Theme.fontFamily
+                     font.pixelSize: 11
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/MediaWidget.qml b2/lucidwidgets/MediaWidget.qml
+--- base/lucidwidgets/MediaWidget.qml	2026-10-07 17:38:47.423299266 +0200
++++ b2/lucidwidgets/MediaWidget.qml	2026-10-07 17:38:47.807972914 +0200
+@@ -28,8 +28,8 @@
+     }
+     readonly property bool has: w.player !== null
+     readonly property bool playing: w.has ? w.player.isPlaying : false
+-    readonly property string title: w.has ? (w.player.trackTitle || "Unknown track") : "Nothing playing"
+-    readonly property string artist: w.has ? (w.player.trackArtist || w.player.identity || "") : "Start something and it lands here"
++    readonly property string title: w.has ? (w.player.trackTitle || "Unbekannter Titel") : "Nichts läuft"
++    readonly property string artist: w.has ? (w.player.trackArtist || w.player.identity || "") : "Starte etwas, dann erscheint es hier"
+     readonly property string artUrl: w.has ? (w.player.trackArtUrl || "") : ""
+     readonly property real length: w.has ? w.player.length : 0
+     readonly property real position: w.has ? w.player.position : 0
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/NetworkWidget.qml b2/lucidwidgets/NetworkWidget.qml
+--- base/lucidwidgets/NetworkWidget.qml	2026-10-07 17:38:47.423407090 +0200
++++ b2/lucidwidgets/NetworkWidget.qml	2026-10-07 17:38:47.808114161 +0200
+@@ -65,13 +65,13 @@
+     readonly property string internet: {
+         switch (w.preview ? "full" : Net.connectivity) {
+         case "full":
+-            return "Reachable";
++            return "Erreichbar";
+         case "portal":
+-            return "Sign-in page";
++            return "Anmeldeseite";
+         case "limited":
+-            return "Limited";
++            return "Eingeschränkt";
+         case "none":
+-            return "Unreachable";
++            return "Nicht erreichbar";
+         default:
+             return "";
+         }
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/NotesWidget.qml b2/lucidwidgets/NotesWidget.qml
+--- base/lucidwidgets/NotesWidget.qml	2026-10-07 17:38:47.423463486 +0200
++++ b2/lucidwidgets/NotesWidget.qml	2026-10-07 17:38:47.808237935 +0200
+@@ -101,7 +101,7 @@
+         anchors.leftMargin: 18
+         anchors.rightMargin: 18
+         anchors.topMargin: 16
+-        text: "Note"
++        text: "Notiz"
+         color: w.faded
+         font.family: Theme.fontFamily
+         font.pixelSize: 11
+@@ -181,7 +181,7 @@
+         Text {
+             anchors.left: parent.left
+             anchors.top: parent.top
+-            text: w.variant === "lined" ? "Type here. It stays put across reboots." : "Write something…"
++            text: w.variant === "lined" ? "Schreibe hier. Bleibt über Neustarts erhalten." : "Schreib etwas…"
+             color: Theme.alpha(w.ink, 0.32)
+             font.family: Theme.fontFamily
+             font.pixelSize: 13
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/PaletteWidget.qml b2/lucidwidgets/PaletteWidget.qml
+--- base/lucidwidgets/PaletteWidget.qml	2026-10-07 17:38:47.423520574 +0200
++++ b2/lucidwidgets/PaletteWidget.qml	2026-10-07 17:38:47.808338716 +0200
+@@ -27,7 +27,7 @@
+         "color": Theme.bgTile,
+         "on": Theme.text
+     }, {
+-        "name": "Error",
++        "name": "Fehler",
+         "color": Theme.errorContainer,
+         "on": Theme.fgErrorContainer
+     }]
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/ThermalWidget.qml b2/lucidwidgets/ThermalWidget.qml
+--- base/lucidwidgets/ThermalWidget.qml	2026-10-07 17:38:47.423780246 +0200
++++ b2/lucidwidgets/ThermalWidget.qml	2026-10-07 17:38:47.808451078 +0200
+@@ -423,7 +423,7 @@
+ 
+                 Text {
+                     width: parent.width
+-                    text: w.hasGpu ? (w.gpuAwake ? w.gpuShort : "Asleep, left undisturbed") : "Temperature"
++                    text: w.hasGpu ? (w.gpuAwake ? w.gpuShort : "Schlafend, unberührt") : "Temperatur"
+                     color: w.gpuAwake || !w.hasGpu ? Theme.text : Theme.subtextDim
+                     font.family: Theme.fontFamily
+                     font.pixelSize: 13
+@@ -442,7 +442,7 @@
+ 
+                 Text {
+                     anchors.right: parent.right
+-                    text: "DRAW"
++                    text: "VERBRAUCH"
+                     color: Theme.subtextDim
+                     font.family: Theme.fontFamily
+                     font.pixelSize: 9
+@@ -492,7 +492,7 @@
+             Chip {
+                 visible: w.gameModeConfigured || w.preview
+                 icon: "games"
+-                label: "Game mode"
++                label: "Spielmodus"
+                 on: w.gameModeOn
+                 busy: w.gameModeBusy
+                 onClicked: w.setGameMode(!w.gameModeOn)
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/TimerWidget.qml b2/lucidwidgets/TimerWidget.qml
+--- base/lucidwidgets/TimerWidget.qml	2026-10-07 17:38:47.423872861 +0200
++++ b2/lucidwidgets/TimerWidget.qml	2026-10-07 17:38:47.808620919 +0200
+@@ -61,25 +61,25 @@
+     readonly property string phaseLabel: w.phase === "long" ? "LONG BREAK" : (w.phase === "break" ? "BREAK" : "FOCUS")
+     readonly property string status: {
+         if (w.finished)
+-            return "Time's up";
++            return "Zeit ist um";
+ 
+         if (w.paused)
+-            return "Paused";
++            return "Pausiert";
+ 
+         if (w.counting)
+             return "";
+ 
+         if (w.mode === "pomodoro")
+-            return w.preview ? "" : "Click to start";
++            return w.preview ? "" : "Klicken zum Starten";
+ 
+-        return "Scroll to set";
++        return "Scrollen zum Einstellen";
+     }
+     readonly property string lapText: {
+         var n = w.laps.length;
+         if (n === 0)
+-            return w.swRunning ? "" : (w.elapsed > 0 ? "Paused" : "Click to start");
++            return w.swRunning ? "" : (w.elapsed > 0 ? "Pausiert" : "Klicken zum Starten");
+ 
+-        return "Lap " + n + " · " + w.watch(w.laps[n - 1] - (n > 1 ? w.laps[n - 2] : 0));
++        return "Runde " + n + " · " + w.watch(w.laps[n - 1] - (n > 1 ? w.laps[n - 2] : 0));
+     }
+ 
+     function two(n) {
+@@ -228,9 +228,9 @@
+                 return ;
+ 
+             if (n.phase === "focus")
+-                w.alert("Break's over", "Round " + ((n.round - 1) % 4 + 1) + " of 4, back to it.");
++                w.alert("Pause vorbei", "Runde " + ((n.round - 1) % 4 + 1) + " von 4, weiter geht's.");
+             else
+-                w.alert("Focus round done", "Take a " + Math.round(w.phaseLength(n.phase) / 60000) + " minute " + (n.phase === "long" ? "long break." : "break."));
++                w.alert("Fokusrunde geschafft", "Mach eine " + Math.round(w.phaseLength(n.phase) / 60000) + "-minütige " + (n.phase === "long" ? "lange Pause." : "Pause."));
+             return ;
+         }
+         w.write({
+@@ -239,7 +239,7 @@
+             "doneAt": late ? 0 : Date.now()
+         });
+         if (!late)
+-            w.alert("Time's up", "The " + w.clock(w.duration) + " timer has finished.");
++            w.alert("Zeit ist um", "Der " + w.clock(w.duration) + "-Timer ist abgelaufen.");
+ 
+     }
+ 
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/TodoWidget.qml b2/lucidwidgets/TodoWidget.qml
+--- base/lucidwidgets/TodoWidget.qml	2026-10-07 17:38:47.423940739 +0200
++++ b2/lucidwidgets/TodoWidget.qml	2026-10-07 17:38:47.808760874 +0200
+@@ -100,7 +100,7 @@
+ 
+             anchors.left: parent.left
+             anchors.verticalCenter: parent.verticalCenter
+-            text: w.focusOnly ? "UP NEXT" : "TO-DO"
++            text: w.focusOnly ? "ALS NÄCHSTES" : "TO-DO"
+             color: Theme.accent
+             font.family: Theme.fontFamily
+             font.pixelSize: 10
+@@ -241,7 +241,7 @@
+     Text {
+         anchors.centerIn: scroller
+         width: scroller.width - 40
+-        text: w.items.length === 0 ? "Nothing on the list yet." : "All done."
++        text: w.items.length === 0 ? "Noch nichts auf der Liste." : "Alles erledigt."
+         color: Theme.subtextDim
+         font.family: Theme.fontFamily
+         font.pixelSize: 12
+@@ -331,7 +331,7 @@
+             anchors.left: addMark.right
+             anchors.leftMargin: 12
+             anchors.verticalCenter: parent.verticalCenter
+-            text: "Add an item"
++            text: "Eintrag hinzufügen"
+             color: Theme.subtextDim
+             font.family: Theme.fontFamily
+             font.pixelSize: 13
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/WeatherWidget.qml b2/lucidwidgets/WeatherWidget.qml
+--- base/lucidwidgets/WeatherWidget.qml	2026-10-07 17:38:47.424185732 +0200
++++ b2/lucidwidgets/WeatherWidget.qml	2026-10-07 17:38:47.808900258 +0200
+@@ -84,7 +84,7 @@
+         var dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+         var today = Loc.now();
+         if (dt.getDate() === today.getDate() && dt.getMonth() === today.getMonth())
+-            return "Today";
++            return "Heute";
+ 
+         return dt.toLocaleDateString(Qt.locale(), "ddd");
+     }
+@@ -111,7 +111,7 @@
+ 
+         Text {
+             anchors.horizontalCenter: parent.horizontalCenter
+-            text: w.trouble !== "" ? "Weather unavailable" : "Fetching weather…"
++            text: w.trouble !== "" ? "Wetter nicht verfügbar" : "Wetter wird geladen…"
+             color: Theme.subtext
+             font.family: Theme.fontFamily
+             font.pixelSize: 13
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/lucidwidgets/WidgetMenu.qml b2/lucidwidgets/WidgetMenu.qml
+--- base/lucidwidgets/WidgetMenu.qml	2026-10-07 17:38:47.424602000 +0200
++++ b2/lucidwidgets/WidgetMenu.qml	2026-10-07 17:38:47.809046735 +0200
+@@ -276,7 +276,7 @@
+                     Repeater {
+                         model: [{
+                             "key": "full",
+-                            "label": "Full width"
++                            "label": "Volle Breite"
+                         }, {
+                             "key": "reset",
+                             "label": "Reset"
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/Net.qml b2/Net.qml
+--- base/Net.qml	2026-10-07 17:38:47.405868317 +0200
++++ b2/Net.qml	2026-10-07 17:38:47.809195145 +0200
+@@ -42,15 +42,15 @@
+     readonly property string connectivityLabel: {
+         switch (Networking.connectivity) {
+         case NetworkConnectivity.Full:
+-            return "Connected to the internet";
++            return "Mit dem Internet verbunden";
+         case NetworkConnectivity.Portal:
+-            return "Behind a sign-in page";
++            return "Hinter einer Anmeldeseite";
+         case NetworkConnectivity.Limited:
+-            return "Connected, but no internet";
++            return "Verbunden, aber ohne Internet";
+         case NetworkConnectivity.None:
+-            return "No internet";
++            return "Kein Internet";
+         default:
+-            return "Not checked";
++            return "Nicht geprüft";
+         }
+     }
+ 
+@@ -63,9 +63,9 @@
+     function securityLabel(sec) {
+         switch (sec) {
+         case WifiSecurityType.Open:
+-            return "Open";
++            return "Offen";
+         case WifiSecurityType.Owe:
+-            return "Open (encrypted)";
++            return "Offen (verschlüsselt)";
+         case WifiSecurityType.StaticWep:
+         case WifiSecurityType.DynamicWep:
+             return "WEP";
+@@ -111,7 +111,7 @@
+         if (s >= 25)
+             return "Fair";
+ 
+-        return "Weak";
++        return "Schwach";
+     }
+ 
+     // the confirm dialog carries only a token, so these come back by name
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/Notifs.qml b2/Notifs.qml
+--- base/Notifs.qml	2026-10-07 17:38:47.622233754 +0200
++++ b2/Notifs.qml	2026-10-07 18:42:38.924015045 +0200
+@@ -189,7 +189,7 @@
+         return 3;
+     }
+ 
+-    readonly property var sectionNames: ["New", "Earlier today", "Yesterday", "Older"]
++    readonly property var sectionNames: ["Neu", "Heute", "Gestern", "Älter"]
+ 
+     function regroup() {
+         root.timeTick;
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/Polkit.qml b2/Polkit.qml
+--- base/Polkit.qml	2026-10-07 17:38:47.406027698 +0200
++++ b2/Polkit.qml	2026-10-07 17:38:47.809461038 +0200
+@@ -36,7 +36,7 @@
+     property string vendor: ""
+ 
+     readonly property bool prompting: root.flowRef !== null && root.flowRef.isResponseRequired
+-    readonly property string prompt: root.flowRef ? root.flowRef.inputPrompt : "Password"
++    readonly property string prompt: root.flowRef ? root.flowRef.inputPrompt : "Passwort"
+     readonly property bool secret: root.flowRef ? !root.flowRef.responseVisible : true
+     readonly property bool multiUser: root.identities.length > 1
+     readonly property string glyph: root.glyphFor(root.actionId, root.iconHint)
+@@ -225,7 +225,7 @@
+ 
+             root.submitted = false;
+             if (root.errorText === "")
+-                root.errorText = "That password was not accepted.";
++                root.errorText = "Dieses Passwort wurde nicht akzeptiert.";
+ 
+             root.failed();
+         }
+@@ -315,7 +315,7 @@
+             root.preview = true;
+             root.actionId = id;
+             root.iconHint = "";
+-            root.message = root.humanise("Authentication is needed to run `/usr/bin/lucid-preview' as the super user");
++            root.message = root.humanise("Authentifizierung ist nötig, um `/usr/bin/lucid-preview' als Superuser auszuführen");
+             root.identities = Users.users.map((u) => {
+                 return {
+                     "id": u.uid,
+@@ -335,7 +335,7 @@
+         }
+ 
+         function fail(): string {
+-            root.errorText = "That password was not accepted.";
++            root.errorText = "Dieses Passwort wurde nicht akzeptiert.";
+             root.checking = false;
+             root.failed();
+             return "failed";
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/Power.qml b2/Power.qml
+--- base/Power.qml	2026-10-07 17:38:47.406077783 +0200
++++ b2/Power.qml	2026-10-07 17:38:47.809585654 +0200
+@@ -17,22 +17,22 @@
+ 
+     function name(p) {
+         if (p === PowerProfile.Performance)
+-            return "Performance";
++            return "Leistung";
+ 
+         if (p === PowerProfile.PowerSaver)
+-            return "Power saver";
++            return "Energiesparmodus";
+ 
+-        return "Balanced";
++        return "Ausgeglichen";
+     }
+ 
+     function description(p) {
+         if (p === PowerProfile.Performance)
+-            return "Full speed, for more heat and less battery";
++            return "Volles Tempo, mehr Abwärme, weniger Akku";
+ 
+         if (p === PowerProfile.PowerSaver)
+-            return "Cooler and quieter, and the battery lasts longer";
++            return "Kühler und leiser, der Akku hält länger";
+ 
+-        return "Speed and battery life kept in step";
++        return "Tempo und Akkulaufzeit im Gleichgewicht";
+     }
+ 
+     // a bolt, a leaf and a gauge
+@@ -48,12 +48,12 @@
+ 
+     function degradationText(reason) {
+         if (reason === "lap-detected")
+-            return "Performance is held back while the laptop sits on a lap.";
++            return "Leistung wird gedrosselt, solange das Notebook auf dem Schoß steht.";
+ 
+         if (reason === "high-operating-temperature")
+-            return "Performance is held back until the machine cools down.";
++            return "Leistung wird gedrosselt, bis sich das Gerät abkühlt.";
+ 
+-        return "Performance is held back (" + reason + ").";
++        return "Leistung wird gedrosselt (" + reason + ").";
+     }
+ 
+     function set(p) {
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/Prefs.qml b2/Prefs.qml
+--- base/Prefs.qml	2026-10-07 17:38:47.406146753 +0200
++++ b2/Prefs.qml	2026-10-07 17:38:47.809712654 +0200
+@@ -243,13 +243,13 @@
+     property alias envApplyHypr: s.envApplyHypr
+ 
+     readonly property var builtinThemes: [
+-        { "id": "matugen", "name": "Matugen", "desc": "Colors generated from your wallpaper", "swatchBg": "#12171a", "swatchAccent": "#8ad0ee" },
+-        { "id": "pywal", "name": "Pywal", "desc": "Wallpaper colors via pywal's classic palette", "swatchBg": "#1a1e24", "swatchAccent": "#c9a1a9" },
+-        { "id": "catppuccin-mocha", "name": "Catppuccin Mocha", "desc": "Soothing pastel dark theme", "swatchBg": "#1e1e2e", "swatchAccent": "#89b4fa" },
+-        { "id": "gruvbox", "name": "Gruvbox", "desc": "Retro groove warm palette", "swatchBg": "#282828", "swatchAccent": "#83a598" },
+-        { "id": "nightfox", "name": "Nightfox", "desc": "Deep navy with muted blue accents", "swatchBg": "#192330", "swatchAccent": "#719cd6" },
+-        { "id": "nord", "name": "Nord", "desc": "Arctic blue-grey palette", "swatchBg": "#232831", "swatchAccent": "#88c0d0" },
+-        { "id": "tokyo-night", "name": "Tokyo Night", "desc": "Dark blues and violets", "swatchBg": "#1a1b26", "swatchAccent": "#7aa2f7" }
++        { "id": "matugen", "name": "Matugen", "desc": "Farben aus deinem Hintergrundbild erzeugt", "swatchBg": "#12171a", "swatchAccent": "#8ad0ee" },
++        { "id": "pywal", "name": "Pywal", "desc": "Hintergrundfarben über pywals klassische Palette", "swatchBg": "#1a1e24", "swatchAccent": "#c9a1a9" },
++        { "id": "catppuccin-mocha", "name": "Catppuccin Mocha", "desc": "Beruhigendes pastellfarbenes Dunkelthema", "swatchBg": "#1e1e2e", "swatchAccent": "#89b4fa" },
++        { "id": "gruvbox", "name": "Gruvbox", "desc": "Warme Retro-Groove-Palette", "swatchBg": "#282828", "swatchAccent": "#83a598" },
++        { "id": "nightfox", "name": "Nightfox", "desc": "Tiefes Marineblau mit dezenten Blauakzenten", "swatchBg": "#192330", "swatchAccent": "#719cd6" },
++        { "id": "nord", "name": "Nord", "desc": "Arktische Blaugrau-Palette", "swatchBg": "#232831", "swatchAccent": "#88c0d0" },
++        { "id": "tokyo-night", "name": "Tokyo Night", "desc": "Dunkle Blau- und Violettöne", "swatchBg": "#1a1b26", "swatchAccent": "#7aa2f7" }
+     ]
+     // themes imported from a scheme repo, read back from their meta.json
+     property var userThemes: []
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/shell.qml b2/shell.qml
+--- base/shell.qml	2026-10-07 17:38:47.424833097 +0200
++++ b2/shell.qml	2026-10-07 17:38:47.809779754 +0200
+@@ -235,15 +235,15 @@
+             onTextResult: (status) => {
+                 snapMod.finishTextRead();
+                 if (status === "copied")
+-                    toastMod.popup("copy", "Text copied", false);
++                    toastMod.popup("copy", "Text kopiert", false);
+                 else if (status === "notool")
+-                    toastMod.popup("alert", "Install tesseract to copy text", true);
++                    toastMod.popup("alert", "tesseract installieren, um Text zu kopieren", true);
+                 else
+-                    toastMod.popup("alert", "No text found", true);
++                    toastMod.popup("alert", "Kein Text gefunden", true);
+             }
+             onColorResult: (value, hex, status) => {
+                 if (status === "notool") {
+-                    toastMod.popup("alert", "Install hyprpicker to pick colours", true);
++                    toastMod.popup("alert", "hyprpicker installieren, um Farben zu wählen", true);
+                 } else if (status === "ok") {
+                     snapMod.open = false;
+                     if (hex === "")
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/Updates.qml b2/Updates.qml
+--- base/Updates.qml	2026-10-07 17:38:47.406527293 +0200
++++ b2/Updates.qml	2026-10-07 17:38:47.810068097 +0200
+@@ -50,50 +50,50 @@
+     function ago(ts) {
+         var m = Math.max(0, Math.round((Date.now() - ts) / 60000));
+         if (m < 2)
+-            return "just now";
++            return "gerade eben";
+ 
+         if (m < 60)
+             return m + " minutes ago";
+ 
+         var h = Math.round(m / 60);
+         if (h < 24)
+-            return h === 1 ? "an hour ago" : h + " hours ago";
++            return h === 1 ? "vor einer Stunde" : "vor " + h + " Stunden";
+ 
+         var d = Math.round(h / 24);
+-        return d === 1 ? "yesterday" : d + " days ago";
++        return d === 1 ? "gestern" : "vor " + d + " Tagen";
+     }
+ 
+     readonly property string status: {
+         if (root.current === "")
+-            return "Lucid cannot tell which version it is — there is no VERSION file beside shell.qml.";
++            return "Lucid kann die Version nicht bestimmen — keine VERSION-Datei neben shell.qml.";
+ 
+         if (root.busy)
+-            return "Asking GitHub…";
++            return "Frag GitHub…";
+ 
+         if (root.problem === "offline")
+-            return "Could not reach GitHub. Lucid tries again later.";
++            return "GitHub nicht erreichbar. Lucid versucht es später erneut.";
+ 
+         if (root.problem === "ratelimited")
+-            return "GitHub is rate-limiting this address. Lucid tries again later.";
++            return "GitHub begrenzt diese Adresse. Lucid versucht es später erneut.";
+ 
+         if (root.problem === "norelease")
+-            return "No release has been published yet.";
++            return "Es wurde noch keine Version veröffentlicht.";
+ 
+         if (root.problem === "unreadable")
+-            return "GitHub answered with something Lucid could not read.";
++            return "GitHub hat etwas geliefert, das Lucid nicht lesen kann.";
+ 
+         if (root.available)
+-            return (root.latestName !== "" ? root.latestName + ". " : "") + "Pull the repo and run ./install.sh to update.";
++            return (root.latestName !== "" ? root.latestName + ". " : "") + "Repo ziehen und ./install.sh ausführen, um zu aktualisieren.";
+ 
+         // a saved timestamp outlives the reason for it, so an empty latest after
+         // a real check means nothing is published rather than up to date
+         if (root.checkedAt > 0 && root.latest === "")
+-            return "No release has been published yet.";
++            return "Es wurde noch keine Version veröffentlicht.";
+ 
+         if (root.checkedAt > 0)
+-            return "Up to date — checked " + root.ago(root.checkedAt) + ".";
++            return "Aktuell — geprüft " + root.ago(root.checkedAt) + ".";
+ 
+-        return Prefs.updateCheck ? "Not checked yet." : "The daily check is off.";
++        return Prefs.updateCheck ? "Noch nicht geprüft." : "Die tägliche Prüfung ist aus.";
+     }
+ 
+     function check() {
+@@ -122,7 +122,7 @@
+ 
+         root.notified = root.latest;
+         root.save();
+-        var body = "You have v" + root.current + ". Pull the repo and run ./install.sh to update.";
++        var body = "Du hast v" + root.current + ". Repo ziehen und ./install.sh ausführen, um zu aktualisieren.";
+         if (root.latestName !== "" && root.latestName.trim().replace(/^v/i, "") !== root.latest)
+             body = root.latestName + "\n" + body;
+ 
+diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=support' '--exclude=defaults' '--exclude=__pycache__' '--exclude=wallpapers' '--exclude=install.sh' '--exclude=uninstall.sh' '--exclude=README.md' '--exclude=LICENSE' '--exclude=.gitignore' base/WeatherSource.qml b2/WeatherSource.qml
+--- base/WeatherSource.qml	2026-10-07 17:38:47.615491802 +0200
++++ b2/WeatherSource.qml	2026-10-07 17:38:47.810174087 +0200
+@@ -150,7 +150,7 @@
+         onExited: (code) => {
+             src.busy = false;
+             if (code !== 0)
+-                src.lastError = "could not reach the forecast service";
++                src.lastError = "Wetterdienst nicht erreichbar";
+ 
+         }
+ 
+@@ -164,9 +164,9 @@
+                     if (data && data.current && data.daily)
+                         src.store(data);
+                     else
+-                        src.lastError = "no forecast for that position";
++                        src.lastError = "kein Wetterbericht für diese Position";
+                 } catch (e) {
+-                    src.lastError = "could not read the forecast";
++                    src.lastError = "Wetterbericht konnte nicht gelesen werden";
+                 }
+             }
+         }

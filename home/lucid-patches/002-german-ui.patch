@@ -66,7 +66,7 @@ diff -ruN '--exclude=.git' '--exclude=.github' '--exclude=.claude' '--exclude=su
  
                                  Text {
 -                                    text: "Feels like " + root.feelsLike + "°C"
-+                                    text: "Fühlt sich wie " + root.feelsLike + "°C"
++                                    text: "Gefühlte Temperatur " + root.feelsLike + "°C"
                                      color: Theme.subtextDim
                                      font.family: Theme.fontFamily
                                      font.pixelSize: Theme.fontLabel
