@@ -326,6 +326,12 @@
       # reclaim while keeping >1.5x margin. Check margins in the journal:
       # "Normal pages needed: X, available pages: Y".
       "w /sys/power/image_size - - - - 4294967296"
+      # FnLock ON = F1-F12 send real F-keys by default (Fn+key = media) —
+      # polarity proven by evdev capture 2026-10-06 (fn_lock=1: bare F1 →
+      # KEY_F1; 0: bare F1 → XF86 mute). The bit persists in the EC across
+      # reboots; this pins the preferred default each boot. Toggle freely
+      # with Fn+Esc during a session (the FnLk LED mirrors the bit).
+      "w /sys/class/leds/platform::fnlock/brightness - - - - 1"
       "d /persist 0755 root root - -"
       "d /persist/home/ 0711 ${mainUser} ${mainUser} - -"
       "d /persist/home/${mainUser} 0700 ${mainUser} ${mainUser} - -"
