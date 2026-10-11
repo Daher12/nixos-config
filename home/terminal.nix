@@ -141,7 +141,6 @@ in
         settings = {
           font_family = cfg.kitty.fontFamily;
           font_size = cfg.kitty.fontSize;
-          background_opacity = "0.93";
           hide_window_decorations = "yes";
           shell = "fish --login --interactive";
           scrollback_lines = 10000;
@@ -150,7 +149,25 @@ in
           # decoration rounding = 16 (home/hyprland.nix). Without padding the
           # prompt glyphs sit under the rounded corners and get clipped.
           window_padding_width = 12;
-        };
+        }
+        // (lib.optionalAttrs (!config.desktop.lucid.enable) {
+          # Lucid's Glass slider owns terminal opacity on Hyprland hosts (see
+          # extraConfig below) — there the static value would fight the
+          # slider. Kept for the GNOME generations (latitude, yoga-gnome),
+          # where lucid never runs and lucid-glass.conf does not exist.
+          background_opacity = "0.93";
+        });
+        # Lucid Glass (Settings > General > Glass) writes
+        # ~/.config/kitty/lucid-glass.conf and signals kitty (USR1) to reload.
+        # The include must live here because HM owns kitty.conf as a read-only
+        # store symlink — lucid's own auto-append into kitty.conf fails
+        # silently (EACCES) and its .pre-lucid-glass backup marks the attempt
+        # as done, so it never retries. Absolute path because kitty.conf
+        # itself is a store symlink; included directives land last, so the
+        # Glass slider wins over `settings` (and 1.00 = fully opaque at Off).
+        extraConfig = lib.mkIf config.desktop.lucid.enable ''
+          include ${config.home.homeDirectory}/.config/kitty/lucid-glass.conf
+        '';
       };
     })
 

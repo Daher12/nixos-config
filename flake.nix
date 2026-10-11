@@ -9,7 +9,7 @@
     };
 
     lanzaboote = {
-      url = "github:nix-community/lanzaboote/v1.1.0";
+      url = "github:nix-community/lanzaboote/v1.2.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -51,7 +51,7 @@
     # The libstdc++ LD_LIBRARY_PATH wrap in home/opencode.nix covers the
     # resulting stdenv mismatch.
     opencode = {
-      url = "github:anomalyco/opencode/v2.0.23";
+      url = "github:anomalyco/opencode/v2.0.26";
     };
 
     # Quickshell engine — upstream flake (docs: the GitHub mirror is
@@ -121,7 +121,66 @@
         # from history).
         (final: _prev: {
           dms-greeter = inputs.dank-greeter.packages.${final.stdenv.hostPlatform.system}.dms-greeter;
-          quickshell = inputs.quickshell.packages.${final.stdenv.hostPlatform.system}.quickshell;
+          # withModules appends Qt modules to the wrapper derivation, whose
+          # wrapQtAppsHook folds their qml dirs into the baked
+          # NIXPKGS_QT6_QML_IMPORT_PATH (bin/qs is a makeQtWrapper C wrapper,
+          # not a shell script — runtime env overrides cannot extend that
+          # list safely). lucid v1.20 imports Qt5Compat.GraphicalEffects
+          # (lucidbar/Workspaces.qml, lucidui/ShapedImage.qml; upstream docs
+          # list qt6-5compat as a hard requirement, Arch installs it
+          # system-wide) — without it the shell crash-looped on
+          # "module Qt5Compat.GraphicalEffects is not installed" after the
+          # 2026-10-10 switch. Same-ABI module: quickshell follows this
+          # flake's nixpkgs.
+          # ⚠️ Upstream default.nix's passthru.withModules closes over the
+          # ORIGINAL wrapper let-binding: (pkg.overrideAttrs f).withModules m
+          # and (pkg.override g).withModules m silently DISCARD the override
+          # (verified 2026-10-10 — eval returned the stock drv, patches=[]).
+          # The wrapper is also a separate derivation (cp -r ${unwrapped}),
+          # so package-level patches cannot reach the binary anyway. Hence:
+          # patch passthru.unwrapped, then replicate the upstream wrapper
+          # verbatim against the patched build (qt5compat folded into
+          # buildInputs exactly as withModules would).
+          quickshell =
+            let
+              qs = inputs.quickshell.packages.${final.stdenv.hostPlatform.system}.quickshell;
+              qsUnwrapped = qs.unwrapped.overrideAttrs (old: {
+                # IconImageProvider::requestPixmap calls the GUI-thread-only
+                # Qt icon machinery (QIcon::fromTheme/QIcon::pixmap) from BOTH
+                # the main thread (sync IconImage loads, e.g. lucid dock
+                # items) and the QQuickPixmapReader thread (async loads) —
+                # crash-looped lucid restarts 2026-10-10 (SIGSEGV in
+                # QSvgIconEngine + __cxa_pure_virtual in
+                # QPlatformPixmap::fromFile, ~/.cache/quickshell/crashes).
+                # The patch marshals off-thread requests onto the GUI thread
+                # (BlockingQueuedConnection, inline on the GUI thread itself).
+                # A plain mutex was tried first and reverted same day: it
+                # turned the race into a deadlock — the reader thread wedged
+                # inside a request and every icon silently fell back to
+                # generics. Drop when upstream fixes
+                # #1007/#1028/#1056/#1079 — also restore upstream
+                # withModules for qt5compat below.
+                patches = (old.patches or [ ]) ++ [ ./quickshell-patches/201-iconprovider-thread-safety.patch ];
+              });
+            in
+            qsUnwrapped.stdenv.mkDerivation {
+              inherit (qsUnwrapped) version meta;
+              pname = "${qsUnwrapped.pname}-wrapped";
+
+              nativeBuildInputs = qsUnwrapped.nativeBuildInputs ++ [ final.qt6.wrapQtAppsHook ];
+              buildInputs = qsUnwrapped.buildInputs ++ [ final.qt6.qt5compat ];
+
+              dontUnpack = true;
+              dontConfigure = true;
+              dontBuild = true;
+
+              installPhase = ''
+                mkdir -p $out
+                cp -r ${qsUnwrapped}/* $out
+              '';
+
+              passthru.unwrapped = qsUnwrapped;
+            };
         })
       ];
 

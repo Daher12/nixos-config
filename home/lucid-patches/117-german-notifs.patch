@@ -1,0 +1,164 @@
+diff -ruN -x '*.rej' -x '*.orig' prev/lucidbar/Notifications.qml work117/lucidbar/Notifications.qml
+--- prev/lucidbar/Notifications.qml	2026-10-08 13:48:40.000000000 +0200
++++ work117/lucidbar/Notifications.qml	2026-10-10 21:31:20.491501086 +0200
+@@ -612,7 +612,7 @@
+ 
+                             Text {
+                                 anchors.verticalCenter: parent.verticalCenter
+-                                text: root.popupOverflow + " more"
++                                text: root.popupOverflow + " weitere" // nixos-config local patch 117 (German)
+                                 color: Theme.subtext
+                                 font.family: Theme.fontFamily
+                                 font.bold: true
+@@ -689,7 +689,7 @@
+                 Text {
+                     anchors.left: parent.left
+                     anchors.verticalCenter: parent.verticalCenter
+-                    text: "Notifications"
++                    text: "Benachrichtigungen"
+                     color: Theme.text
+                     font.family: Theme.fontFamily
+                     font.weight: Font.DemiBold
+@@ -732,15 +732,15 @@
+                     anchors.verticalCenter: parent.verticalCenter
+                     text: {
+                         if (Notifs.dnd)
+-                            return "Do Not Disturb · " + root.notifCount + " waiting";
++                            return "Nicht stören · " + root.notifCount + " ausstehend";
+ 
+                         if (Notifs.quietNow)
+-                            return "Quiet hours · " + root.notifCount + " waiting";
++                            return "Ruhezeiten · " + root.notifCount + " ausstehend";
+ 
+                         if (root.notifCount === 0)
+-                            return "Nothing waiting";
++                            return "Nichts offen";
+ 
+-                        return root.notifCount === 1 ? "1 notification" : root.notifCount + " notifications";
++                        return root.notifCount === 1 ? "1 Benachrichtigung" : root.notifCount + " Benachrichtigungen";
+                     }
+                     color: (Notifs.dnd || Notifs.quietNow) ? Theme.accent : Theme.subtext
+                     font.family: Theme.fontFamily
+@@ -752,7 +752,7 @@
+                     anchors.right: parent.right
+                     anchors.verticalCenter: parent.verticalCenter
+                     visible: Notifs.rows.length > 0 && Prefs.notifGrouping
+-                    label: "Expand all"
++                    label: "Alle ausklappen"
+                     labelColor: Theme.subtext
+                     onClicked: Notifs.expandAll()
+                 }
+@@ -780,7 +780,7 @@
+ 
+                     Text {
+                         anchors.horizontalCenter: parent.horizontalCenter
+-                        text: "You're all caught up"
++                        text: "Du bist auf dem neuesten Stand"
+                         color: Theme.subtext
+                         font.family: Theme.fontFamily
+                         font.weight: Font.DemiBold
+@@ -790,7 +790,7 @@
+ 
+                     Text {
+                         anchors.horizontalCenter: parent.horizontalCenter
+-                        text: Notifs.dnd ? "Notifications are being held back" : "New notifications will show up here"
++                        text: Notifs.dnd ? "Benachrichtigungen werden zurückgehalten" : "Neue Benachrichtigungen erscheinen hier"
+                         color: Theme.subtextDim
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fs(10)
+@@ -966,7 +966,7 @@
+                 NotifTextButton {
+                     anchors.right: parent.right
+                     anchors.bottom: parent.bottom
+-                    label: "Clear all"
++                    label: "Alle löschen" // nixos-config local patch 117 (German)
+                     enabled: root.notifCount > 0
+                     onClicked: Notifs.clearAll()
+                 }
+diff -ruN -x '*.rej' -x '*.orig' prev/lucidnotif/NotifActions.qml work117/lucidnotif/NotifActions.qml
+--- prev/lucidnotif/NotifActions.qml	2026-10-08 13:48:40.000000000 +0200
++++ work117/lucidnotif/NotifActions.qml	2026-10-10 21:31:10.935440934 +0200
+@@ -71,7 +71,7 @@
+         // reply leads, because it is the one that needs no reading
+         NotifChip {
+             visible: actions.canReply
+-            label: actions.notification && actions.notification.inlineReplyPlaceholder ? actions.notification.inlineReplyPlaceholder : "Reply"
++            label: actions.notification && actions.notification.inlineReplyPlaceholder ? actions.notification.inlineReplyPlaceholder : "Antworten" /* nixos-config local patch 117 (German) */
+             iconPath: Notifs.icons.reply
+             onClicked: actions.replyOpen = true
+         }
+@@ -120,7 +120,7 @@
+                 anchors.leftMargin: Theme.dp(12)
+                 anchors.verticalCenter: parent.verticalCenter
+                 visible: replyInput.text.length === 0
+-                text: "Message…"
++                text: "Nachricht…"
+                 color: Theme.subtextDim
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fs(11)
+diff -ruN -x '*.rej' -x '*.orig' prev/lucidnotif/NotifCard.qml work117/lucidnotif/NotifCard.qml
+--- prev/lucidnotif/NotifCard.qml	2026-10-08 13:48:40.000000000 +0200
++++ work117/lucidnotif/NotifCard.qml	2026-10-10 21:31:10.935523018 +0200
+@@ -40,7 +40,7 @@
+         if (!n || n.summary === undefined)
+             return ;
+ 
+-        card.appName = n.appName || "Unknown";
++        card.appName = n.appName || "Unbekannt"; // nixos-config local patch 117 (German)
+         card.summary = n.summary;
+         card.body = n.body;
+         card.urgency = n.urgency;
+diff -ruN -x '*.rej' -x '*.orig' prev/lucidnotif/NotifGroup.qml work117/lucidnotif/NotifGroup.qml
+--- prev/lucidnotif/NotifGroup.qml	2026-10-08 13:48:40.000000000 +0200
++++ work117/lucidnotif/NotifGroup.qml	2026-10-10 21:31:10.935599502 +0200
+@@ -116,7 +116,7 @@
+ 
+                 NotifTextButton {
+                     anchors.verticalCenter: parent.verticalCenter
+-                    label: "Clear"
++                    label: "Leeren" // nixos-config local patch 117 (German)
+                     onClicked: Notifs.clearGroup(group.groupKey)
+                 }
+ 
+diff -ruN -x '*.rej' -x '*.orig' prev/Notifs.qml work117/Notifs.qml
+--- prev/Notifs.qml	2026-10-10 21:31:10.756756751 +0200
++++ work117/Notifs.qml	2026-10-10 21:31:10.935688069 +0200
+@@ -205,7 +205,7 @@
+                     groups.push({
+                         "kind": "group",
+                         "key": k,
+-                        "appName": n.appName || "Unknown",
++                        "appName": n.appName || "Unbekannt",
+                         "items": [n],
+                         "newestMs": root.arrivals[n.id] || 0
+                     });
+@@ -219,7 +219,7 @@
+                 groups.push({
+                     "kind": "group",
+                     "key": "n" + e.id,
+-                    "appName": e.appName || "Unknown",
++                    "appName": e.appName || "Unbekannt",
+                     "items": [e],
+                     "newestMs": root.arrivals[e.id] || 0
+                 });
+@@ -289,16 +289,16 @@
+ 
+         var s = Math.max(0, Math.floor((Loc.nowMs() - t) / 1000));
+         if (s < 45)
+-            return "now";
++            return "jetzt"; // nixos-config local patch 117 (German)
+ 
+         if (s < 3600)
+-            return Math.max(1, Math.round(s / 60)) + "m";
++            return Math.max(1, Math.round(s / 60)) + " Min";
+ 
+         if (s < 86400)
+-            return Math.floor(s / 3600) + "h";
++            return Math.floor(s / 3600) + " Std";
+ 
+         if (s < 604800)
+-            return Math.floor(s / 86400) + "d";
++            return Math.floor(s / 86400) + " T";
+ 
+         return new Date(t).toLocaleDateString(Qt.locale(), Locale.ShortFormat);
+     }

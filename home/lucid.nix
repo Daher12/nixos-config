@@ -21,8 +21,26 @@ let
   # then fails the rebuild loudly (patch rejects), instead of activation-time
   # seds silently stopping. Small drift still applies (GNU patch offsets,
   # visible as warnings in the build log) — that is the intended gradient.
-  # Patches live in ./lucid-patches/ (001 paths, 002 German UI, 003 mpris
-  # hide; regenerate against a fresh checkout when the lucid pin moves).
+  # Patches live in ./lucid-patches/.
+  #
+  # 2026-10-09 v1.20 bump ("Lucid 2" rewrite): upstream absorbed or replaced
+  # most of the former 13-patch layer (disk attribution, tile removal,
+  # password beads, bar arrangement). 2026-10-10 polish round re-grew the
+  # layer to nine patches: 001 NixOS paths, 104 bar indicators (volume
+  # percentage + mic hidden — no v1.20 setting exists), 111 tray/notif icon
+  # hidpi, 113/114/115 German lock screen, dashboard (+ wifi/bt panels) and
+  # weather, 116 clock pill inline order (Date/Clock/Weather), 117 German
+  # notification surfaces, 118 German clock app (calendar/timers/stopwatch/
+  # world/agenda). The former 112 (German clock date separator) was
+  # superseded natively: clockDateFormat "numeric" + the LANG pin in
+  # lucid.service render 10.10.26 without any patch. Full patch history:
+  # git log -- home/lucid-patches/ (pre-v1.20 commits).
+  # 2026-10-10 second round: 114 additionally renders the dashboard header
+  # date German via an explicit Qt.locale("de_DE") — Qt.formatDate's default
+  # locale resolved English regardless of the LANG pin (the one date surface
+  # the env could not reach), and 119 Germanizes the session screen
+  # (lucidsession/Session.qml) + the power panel header/uptime chip
+  # (lucidbar/SessionMenu.qml).
   lucidPatched = pkgs.stdenv.mkDerivation {
     pname = "lucid-source";
     # derived from upstream's VERSION file — a pin bump can't leave it stale
@@ -30,46 +48,24 @@ let
     src = lucidSrc;
     patches = [
       ./lucid-patches/001-nixos-paths.patch
-      ./lucid-patches/002-german-ui.patch
-      ./lucid-patches/003-mpris-hide.patch
-      # Cherry-picks from community forks (joeangi fa1261c, joegieee 1f90b01),
-      # rebased onto v1.10.5: notification reply-icon path, brightnessctl
-      # backlight detection, marquee idle cost, HTTPS geolocation. Droppable
-      # one file at a time if a lucid update outpaces them.
-      ./lucid-patches/101-fork-bugfixes.patch
-      # Saved-network connect resilience: no forced disconnect before
-      # ActivateConnection (raced iwd into connect-failed status 1 on every
-      # BSS after a manual switch), one silent retry, and no password box
-      # for saved networks on failure/timeout.
-      ./lucid-patches/102-wifi-connect-resilience.patch
-      # 2026-10-07 local fixes, generated against the fully-patched tree:
-      # 103 LUKS disk attribution + btrfs dedupe (dashboard showed 0 GB),
-      # 104 hide mic indicator + volume percentage label, 105 drop the
-      # inert Spielmodus/Energie tiles (no PPD on TLP hosts), 106 media
-      # pill shown-state collapses the bar slot (tray no longer floats).
-      ./lucid-patches/103-luks-disk-usage.patch
       ./lucid-patches/104-bar-indicators.patch
-      ./lucid-patches/105-dashboard-tiles.patch
-      ./lucid-patches/106-mpris-shown-slot.patch
-      # 2026-10-07: 107 German UI part 2 — full sweep of the non-settings
-      # surfaces (bar, lock screen, panels, notifications, OSD, media,
-      # polkit, screenshot/OCR, dock/launcher, desktop menu, widgets, emoji
-      # picker); upstream has no i18n, so strings stay patch-translated.
-      # Also lifts the lock clock into light tones for light themes (the
-      # lock scrim is black in both modes).
-      # 108 makes the calendar reminder editor honor Prefs.clock24h
-      # (validator 0-23, AM/PM toggle hidden, 24h fmtReminderTime) instead
-      # of its hardcoded 12h picker.
-      ./lucid-patches/107-german-ui-2.patch
-      ./lucid-patches/108-calendar-reminder-24h.patch
-      # 2026-10-08 lock screen fixes, generated against the fully-patched
-      # tree: 109 pools the password beads (an int Repeater model regenerates
-      # every delegate per keystroke, re-running the settle animation on all
-      # dots at once — now only the newest bead animates), 110 keeps the
-      # layout chip readable for long variant names ("German (no dead keys)"
-      # truncated to "NO DEA"; short tags like "US" still win).
-      ./lucid-patches/109-lockfield-beads.patch
-      ./lucid-patches/110-lock-layout-chip.patch
+      ./lucid-patches/111-tray-icons-hidpi.patch
+      ./lucid-patches/113-german-lockscreen.patch
+      ./lucid-patches/114-german-system.patch
+      ./lucid-patches/115-german-weather.patch
+      ./lucid-patches/116-clock-inline-order.patch
+      ./lucid-patches/117-german-notifs.patch
+      ./lucid-patches/118-german-clockapp.patch
+      ./lucid-patches/119-german-session.patch
+      # 2026-10-12 plain password dots, v2: user saw the v1 fade-in live and
+      # preferred the pre-v1.20 birth instead — each typed character starts
+      # as the caret's own line (2dp wide, 45% opacity) and settles into the
+      # dot over 300ms (easeEmphasizedDecel), like v1.1-v1.10.x. 121 touches
+      # only lucidui/PasswordEcho.qml (lock field + polkit AuthCard): the
+      # tessellated Shape becomes a morphing Rectangle driven by a `born`
+      # scalar; `life` snaps the other scalars and animates only `born`.
+      # Busy ripple, backspace fade, reveal and selection stay upstream.
+      ./lucid-patches/121-plain-dots.patch
     ];
     dontConfigure = true;
     dontBuild = true;
@@ -151,6 +147,12 @@ let
   # Deliberately NOT deployed: monitors, autostart, decorations, animations,
   # misc, input, layout, gestures, env — those would override geometry, look
   # and environment values this repo owns declaratively.
+  # Hyprland-side Lua modules deployed from the lucid tree. v1.20 adds
+  # settings (Settings > Windows/Input pages) and plugins (per-plugin
+  # settings + the hypr-dynamic-cursors build hook) — plugins is deployed
+  # but deliberately NOT required in home/hyprland.nix: requiring it would
+  # imperatively compile a cursor plugin at login. lucid-look lives in
+  # support/look/, not modules/, so it has its own xdg entry below.
   lucidLuaModules = [
     "json"
     "specials"
@@ -158,6 +160,8 @@ let
     "windowrules"
     "layerrules"
     "glass"
+    "settings"
+    "plugins"
   ];
 
   # Theme/icon names for the auto-mode wrapper's light/dark gsettings swaps —
@@ -190,11 +194,11 @@ let
   darkHour = 19;
 
   # Quickshell engine floor — empirical (upstream lucid declares no
-  # requirement; install.sh PKG_REQUIRED is unpinned). 0.3.1 = the version
-  # lucid v1.10.5 AND DankGreeter 1.6.2 are tested against (quickshell is
-  # pinned via its own flake input since 2026-09-30). Bump together with
-  # the lucid pin.
-  minQuickshell = "0.3.1";
+  # requirement; install.sh PKG_REQUIRED is unpinned). 0.3.2 = the version
+  # lucid v1.20 AND DankGreeter 1.6.2 are tested against (quickshell is
+  # pinned via its own flake input since 2026-09-30; 0.3.2 user-verified
+  # 2026-10-11). Bump together with the lucid pin.
+  minQuickshell = "0.3.2";
 
   # The wrapper mirrors what Prefs.setColorMode does in-QML: Lucid's own
   # set-mode.sh for the palette (matugen re-run in the new mode, current_mode
@@ -493,6 +497,76 @@ in
           && mv "$LUCID_DIR/keybinds.json.tmp" "$LUCID_DIR/keybinds.json"
       fi
 
+      # 2026-10-09 v1.20: the session screen and the window switcher are new
+      # surfaces with new default binds — an existing keybinds.json only
+      # gains them through this guarded in-place append (entries verbatim
+      # from upstream's support/hypr/keybinds.json; SUPER+Escape and
+      # CTRL+ALT+Tab are unbound in home/hyprland.nix, so nothing
+      # collides). exit's fallback command gains the hl.dsp.exit() logout
+      # fix (plain `dispatch exit` was a no-op on Lua configs) — updated
+      # only while it still matches the 1.10.5 default, and it stays
+      # disabled (footgun policy, comment above).
+      if [ -s "$LUCID_DIR/keybinds.json" ]; then
+        ${pkgs.jq}/bin/jq '
+          if (.binds | map(.id) | index("session")) == null then .binds += [{ "id": "session", "keys": "SUPER + Escape", "desc": "Session screen: lock, sleep, log out, restart, shut down", "category": "Lucid", "type": "exec", "cmd": "qs ipc call session toggle" }] else . end
+          | if (.binds | map(.id) | index("switcher")) == null then .binds += [{ "id": "switcher", "keys": "CTRL + ALT + Tab", "desc": "Window switcher, every workspace", "category": "Windows", "type": "exec", "cmd": "qs ipc call switcher next" }] else . end
+          | if (.binds | map(.id) | index("switcher-back")) == null then .binds += [{ "id": "switcher-back", "keys": "CTRL + ALT + SHIFT + Tab", "desc": "Window switcher, stepping back", "category": "Windows", "type": "exec", "cmd": "qs ipc call switcher prev" }] else . end
+          | (.binds[] | select(.id == "exit") | select(.cmd == "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit") | .cmd) = "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch \u0027hl.dsp.exit()\u0027"
+        ' "$LUCID_DIR/keybinds.json" > "$LUCID_DIR/keybinds.json.tmp" \
+          && mv "$LUCID_DIR/keybinds.json.tmp" "$LUCID_DIR/keybinds.json"
+      fi
+
+      # 2026-10-10 polish round, look + motion defaults baked as guarded
+      # in-place migrations (same flip-only-while-at-old-default pattern as
+      # the keybinds migrations above — a value changed in Lucid Settings
+      # never gets rewritten):
+      #   clockStyle accent -> inline   — no matugen chip on the clock pill,
+      #                                   the pill stays plain like the rest
+      #                                   of the bar (user request)
+      #   mediaHideIdle false -> true   — media pill only occupies bar space
+      #                                   while something plays (upstream
+      #                                   absorbed the old 003/106 patches
+      #                                   as this pref); with the layout
+      #                                   left:[workspaces,media,tray] the
+      #                                   tray then sits next to workspaces
+      #   barMotionScale 1.35 -> 1.0    — bar motion ~35% slower than the
+      #                                   rest of the shell by upstream
+      #                                   default; 1.0 aligns it (Caelestia/
+      #                                   DMS-feel durations, see
+      #                                   home/hyprland.nix)
+      #   motionScale 1 -> 0.85         — global shell animation speed
+      #                                   (upstream seeds the default 1 into
+      #                                   prefs.json, so this is a value flip
+      #                                   like the others, not an absence
+      #                                   seed; a deliberate Settings value
+      #                                   other than exactly the default
+      #                                   always wins).
+      #   clockDateFormat dayMonth|short -> numeric
+      #                                   — German clock date without a patch
+      #                                   (the former 112): "numeric" renders
+      #                                   the locale's short format, which
+      #                                   with the LANG=de_DE.UTF-8 pin on
+      #                                   lucid.service is 10.10.26. Flipped
+      #                                   from dayMonth (upstream default)
+      #                                   AND from short (the value the live
+      #                                   prefs happened to carry); any other
+      #                                   value is a deliberate user choice
+      #                                   and wins. The Settings preview
+      #                                   uses Qt.locale() too, so it shows
+      #                                   the German format natively.
+      # Live-tunable afterwards: Settings > General > Animation speed,
+      # Settings > Bar > bar motion + the clock module card.
+      if [ -s "$QS_DIR/lucidprefs/prefs.json" ]; then
+        ${pkgs.jq}/bin/jq '
+          if ((.clockStyle // "accent") == "accent") then .clockStyle = "inline" else . end
+          | if ((.mediaHideIdle // false) | not) then .mediaHideIdle = true else . end
+          | if ((.barMotionScale // 1.35) == 1.35) then .barMotionScale = 1.0 else . end
+          | if ((.motionScale // 1) == 1) then .motionScale = 0.85 else . end
+          | if ((.clockDateFormat == "dayMonth") or (.clockDateFormat == "short")) then .clockDateFormat = "numeric" else . end
+        ' "$QS_DIR/lucidprefs/prefs.json" > "$QS_DIR/lucidprefs/prefs.json.tmp" \
+          && mv "$QS_DIR/lucidprefs/prefs.json.tmp" "$QS_DIR/lucidprefs/prefs.json"
+      fi
+
       # GTK colors hook (upstream install.sh): GTK only applies colors.css
       # when gtk.css imports it. The directories also hold home-manager's
       # bookmarks file, but gtk.css itself is a regular writable file.
@@ -503,6 +577,16 @@ in
           printf "@import url('colors.css');\n" >> "$gtkdir/gtk.css"
         fi
       done
+
+      # v1.20 UI font (deployed via xdg.dataFile below): install.sh runs
+      # fc-cache after copying it — without a cache refresh the Material You
+      # Expressive surfaces silently render in the fallback font. Scoped to
+      # the lucid dir and non-fatal so a fontconfig hiccup can never abort
+      # the whole activation.
+      if [ -d "$HOME/.local/share/fonts/lucid" ]; then
+        ${pkgs.fontconfig}/bin/fc-cache -f "$HOME/.local/share/fonts/lucid" \
+          || echo "warning: fc-cache failed — UI font may need a manual refresh" >&2
+      fi
 
       # Fix modes LAST, covering everything above: rsync -rt copies the
       # store's read-only file modes, and cp-seeded defaults carry the
@@ -540,6 +624,13 @@ in
       }) lucidLuaModules
     ))
     // {
+      # v1.20 look module — lives in support/look/, not modules/, so it is
+      # outside the lucidLuaModules map above. Fills blur/shadow defaults
+      # the shell's own surfaces sample; required in home/hyprland.nix
+      # BEFORE that file's own option assignments, so everything Nix sets
+      # explicitly still wins.
+      "hypr/modules/lucid-look.lua".source = "${lucidPatched}/support/look/lucid-look.lua";
+
       # matugen: templates symlinked from upstream; config authored here
       # with only the templates this setup consumes. The quickshell palette
       # (~/.cache/quickshell/matugen.json) is what Theme.qml reads; the GTK
@@ -573,6 +664,13 @@ in
         '';
       };
     };
+
+    # v1.20 ships its UI font — the Material You Expressive look is drawn
+    # with a trimmed 3-axis Google Sans Flex (upstream install.sh copies it
+    # to this exact path and runs fc-cache; lucidSync above does the cache
+    # refresh). A store-dir symlink is enough: fontconfig caches per real
+    # path.
+    xdg.dataFile."fonts/lucid".source = "${lucidPatched}/assets/fonts";
 
     # NOTE: deliberately NO systemd.user.services.hypridle here. Lucid's
     # Idle settings page OWNS the unit name `hypridle` — it generates
@@ -615,9 +713,37 @@ in
           # the caelestia lesson: a stripped PATH broke execDetached clicks
           # silently. All system deps are in environment.systemPackages
           # (modules/features/desktop-hyprland.nix, lucid block).
+          #
+          # LANG is pinned for the same reason QML changes never hot-reload
+          # the locale: Qt.locale() resolves from the env the process STARTED
+          # with, so a shell that came up before the session env landed keeps
+          # rendering English day/month names ("saturday 10 october",
+          # 2026-10-10) even though `systemctl --user show-environment` says
+          # de_DE.UTF-8. Env never hot-reloads — this line takes effect only
+          # at the next `systemctl --user restart lucid`.
+          # Limits (2026-10-10): the LANG pin never reached the dashboard
+          # header date — QML's Qt.formatDate uses Qt's default locale which
+          # stayed English — so patch 114 now formats it with an explicit
+          # Qt.locale("de_DE"); the pin still drives every
+          # toLocaleDateString(Qt.locale(), …) surface (lock screen, clock
+          # app, widgets) and the numeric clockDateFormat.
+          #
+          # GSETTINGS_SCHEMA_DIR + GIO_EXTRA_MODULES make gsettings work
+          # inside this unit at all: NixOS app gtk apps get both injected by
+          # their wrappers, but the bare session env carries neither —
+          # "No schemas installed" (unit env repro 2026-10-10), which starved
+          # lucid's IconTheme.qml gsettings get/monitor watcher (themeName
+          # stuck at "" → resolve-icons.sh never ran) and forced the dconf
+          # fallback in lucid-auto-mode. Schema dir alone is actively wrong:
+          # without the dconf GIO module gsettings reads defaults ("Adwaita")
+          # instead of the live dconf db — both vars verified returning
+          # 'Fluent' under the exact unit env before enabling.
           Environment = [
             "PATH=${lucidPath}"
             "QT_QPA_PLATFORM=wayland"
+            "LANG=de_DE.UTF-8"
+            "GSETTINGS_SCHEMA_DIR=${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}/glib-2.0/schemas"
+            "GIO_EXTRA_MODULES=${pkgs.dconf.lib}/lib/gio/modules"
           ];
         };
         Install.WantedBy = [ "graphical-session.target" ];

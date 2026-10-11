@@ -1,0 +1,67 @@
+--- a/src/core/iconimageprovider.cpp
++++ b/src/core/iconimageprovider.cpp
+@@ -2,15 +2,28 @@
+ #include <algorithm>
+ 
+ #include <qcolor.h>
++#include <qcoreapplication.h>
+ #include <qicon.h>
+ #include <qlogging.h>
+ #include <qpainter.h>
+ #include <qpixmap.h>
+ #include <qsize.h>
+ #include <qstring.h>
++#include <qthread.h>
+ 
++namespace {
++
++// NOTE: the Qt icon machinery used below (QIcon::fromTheme / QIcon::pixmap
++// and the QPixmap ctor in missingPixmap) is GUI-thread-only: QSvgIconEngine
++// and QIconLoaderEngine keep unsynchronized shared state, and QPlatformPixmap
++// creation dispatches to the gui thread internally. This provider is however
++// reachable from BOTH the gui thread (synchronous loads) and the
++// QQuickPixmapReader thread (asynchronous loads) — concurrent requests
++// corrupt that shared state (SIGSEGV in QSvgIconEngine, __cxa_pure_virtual
++// in QPlatformPixmap::fromFile, crash-looped lucid restarts on 2026-10-10;
++// see upstream #1007 #1028 #1056 #1079).
+ QPixmap
+-IconImageProvider::requestPixmap(const QString& id, QSize* size, const QSize& requestedSize) {
++requestPixmapInGuiThread(const QString& id, QSize* size, const QSize& requestedSize) {
+ 	QString iconName;
+ 	QString fallbackName;
+ 	QString path;
+@@ -47,6 +60,34 @@
+ 	return pixmap;
+ }
+ 
++} // namespace
++
++QPixmap
++IconImageProvider::requestPixmap(const QString& id, QSize* size, const QSize& requestedSize) {
++	auto* app = QCoreApplication::instance();
++
++	// Synchronous requests are made on the gui thread already — run inline.
++	if (app == nullptr || QThread::currentThread() == app->thread()) {
++		return requestPixmapInGuiThread(id, size, requestedSize);
++	}
++
++	// Off the gui thread: execute ON the gui thread and block until done.
++	// This cannot deadlock — the gui thread's own requests run inline (no
++	// hop) and it never waits on the reader thread. A plain mutex was tried
++	// first and is NOT sufficient: serializing the entry keeps cross-thread
++	// pixmap creation illegal, and Qt's internal gui-thread dispatches then
++	// deadlock against the serialized requests (the first attempt wedged
++	// the reader thread with every later icon request queued behind it,
++	// silently rendering only fallback icons; reverted same day).
++	QPixmap pixmap;
++	QMetaObject::invokeMethod(
++	    app,
++	    [&]() { pixmap = requestPixmapInGuiThread(id, size, requestedSize); },
++	    Qt::BlockingQueuedConnection
++	);
++	return pixmap;
++}
++
+ QPixmap IconImageProvider::missingPixmap(const QSize& size) {
+ 	auto width = size.width() % 2 == 0 ? size.width() : size.width() + 1;
+ 	auto height = size.height() % 2 == 0 ? size.height() : size.height() + 1;

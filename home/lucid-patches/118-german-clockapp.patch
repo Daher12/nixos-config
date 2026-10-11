@@ -1,0 +1,544 @@
+diff -ruN -x '*.rej' -x '*.orig' patch117/Agenda.qml patch118/Agenda.qml
+--- patch117/Agenda.qml	2026-10-10 14:13:42.499425896 +0200
++++ patch118/Agenda.qml	2026-10-10 14:15:56.046181361 +0200
+@@ -33,10 +33,10 @@
+     }
+ 
+     readonly property var repeatOptions: [
+-        { "key": "", "label": "Once" },
+-        { "key": "daily", "label": "Daily" },
+-        { "key": "weekdays", "label": "Weekdays" },
+-        { "key": "weekly", "label": "Weekly" }
++        { "key": "", "label": "Einmal" }, // nixos-config local patch 118 (German)
++        { "key": "daily", "label": "Täglich" },
++        { "key": "weekdays", "label": "Werktags" },
++        { "key": "weekly", "label": "Wöchentlich" }
+     ]
+ 
+     function dayStart(y, m, d) {
+@@ -159,25 +159,25 @@
+ 
+         var mins = Math.round((at - Loc.now()) / 60000);
+         if (mins < 1)
+-            return "now";
++            return "jetzt";
+ 
+         if (mins < 60)
+-            return "in " + mins + " min";
++            return "in " + mins + " Min";
+ 
+         var hrs = Math.round(mins / 60);
+         if (hrs < 24)
+-            return "in " + hrs + (hrs === 1 ? " hour" : " hours");
++            return "in " + hrs + (hrs === 1 ? " Stunde" : " Stunden");
+ 
+         var days = Math.round(hrs / 24);
+-        return days === 1 ? "tomorrow" : "in " + days + " days";
++        return days === 1 ? "morgen" : "in " + days + " Tagen";
+     }
+ 
+     function repeatText(r) {
+         switch (r.repeat || "") {
+         case "daily":
+-            return "Every day";
++            return "Jeden Tag";
+         case "weekdays":
+-            return "Weekdays";
++            return "Werktags";
+         case "weekly":
+             return "Every " + root.dayStart(r.year, r.month, r.day).toLocaleDateString(Qt.locale(), "dddd");
+         }
+diff -ruN -x '*.rej' -x '*.orig' patch117/Chrono.qml patch118/Chrono.qml
+--- patch117/Chrono.qml	2026-10-10 14:13:42.499564199 +0200
++++ patch118/Chrono.qml	2026-10-10 14:17:08.357979772 +0200
+@@ -35,10 +35,10 @@
+     property alias pomoFocusMs: store.pomoFocusMs
+     property string today: root.dayKey()
+     readonly property var pomoPresets: [
+-        { "key": "classic", "name": "Classic", "label": "25 / 5", "focus": 25, "short": 5, "long": 15, "rounds": 4 },
+-        { "key": "deep", "name": "Deep work", "label": "50 / 10", "focus": 50, "short": 10, "long": 30, "rounds": 3 },
++        { "key": "classic", "name": "Klassisch", "label": "25 / 5", "focus": 25, "short": 5, "long": 15, "rounds": 4 }, /* nixos-config local patch 118 (German) */
++        { "key": "deep", "name": "Tiefenarbeit", "label": "50 / 10", "focus": 50, "short": 10, "long": 30, "rounds": 3 },
+         { "key": "sprint", "name": "Sprint", "label": "15 / 3", "focus": 15, "short": 3, "long": 10, "rounds": 4 },
+-        { "key": "long", "name": "Long haul", "label": "90 / 20", "focus": 90, "short": 20, "long": 30, "rounds": 2 }
++        { "key": "long", "name": "Langstrecke", "label": "90 / 20", "focus": 90, "short": 20, "long": 30, "rounds": 2 }
+     ]
+ 
+     readonly property bool anyTimerRunning: root.timers.some((t) => {
+@@ -90,7 +90,7 @@
+ 
+         }
+         if (root.swActive)
+-            return { "kind": "stopwatch", "left": root.swElapsed, "total": 0, "running": root.swRunning, "label": "Stopwatch" };
++            return { "kind": "stopwatch", "left": root.swElapsed, "total": 0, "running": root.swRunning, "label": "Stoppuhr" };
+ 
+         return null;
+     }
+@@ -131,7 +131,7 @@
+     }
+ 
+     function phaseLabel(phase) {
+-        return phase === "short" ? "Short break" : (phase === "long" ? "Long break" : (phase === "focus" ? "Focus" : ""));
++        return phase === "short" ? "Kurze Pause" : (phase === "long" ? "Lange Pause" : (phase === "focus" ? "Fokus" : ""));
+     }
+ 
+     function uid() {
+@@ -139,7 +139,7 @@
+     }
+ 
+     function label(sec) {
+-        return sec >= 3600 ? Math.round(sec / 360) / 10 + " h timer" : Math.round(sec / 60) + " min timer";
++        return sec >= 3600 ? Math.round(sec / 360) / 10 + " Std Timer" : Math.round(sec / 60) + " Min Timer";
+     }
+ 
+     function update(id, fn) {
+@@ -373,22 +373,22 @@
+     function pomoAdvance(announce) {
+         var was = root.pomoPhase;
+         var next = "focus";
+-        var title = "Break's over";
++        var title = "Pause ist vorbei";
+         if (was === "focus") {
+             root.pomoRound = root.pomoRound + 1;
+             next = root.pomoRound % Math.max(1, Prefs.pomodoroRounds) === 0 ? "long" : "short";
+-            title = "Focus session done";
++            title = "Fokus-Sitzung abgeschlossen";
+             if (announce) {
+                 root.pomoLog(root.pomoTotal);
+                 if (Prefs.pomodoroGoal > 0 && root.pomoToday === Prefs.pomodoroGoal)
+-                    title = "Daily goal reached";
++                    title = "Tagesziel erreicht";
+ 
+             }
+         }
+         if (was === "long" && !Prefs.pomodoroRepeat) {
+             root.pomoStop();
+             if (announce)
+-                root.finished("Pomodoro set done", "Start another when you are ready");
++                root.finished("Pomodoro abgeschlossen", "Starte den nächsten, wenn du bereit bist");
+ 
+             return ;
+         }
+@@ -402,7 +402,7 @@
+         }
+         // after the phase change, so a focus that held do not disturb has let go
+         if (announce)
+-            root.finished(title, next === "focus" ? "Time to focus for " + Prefs.pomodoroFocus + " minutes" : root.phaseLabel(next) + " — " + root.phaseMinutes(next) + " minutes");
++            root.finished(title, next === "focus" ? "Zeit für " + Prefs.pomodoroFocus + " Minuten Fokus" : root.phaseLabel(next) + " — " + root.phaseMinutes(next) + " Minuten");
+ 
+     }
+ 
+@@ -441,7 +441,7 @@
+                 x.left = 0;
+                 x.running = false;
+             });
+-            root.finished("Time's up", t2 ? t2.label : "Timer");
++            root.finished("Zeit ist um", t2 ? t2.label : "Timer");
+         }
+         if (root.pomoRunning && root.pomoEndsAt <= root.now)
+             root.pomoAdvance(true);
+diff -ruN -x '*.rej' -x '*.orig' patch117/lucidbar/ClockCalendar.qml patch118/lucidbar/ClockCalendar.qml
+--- patch117/lucidbar/ClockCalendar.qml	2026-10-10 14:13:42.503085522 +0200
++++ patch118/lucidbar/ClockCalendar.qml	2026-10-10 14:15:56.042596348 +0200
+@@ -277,7 +277,7 @@
+                 LText {
+                     role: "bodyMedium"
+                     color: Theme.subtext
+-                    text: page.selectedDate.toLocaleDateString(Qt.locale(), "d MMMM yyyy") + (page.dayItems.length ? "  ·  " + page.dayItems.length + (page.dayItems.length === 1 ? " reminder" : " reminders") : "")
++                    text: page.selectedDate.toLocaleDateString(Qt.locale(), "d MMMM yyyy") + (page.dayItems.length ? "  ·  " + page.dayItems.length + (page.dayItems.length === 1 ? " Erinnerung" : " Erinnerungen") /* nixos-config local patch 118 (German) */ : "")
+                 }
+ 
+             }
+@@ -348,7 +348,7 @@
+                         anchors.horizontalCenter: parent.horizontalCenter
+                         role: "bodyMedium"
+                         color: Theme.subtext
+-                        text: "A free day"
++                        text: "Ein freier Tag"
+                     }
+ 
+                 }
+@@ -366,9 +366,9 @@
+                     id: nameField
+ 
+                     width: parent.width
+-                    label: "New reminder"
+-                    placeholder: "What should it say?"
+-                    supporting: page.past && nameField.text.trim() !== "" ? (page.gone(0, 0) && !page.gone(23, 59) ? Agenda.timeText({ "hour": page.newHour, "minute": page.newMinute }) + " has already gone by today" : "That day has already gone by") : ""
++                    label: "Neue Erinnerung"
++                    placeholder: "Was soll erinnert werden?"
++                    supporting: page.past && nameField.text.trim() !== "" ? (page.gone(0, 0) && !page.gone(23, 59) ? Agenda.timeText({ "hour": page.newHour, "minute": page.newMinute }) + " liegt heute bereits zurück" : "Dieser Tag liegt bereits zurück") : ""
+                     containerColor: Theme.withBlur(Theme.surfaceHighest)
+                     onAccepted: page.submit()
+                 }
+@@ -483,7 +483,7 @@
+                         variant: "filled"
+                         size: "xs"
+                         icon: "add"
+-                        text: "Add"
++                        text: "Hinzufügen"
+                         disabled: nameField.text.trim() === "" || page.past
+                         onClicked: page.submit()
+                     }
+diff -ruN -x '*.rej' -x '*.orig' patch117/lucidbar/Clock.qml patch118/lucidbar/Clock.qml
+--- patch117/lucidbar/Clock.qml	2026-10-10 14:13:42.503063150 +0200
++++ patch118/lucidbar/Clock.qml	2026-10-10 14:15:56.041836213 +0200
+@@ -16,11 +16,11 @@
+     readonly property var headline: Chrono.headline
+     readonly property var wx: WeatherSource.report
+     readonly property var tabs: [
+-        { "key": "today", "label": "Today", "icon": "wb_sunny" },
+-        { "key": "calendar", "label": "Calendar", "icon": "calendar_month" },
++        { "key": "today", "label": "Heute", "icon": "wb_sunny" }, // nixos-config local patch 118 (German)
++        { "key": "calendar", "label": "Kalender", "icon": "calendar_month" },
+         { "key": "timer", "label": "Timer", "icon": "hourglass_top" },
+-        { "key": "stopwatch", "label": "Stopwatch", "icon": "timer" },
+-        { "key": "world", "label": "World", "icon": "public" }
++        { "key": "stopwatch", "label": "Stoppuhr", "icon": "timer" },
++        { "key": "world", "label": "Welt", "icon": "public" }
+     ]
+     readonly property int tabIndex: {
+         for (var i = 0; i < root.tabs.length; i++) {
+@@ -171,7 +171,7 @@
+                         weight: 660
+                         tabular: true
+                         color: Theme.fgErrorContainer
+-                        text: Capture.state === "paused" ? "Paused" : Capture.clock(Capture.seconds)
++                        text: Capture.state === "paused" ? "Pausiert" : Capture.clock(Capture.seconds)
+                     }
+ 
+                 }
+@@ -534,7 +534,7 @@
+                 LText {
+                     role: "bodySmall"
+                     color: Theme.subtext
+-                    text: Agenda.firing ? Agenda.timeText(Agenda.firing) + (Agenda.ringing.length > 1 ? "  ·  +" + (Agenda.ringing.length - 1) + " more" : "") : ""
++                    text: Agenda.firing ? Agenda.timeText(Agenda.firing) + (Agenda.ringing.length > 1 ? "  ·  +" + (Agenda.ringing.length - 1) + " weitere" : "") : ""
+                 }
+ 
+             }
+@@ -550,7 +550,7 @@
+                 Button {
+                     variant: "tonal"
+                     size: "xs"
+-                    text: "10 min"
++                    text: "10 Min"
+                     icon: "snooze"
+                     onClicked: {
+                         if (Agenda.firing)
+diff -ruN -x '*.rej' -x '*.orig' patch117/lucidbar/ClockStopwatch.qml patch118/lucidbar/ClockStopwatch.qml
+--- patch117/lucidbar/ClockStopwatch.qml	2026-10-10 14:13:42.503105370 +0200
++++ patch118/lucidbar/ClockStopwatch.qml	2026-10-10 14:15:56.045394556 +0200
+@@ -113,7 +113,7 @@
+                 anchors.verticalCenter: parent.verticalCenter
+                 variant: "tonal"
+                 icon: "flag"
+-                text: "Lap"
++                text: "Runde" // nixos-config local patch 118 (German)
+                 disabled: !Chrono.swRunning
+                 onClicked: Chrono.swLap()
+             }
+@@ -162,7 +162,7 @@
+                 anchors.verticalCenter: parent.verticalCenter
+                 variant: "tonal"
+                 icon: "replay"
+-                text: "Reset"
++                text: "Zurücksetzen"
+                 disabled: !Chrono.swActive
+                 onClicked: Chrono.swReset()
+             }
+@@ -185,7 +185,7 @@
+             x: Theme.dp(20)
+             y: Theme.dp(16)
+             role: "titleSmall"
+-            text: page.splits.length ? page.splits.length + (page.splits.length === 1 ? " lap" : " laps") : "Laps"
++            text: page.splits.length ? page.splits.length + (page.splits.length === 1 ? " Runde" : " Runden") : "Runden"
+         }
+ 
+         Column {
+@@ -204,7 +204,7 @@
+                 anchors.horizontalCenter: parent.horizontalCenter
+                 role: "bodyMedium"
+                 color: Theme.subtext
+-                text: "Laps you take land here"
++                text: "Genommene Runden erscheinen hier"
+             }
+ 
+         }
+@@ -241,7 +241,7 @@
+                     anchors.verticalCenter: parent.verticalCenter
+                     role: "labelLarge"
+                     color: Theme.subtext
+-                    text: "Lap " + lap.modelData.n
++                    text: "Runde " + lap.modelData.n
+                 }
+ 
+                 Row {
+diff -ruN -x '*.rej' -x '*.orig' patch117/lucidbar/ClockTimers.qml patch118/lucidbar/ClockTimers.qml
+--- patch117/lucidbar/ClockTimers.qml	2026-10-10 14:13:42.503122763 +0200
++++ patch118/lucidbar/ClockTimers.qml	2026-10-10 14:15:56.045122449 +0200
+@@ -31,7 +31,7 @@
+     // 50 min, 1 h 15 min
+     function spanText(ms) {
+         const m = Math.round(ms / 60000);
+-        return m >= 60 ? Math.floor(m / 60) + " h" + (m % 60 ? " " + (m % 60) + " min" : "") : m + " min";
++        return m >= 60 ? Math.floor(m / 60) + " Std" + (m % 60 ? " " + (m % 60) + " Min" : "") : m + " Min"; /* nixos-config local patch 118 (German) */
+     }
+ 
+     function nudgeSetup(sec) {
+@@ -135,7 +135,7 @@
+             y: Theme.dp(18)
+             role: "titleMedium"
+             weight: 600
+-            text: page.focused ? page.focused.label : "New timer"
++            text: page.focused ? page.focused.label : "Neuer Timer"
+         }
+ 
+         Item {
+@@ -191,16 +191,16 @@
+                     color: Theme.subtext
+                     text: {
+                         if (!page.focused)
+-                            return "Scroll to set";
++                            return "Zum Einstellen drehen";
+ 
+                         if (page.remainMs <= 0)
+-                            return "Done";
++                            return "Fertig";
+ 
+                         if (!page.focused.running)
+-                            return "Paused";
++                            return "Pausiert";
+ 
+                         const end = new Date(Loc.nowMs() + page.remainMs);
+-                        return "Ends " + end.toLocaleTimeString(Qt.locale(), Prefs.clock24h ? "HH:mm" : "h:mm AP");
++                        return "Endet " + end.toLocaleTimeString(Qt.locale(), Prefs.clock24h ? "HH:mm" : "h:mm AP");
+                     }
+                 }
+ 
+@@ -241,7 +241,7 @@
+ 
+                         kind: "filter"
+                         selected: page.setup === modelData
+-                        text: modelData >= 3600 ? "1 h" : Math.round(modelData / 60) + " min"
++                        text: modelData >= 3600 ? "1 Std" : Math.round(modelData / 60) + " Min"
+                         onClicked: page.setup = modelData
+                     }
+ 
+@@ -359,7 +359,7 @@
+             LText {
+                 role: "bodySmall"
+                 color: Theme.alpha(pomo.ink, 0.75)
+-                text: Prefs.pomodoroFocus + " min focus · " + Prefs.pomodoroShort + " min break · long break every " + Prefs.pomodoroRounds
++                text: Prefs.pomodoroFocus + " Min Fokus · " + Prefs.pomodoroShort + " Min Pause · lange Pause alle " + Prefs.pomodoroRounds
+             }
+ 
+             LText {
+@@ -369,9 +369,9 @@
+                 color: Theme.alpha(pomo.ink, Chrono.pomoGoalMet ? 1 : 0.75)
+                 text: {
+                     const n = Chrono.pomoToday;
+-                    const bits = [Prefs.pomodoroGoal > 0 ? n + " of " + Prefs.pomodoroGoal + " today" : n + (n === 1 ? " session today" : " sessions today")];
++                    const bits = [Prefs.pomodoroGoal > 0 ? n + " von " + Prefs.pomodoroGoal + " heute" : n + (n === 1 ? " Sitzung heute" : " Sitzungen heute")];
+                     if (Chrono.pomoTodayMs > 0)
+-                        bits.push(page.spanText(Chrono.pomoTodayMs) + " focused");
++                        bits.push(page.spanText(Chrono.pomoTodayMs) + " Fokus");
+ 
+                     return bits.join(" · ");
+                 }
+@@ -435,7 +435,7 @@
+ 
+                     Stepper {
+                         width: lengths.cell
+-                        label: "Focus"
++                        label: "Fokus"
+                         from: 5
+                         to: 90
+                         step: 5
+@@ -447,7 +447,7 @@
+ 
+                     Stepper {
+                         width: lengths.cell
+-                        label: "Rounds"
++                        label: "Runden"
+                         from: 2
+                         to: 8
+                         value: Prefs.pomodoroRounds
+@@ -458,7 +458,7 @@
+ 
+                     Stepper {
+                         width: lengths.cell
+-                        label: "Break"
++                        label: "Pause"
+                         from: 1
+                         to: 30
+                         value: Prefs.pomodoroShort
+@@ -469,7 +469,7 @@
+ 
+                     Stepper {
+                         width: lengths.cell
+-                        label: "Long break"
++                        label: "Lange Pause"
+                         from: 5
+                         to: 60
+                         step: 5
+@@ -481,9 +481,9 @@
+ 
+                     Stepper {
+                         width: lengths.cell
+-                        label: "Daily goal"
++                        label: "Tagesziel"
+                         to: 16
+-                        zeroText: "Off"
++                        zeroText: "Aus"
+                         value: Prefs.pomodoroGoal
+                         onMoved: (v) => {
+                             return Prefs.pomodoroGoal = v;
+@@ -497,25 +497,25 @@
+                     spacing: Theme.dp(6)
+ 
+                     Chip {
+-                        text: "Auto breaks"
++                        text: "Auto-Pausen"
+                         selected: Prefs.pomodoroAutoStart
+                         onClicked: Prefs.pomodoroAutoStart = !Prefs.pomodoroAutoStart
+                     }
+ 
+                     Chip {
+-                        text: "Auto focus"
++                        text: "Auto-Fokus"
+                         selected: Prefs.pomodoroAutoFocus
+                         onClicked: Prefs.pomodoroAutoFocus = !Prefs.pomodoroAutoFocus
+                     }
+ 
+                     Chip {
+-                        text: "Repeat sets"
++                        text: "Sätze wiederholen"
+                         selected: Prefs.pomodoroRepeat
+                         onClicked: Prefs.pomodoroRepeat = !Prefs.pomodoroRepeat
+                     }
+ 
+                     Chip {
+-                        text: "Do not disturb"
++                        text: "Nicht stören"
+                         selected: Prefs.pomodoroSilence
+                         onClicked: Prefs.pomodoroSilence = !Prefs.pomodoroSilence
+                     }
+@@ -655,7 +655,7 @@
+             x: Theme.dp(20)
+             y: Theme.dp(16)
+             role: "titleSmall"
+-            text: Chrono.timers.length ? "Timers" : "No timers running"
++            text: Chrono.timers.length ? "Timer" : "Keine Timer aktiv"
+             color: Chrono.timers.length ? Theme.text : Theme.subtext
+         }
+ 
+@@ -668,7 +668,7 @@
+             anchors.verticalCenter: listHead.verticalCenter
+             variant: "text"
+             size: "xs"
+-            text: "Clear done"
++            text: "Fertige entfernen"
+             onClicked: Chrono.clearFinished()
+         }
+ 
+@@ -739,7 +739,7 @@
+                             LText {
+                                 role: "bodySmall"
+                                 color: trow.isFocus ? Theme.alpha(Theme.fgSecondaryContainer, 0.75) : Theme.subtext
+-                                text: trow.modelData.label + (trow.rem <= 0 ? " · done" : (trow.modelData.running ? "" : " · paused"))
++                                text: trow.modelData.label + (trow.rem <= 0 ? " · fertig" : (trow.modelData.running ? "" : " · pausiert"))
+                             }
+ 
+                         }
+diff -ruN -x '*.rej' -x '*.orig' patch117/lucidbar/ClockToday.qml patch118/lucidbar/ClockToday.qml
+--- patch117/lucidbar/ClockToday.qml	2026-10-10 14:13:42.503145616 +0200
++++ patch118/lucidbar/ClockToday.qml	2026-10-10 14:15:56.042176289 +0200
+@@ -460,13 +460,13 @@
+ 
+                 LText {
+                     role: "titleSmall"
+-                    text: Agenda.next ? Agenda.next.item.name : "Nothing coming up"
++                    text: Agenda.next ? Agenda.next.item.name : "Nichts anstehend" /* nixos-config local patch 118 (German) */
+                 }
+ 
+                 LText {
+                     role: "bodySmall"
+                     color: Theme.subtext
+-                    text: Agenda.next ? Agenda.next.at.toLocaleDateString(Qt.locale(), "ddd d MMM") + " · " + Agenda.timeText(Agenda.next.item) + " · " + Agenda.untilText(Agenda.next.at) : "Reminders you add show up here"
++                    text: Agenda.next ? Agenda.next.at.toLocaleDateString(Qt.locale(), "ddd d MMM") + " · " + Agenda.timeText(Agenda.next.item) + " · " + Agenda.untilText(Agenda.next.at) : "Selbst angelegte Erinnerungen erscheinen hier"
+                 }
+ 
+             }
+@@ -479,7 +479,7 @@
+             anchors.verticalCenter: parent.verticalCenter
+             variant: "tonal"
+             icon: "add"
+-            text: "Reminder"
++            text: "Erinnerung"
+             onClicked: page.addRequested()
+         }
+ 
+diff -ruN -x '*.rej' -x '*.orig' patch117/lucidbar/ClockWorld.qml patch118/lucidbar/ClockWorld.qml
+--- patch117/lucidbar/ClockWorld.qml	2026-10-10 14:13:42.503164612 +0200
++++ patch118/lucidbar/ClockWorld.qml	2026-10-10 14:15:56.045569018 +0200
+@@ -255,7 +255,7 @@
+             horizontalAlignment: Text.AlignHCenter
+             role: "titleMedium"
+             weight: 560
+-            text: "No cities yet"
++            text: "Noch keine Städte" // nixos-config local patch 118 (German)
+         }
+ 
+         LText {
+@@ -264,7 +264,7 @@
+             role: "bodyMedium"
+             color: Theme.subtext
+             wrapMode: Text.Wrap
+-            text: "Search below for a city and it lands here with its time and how far ahead or behind it is."
++            text: "Suche unten eine Stadt — sie erscheint hier mit ihrer Uhrzeit und dem Zeitunterschied."
+         }
+ 
+     }
+@@ -282,7 +282,7 @@
+             width: parent.width
+             variant: "search"
+             icon: "travel_explore"
+-            placeholder: "Add a city — Lisbon, Tokyo, Sao Paulo…"
++            placeholder: "Stadt hinzufügen — Lissabon, Tokio, São Paulo…"
+             containerColor: Theme.withBlur(Theme.surfaceHigh)
+             onAccepted: {
+                 if (page.results.length > 0) {
+diff -ruN -x '*.rej' -x '*.orig' patch117/lucidui/MonthView.qml patch118/lucidui/MonthView.qml
+--- patch117/lucidui/MonthView.qml	2026-10-10 14:13:42.509452063 +0200
++++ patch118/lucidui/MonthView.qml	2026-10-10 14:15:56.047151555 +0200
+@@ -27,7 +27,7 @@
+     // this month as year * 12 + month, moved on by the day tick
+     property int thisMonth: Loc.now().getFullYear() * 12 + Loc.now().getMonth()
+     readonly property bool isCurrent: month.year * 12 + month.monthIndex === month.thisMonth
+-    readonly property var weekdays: month.mondayFirst ? ["M", "T", "W", "T", "F", "S", "S"] : ["S", "M", "T", "W", "T", "F", "S"]
++    readonly property var weekdays: month.mondayFirst ? ["M", "D", "M", "D", "F", "S", "S"] : ["S", "M", "D", "M", "D", "F", "S"] // nixos-config local patch 118 (German)
+     readonly property var cells: {
+         Agenda.checkedDay;
+         const now = Loc.now();
+diff -ruN -x '*.rej' -x '*.orig' patch117/Zones.qml patch118/Zones.qml
+--- patch117/Zones.qml	2026-10-10 14:13:42.500340304 +0200
++++ patch118/Zones.qml	2026-10-10 14:15:56.045668947 +0200
+@@ -41,7 +41,7 @@
+ 
+         var diff = (root.offsets[tz] - Loc.trueOffsetMin) / 60;
+         if (Math.abs(diff) < 0.01)
+-            return "Same time";
++            return "Gleiche Zeit"; // nixos-config local patch 118 (German)
+ 
+         var abs = Math.abs(diff);
+         var whole = Math.floor(abs);
+@@ -53,7 +53,7 @@
+         var there = root.timeIn(tz);
+         var here = Loc.now();
+         var d = Math.round((new Date(there.getFullYear(), there.getMonth(), there.getDate()) - new Date(here.getFullYear(), here.getMonth(), here.getDate())) / 86400000);
+-        return d === 0 ? "Today" : (d > 0 ? "Tomorrow" : "Yesterday");
++        return d === 0 ? "Heute" : (d > 0 ? "Morgen" : "Gestern");
+     }
+ 
+     // ask for zones beyond the configured ones, e.g. a widget's own set

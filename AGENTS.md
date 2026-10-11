@@ -7,7 +7,9 @@ Instructions for AI coding agents (opencode and others) working in this reposito
 Personal NixOS flake configuration for three hosts: **yoga** (primary laptop),
 **latitude** (legacy laptop), **nix-media** (media server). Read
 `README.md` for the feature overview and `REPO_OVERVIEW.md` for a detailed,
-per-file map of the repo (including known pitfalls).
+per-file map of the repo (including known pitfalls). When the lucid /
+quickshell / dank-greeter pins move or the lucid build-time patches reject,
+follow `LUCID_RUNBOOK.md`.
 
 ## Layout
 

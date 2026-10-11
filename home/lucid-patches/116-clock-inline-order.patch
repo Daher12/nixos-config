@@ -1,0 +1,33 @@
+diff -ruN -x '*.rej' -x '*.orig' patch115/lucidbar/Clock.qml patch116/lucidbar/Clock.qml
+--- patch115/lucidbar/Clock.qml	2026-10-10 09:00:57.199728042 +0200
++++ patch116/lucidbar/Clock.qml	2026-10-10 14:11:45.407756407 +0200
+@@ -252,7 +252,7 @@
+             // the date reads as context, the time as the thing itself: an accent
+             // chip is the one fill the bar carries on live data
+             LText {
+-                visible: Prefs.clockShowDate && root.accentFace
++                visible: Prefs.clockShowDate && !root.stacked // nixos-config local patch 116: date leads in inline too (Date / Clock / Weather)
+                 anchors.verticalCenter: parent.verticalCenter
+                 role: "labelLarge"
+                 size: Theme.fs(12.5)
+@@ -364,8 +364,10 @@
+             }
+ 
+             // one line: the time, a dot, then the date
++            // nixos-config local patch 116: trailing dot+date suppressed - the
++            // leading date above already covers inline, keeping Date / Clock / Weather
+             Rectangle {
+-                visible: Prefs.clockShowDate && root.inlineFace
++                visible: false && Prefs.clockShowDate && root.inlineFace
+                 anchors.verticalCenter: parent.verticalCenter
+                 width: Theme.dp(3)
+                 height: Theme.dp(3)
+@@ -374,7 +376,7 @@
+             }
+ 
+             LText {
+-                visible: Prefs.clockShowDate && root.inlineFace
++                visible: false && Prefs.clockShowDate && root.inlineFace // nixos-config local patch 116
+                 anchors.verticalCenter: parent.verticalCenter
+                 role: "labelLarge"
+                 size: Theme.fs(12.5)

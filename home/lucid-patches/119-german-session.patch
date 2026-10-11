@@ -1,0 +1,41 @@
+diff -ruN -x '*.rej' -x '*.orig' prev/lucidbar/SessionMenu.qml work/lucidbar/SessionMenu.qml
+--- prev/lucidbar/SessionMenu.qml	2026-10-08 13:48:40.000000000 +0200
++++ work/lucidbar/SessionMenu.qml	2026-10-10 16:13:53.488517980 +0200
+@@ -119,7 +119,7 @@
+                     const d = Math.floor(s / 86400);
+                     const h = Math.floor(s % 86400 / 3600);
+                     const m = Math.floor(s % 3600 / 60);
+-                    root.uptime = "Up " + (d > 0 ? d + (d === 1 ? " day " : " days ") : "") + (d > 0 || h > 0 ? h + " h " : "") + m + " min";
++                    root.uptime = "läuft " + (d > 0 ? d + " T " : "") + (d > 0 || h > 0 ? h + " Std " : "") + m + " Min"; // nixos-config local patch 119 (German)
+                 }
+                 root.canHibernate = /"yes"/.test(lines[1] || "");
+             }
+@@ -161,7 +161,7 @@
+                 Text {
+                     anchors.left: parent.left
+                     anchors.verticalCenter: parent.verticalCenter
+-                    text: "Power"
++                    text: "Energie" // nixos-config local patch 119 (German)
+                     color: Theme.accent
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fontTitleSm
+diff -ruN -x '*.rej' -x '*.orig' prev/lucidsession/Session.qml work/lucidsession/Session.qml
+--- prev/lucidsession/Session.qml	2026-10-08 13:48:40.000000000 +0200
++++ work/lucidsession/Session.qml	2026-10-10 16:14:09.353836291 +0200
+@@ -228,14 +228,14 @@
+                     color: "white"
+                     text: ses.armed !== "" ? ses.actions.find((a) => {
+                         return a.id === ses.armed;
+-                    }).ask : "See you soon, " + ses.who
++                    }).ask : "Bis bald, " + ses.who // nixos-config local patch 119 (German)
+                 }
+ 
+                 LText {
+                     anchors.horizontalCenter: parent.horizontalCenter
+                     role: "titleMedium"
+                     color: Qt.rgba(1, 1, 1, 0.72)
+-                    text: ses.armed !== "" ? "Press it again to go ahead, Esc to stay" : (Sys.uptime > 0 ? "Up for " + Sys.duration(Sys.uptime) : " ")
++                    text: ses.armed !== "" ? "Erneut drücken zum Fortfahren, Esc zum Abbrechen" : (Sys.uptime > 0 ? "Läuft seit " + Sys.duration(Sys.uptime) : " ") // nixos-config local patch 119 (German)
+                 }
+ 
+             }

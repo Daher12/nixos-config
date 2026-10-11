@@ -1,0 +1,190 @@
+--- prev/lucidui/PasswordEcho.qml
++++ work/lucidui/PasswordEcho.qml
+@@ -88,7 +88,7 @@
+         for (var n = 0; n < add; n++) {
+             beads.insert(at + n, {
+                 "uid": ++echo.serial,
+-                "shape": echo.draw(),
++                "shape": "circle",
+                 "tilt": Math.random() * 90 - 45,
+                 "turn": (Math.random() < 0.5 ? -1 : 1) * (150 + Math.random() * 110),
+                 "lag": Math.min(n, 12) * 24,
+@@ -160,6 +160,8 @@
+                 property real melt: 0
+                 property real settle: 0
+                 property real twist: 0
++                // 0 is still a caret line, 1 is a settled dot (pre-v1.20 birth)
++                property real born: 0
+                 property real gone: 0
+                 property real shut: 0
+                 // selected: the dot squares off and the band fills in behind it
+@@ -222,42 +224,22 @@
+                     visible: bead.pick > 0
+                 }
+ 
+-                // a bead is too small for the curve renderer, which leaves its edge
+-                // ragged, so the outline is tessellated and multisampled instead
+-                Item {
++                // nixos-config local patch 121: pre-v1.20 dot — a plain
++                // morphing pill replaces the tessellated Shape: born=0 is the
++                // caret's own line (2dp wide, twice the dot tall), born=1 the
++                // settled dot; radius antialiasing needs no layer
++                Rectangle {
+                     id: form
+ 
+-                    readonly property real size: echo.dot * 1.5
+-
+-                    width: form.size
+-                    height: form.size
+                     anchors.centerIn: parent
+                     anchors.verticalCenterOffset: -bead.bob * Theme.dp(3)
+-                    layer.enabled: true
+-                    layer.samples: 8
+-                    layer.smooth: true
+-                    rotation: bead.spin - bead.square * bead.pick
+-                    scale: bead.pop * (1 - bead.settle / 3) * (1 - bead.gone / 2) * (1 - bead.shown / 2) * (1 + bead.bob / 4) * (1 - 0.12 * bead.pick + 0.3 * Math.sin(Math.PI * bead.pick))
+-                    opacity: bead.lit * (1 - bead.gone) * (1 - bead.shown)
++                    width: Theme.dp(2) + (echo.dot - Theme.dp(2)) * bead.born
++                    height: echo.dot * (2 - bead.born)
++                    radius: width / 2
++                    color: bead.ink
++                    scale: (1 - bead.gone / 2) * (1 - bead.shown / 2) * (1 + bead.bob / 4) * (1 - 0.12 * bead.pick + 0.3 * Math.sin(Math.PI * bead.pick))
++                    opacity: bead.lit * (1 - bead.gone) * (1 - bead.shown) * (0.45 + 0.55 * bead.born)
+                     visible: opacity > 0
+-
+-                    Shape {
+-                        anchors.fill: parent
+-                        preferredRendererType: Shape.GeometryRenderer
+-
+-                        ShapePath {
+-                            fillColor: bead.ink
+-                            strokeColor: "transparent"
+-                            strokeWidth: 0
+-
+-                            PathSvg {
+-                                path: Shapes.svg(Shapes.mix(Shapes.mix(Shapes.radii(bead.shape), Shapes.radii("circle"), bead.melt), Shapes.radii("square"), bead.pick), form.size, 0)
+-                            }
+-
+-                        }
+-
+-                    }
+-
+                 }
+ 
+                 Text {
+@@ -290,93 +272,34 @@
+ 
+                 }
+ 
+-                ParallelAnimation {
++                // nixos-config local patch 121: plain dots — a typed character
++                // starts as the caret's own line and settles into a dot where
++                // it stood (the pre-v1.20 look): geometry scalars snap to
++                // their settled values, only `born` animates
++                SequentialAnimation {
+                     id: life
+ 
+-                    SequentialAnimation {
+-                        PauseAnimation {
+-                            duration: bead.lag
+-                        }
+-
+-                        ParallelAnimation {
+-                            NumberAnimation {
+-                                target: bead
+-                                property: "lit"
+-                                to: 1
+-                                duration: Theme.durDefaultEffects
+-                                easing.type: Easing.Bezier
+-                                easing.bezierCurve: Theme.curveEffects
+-                            }
+-
+-                            NumberAnimation {
+-                                target: bead
+-                                property: "pop"
+-                                to: 1
+-                                duration: Theme.durFastSpatial
+-                                easing.type: Easing.Bezier
+-                                easing.bezierCurve: Theme.curveFastSpatial
+-                            }
+-
+-                            NumberAnimation {
+-                                target: bead
+-                                property: "grow"
+-                                to: 1.3
+-                                duration: Theme.durDefaultEffects
+-                                easing.type: Easing.Bezier
+-                                easing.bezierCurve: Theme.curveEffects
+-                            }
+-
+-                        }
+-
+-                        PauseAnimation {
+-                            duration: Theme.ms(180)
+-                        }
+-
+-                        ParallelAnimation {
+-                            NumberAnimation {
+-                                target: bead
+-                                property: "melt"
+-                                to: 1
+-                                duration: Theme.durFastSpatial
+-                                easing.type: Easing.Bezier
+-                                easing.bezierCurve: Theme.curveFastSpatial
+-                            }
+-
+-                            NumberAnimation {
+-                                target: bead
+-                                property: "settle"
+-                                to: 1
+-                                duration: Theme.durFastSpatial
+-                                easing.type: Easing.Bezier
+-                                easing.bezierCurve: Theme.curveFastSpatial
+-                            }
+-
+-                            NumberAnimation {
+-                                target: bead
+-                                property: "grow"
+-                                to: 1
+-                                duration: Theme.durDefaultEffects
+-                                easing.type: Easing.Bezier
+-                                easing.bezierCurve: Theme.curveEffects
+-                            }
+-
+-                        }
+-
++                    PauseAnimation {
++                        duration: bead.lag
+                     }
+ 
+-                    SequentialAnimation {
+-                        PauseAnimation {
+-                            duration: bead.lag
+-                        }
+-
+-                        NumberAnimation {
+-                            target: bead
+-                            property: "twist"
+-                            to: 1
+-                            duration: Theme.ms(900)
+-                            easing.type: Easing.OutSine
++                    ScriptAction {
++                        script: {
++                            bead.pop = 1;
++                            bead.grow = 1;
++                            bead.settle = 1;
++                            bead.melt = 1;
++                            bead.lit = 1;
+                         }
++                    }
+ 
++                    NumberAnimation {
++                        target: bead
++                        property: "born"
++                        to: 1
++                        duration: Theme.ms(300)
++                        easing.type: Easing.Bezier
++                        easing.bezierCurve: Theme.easeEmphasizedDecel
+                     }
+ 
+                 }

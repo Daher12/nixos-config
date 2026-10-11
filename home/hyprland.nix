@@ -65,6 +65,18 @@ let
     -- Monitors
     ${monitorsLua}
 
+    -- Lucid v1.20 Settings-driven modules. Required BEFORE anything this
+    -- file sets (upstream's contract, documented in settings.lua: what the
+    -- user config sets afterwards wins): settings.lua applies whatever
+    -- Lucid Settings > Windows/Input writes to
+    -- ~/.config/hypr/lucid-settings.lua (data-only file, loaded with an
+    -- empty environment), and lucid-look.lua fills the blur/shadow
+    -- defaults the shell's own surfaces sample — every option in the
+    -- hl.config blocks below overrides them. pcall keeps the compositor
+    -- alive if a module is mid-sync or missing.
+    pcall(require, "modules.settings")
+    pcall(require, "modules.lucid-look")
+
     -- Look & feel. Geometry/shadow/blur/motion are owned here (Nix);
     -- border colors are the static Nord pair below (the DMS-era matugen
     -- colors.lua drop-in is gone with DMS; Lucid's matugen only colors
@@ -96,22 +108,46 @@ let
                 range = 24,
                 render_power = 3,
             },
+            -- Frosted glass (lucid Settings > General > Glass): the slider
+            -- (state: ~/.config/quickshell/lucidbar/blur.json) only sets
+            -- surface translucency + ext-background-effect-v1 blur regions —
+            -- Hyprland renders the frost from this block. noise and
+            -- ignore_opacity pin lucid-look.lua's values so the recipe no
+            -- longer depends on that module surviving a pin bump.
             blur = {
-                enabled  = true,
-                size     = 10,
-                passes   = 2,
-                vibrancy = 0.2,
+                enabled        = true,
+                size           = 10,
+                passes         = 2,
+                vibrancy       = 0.2,
+                noise          = 0.04,
+                ignore_opacity = true,
             },
         },
         animations = { enabled = true },
     })
 
-    -- Calmer Fluent-ish motion: quick pop-in windows, sliding workspaces,
-    -- fading layers.
-    hl.curve("fluent", { type = "bezier", points = { {0.3, 0.9}, {0.3, 1} } })
-    hl.animation({ leaf = "windows",    enabled = true, speed = 5.5, bezier = "fluent", style = "popin 86%" })
-    hl.animation({ leaf = "workspaces", enabled = true, speed = 4,   bezier = "fluent", style = "slide" })
-    hl.animation({ leaf = "layers",     enabled = true, speed = 5,   bezier = "fluent", style = "fade" })
+    -- Material 3 motion using Caelestia's curve set (2026-10-10 polish
+    -- round): decelerating entrances, faster accelerating exits, snappy
+    -- border/fade leaves (they used to inherit the sluggish global default).
+    -- Per-leaf names verified against the 0.55.4 animation registry
+    -- (`hyprctl animations`). The shell's own QML durations are tuned
+    -- separately via lucid's motion prefs (lucidSync migration:
+    -- motionScale 0.85, barMotionScale 1.0).
+    hl.curve("decel", { type = "bezier", points = { {0.05, 0.7}, {0.1, 1} } })
+    hl.curve("accel", { type = "bezier", points = { {0.3, 0}, {0.8, 0.15} } })
+    hl.curve("std", { type = "bezier", points = { {0.2, 0}, {0, 1} } })
+    hl.animation({ leaf = "windowsIn",   enabled = true, speed = 5, bezier = "decel", style = "slide" })
+    hl.animation({ leaf = "windowsOut",  enabled = true, speed = 3, bezier = "accel", style = "slide" })
+    hl.animation({ leaf = "windowsMove", enabled = true, speed = 6, bezier = "std", style = "slide" })
+    -- layers keep the fade style (lucid's popouts fade in QML too — a slide
+    -- here would fight it); the faster speeds cut the double-fade mush.
+    hl.animation({ leaf = "layersIn",  enabled = true, speed = 5, bezier = "decel", style = "fade" })
+    hl.animation({ leaf = "layersOut", enabled = true, speed = 4, bezier = "accel", style = "fade" })
+    hl.animation({ leaf = "fadeIn",  enabled = true, speed = 6, bezier = "std" })
+    hl.animation({ leaf = "fadeOut", enabled = true, speed = 6, bezier = "std" })
+    hl.animation({ leaf = "border",  enabled = true, speed = 6, bezier = "std" })
+    hl.animation({ leaf = "workspaces",       enabled = true, speed = 5, bezier = "std", style = "slide" })
+    hl.animation({ leaf = "specialWorkspace", enabled = true, speed = 4, bezier = "decel", style = "slidefadevert 15%" })
 
     -- dwindle.pseudotile no longer exists in the 0.55 Lua config; pseudo is a
     -- per-window toggle via hl.dsp.window.pseudo() now.
@@ -230,7 +266,9 @@ let
     -- Autostart. Lucid itself starts via the lucid.service user unit,
     -- wanted by graphical-session.target (home/lucid.nix) — upstream's
     -- modules.autostart.lua is deliberately NOT required here (it would
-    -- start a second shell next to the service). Cursor theme/size arrive
+    -- start a second shell next to the service). Same for
+    -- modules.plugins.lua (deployed, but requiring it compiles the
+    -- hypr-dynamic-cursors plugin at login). Cursor theme/size arrive
     -- via the systemd user manager (home/theme.nix) through uwsm — no env
     -- vars needed. Lucid's polkit agent (lucidpolkit) runs inside the
     -- shell, so hyprpolkitagent is no longer autostarted (kept installed

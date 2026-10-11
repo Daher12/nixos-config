@@ -1,0 +1,205 @@
+diff -ruN -x '*.rej' -x '*.orig' patch114/lucidbar/ClockToday.qml patch115/lucidbar/ClockToday.qml
+--- patch114/lucidbar/ClockToday.qml	2026-10-10 08:59:49.895899673 +0200
++++ patch115/lucidbar/ClockToday.qml	2026-10-10 09:00:57.333099329 +0200
+@@ -190,7 +190,7 @@
+                 anchors.horizontalCenter: parent.horizontalCenter
+                 role: "bodyMedium"
+                 color: Theme.subtext
+-                text: WeatherSource.lastError !== "" ? "Weather is unavailable — " + WeatherSource.lastError : "Fetching the forecast"
++                text: WeatherSource.lastError !== "" ? "Wetter nicht verfügbar — " + WeatherSource.lastError : "Wetter wird geladen" // nixos-config local patch 115 (German)
+             }
+ 
+         }
+@@ -272,7 +272,7 @@
+                 spacing: Theme.dp(6)
+ 
+                 Repeater {
+-                    model: page.wx ? [["thermostat", "Feels " + page.wx.feelsC + "°"], ["water_drop", page.wx.humidity + "%"], ["air", page.wx.windKmph + " km/h " + (page.wx.windDir || "")], ["umbrella", (page.wx.pop || 0) + "%"], ["light_mode", "UV " + page.wx.uv]] : []
++                    model: page.wx ? [["thermostat", "Fühlt sich wie " + page.wx.feelsC + "° an"], ["water_drop", page.wx.humidity + " %"], ["air", page.wx.windKmph + " km/h " + (page.wx.windDir || "")], ["umbrella", (page.wx.pop || 0) + " %"], ["light_mode", "UV " + page.wx.uv]] : []
+ 
+                     Rectangle {
+                         required property var modelData
+@@ -331,7 +331,7 @@
+                             anchors.horizontalCenter: parent.horizontalCenter
+                             role: "labelSmall"
+                             color: index === 0 ? Theme.primary : Theme.subtext
+-                            text: index === 0 ? "Now" : new Date(modelData.time).toLocaleTimeString(Qt.locale(), Prefs.clock24h ? "HH" : "h AP").replace(":00", "")
++                            text: index === 0 ? "Jetzt" : new Date(modelData.time).toLocaleTimeString(Qt.locale(), Prefs.clock24h ? "HH" : "h AP").replace(":00", "")
+                         }
+ 
+                         WeatherIcon {
+diff -ruN -x '*.rej' -x '*.orig' patch114/lucidwidgets/GlanceWidget.qml patch115/lucidwidgets/GlanceWidget.qml
+--- patch114/lucidwidgets/GlanceWidget.qml	2026-10-10 08:59:49.902585465 +0200
++++ patch115/lucidwidgets/GlanceWidget.qml	2026-10-10 09:00:57.333930039 +0200
+@@ -32,7 +32,7 @@
+         if (w.preview)
+             return {
+             "icon": "event",
+-            "text": "Team call · in 25 min"
++            "text": "Teamcall · in 25 Min" // nixos-config local patch 115 (German)
+         };
+ 
+         var h = Chrono.headline;
+@@ -48,7 +48,7 @@
+             var mins = Math.round((next[0].at - w.now) / 60000);
+             return {
+                 "icon": "event",
+-                "text": next[0].item.name + " · " + (mins < 60 ? "in " + Math.max(1, mins) + " min" : Agenda.timeText(next[0].item))
++                "text": next[0].item.name + " · " + (mins < 60 ? "in " + Math.max(1, mins) + " Min" : Agenda.timeText(next[0].item))
+             };
+         }
+         if (w.playing)
+@@ -61,7 +61,7 @@
+         if (bat && bat.isPresent && bat.percentage <= 0.2 && bat.state === UPowerDeviceState.Discharging)
+             return {
+             "icon": "battery_alert",
+-            "text": Math.round(bat.percentage * 100) + "% battery left"
++            "text": Math.round(bat.percentage * 100) + " % Akku übrig"
+         };
+ 
+         if (w.report && w.report.sunset) {
+@@ -70,20 +70,20 @@
+             if (w.now < rise && rise - w.now < 6 * 3600000)
+                 return {
+                 "icon": "wb_twilight",
+-                "text": "Sunrise " + w.clock(rise)
++                "text": "Sonnenaufgang " + w.clock(rise)
+             };
+ 
+             if (w.now < set)
+                 return {
+                 "icon": "wb_twilight",
+-                "text": "Sunset " + w.clock(set)
++                "text": "Sonnenuntergang " + w.clock(set)
+             };
+ 
+         }
+         if (w.report && w.report.pop >= 40)
+             return {
+             "icon": "umbrella",
+-            "text": w.report.pop + "% chance of rain today"
++            "text": w.report.pop + " % Regenrisiko heute"
+         };
+ 
+         return null;
+diff -ruN -x '*.rej' -x '*.orig' patch114/lucidwidgets/WeatherWidget.qml patch115/lucidwidgets/WeatherWidget.qml
+--- patch114/lucidwidgets/WeatherWidget.qml	2026-10-10 08:59:49.903045170 +0200
++++ patch115/lucidwidgets/WeatherWidget.qml	2026-10-10 09:00:57.333531661 +0200
+@@ -46,14 +46,14 @@
+         if (!d || !d.date) {
+             const fake = Loc.now();
+             fake.setDate(fake.getDate() + i);
+-            return i === 0 ? "Today" : fake.toLocaleDateString(Qt.locale(), "ddd");
++            return i === 0 ? "Heute" : fake.toLocaleDateString(Qt.locale(), "ddd"); // nixos-config local patch 115 (German)
+         }
+-        return i === 0 ? "Today" : new Date(d.date + "T12:00").toLocaleDateString(Qt.locale(), "ddd");
++        return i === 0 ? "Heute" : new Date(d.date + "T12:00").toLocaleDateString(Qt.locale(), "ddd");
+     }
+ 
+     function hourName(h, i) {
+         if (i === 0)
+-            return "Now";
++            return "Jetzt";
+ 
+         if (!h.time)
+             return (i * 3) + "h";
+@@ -82,7 +82,7 @@
+             anchors.horizontalCenter: parent.horizontalCenter
+             role: "labelLarge"
+             color: w.inkDim
+-            text: WeatherSource.lastError !== "" ? "Weather unavailable" : "Fetching weather"
++            text: WeatherSource.lastError !== "" ? "Wetter nicht verfügbar" : "Wetter wird geladen"
+         }
+ 
+     }
+@@ -161,7 +161,7 @@
+             LText {
+                 role: "bodySmall"
+                 color: w.inkDim
+-                text: w.days.length ? "High " + w.t(w.days[0].maxC, w.days[0].maxF) + " · Low " + w.t(w.days[0].minC, w.days[0].minF) : ""
++                text: w.days.length ? "H " + w.t(w.days[0].maxC, w.days[0].maxF) + " · T " + w.t(w.days[0].minC, w.days[0].minF) : ""
+             }
+ 
+         }
+diff -ruN -x '*.rej' -x '*.orig' patch114/WeatherSource.qml patch115/WeatherSource.qml
+--- patch114/WeatherSource.qml	2026-10-10 08:59:49.892585557 +0200
++++ patch115/WeatherSource.qml	2026-10-10 09:00:57.332756356 +0200
+@@ -54,37 +54,37 @@
+     function descFor(code) {
+         const c = parseInt(code);
+         if (c === 0)
+-            return "Clear";
++            return "Klar"; // nixos-config local patch 115 (German)
+ 
+         if (c === 1)
+-            return "Mostly Clear";
++            return "Überwiegend klar";
+ 
+         if (c === 2)
+-            return "Partly Cloudy";
++            return "Teilweise bewölkt";
+ 
+         if (c === 3)
+-            return "Overcast";
++            return "Bedeckt";
+ 
+         if (c <= 48)
+-            return "Fog";
++            return "Nebel";
+ 
+         if (c <= 57)
+-            return "Drizzle";
++            return "Nieselregen";
+ 
+         if (c <= 67)
+-            return "Rain";
++            return "Regen";
+ 
+         if (c <= 77)
+-            return "Snow";
++            return "Schnee";
+ 
+         if (c <= 82)
+-            return "Rain Showers";
++            return "Regenschauer";
+ 
+         if (c <= 86)
+-            return "Snow Showers";
++            return "Schneeschauer";
+ 
+         if (c <= 99)
+-            return "Thunderstorm";
++            return "Gewitter";
+ 
+         return "—";
+     }
+@@ -113,7 +113,7 @@
+ 
+     // 0 north, clockwise
+     function compass(deg) {
+-        const names = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
++        const names = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"]; // German compass (O = Ost, SO = Südost)
+         return names[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+     }
+ 
+@@ -175,7 +175,7 @@
+         onExited: (code) => {
+             src.busy = false;
+             if (code !== 0)
+-                src.lastError = "could not reach the forecast service";
++                src.lastError = "Wetterdienst nicht erreichbar";
+ 
+         }
+ 
+@@ -189,9 +189,9 @@
+                     if (data && data.current && data.daily)
+                         src.store(data);
+                     else
+-                        src.lastError = "no forecast for that position";
++                        src.lastError = "kein Wetterbericht für diese Position";
+                 } catch (e) {
+-                    src.lastError = "could not read the forecast";
++                    src.lastError = "Wetterbericht konnte nicht gelesen werden";
+                 }
+             }
+         }

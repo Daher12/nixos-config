@@ -1,0 +1,49 @@
+diff -ruN -x '*.rej' -x '*.orig' patch104/lucidbar/SysTray.qml patch111/lucidbar/SysTray.qml
+--- patch104/lucidbar/SysTray.qml	2026-10-10 08:52:36.489550436 +0200
++++ patch111/lucidbar/SysTray.qml	2026-10-10 08:53:06.513628324 +0200
+@@ -112,6 +112,9 @@
+                         anchors.fill: parent
+                         source: root.resolveIconSource(inline.modelData.icon)
+                         asynchronous: true
++                        // nixos-config local patch 111: tray icons at display resolution (scale-2 panel)
++                        backer.sourceSize.width: Theme.dp(36)
++                        backer.sourceSize.height: Theme.dp(36)
+                         visible: status === Image.Ready
+                         layer.enabled: Prefs.trayIconColor !== "original"
+                         layer.effect: TrayTint {
+@@ -674,6 +677,9 @@
+                     height: Theme.dp(22)
+                     source: card.resolvedIcon
+                     asynchronous: true
++                    // nixos-config local patch 111: tray icons at display resolution (scale-2 panel)
++                    backer.sourceSize.width: Theme.dp(44)
++                    backer.sourceSize.height: Theme.dp(44)
+                     visible: status === Image.Ready
+                     layer.enabled: Prefs.trayIconColor !== "original"
+                     layer.effect: TrayTint {
+diff -ruN -x '*.rej' -x '*.orig' patch104/lucidbar/Workspaces.qml patch111/lucidbar/Workspaces.qml
+--- patch104/lucidbar/Workspaces.qml	2026-10-10 08:52:36.489748403 +0200
++++ patch111/lucidbar/Workspaces.qml	2026-10-10 08:53:06.514028687 +0200
+@@ -2591,6 +2591,9 @@
+                                 anchors.margins: Math.max(1, appBadge.iconSize * 0.1)
+                                 source: thumb.iconSource
+                                 asynchronous: true
++                                // nixos-config local patch 111: app icons at display resolution (scale-2 panel)
++                                backer.sourceSize.width: Math.ceil(appBadge.iconSize * 2)
++                                backer.sourceSize.height: Math.ceil(appBadge.iconSize * 2)
+                             }
+ 
+                         }
+diff -ruN -x '*.rej' -x '*.orig' patch104/lucidnotif/NotifAvatar.qml patch111/lucidnotif/NotifAvatar.qml
+--- patch104/lucidnotif/NotifAvatar.qml	2026-10-10 08:52:36.491637582 +0200
++++ patch111/lucidnotif/NotifAvatar.qml	2026-10-10 08:53:06.513706523 +0200
+@@ -33,6 +33,9 @@
+         anchors.fill: parent
+         source: avatar.ready ? avatar.source : ""
+         asynchronous: true
++        // nixos-config local patch 111: app icons at display resolution (scale-2 panel)
++        backer.sourceSize.width: Math.ceil(avatar.size * 2)
++        backer.sourceSize.height: Math.ceil(avatar.size * 2)
+         visible: avatar.ready && status === Image.Ready
+     }
+ 

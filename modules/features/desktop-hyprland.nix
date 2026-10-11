@@ -270,6 +270,22 @@ in
               fonttools
             ]
           ))
+          # v1.20 feature deps (upstream install.sh gained them): hyprsunset
+          # night light, qrencode wifi QR sharing, inotify-tools usb/camera
+          # toasts, smartmontools + udisks2 Storage-page drive health and
+          # mounts, sshfs phone-widget file browsing, sound-theme-freedesktop
+          # for the freedesktop sound-name mapping, fastfetch Fetch widget,
+          # xdg-terminal-exec launcher terminal-command rows.
+          hyprsunset
+          qrencode
+          inotify-tools
+          smartmontools
+          udisks2
+          sshfs
+          sound-theme-freedesktop
+          fastfetch
+          xdg-terminal-exec
+          cava # Cava.qml visualizer backend (journal: "binary could not be found", 2026-10-10)
         ];
 
         # Home-manager side: flip home/lucid.nix on (activation sync + user
