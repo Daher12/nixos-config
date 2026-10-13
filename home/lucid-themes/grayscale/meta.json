@@ -1,0 +1,10 @@
+{
+  "id": "grayscale",
+  "name": "Grayscale",
+  "desc": "Grayscale pair: soft dark #1f1f1f and light #e8e8e8 with muted gray accents, from tinted base16 grayscale",
+  "swatchBg": "#1f1f1f",
+  "swatchAccent": "#c6c6c6",
+  "source": "tinted:base16/grayscale + tinted:base16/grayscale-light",
+  "detected": "base16",
+  "user": true
+}

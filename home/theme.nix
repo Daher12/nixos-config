@@ -111,6 +111,12 @@ in
 {
   # Single source for the light/dark GTK + icon theme names (home/lucid.nix's
   # auto light/dark wrapper reads these instead of mirroring let-bindings).
+  # NOTE (2026-10-13, accepted limitation): these names style GTK3 and
+  # plain-GTK4 apps only. libadwaita apps ignore gtk-theme-name BY DESIGN —
+  # they follow gsettings color-scheme plus the ~/.config/gtk-{3,4}.0
+  # colors.css tones (stock Adwaita with grayscale recolor). Forcing a theme
+  # onto libadwaita would need the unsupported session-wide GTK_THEME hack;
+  # deliberately not done.
   options.desktop.theme = {
     gtkDark = lib.mkOption {
       type = lib.types.str;
@@ -129,7 +135,11 @@ in
     };
     iconLight = lib.mkOption {
       type = lib.types.str;
-      default = "Fluent";
+      # The installed light variant name: lucid's Env.qml variantOf() rewrites
+      # the icon theme to an installed "-light" counterpart on every light
+      # flip, so the bare "Fluent" default drifted from the value gsettings/
+      # prefs actually carried (live-verified 2026-10-13: Fluent-light).
+      default = "Fluent-light";
       description = "Icon theme name for light mode";
     };
   };

@@ -188,8 +188,10 @@ let
   # darkman is disabled on this host for fighting matugen over GTK, and a
   # trigger that shifts daily is hard to audit). One timer fires at both
   # boundaries; the service also runs at session start, so a boundary missed
-  # while the laptop is off self-corrects at next login. Manual flips from
-  # the Theme page keep working and last until the next boundary.
+  # while the laptop is off self-corrects at next login. Since 2026-10-13 the
+  # boundaries drive APPLICATIONS only (user decision 2026-10-13: the shell
+  # stays dark) — lucid-shell-dark.service pins the shell's dark face, and
+  # only a manual dashboard flip moves it, until the next login.
   lightHour = 8;
   darkHour = 19;
 
@@ -200,19 +202,21 @@ let
   # 2026-10-11). Bump together with the lucid pin.
   minQuickshell = "0.3.2";
 
-  # The wrapper mirrors what Prefs.setColorMode does in-QML: Lucid's own
-  # set-mode.sh for the palette (matugen re-run in the new mode, current_mode
-  # watched by the shell) plus the app-facing theme swaps — gsettings for
-  # running and portal-aware clients, and the gtk3/gtk4/gtk2 ini name fields
-  # (via lucid's own envtool writer) for freshly launched plain GTK apps.
-  # Theme names are owned by
-  # home/theme.nix — keep the two pairs below in sync there. The shell
-  # re-applies its persisted env prefs at every start (Env.qml envAdopted
-  # → envtool.apply), and a manual Theme-page flip persists them — so the
-  # wrapper syncs envColorScheme/envGtkTheme/envIconTheme to the flipped
-  # mode below, or every lucid restart rewrites the stale last-manual
-  # mode over the timer's values (observed 2026-09-30: prefs "dark"
-  # re-darkening gsettings in daytime).
+  # Apps-side mirror of what Prefs.setColorMode does in-QML for the app half:
+  # the app-facing renders (kitty, gtk colors.css, starship, the matugen
+  # templates — through lucid's own apply-theme.sh --apps-only) plus gsettings
+  # for running and portal-aware clients, and the gtk3/gtk4/gtk2 ini name
+  # fields (via lucid's own envtool writer) for freshly launched plain GTK
+  # apps. The shell palette is NOT touched: --apps-only leaves
+  # ~/.cache/quickshell/matugen.json alone — the shell is pinned dark by
+  # lucid-shell-dark.service and only a manual dashboard flip moves it.
+  # Theme names are owned by home/theme.nix — keep the two pairs below in
+  # sync there. The shell re-applies its persisted env prefs at every start
+  # (Env.qml envAdopted → envtool.apply), and a manual Theme-page flip
+  # persists them — so the wrapper syncs envColorScheme/envGtkTheme/
+  # envIconTheme to the flipped mode below, or every lucid restart rewrites
+  # the stale last-manual mode over the timer's values (observed 2026-09-30:
+  # prefs "dark" re-darkening gsettings in daytime).
   lucidAutoMode = pkgs.writeShellApplication {
     name = "lucid-auto-mode";
     runtimeInputs = with pkgs; [
@@ -242,12 +246,22 @@ let
               ;;
             esac
 
-            # Palette + matugen templates through Lucid's own flip. Fails while no
-            # wallpaper is set through lucid yet (matugen has nothing to derive
-            # from) — the gsettings swaps below still land, so downgrade to a
-            # warning instead of aborting.
-            "$HOME/.config/lucid/set-mode.sh" "$mode" \
-              || echo "warning: set-mode.sh failed — swapped gsettings only" >&2
+            # Apps-only render in the new mode — kitty, gtk colors.css,
+            # starship, the matugen templates — through Lucid's own writer.
+            # --apps-only leaves the shell palette
+            # (~/.cache/quickshell/matugen.json) untouched: the shell is
+            # pinned to its dark face (lucid-shell-dark.service) and only
+            # applications follow the clock (user decision 2026-10-13).
+            # Derived themes (matugen/pywal/colour) have no static palette
+            # to render apps-only from and keep the legacy coupled flip.
+            theme="$(cat "$HOME/.cache/current_theme" 2>/dev/null || echo matugen)"
+            if [[ -f "$HOME/.config/lucid/themes/$theme/quickshell.json" ]]; then
+              "$HOME/.config/lucid/apply-theme.sh" --apps-only "$theme" "$mode" \
+                || echo "warning: apply-theme.sh --apps-only failed — gsettings swaps only" >&2
+            elif [[ "$theme" == matugen || "$theme" == pywal || "$theme" == colour ]]; then
+              "$HOME/.config/lucid/set-mode.sh" "$mode" \
+                || echo "warning: set-mode.sh failed — swapped gsettings only" >&2
+            fi
 
             # Wallpaper repair for STATIC themes: set-mode.sh re-applies the
             # image only for matugen/pywal, and impermanence wipes awww's
@@ -255,14 +269,16 @@ let
             # image back (observed 2026-09-30: black desktop, state files
             # intact). Repair only when awww is not showing an image, so
             # boundary flips mid-session don't re-fade the same picture.
+            # The wallpaper belongs to the pinned-dark shell, so it is
+            # re-applied in the SHELL's mode, not the clock's.
             # awww query: "currently displaying: image: <path>" vs
             # "color: <hex>" when nothing is set (verified live 2026-09-30).
-            theme="$(cat "$HOME/.cache/current_theme" 2>/dev/null || echo matugen)"
+            shell_mode="$(cat "$HOME/.cache/current_mode" 2>/dev/null || echo dark)"
             wallpaper="$(cat "$HOME/.cache/current_wallpaper" 2>/dev/null || true)"
             if [[ "$theme" != matugen && "$theme" != pywal \
                   && -n "$wallpaper" && -f "$wallpaper" ]] \
                && ! awww query 2>/dev/null | grep -q 'image:'; then
-              "$HOME/.config/hypr/scripts/wallpaper/set-wallpaper.sh" "$wallpaper" "$mode" \
+              "$HOME/.config/hypr/scripts/wallpaper/set-wallpaper.sh" "$wallpaper" "$shell_mode" \
                 || echo "warning: wallpaper re-apply failed" >&2
             fi
 
@@ -341,6 +357,40 @@ let
       envtool.gtk2_set(common)
       PYEOF
             fi
+    '';
+  };
+
+  # Session-start pin: the shell rests on its dark palette (user decision
+  # 2026-10-13 — only a manual dashboard flip may leave it, and only until
+  # the next login). current_mode is what Prefs.qml watches live (anything
+  # not "light" reads dark); the palette itself is re-applied shell-only when
+  # the cached one drifted from the dark face (e.g. after an evening of
+  # manual light — Theme.qml recolors live from the file watch). Derived
+  # themes regenerate through set-mode.sh — for them this is the legacy
+  # coupled flip, accepted.
+  lucidPinShellDark = pkgs.writeShellApplication {
+    name = "lucid-pin-shell-dark";
+    runtimeInputs = with pkgs; [
+      coreutils # cat (printf/echo are builtins)
+      diffutils # cmp
+    ];
+    text = ''
+      set -euo pipefail
+      printf '%s' dark > "$HOME/.cache/current_mode"
+      theme="$(cat "$HOME/.cache/current_theme" 2>/dev/null || echo matugen)"
+      palette="$HOME/.config/lucid/themes/$theme/quickshell.json"
+      case "$theme" in
+      matugen | pywal | colour)
+        "$HOME/.config/lucid/set-mode.sh" dark \
+          || echo "warning: set-mode.sh failed; mode file still pinned dark" >&2
+        ;;
+      *)
+        if [[ -f "$palette" ]] && ! cmp -s "$HOME/.cache/quickshell/matugen.json" "$palette"; then
+          "$HOME/.config/lucid/apply-theme.sh" --shell-only "$theme" dark \
+            || echo "warning: apply-theme.sh --shell-only failed" >&2
+        fi
+        ;;
+      esac
     '';
   };
 
@@ -462,6 +512,25 @@ in
         "$LUCID_SRC/support/lucid/" "$LUCID_DIR/"
       ${pkgs.rsync}/bin/rsync -rt \
         "$LUCID_SRC/support/lucid/themes/" "$LUCID_DIR/themes/"
+
+      # Repo-managed theme pair (home/lucid-themes/): ONE theme carrying both
+      # modes — quickshell.json is the dark face, quickshell-light.json the
+      # hand-picked light face. Upstream's model is one theme per look, so the
+      # GUI cannot pair two imports across modes; a merged theme makes the
+      # Light-or-dark toggle (and the 8/19 timer) move between our two chosen
+      # palettes like any normal theme. Repo-owned by design: rsync's
+      # quick-check re-asserts this pair at every activation (hand edits under
+      # ~/.config/lucid/themes/grayscale/ are converged back — iterate in the
+      # repo). The touch guard is load-bearing: apply-theme.sh rebuilds
+      # quickshell-light.json through gen-light-palette.py's tone inversion
+      # whenever quickshell.json is strictly NEWER (-nt); equal mtimes defeat
+      # it, the same invariant upstream's save_theme keeps ("the light file is
+      # written after the dark one"). GUI palette edits cannot collide — the
+      # editor always saves a NEW theme dir, never this one.
+      ${pkgs.rsync}/bin/rsync -rt ${./lucid-themes}/ "$LUCID_DIR/themes/"
+      if [ "$LUCID_DIR/themes/grayscale/quickshell.json" -nt "$LUCID_DIR/themes/grayscale/quickshell-light.json" ]; then
+        touch -r "$LUCID_DIR/themes/grayscale/quickshell-light.json" "$LUCID_DIR/themes/grayscale/quickshell.json"
+      fi
       if [ ! -s "$LUCID_DIR/keybinds.json" ]; then
         mkdir -p "$LUCID_DIR"
         ${pkgs.jq}/bin/jq \
@@ -770,22 +839,46 @@ in
         Install.WantedBy = [ "graphical-session.target" ];
       };
 
-      # Auto light/dark. One oneshot for all three triggers (08:00, 19:00,
-      # session start): the script itself decides which mode the clock calls
-      # for unless a mode is passed. Timer-activated AND wanted by the
-      # graphical session — the timer unit below shares the base name, so
+      # Apps-only auto light/dark. One oneshot for all three triggers (08:00,
+      # 19:00, session start): the script itself decides which mode the clock
+      # calls for unless a mode is passed. The SHELL is not touched here —
+      # lucid-shell-dark below pins it dark. Timer-activated AND wanted by
+      # the graphical session — the timer unit below shares the base name, so
       # systemd wires them together without an explicit Unit=.
       lucid-auto-mode = {
         Unit = {
-          Description = "Lucid light/dark mode: light ${toString lightHour}:00–${toString darkHour}:00, dark otherwise; corrects at login";
+          Description = "Lucid apps light/dark: light ${toString lightHour}:00–${toString darkHour}:00, dark otherwise; corrects at login (shell pinned dark)";
           After = [ "graphical-session.target" ];
           PartOf = [ "graphical-session.target" ];
         };
         Service = {
           Type = "oneshot";
           ExecStart = "${lucidAutoMode}/bin/lucid-auto-mode";
-          # Same PATH discipline as lucid.service (lucidPath there): set-mode.sh
-          # shells out to matugen, awww, jq, python3 — all system deps.
+          # Same PATH discipline as lucid.service (lucidPath there):
+          # apply-theme.sh/set-mode.sh shell out to matugen, awww, jq,
+          # python3 — all system deps.
+          Environment = [
+            "PATH=${lucidPath}"
+          ];
+        };
+        Install.WantedBy = [ "graphical-session.target" ];
+      };
+
+      # Login pin for the SHELL (see lucidPinShellDark above). A separate
+      # oneshot rather than an ExecStartPre on lucid.service: lucid's
+      # Restart=always would re-darken a manual light flip after every
+      # crash-restart, while this runs once per login.
+      lucid-shell-dark = {
+        Unit = {
+          Description = "Pin the Lucid shell to its dark palette (apps keep auto light/dark)";
+          After = [ "graphical-session.target" ];
+          PartOf = [ "graphical-session.target" ];
+        };
+        Service = {
+          Type = "oneshot";
+          ExecStart = "${lucidPinShellDark}/bin/lucid-pin-shell-dark";
+          # apply-theme.sh shells out to python3/jq; current_mode write needs
+          # the same PATH discipline as the units above.
           Environment = [
             "PATH=${lucidPath}"
           ];
@@ -795,7 +888,7 @@ in
     };
 
     systemd.user.timers.lucid-auto-mode = {
-      Unit.Description = "Flip Lucid light/dark at ${toString lightHour}:00 and ${toString darkHour}:00";
+      Unit.Description = "Flip Lucid apps light/dark at ${toString lightHour}:00 and ${toString darkHour}:00 (shell stays dark)";
       Timer = {
         OnCalendar = [
           "*-*-* ${toString lightHour}:00:00"

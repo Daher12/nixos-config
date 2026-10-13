@@ -56,6 +56,10 @@ flake input `lucid`                      github:Sn3akyy1/lucid, flake = false,
                                          ~/.config/quickshell (stateFiles
                                          excluded + seeded from defaults/;
                                          themes/ synced without --delete)
+                                         + repo-managed theme pair
+                                         home/lucid-themes/ synced into
+                                         ~/.config/lucid/themes/ with an
+                                         mtime-equal touch guard (see below)
            └─ lucid.service              systemd USER unit, Restart=always,
                                          KillMode=process, runs
                                          ~/.config/lucid/launch-shell.sh
@@ -73,8 +77,9 @@ nix flake metadata --json | jq '.LockedNodes // .locks.nodes
 
 ### Patch inventory
 
-Since the 2026-10-11 plain-dots round exactly TWELVE patches are applied (the
-`patches =` list in `home/lucid.nix`, in this order):
+Since the 2026-10-11 plain-dots round exactly ELEVEN patches are applied (the
+`patches =` list in `home/lucid.nix`, in this order — the struck ~~112~~ row
+below is historical, not counted):
 
 | # | File | Intent | Files touched | Special |
 |---|------|--------|---------------|---------|
@@ -125,12 +130,37 @@ own exclude list (`a/`+`b/`), `-p1`.
 |------|---------|-----------------|
 | Patch application | upstream drift vs our patches | real build of `lucidPatched` (NOT dry-build — see §2 P2) |
 | `stateFilesChecked` | upstream added a state file to `install.sh` excludes | eval of the activation script — error starts `lucid: stateFiles out of sync with upstream install.sh excludes` |
-| `quickshellChecked` | quickshell input older than `minQuickshell` (`home/lucid.nix`, currently `"0.3.1"`) | eval of the activation script — error starts `lucid: quickshell … is older than the tested minimum` |
+| `quickshellChecked` | quickshell input older than `minQuickshell` (`home/lucid.nix`, currently `"0.3.2"`) | eval of the activation script — error starts `lucid: quickshell … is older than the tested minimum` |
 
 Both eval gates are interpolated as comments into the generated activation
 script, so a successful activation build contains the literal lines
 `# stateFiles cross-check vs upstream install.sh: ok` and
 `# quickshell engine floor: ok` — greppable proof (used in P2/P5 below).
+
+### Repo-managed theme pair (`home/lucid-themes/`, since 2026-10-13)
+
+`lucidSync` rsyncs `home/lucid-themes/` into `~/.config/lucid/themes/` —
+currently one merged theme `grayscale` whose `quickshell.json` is the dark
+face and `quickshell-light.json` the hand-picked light face (upstream's model
+is one look per theme, so the GUI cannot pair two imports across modes; a
+merged theme makes the Light-or-dark toggle and the 8/19 timer move between
+our two palettes). Two invariants:
+
+- **mtime guard**: `apply-theme.sh` regenerates `quickshell-light.json`
+  through `gen-light-palette.py`'s tone inversion whenever `quickshell.json`
+  is strictly newer (`-nt`). The sync block touches the light file's mtime
+  onto the dark one to keep them equal — same invariant upstream's
+  `save_theme` keeps ("the light file is written after the dark one"). If you
+  ever edit the palettes in the repo, keep both files' mtimes equal in git
+  (checkout order can skew them) — the guard re-pins them at every activation
+  anyway, before the shell ever reads them.
+- **repo-owned**: hand edits under
+  `~/.config/lucid/themes/grayscale/` are converged back at the next
+  activation; iterate in the repo. GUI palette edits are safe (the editor
+  always saves a NEW theme dir).
+
+This dir sits OUTSIDE `lucidPatched` — pin bumps and patch triage (P2-P5)
+never touch it.
 
 ### The critical asymmetry
 
@@ -507,12 +537,12 @@ upstream change hollowed out the patch's effect — treat as a P3 repair, not a
 checklist footnote. If upstream renames a symbol inside a marker string, update
 this table in the same change (and `git add` it).
 
-## Appendix B — pins as of 2026-10-10
+## Appendix B — pins as of 2026-10-13
 
 | Input | Rev / version | Note |
 |---|---|---|
-| lucid | `e662954f73a39275f214923bb4dab6c85b3800ba` (v1.20, 2026-10-08) | 12 patches as listed in §1 |
-| quickshell | `5d5d49873fe8cf1f99ddfd5006ceb2057c5c9b13` (0.3.1, 2026-10-03) | `minQuickshell = "0.3.1"` |
+| lucid | `e662954f73a39275f214923bb4dab6c85b3800ba` (v1.20, 2026-10-08) | 11 patches as listed in §1 |
+| quickshell | `4f508be500dea6e5732cc3d50382a0048b17e7b1` (0.3.2, 2026-10-08) | `minQuickshell = "0.3.2"` |
 | dank-greeter | `334b2c93d444b65e4fad5b16f3409bcdc013e40f` (1.6.2, 2026-09-27) | greeter, pairs with quickshell |
 
 v1.20 caveats baked into this bump: upstream docs scope a "Hyprland 0.55.6+"
