@@ -11,23 +11,26 @@
   # (sleep.c: `if (!woken_by_timer) return 0;`); logind's 30s resume
   # holdoff then re-triggers the lid and the cycle restarts forever.
   #
-  # RE-PARKED 2026-10-17 (HIBERNATE_ENABLED=0 below), after attempt #14
-  # aborted identically ON THE FIXED KERNEL (7.2.9-zen1, contains both TTM
-  # hibernation fixes): same freeze-pass abort, same usb 3-3 WARN + deep
-  # amdgpu unwind, no image. Verdict: CVE-2026-98166 was the post-abort
-  # TTM-corruption risk (now gone — 14 clean unwinds, zero delayed oopses),
-  # but it was NOT the abort cause. 14/14 failures (zen 7.1.10 ×10+,
-  # vanilla 7.2.3 ×3, zen 7.2.9-fixed ×1) with one fluke success (Sep-7
-  # 04:00) point at a quasi-deterministic failure in the amdgpu/ACPI S4
-  # entry path on this hardware — not userspace-fixable; every USB-level
-  # and sequencing manipulation was already tried (see post-mortem below).
-  # Park = suspend-only, no RTC timer. Remaining untried/cheap levers, in
-  # order: drop `amdgpu.ppfeaturemask=0xffffffff` (PowerPlay features on
-  # the suspend path; constant across all 14 failures AND the success, so
-  # not a sole cause — a probe at best); kernel 7.3.y when it reaches
-  # nixpkgs (amdgpu S4/TLB work since 7.2); upstream report with the
-  # journal evidence. Full campaign post-mortem in REPO_OVERVIEW Known
-  # Gotchas.
+  # RE-ARMED 2026-10-18 (HIBERNATE_ENABLED=1 below). The "every hibernate
+  # aborts" narrative was an artifact of the abort detector, not the
+  # kernel: this kernel INJECTS the hibernation off-time into
+  # CLOCK_BOOTTIME at resume, so a completed cycle ends with
+  # uptime == wall-since-boot — which the old wall-vs-uptime-skew logic
+  # read as "never powered off ⇒ in-place abort". Two verified real
+  # cycles on 7.2.9-zen1 (2026-10-17 13:49 off ≈50s; 2026-10-18 00:24 off
+  # ≈10min — itself misclassified as a deep abort, surviving only because
+  # the lid was open) prove hibernate works on the fix-bearing kernel.
+  # The usb 3-3 WARN, the "SMU is resuming" replay and the same-second
+  # journal stamps are all NORMAL for a completed cycle. CVE-2026-98166
+  # (TTM bulk_move UAF) is still fixed and worth having — 14+ clean
+  # resumes/unwinds since, zero delayed oopses.
+  # Re-arm discipline: run one supervised manual `systemctl hibernate`
+  # first and expect the hook to log "hibernate cycle completed"; the
+  # automated path only fires after a 2h battery suspend anyway. The
+  # September 7.1.10/7.2.3 attempts can no longer be classified (journals
+  # rotated past Sep 16) — the deciding question there is physical: did
+  # the machine power off. Full campaign post-mortem in REPO_OVERVIEW
+  # Known Gotchas.
   #
   # How this hook works:
   #   pre suspend   on battery: remember a deadline in /run and arm
@@ -62,12 +65,12 @@
   #                 (covers resume AND
   #                 aborted attempts; the pre-phase swapoff leaves the
   #                 device at disksize 0, so a plain swapon cannot
-  #                 work), detect an in-place abort (uptime grew past
-  #                 the threshold AND wall clock grew by the same — a
-  #                 real resume's uptime also contains the frozen
-  #                 reclaim+write time but its wall delta includes the
-  #                 powered-off interval; see ABORT_UPTIME), and respond
-  #                 by depth: amdgpu was suspended+unwound ("SMU is
+  #                 work), classify the outcome (real resume ⇒
+  #                 BOOTTIME−MONOTONIC divergence grew by the off-time,
+  #                 logged as "cycle completed"; in-place abort ⇒
+  #                 divergence unchanged + uptime growth > 30s — see
+  #                 ABORT DETECTION below) and respond by depth on
+  #                 aborts: amdgpu was suspended+unwound ("SMU is
   #                 resuming" in the kernel log) → reboot when
   #                 unattended / warn when the user is present (TTM
   #                 corruption class, drm/amd #5470); shallow abort →
@@ -99,29 +102,35 @@
     DECISION_FILE=/run/yoga-s2h-decision
     DELAY=7200 # suspend phase before hibernate (seconds)
     # HIBERNATE_ENABLED gates the automated deadline hibernate (the 2h
-    # window armed in pre:suspend). 0 = park (suspend-only, no RTC
-    # timer). Re-armed 2026-10-16 for a fixed-kernel test (CVE-2026-98166);
-    # the test aborted identically (attempt #14, 2026-10-17) → re-parked
-    # same day. Manual `systemctl hibernate` is unaffected by this flag —
-    # abort detection + depth-aware response always cover it. NB: do NOT
-    # leave this at 1 while aborts persist — unattended lid-close → 2h →
-    # hibernate → deep abort → auto-reboot (lid closed) → loop on fragile
-    # GPU state. Full post-mortem in REPO_OVERVIEW Known Gotchas.
-    HIBERNATE_ENABLED=0
-    # A hibernate attempt that runs entirely in this kernel (aborted in
-    # place) grows /proc/uptime by the whole reclaim+snapshot+unwind
-    # time, and the wall clock grows by the same (machine never powered
-    # off): wall_grew - up_grew ≈ 0. On a REAL resume the restored
-    # kernel's uptime also contains the reclaim+write time (it was
-    # frozen into the image!), but the wall clock additionally contains
-    # the powered-off interval + resume boot: wall_grew - up_grew ≥ 60s.
-    # (Without the wall co-condition a clean resume would be misread as
-    # a deep abort → auto-reboot after success; uptime alone cannot
-    # separate the two — 2026-09-08 analysis.) Threshold 30s: a fast
-    # 40s abort was missed by the old 45s cutoff (00:21 cycle), while
-    # the pre-hook to poweroff path always exceeds ~30s.
+    # window armed in pre:suspend). Re-armed 2026-10-18: two verified
+    # real cycles on 7.2.9-zen1 (2026-10-17 13:49 off ≈50s, 2026-10-18
+    # 00:24 off ≈10min — the "attempts #14+ always abort" narrative was
+    # an artifact of the broken abort detector, see ABORT DETECTION
+    # below; hibernate appears to WORK on this kernel). Supervised-test
+    # advice: run one manual `systemctl hibernate` first and expect the
+    # hook to log "hibernate cycle completed"; the automated path arms
+    # only after a 2h battery suspend, so re-arming commits nothing
+    # until then. Flip to 0 to re-park.
+    HIBERNATE_ENABLED=1
+    # ABORT DETECTION (rewritten 2026-10-18 after a proven false
+    # positive): this kernel INJECTS the hibernation off-time into
+    # CLOCK_BOOTTIME (/proc/uptime) at resume — verified live: both real
+    # cycles ended with uptime == wall-since-boot, which the old
+    # wall-vs-uptime-skew logic read as "never powered off" and
+    # misclassified a SUCCESS as a deep abort ("reboot pending" — it
+    # survived only because the lid was open; unattended it would have
+    # rebooted a perfectly restored machine). Correct discriminator:
+    # CLOCK_MONOTONIC never includes injected or suspended time, so the
+    # BOOTTIME−MONOTONIC divergence grows by the off-duration on a real
+    # resume and is unchanged on an in-place abort:
+    #   real resume    ⇒ off_grew > RESUME_OFF_MIN (fastest power press
+    #                    + POST + restore ≥ ~25s in practice)
+    #   in-place abort ⇒ off_grew ≈ 0 AND up_grew > ABORT_UPTIME (the
+    #                    whole reclaim/snapshot/unwind ran in-kernel)
+    # If monotonic can't be read, detection is skipped entirely
+    # (fail-safe: no reboot decision on missing data).
     ABORT_UPTIME=30
-    ABORT_WALL_SKEW=60
+    RESUME_OFF_MIN=10
     TOLERANCE=60 # wake within this window of the deadline = timer wake
     # The kernel can abort a hibernate yet have the write() to
     # /sys/power/state return success — observed 2026-09-06 23:38 (usb
@@ -134,6 +143,11 @@
     on_ac() { [ "$(cat /sys/class/power_supply/ADP0/online 2>/dev/null)" = "1" ]; }
     lid_open() { grep -qs '^state:.*open' /proc/acpi/button/lid/*/state; }
     now_uptime() { cut -d' ' -f1 /proc/uptime | cut -d. -f1; }
+    # CLOCK_MONOTONIC seconds, taken from the newest journal record's
+    # kernel timestamp (no plain-shell clock exposes monotonic). Prints
+    # nothing on failure — callers must treat that as "detection
+    # unavailable".
+    now_mono() { journalctl -n 1 --no-pager -o short-monotonic 2>/dev/null | grep -oE '\[[ ]*[0-9]+\.' | tr -d '[ .'; }
     arm_rtcs() {
       armed=0
       for f in /sys/class/rtc/rtc*/wakealarm; do
@@ -271,10 +285,10 @@
         fi
         ;;
       pre:hibernate)
-        # Timestamps for abort detection in post:hibernate (see
-        # ABORT_UPTIME). Written first: the zram swapoff below can take
+        # Timestamps for abort detection in post:hibernate (see ABORT
+        # DETECTION above). Written first: the zram swapoff below can take
         # minutes and all of it counts as in-kernel attempt time.
-        printf '%s %s\n' "$(date +%s)" "$(now_uptime)" > "$HIBSTATE_FILE"
+        printf '%s %s %s\n' "$(date +%s)" "$(now_uptime)" "$(now_mono)" > "$HIBSTATE_FILE"
         if grep -q '^/dev/zram0 ' /proc/swaps; then
           if swapoff /dev/zram0; then
             log "zram0 swapped out for hibernate image"
@@ -314,21 +328,27 @@
         # retry in 2h. On a clean resume none of this triggers.
         decision=""
         if [ -r "$HIBSTATE_FILE" ]; then
-          read -r hib_epoch hib_uptime < "$HIBSTATE_FILE"
+          read -r hib_epoch hib_uptime hib_mono < "$HIBSTATE_FILE"
           rm -f "$HIBSTATE_FILE"
-          # Abort iff the machine never powered off: uptime grew past
-          # the attempt threshold AND the wall clock grew by the same
-          # amount (wall-uptime skew < ABORT_WALL_SKEW). A real resume
-          # has the same uptime growth (reclaim+write are frozen into
-          # the image) but a much larger wall delta. See ABORT_UPTIME.
-          up_grew=$(( $(now_uptime) - hib_uptime ))
-          wall_grew=$(( $(date +%s) - hib_epoch ))
-          if [ "$up_grew" -gt "$ABORT_UPTIME" ] && [ $(( wall_grew - up_grew )) -lt "$ABORT_WALL_SKEW" ]; then
-            if journalctl -k --no-pager --since "@$hib_epoch" 2>/dev/null | grep -q "SMU is resuming"; then
-              decision=reboot
-            else
-              decision=resuspend
+          mono_now=$(now_mono)
+          if [ -n "$mono_now" ] && [ -n "$hib_mono" ]; then
+            # BOOTTIME−MONOTONIC divergence before vs after: a real
+            # resume injects the powered-off interval into BOOTTIME only,
+            # so the divergence grows by the off-duration; an in-place
+            # abort advances both clocks equally. See ABORT DETECTION.
+            off_grew=$(( ($(now_uptime) - mono_now) - (hib_uptime - hib_mono) ))
+            up_grew=$(( $(now_uptime) - hib_uptime ))
+            if [ "$off_grew" -gt "$RESUME_OFF_MIN" ]; then
+              log "hibernate cycle completed (powered off ≈''${off_grew}s)"
+            elif [ "$up_grew" -gt "$ABORT_UPTIME" ]; then
+              if journalctl -k --no-pager --since "@$hib_epoch" 2>/dev/null | grep -q "SMU is resuming"; then
+                decision=reboot
+              else
+                decision=resuspend
+              fi
             fi
+          else
+            log "WARNING: monotonic clock unavailable — abort detection skipped"
           fi
         fi
         # Secondary trigger: attempts systemd itself failed (e.g. the
