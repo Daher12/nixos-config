@@ -11,20 +11,23 @@
   # (sleep.c: `if (!woken_by_timer) return 0;`); logind's 30s resume
   # holdoff then re-triggers the lid and the cycle restarts forever.
   #
-  # HIBERNATION IS PARKED (2026-09-08; HIBERNATE_ENABLED=0 below). Ten
-  # attempts across two nights, every one aborted in-place in the kernel
-  # freeze pass ("usb 3-3: WARN: invalid context state", deep amdgpu
-  # unwind — the drm/amd #5470 corruption precondition), regardless of
-  # USB device/controller state (bound, idle, unbound, re-enumerated,
-  # xHCI driver rebound) and regardless of bridging through a suspend
-  # cycle first. The single 04:00 success never reproduced. Worse, the
-  # aborts' device resets generate phantom power-button events that
-  # GNOME turns into fresh hibernate requests — an abort→hibernate loop
-  # until hard power-off (2026-09-08 00:20-00:21). So: suspend-only
-  # (s2idle ≈0.25-0.5%/h → a full night ≈3-4%), abort detection and
-  # depth-aware response kept for manual `systemctl hibernate` tests,
-  # and re-enabling is a one-line flip after a kernel/BIOS update.
-  # Full campaign post-mortem in REPO_OVERVIEW Known Gotchas.
+  # RE-PARKED 2026-10-17 (HIBERNATE_ENABLED=0 below), after attempt #14
+  # aborted identically ON THE FIXED KERNEL (7.2.9-zen1, contains both TTM
+  # hibernation fixes): same freeze-pass abort, same usb 3-3 WARN + deep
+  # amdgpu unwind, no image. Verdict: CVE-2026-98166 was the post-abort
+  # TTM-corruption risk (now gone — 14 clean unwinds, zero delayed oopses),
+  # but it was NOT the abort cause. 14/14 failures (zen 7.1.10 ×10+,
+  # vanilla 7.2.3 ×3, zen 7.2.9-fixed ×1) with one fluke success (Sep-7
+  # 04:00) point at a quasi-deterministic failure in the amdgpu/ACPI S4
+  # entry path on this hardware — not userspace-fixable; every USB-level
+  # and sequencing manipulation was already tried (see post-mortem below).
+  # Park = suspend-only, no RTC timer. Remaining untried/cheap levers, in
+  # order: drop `amdgpu.ppfeaturemask=0xffffffff` (PowerPlay features on
+  # the suspend path; constant across all 14 failures AND the success, so
+  # not a sole cause — a probe at best); kernel 7.3.y when it reaches
+  # nixpkgs (amdgpu S4/TLB work since 7.2); upstream report with the
+  # journal evidence. Full campaign post-mortem in REPO_OVERVIEW Known
+  # Gotchas.
   #
   # How this hook works:
   #   pre suspend   on battery: remember a deadline in /run and arm
@@ -94,16 +97,16 @@
     DEADLINE_FILE=/run/yoga-s2h-deadline
     HIBSTATE_FILE=/run/yoga-s2h-hibstate
     DECISION_FILE=/run/yoga-s2h-decision
-    DELAY=7200 # suspend window before (disabled) hibernate check (seconds)
-    # Hibernate is PARKED after the 2026-09-07/08 campaign: 10+ attempts,
-    # all aborted in the kernel freeze pass ("usb 3-3: WARN: invalid
-    # context state", deep amdgpu unwind), regardless of USB
-    # device/controller state or bridging through a suspend cycle (the
-    # one 04:00 success never reproduced). Manual `systemctl hibernate`
-    # still runs — the abort detection + depth-aware response below
-    # still covers it. Flip to 1 to re-arm the automated deadline
-    # hibernate (e.g. after a kernel or BIOS update). Full post-mortem
-    # in REPO_OVERVIEW Known Gotchas.
+    DELAY=7200 # suspend phase before hibernate (seconds)
+    # HIBERNATE_ENABLED gates the automated deadline hibernate (the 2h
+    # window armed in pre:suspend). 0 = park (suspend-only, no RTC
+    # timer). Re-armed 2026-10-16 for a fixed-kernel test (CVE-2026-98166);
+    # the test aborted identically (attempt #14, 2026-10-17) → re-parked
+    # same day. Manual `systemctl hibernate` is unaffected by this flag —
+    # abort detection + depth-aware response always cover it. NB: do NOT
+    # leave this at 1 while aborts persist — unattended lid-close → 2h →
+    # hibernate → deep abort → auto-reboot (lid closed) → loop on fragile
+    # GPU state. Full post-mortem in REPO_OVERVIEW Known Gotchas.
     HIBERNATE_ENABLED=0
     # A hibernate attempt that runs entirely in this kernel (aborted in
     # place) grows /proc/uptime by the whole reclaim+snapshot+unwind
@@ -157,9 +160,13 @@
     # instead), bound+runtime-suspended via rfkill, device-level
     # authorized 0→1 re-enumeration, and a full xHCI controller driver
     # rebind — every hibernate from a running session aborted, and the
-    # rebind demonstrably didn't change the WARN. What works: hibernate
-    # started right after waking from s2idle (04:00 cycle). Hence the
-    # bridge; the USB stack is left alone.
+    # rebind demonstrably didn't change the WARN. The bridge through a
+    # suspend cycle failed identically (2026-10-17 attempt #14, on a
+    # kernel carrying the CVE-2026-98166 fix), so the "only hibernate
+    # right after an s2idle wake" theory was wrong too. The USB WARN is
+    # a symptom of the abort, not its cause: the abort happens earlier,
+    # in the amdgpu/ACPI S4 entry path (see header), and the WARN is just
+    # noise while unwinding. The USB stack is left alone.
 
     case "$1:''${SYSTEMD_SLEEP_ACTION:-}" in
       recheck:*)
