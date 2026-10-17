@@ -15,6 +15,11 @@ let
   uid = toString config.roles.media.nfsAnonUid;
   gid = toString config.roles.media.nfsAnonGid;
 
+  # Fleet service ports (roles.media.ports — single source with monitoring.nix
+  # scrape targets and caddy.nix proxy targets). Container-side ports in the
+  # mappings below are image-fixed literals.
+  portCfg = config.roles.media.ports;
+
   # Service Configuration
   tz = config.time.timeZone;
 
@@ -50,7 +55,7 @@ in
           "--force"
         ];
       };
-      daemon.settings."metrics-addr" = "127.0.0.1:9323";
+      daemon.settings."metrics-addr" = "127.0.0.1:${toString portCfg.dockerMetrics}";
     };
 
     oci-containers = {
@@ -93,7 +98,7 @@ in
           # Jellyfin directly on :8096. Docker's DNAT never traverses the
           # nftables INPUT chain, so this one port is LAN-open by design —
           # everything else on this host stays tailnet-only.
-          ports = [ "8096:8096" ];
+          ports = [ "${toString portCfg.jellyfin}:8096" ];
           extraOptions = [
             "--network=${dockerNetwork.name}"
             "--device=/dev/dri:/dev/dri"
@@ -127,7 +132,7 @@ in
             "${storagePath}/audiobooks:/audiobooks:ro"
             "${storagePath}/podcasts:/podcasts:ro"
           ];
-          ports = [ "127.0.0.1:13378:80" ];
+          ports = [ "127.0.0.1:${toString portCfg.audiobookshelf}:80" ];
           extraOptions = [
             "--network=${dockerNetwork.name}"
             "--memory=512m"
@@ -149,7 +154,7 @@ in
             "/var/lib/docker/:/var/lib/docker:ro"
             "/dev/disk/:/dev/disk:ro"
           ];
-          ports = [ "127.0.0.1:8080:8080" ];
+          ports = [ "127.0.0.1:${toString portCfg.cadvisor}:8080" ];
           extraOptions = [
             "--device=/dev/kmsg"
             "--memory=256m"

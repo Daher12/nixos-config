@@ -34,7 +34,14 @@
     # udev rules — the matching rule lives in the services block below
     # (one services attrset per file keeps statix happy).
     groups.adbusers = { };
-    users.${mainUser}.extraGroups = [ "adbusers" ];
+    users.${mainUser} = {
+      # Pinned: on the impermanence host every /persist file is owned by
+      # numeric id, so first-boot allocation order must never shift it
+      # (live value confirmed 1000, 2026-10-16). latitude pins 1000,
+      # nix-media 1001 (NFS anon mapping).
+      uid = 1000;
+      extraGroups = [ "adbusers" ];
+    };
   };
 
   # --- Hardware & Boot ---
@@ -91,7 +98,8 @@
   };
 
   hardware = {
-    cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+    # cpu.amd.updateMicrocode comes from modules/hardware/default.nix
+    # (isPhysical branch, mkDefault true).
     amd-gpu.enable = true;
     amd-kvm.enable = true;
     ryzen-tdp = {
@@ -118,17 +126,9 @@
 
   # --- System Core ---
   system.stateVersion = "25.11";
-  # Boot (bgrt, 2G tmpfs) and the fish shell come from core module
-  # defaults; only the description differs from the fleet default.
-  core = {
-    users.description = "David";
-    openssh = {
-      enable = true;
-      # SSH restricted to the home management LAN — accept rule emitted by
-      # modules/core/openssh.nix (nftables required, see its description).
-      mgmtLanCidr = "192.168.88.0/24";
-    };
-  };
+  # User description + SSH mgmt-LAN scoping (core.users.description,
+  # core.openssh) come from profiles/laptop.nix; boot (bgrt, 2G tmpfs) and
+  # the fish shell from the core module defaults.
 
   networking = {
     # --- WiFi (iwd) tuning ---
@@ -156,25 +156,10 @@
       };
     };
 
-    # --- Firewall hardening (activates on next operator `nixos-rebuild
-    # switch`; keep console/Tailscale access available before switching) ---
-    # Default-deny input (NixOS firewall default policy) with explicit holes:
-    # SSH only from the home management LAN (192.168.88.0/24), plus ICMP echo.
-    # Loopback and established/related are allowed by the base firewall; the
-    # tailscale0 interface stays trusted via
-    # features.vpn.tailscale.trustInterface, which remains the
-    # remote-management path on foreign networks. Port 22 must NOT re-enter
-    # allowedTCPPorts — that would re-open it on every interface.
-    #
-    # nftables backend (switched 2026-09-13 after a repo-wide check: nothing
-    # pins iptables explicitly). CAUTION: enabling this silently auto-flips
-    # libvirt's firewall backend to nftables too (nixpkgs default), which
-    # broke VM NAT 2026-09 — libvirt is therefore explicitly pinned back to
-    # the iptables backend in modules/features/virtualization.nix; its
-    # iptables-nft rules (LIBVIRT_* chains) coexist with the native table.
-    nftables.enable = true;
+    # Firewall hardening (default-deny input, mgmt-LAN SSH, nftables
+    # backend incl. the libvirt backend caution) lives in
+    # profiles/laptop.nix now — shared verbatim with latitude.
   };
-  services.openssh.openFirewall = false;
 
   # --- Features ---
   features = {
@@ -184,13 +169,8 @@
     };
 
     secureboot.enable = true;
-    # serverIp uses the features.nas option default (Tailscale IP of nix-media)
-    nas.enable = true;
-
-    # Managed Brave policies (/etc/brave/policies/managed/origin.json):
-    # Origin mode + debloat. Replaces the hand-maintained bloat.json that
-    # used to live at the same path via this persistence module.
-    brave.enable = true;
+    # nas + brave enables come from profiles/laptop.nix (fleet laptop
+    # baseline).
 
     desktop-gnome.autoLogin = true; # only effective in the yoga-gnome attr (GDM)
 

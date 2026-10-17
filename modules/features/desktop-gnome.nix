@@ -54,9 +54,10 @@ in
         ];
 
         services = {
+          # xkb.layout comes from modules/core/locale.nix (de, fleet-wide —
+          # console.useXkbConfig derives the VT keymap from it).
           xserver = {
             enable = lib.mkDefault true;
-            xkb.layout = lib.mkDefault "de";
             excludePackages = [ pkgs.xterm ];
           };
 

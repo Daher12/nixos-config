@@ -150,7 +150,7 @@ in
           scrape_interval = "60s";
           static_configs = [
             {
-              targets = [ "127.0.0.1:8080" ];
+              targets = [ "127.0.0.1:${toString config.roles.media.ports.cadvisor}" ];
               labels.instance = "nix-media";
             }
           ];
@@ -160,7 +160,7 @@ in
           scrape_interval = "120s";
           static_configs = [
             {
-              targets = [ "127.0.0.1:9323" ];
+              targets = [ "127.0.0.1:${toString config.roles.media.ports.dockerMetrics}" ];
               labels.instance = "nix-media";
             }
           ];
@@ -229,7 +229,7 @@ in
       enable = true;
       settings = {
         server = {
-          http_port = 3001;
+          http_port = config.roles.media.ports.grafana;
           http_addr = "127.0.0.1";
           root_url = "%(protocol)s://%(domain)s/grafana";
           serve_from_sub_path = true;

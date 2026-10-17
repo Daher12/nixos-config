@@ -1,6 +1,5 @@
 {
   pkgs,
-  lib,
   config,
   mainUser,
   ...
@@ -14,7 +13,6 @@ in
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/roles/media.nix
 
     ./docker.nix
     ./monitoring.nix
@@ -51,9 +49,7 @@ in
   core.openssh.enable = true;
 
   boot = {
-    loader.systemd-boot = {
-      configurationLimit = 10;
-    };
+    # configurationLimit = 10 via the modules/core/boot.nix mkDefault.
 
     kernelParams = [ "transparent_hugepage=madvise" ];
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
@@ -145,13 +141,21 @@ in
   networking = {
     networkmanager.enable = false;
     useNetworkd = true;
-    interfaces.${lanIf}.useDHCP = lib.mkForce false;
+    # networkd owns DHCP via systemd.network."10-lan" below; keep the legacy
+    # per-interface toggle explicitly off so networking.useDHCP's default
+    # doesn't generate a competing network config for this interface.
+    interfaces.${lanIf}.useDHCP = false;
 
     firewall = {
       allowedTCPPorts = [ ];
-      # Close global access; roles.media handles exports, we allow traffic here.
-      # tailscale0 is trusted wholesale via features.vpn.tailscale anyway —
-      # listing the ports documents intent and survives trustInterface=false.
+      # Default-deny input. Deliberate exceptions:
+      # - SSH port 26 LAN-wide (services.openssh.openFirewall below) — the
+      #   management path on the home network; key-only auth via core.openssh
+      #   (PasswordAuthentication and KbdInteractiveAuthentication off).
+      # - roles.media handles the NFS exports.
+      # tailscale0 is trusted wholesale via features.vpn.tailscale — the
+      # remote path from outside the LAN. Listing the ports documents
+      # intent and survives trustInterface=false.
       interfaces."tailscale0".allowedTCPPorts = [
         nfsPort
         config.features.litellm.port
@@ -211,7 +215,11 @@ in
     '';
 
     logrotate.enable = true;
-    # sshd hardening (PasswordAuthentication/PermitRootLogin/UseDns) via core.openssh
+    # sshd hardening + key-only auth via core.openssh
+    # (PasswordAuthentication/PermitRootLogin/UseDns off,
+    # KbdInteractiveAuthentication=false — never passwords, key or
+    # Tailscale only). Port 26 is deliberately open on every interface:
+    # openFirewall here is the LAN-management path.
     openssh = {
       ports = [ sshPort ];
       openFirewall = true;

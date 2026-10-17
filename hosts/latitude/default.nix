@@ -39,18 +39,15 @@ in
   users.users.${mainUser}.uid = 1000;
 
   # --- Core Configuration ---
-  # Boot (bgrt, 2G tmpfs) and the fish shell come from core module
-  # defaults; only the description differs from the fleet default.
-  core = {
-    users.description = "David";
-    openssh = {
-      enable = true;
-      mgmtLanCidr = "192.168.88.0/24";
-    };
-  };
+  # User description + SSH mgmt-LAN scoping (core.users.description,
+  # core.openssh) come from profiles/laptop.nix; boot (bgrt, 2G tmpfs) and
+  # the fish shell from the core module defaults.
 
   hardware = {
     intel-gpu.enable = true;
+    # This unit has the optional NVIDIA dGPU (confirmed 2026-10-16):
+    # nvidia-disable blacklists nouveau and strips the PCI device so the
+    # dGPU stays powered down. Deliberate — do not remove.
     nvidia-disable.enable = true;
   };
   features = {
@@ -63,12 +60,8 @@ in
     # ext4 here only steers features.filesystem's fstrim auto-detection.
     filesystem.type = "ext4";
 
-    # serverIp uses the features.nas option default (Tailscale IP of nix-media)
-    nas.enable = true;
-
-    # Managed Brave policies (/etc/brave/policies/managed/origin.json):
-    # Origin mode + debloat (Brave runs here per hosts/latitude/home.nix).
-    brave.enable = true;
+    # nas + brave enables come from profiles/laptop.nix (fleet laptop
+    # baseline).
 
     desktop-gnome = {
       autoLogin = true;
@@ -97,20 +90,12 @@ in
     };
   };
 
-  # Mirror of yoga's firewall hardening: default-deny input, SSH only from
-  # the home management LAN — the accept rule is emitted from
-  # core.openssh.mgmtLanCidr (nftables-only, see the option description).
-  # tailscale0 stays trusted via features.vpn.tailscale.trustInterface
-  # (laptop profile) — that remains the remote-management path on foreign
-  # networks. Port 22 must NOT re-enter allowedTCPPorts; that would re-open
-  # it on every interface.
-  networking.nftables.enable = true;
+  # Firewall hardening (default-deny input, mgmt-LAN SSH, nftables backend)
+  # comes from profiles/laptop.nix — same values yoga had before the
+  # 2026-10-17 dedup.
   services = {
     # thermald comes from hardware.intel-gpu (mkDefault)
 
-    # sshd hardening via core.openssh (PasswordAuthentication=no,
-    # PermitRootLogin=no, UseDns=no); port 22 handled by extraInputRules above.
-    openssh.openFirewall = false;
     preload-ng = {
       enable = true;
       settings = {

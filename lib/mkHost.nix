@@ -22,6 +22,7 @@ let
   baseModules = [
     (flakeRoot + "/modules/core")
     (flakeRoot + "/modules/features")
+    (flakeRoot + "/modules/roles")
   ]
   ++ nixpkgs.lib.optional withHardware (flakeRoot + "/modules/hardware")
   # Physical-machine optimizations (fwupd, firmware) — every current host is
@@ -38,7 +39,7 @@ let
       mainUser
       ;
     # Rationale: Utilize flake evaluation caching to avoid O(N) nixpkgs re-imports.
-    # Note: Consuming modules should set `config.allowUnfree = true` if non-free pkgs are needed.
+    # allowUnfree is enabled unconditionally for every host in the modules block below.
     homeDirectory = "/home/${mainUser}";
   }
   // extraSpecialArgs;

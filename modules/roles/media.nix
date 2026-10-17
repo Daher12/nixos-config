@@ -16,6 +16,22 @@ in
       default = 982;
       description = "GID for NFS anon mapping";
     };
+
+    ports = lib.mkOption {
+      type = lib.types.attrsOf lib.types.port;
+      default = {
+        audiobookshelf = 13378;
+        cadvisor = 8080;
+        dockerMetrics = 9323;
+        grafana = 3001;
+        jellyfin = 8096;
+      };
+      description = ''
+        Fleet media-stack service ports: single source for the host's docker
+        binds, Caddy targets and Prometheus scrape configs (previously
+        repeated as literals across hosts/nix-media/{docker,caddy,monitoring}.nix).
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {

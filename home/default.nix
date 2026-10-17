@@ -1,4 +1,6 @@
 {
+  config,
+  lib,
   homeDirectory ? "/home/${mainUser}",
   mainUser,
   ...
@@ -30,7 +32,9 @@
     };
   };
 
-  dconf.settings = {
+  # GNOME-shell extension pins only make sense on GNOME sessions; on the
+  # lucid/Hyprland host no GNOME Shell runs, so writing them is dead state.
+  dconf.settings = lib.mkIf (!config.desktop.hyprland.enable) {
     "org/gnome/shell" = {
       disable-user-extensions = false;
       enabled-extensions = [

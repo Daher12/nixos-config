@@ -7,21 +7,23 @@
 
 let
   # --- Service Definitions (Single Source of Truth) ---
+  # Ports come from roles.media.ports (shared with docker.nix binds and
+  # monitoring.nix scrape targets); icon/title/description are caddy-local.
   services = {
     jellyfin = {
-      port = 8096;
+      port = config.roles.media.ports.jellyfin;
       icon = "play-circle";
       title = "Jellyfin";
       description = "Media streaming: Movies, TV, and Music";
     };
     audiobookshelf = {
-      port = 13378;
+      port = config.roles.media.ports.audiobookshelf;
       icon = "headphones";
       title = "Audiobookshelf";
       description = "Audiobooks and Podcast library";
     };
     grafana = {
-      port = 3001;
+      port = config.roles.media.ports.grafana;
       icon = "bar-chart";
       title = "Grafana";
       description = "System monitoring and metrics";
@@ -67,6 +69,8 @@ in
     user = "caddy";
     group = "caddy";
 
+    # Hardcoded tailnet MagicDNS zone — breaks silently if the tailnet is
+    # ever renamed (no clean eval-time source; accepted literal).
     virtualHosts."${config.networking.hostName}.tail6db26.ts.net".extraConfig = ''
       tls { get_certificate tailscale }
       header {

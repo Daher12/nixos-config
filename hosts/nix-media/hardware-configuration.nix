@@ -80,8 +80,9 @@
     { device = "/dev/disk/by-uuid/a9b420e5-214f-48f8-bad5-516341eb288c"; }
   ];
 
-  networking.interfaces.enp1s0.useDHCP = true;
+  # DHCP is owned by systemd.network."10-lan" in ./default.nix (the legacy
+  # networking.interfaces.*.useDHCP toggle stays explicitly off there).
+  # cpu.intel.updateMicrocode comes from modules/hardware/default.nix.
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
-  hardware.cpu.intel.updateMicrocode = true;
 }

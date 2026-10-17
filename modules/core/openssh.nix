@@ -30,6 +30,12 @@ in
       enable = true;
       settings = {
         PasswordAuthentication = lib.mkDefault false;
+        # Key-only auth: upstream defaults KbdInteractiveAuthentication to
+        # true, so PAM keyboard-interactive kept offering password prompts
+        # even with PasswordAuthentication=no. Fleet policy (2026-10-16):
+        # SSH via key or Tailscale, never passwords — load-bearing on
+        # nix-media, whose port 26 is deliberately reachable LAN-wide.
+        KbdInteractiveAuthentication = lib.mkDefault false;
         PermitRootLogin = lib.mkDefault "no";
         UseDns = lib.mkDefault false;
       };

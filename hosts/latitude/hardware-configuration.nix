@@ -2,7 +2,6 @@
 # declarative in ./disks.nix (disko generates fileSystems, the LUKS entry and
 # swapDevices from it) — do not re-add manual fileSystems/luks here.
 {
-  config,
   lib,
   modulesPath,
   ...
@@ -29,5 +28,6 @@
   };
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
-  hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+  # cpu.intel.updateMicrocode comes from modules/hardware/default.nix
+  # (isPhysical branch, mkDefault true).
 }

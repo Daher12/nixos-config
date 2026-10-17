@@ -15,9 +15,9 @@
     ./onlyoffice.nix
     ./oomd.nix
     ./power-tlp.nix
-    ./virtualization.nix
     ./secureboot.nix
     ./sops.nix
+    ./virtualization.nix
     ./vpn.nix
     ./zram.nix
   ];
