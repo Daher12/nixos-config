@@ -40,6 +40,15 @@ let
   # hl.monitor. Re-opening needs `hyprctl reload`: eval accepts
   # disabled=false but the panel stays off (verified 0.55.4); only a reload
   # re-applies the config's hl.monitor block and re-enables it.
+  #
+  # The close bind only disables the panel while another monitor is enabled:
+  # an ext-session-lock lock request arriving with zero enabled outputs
+  # segfaults Hyprland 0.55.4 (onNewSessionLock → setGrab →
+  # isVisibleNotCovered; crash 2026-10-13,
+  # ~/.cache/hyprland/hyprlandCrashReport166486.txt). hypridle's
+  # before-sleep lock races the lid bind, quickshell gets "no outputs" and
+  # the compositor dies one second before suspend entry. Solo lid-close
+  # therefore leaves eDP-1 logically enabled — suspend blanks it anyway.
   lidSwitchLua =
     if cfg.monitors == [ ] then
       ""
@@ -48,7 +57,7 @@ let
         m = builtins.head cfg.monitors;
       in
       ''
-        hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd("hyprctl eval 'hl.monitor({output=\"${m.output}\", disabled=true})'"), { locked = true })
+        hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd("if [ \"$(hyprctl monitors | grep -c '^Monitor ')\" -gt 1 ]; then hyprctl eval 'hl.monitor({output=\"${m.output}\", disabled=true})'; fi"), { locked = true })
         hl.bind("switch:off:Lid Switch", hl.dsp.exec_cmd("hyprctl reload"), { locked = true })
       '';
 

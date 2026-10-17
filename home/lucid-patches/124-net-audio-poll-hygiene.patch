@@ -1,0 +1,57 @@
+--- a/Net.qml
++++ b/Net.qml
+@@ -17,6 +17,8 @@
+     property string detailUuid: ""
+     property string lastError: ""
+     property bool busy: false
++    // // nixos-config local patch 124: floor between monitor-storm refreshes
++    property double lastEventRefresh: 0
+     // a saved network's password and QR code, read only while a Share view
+     // is open for it and dropped when that view goes away
+     property var shared: ({})
+@@ -377,7 +379,14 @@
+         interval: 700
+         repeat: false
+         onTriggered: {
+-            root.refresh();
++            // nixos-config local patch 124: RSSI churn re-arms settle constantly; keep the full sweep
++            // to one per 5s. direct refresh() callers (actions, the 20s poll) stay instant
++            var now = Date.now();
++            if (now - root.lastEventRefresh >= 5000) {
++                root.lastEventRefresh = now;
++                root.refresh();
++            }
++
+             if (root.detailUuid !== "")
+                 root.loadDetail(root.detailUuid);
+ 
+--- a/Audio.qml
++++ b/Audio.qml
+@@ -9,6 +9,8 @@
+ 
+     // what the machine plays through and listens on right now
+     readonly property var sink: Pipewire.defaultAudioSink
++    // // nixos-config local patch 124: floor between monitor-storm refreshes
++    property double lastEventRefresh: 0
+     readonly property var source: Pipewire.defaultAudioSource
+     readonly property var nodes: Pipewire.nodes ? Pipewire.nodes.values : []
+ 
+@@ -642,7 +644,17 @@
+         id: settle
+ 
+         interval: 600
+-        onTriggered: root.refresh()
++        onTriggered: {
++            // nixos-config local patch 124: routing events fire while no audio UI is open; keep the full
++            // pactl sweep to one per 5s. volume/device writes (actionProc) and the
++            // respawn sweep stay instant
++            var now = Date.now();
++            if (now - root.lastEventRefresh >= 5000) {
++                root.lastEventRefresh = now;
++                root.refresh();
++            }
++
++        }
+     }
+ 
+     // a device that has just appeared has no pactl entry here yet

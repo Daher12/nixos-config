@@ -12,11 +12,14 @@ patch layer: what happens when the lucid (or quickshell / dank-greeter) flake
 input moves, how the build-time patches are validated or repaired, and what to
 do when things break at build, activation, or runtime.
 
-Last verified against the repo on 2026-10-12 (lucid v1.20 @ `e662954`, 11
-patches — the 2026-10-10 polish round (2 passes) re-grew the layer after the
-v1.20 "Lucid 2" minimal cut; 112 was then superseded natively; a second round
-same day added the dashboard date fix to 114 and new 119; 2026-10-11/12 added
-121 (plain password dots), see the inventory).
+Last verified against the repo on 2026-10-17 (lucid v1.20.1 @ `8bc32666`, 15
+patches — the 2026-10-16 bump re-expressed three hunks on upstream's new
+`Units.deg`/`Units.wind` unit system: 115 ClockToday chip row, 113
+LockWeather line, 114 BluetoothPanel Rename/Send-files row; 114 also
+translated the new upstream "Send files" action as "Dateien senden"; the
+2026-10-17 perf round then added 122-125 (ambient motion gates, cava idle
+suppression, net/audio poll hygiene, startup warm-up deferral); see the
+inventory).
 
 ---
 
@@ -77,7 +80,7 @@ nix flake metadata --json | jq '.LockedNodes // .locks.nodes
 
 ### Patch inventory
 
-Since the 2026-10-11 plain-dots round exactly ELEVEN patches are applied (the
+Since the 2026-10-17 perf round exactly FIFTEEN patches are applied (the
 `patches =` list in `home/lucid.nix`, in this order — the struck ~~112~~ row
 below is historical, not counted):
 
@@ -95,6 +98,10 @@ below is historical, not counted):
 | 118 | `118-german-clockapp.patch` | Clock app German: tabs, capture/paused chip, snooze, calendar reminder editor (German plurals), timers incl. full pomodoro block, stopwatch, world clock + `Zones.qml` (Heute/Morgen/Gestern, Gleiche Zeit), `Agenda.qml` recurrence/relative times, `Chrono.qml` labels + notification titles/bodies, `MonthView.qml` weekday initials (M D M D F S S / S M D M D F S) | 10 | 116 first when both touch Clock.qml (disjoint hunks) |
 | 119 | `119-german-session.patch` | Session screen + power panel German: `lucidsession/Session.qml` (Bis bald/Erneut drücken/Läuft seit — `Sys.duration()` itself left English-formatted, shared with FetchWidget) + `lucidbar/SessionMenu.qml` ("Energie" header, matching 114's Power.qml wording, + läuft-T/Std/Min uptime chip) | 2 | Untouched by every other patch — no ordering constraints |
 | 121 | `121-plain-dots.patch` | Plain password dots, **v2 pre-v1.20 birth** (user saw the v1 fade-in live 2026-10-12 and preferred the old morph): `lucidui/PasswordEcho.qml` (shared by lock field + polkit AuthCard) — the tessellated `Shape`/PathSvg bead becomes a plain morphing `Rectangle` driven by a new `born` scalar (0 = the caret's own line, `Theme.dp(2)` wide × twice the dot tall, 45% opacity; 1 = the settled `echo.dot` dot, radius-capped pill, no layer needed), and the two-phase `life` ParallelAnimation (pop overshoot → 180ms pause → melt/settle + parallel 900ms twist) becomes SequentialAnimation: lag pause (paste cascade kept) → ScriptAction snaps pop/grow/settle/melt/lit to settled values → single `born` tween `Theme.ms(300)` `easeEmphasizedDecel` — the verbatim v1.1–v1.10.x parameters. `"shape": echo.draw()` → `"circle"` kept for self-documentation (role now unused — PathSvg gone); slot grow snaps instantly = row shift like the pre-v1.20 Repeater | 1 | Only patch touching `lucidui/PasswordEcho.qml` — no ordering constraints. Death fade, reveal morph (`shown`), selection band (`pick`), busy ripple (bob) stay upstream. v1 (fade-in) was live-tested; delete the patch to restore the full v1.20 choreography |
+| 122 | `122-ambient-motion-gates.patch` | 2026-10-17 perf round: new pref `Prefs.ambientMotion` (alias + defaults-map entry + inner bool, modeled on `audioMeters`) gates the seven remaining always-on `Animation.Infinite` loops — desktop `WeatherWidget` sun spin, `WeatherIcon` animation clock (desktop + lock consumers via its `live:`), `TimerWidget` dial (**the `w.done` celebratory spin dropped** — it ran at 6s/rev until dismissed), `BatteryWidget` charging ring, `MediaWidget` disc, `lucidui/LinearProgress` wavy flow (one line covers all its consumers: lock media, bar System, weather/media/battery widgets), bar `Mpris` compact-art disc | 10 | Every gate appends `&& Prefs.ambientMotion` to the existing `running:`/`live:` line; lucidSync migration seeds `ambientMotion: false` (absent → false, explicit value wins). Functional pulses stay ungated (Privacy, DockItem urgent, Clock bell). Re-enable per machine: `"ambientMotion": true` in lucidprefs/prefs.json + lucid restart |
+| 123 | `123-cava-idle-suppression.patch` | Desktop-visualiser cava only (root `Cava.qml`; the bar's own cava in `Mpris.qml` is upstream-gated and untouched): `framerate = 60` → `30`, and the SplitParser (a) snaps the never-ending `p * 0.78` decay tail to zero below the 0.015 motion cutoff and (b) skips the `root.levels = out` assignment when every band moved < 0.005 (or the band count changed) — a silent visualiser stops repainting instead of re-firing the levels var at the framerate (DMS 2c5a1a2 technique) | 5 | Beat response unchanged (any band ≥ 0.02 assigns); bars still decay smoothly to zero, then the property goes quiet |
+| 124 | `124-net-audio-poll-hygiene.patch` | Monitor-event storms rate-limited to one full sweep per 5s via a new `lastEventRefresh` floor in the settle timers: `Net.qml` (nmcli monitor → 700ms debounce → nmcli/netinfo.py sweep — RSSI churn re-arms it constantly) and `Audio.qml` (pactl subscribe / Pipewire nodes → 600ms debounce → full `pactl list` sweep) | 2 + 2 | Direct `refresh()` callers stay instant: user actions, Audio actionProc + respawn watchdog, Net 20s poll, startup. The monitor processes and debounce timers are untouched (they are the change detectors); the bar wifi icon reads native Quickshell.Networking anyway |
+| 125 | `125-startup-warmup-defer.patch` | `shell.qml` eager warm-up split: `Component.onCompleted` keeps the 15 touches with t0 ordering requirements (Bt/BtReceive/BtAgent, Net, Idle, Env, Specials, Glass, Monitors, HyprConfig, Notifs, Clip, NightLight, LiveWall, WallTransitions); the 11 inert-at-t0 singletons (KdeConnect, Updates, Users, Polkit, Chrono, Agenda, Zones, Capture, Sounds, Storage, Startup) move into a one-shot 1.5s `Timer` beside it | 1 | ShellRoot's default property is `children: QQmlListProperty&lt;QObject&gt;` (verified in the pinned quickshell 0.3.2 source, `src/core/reload.hpp`) so a plain `Timer` is a legal child. Worst case a consumer instantiates a deferred singleton early anyway — the deferral is pure win, never a break |
 
 **Dropped for good at v1.20 (upstream absorbed):** `103` (disk card counts
 LVM/LUKS), `105` (tiles user-arrangeable), `109` (password beads upstream).
@@ -103,6 +110,11 @@ seeded by the lucidSync migration). **Deliberately not re-added (watch):**
 `102` wifi connect resilience (if saved-network clicks time out again,
 re-express it), `108` 24h reminders (upstream is clock24h-aware), `110` lock
 layout chip (re-evaluate if the chip misreads the German layout).
+**2026-10-17 perf round (122–125):** DMS-class fixes ported onto v1.20.1 after
+a measured idle baseline of quickshell ~8% + Hyprland ~10% of a core (the
+shell fed the compositor a steady frame stream; lucid #42/#43 had already
+fixed the bar's own loops upstream). No ordering constraints with the German
+layer; all four apply after 121.
 **Attempted and reverted 2026-10-11/12 (120, smooth caret):** five designs in
 one day — delegate+Behavior, SmoothCaret follower component, FrameAnimation
 lerp, static-id delegate bindings, slot-follower child — every one QC-green
@@ -530,6 +542,10 @@ path (P5). `grep -c` counts lines; expected value in the last column.
 | 118 | `grep -c '"Kalender"' "$SRC/lucidbar/Clock.qml"`; `grep -c 'Genommene Runden' "$SRC/lucidbar/ClockStopwatch.qml"`; `grep -c '"D", "M", "D"' "$SRC/lucidui/MonthView.qml"`; `grep -c 'Gleiche Zeit' "$SRC/Zones.qml"`; `grep -c 'Zeit für " + Prefs.pomodoroFocus' "$SRC/Chrono.qml"` | 1 each |
 | 119 | `grep -c 'läuft " + (d' "$SRC/lucidbar/SessionMenu.qml"`; `grep -c '"Energie"' "$SRC/lucidbar/SessionMenu.qml"`; `grep -c 'Bis bald' "$SRC/lucidsession/Session.qml"`; `grep -c 'Erneut drücken zum Fortfahren' "$SRC/lucidsession/Session.qml"`; `grep -c 'Läuft seit' "$SRC/lucidsession/Session.qml"` | 1 each |
 | 121 | `grep -c 'nixos-config local patch 121' "$SRC/lucidui/PasswordEcho.qml"`; `grep -c 'property real born' "$SRC/lucidui/PasswordEcho.qml"`; `grep -c 'PathSvg' "$SRC/lucidui/PasswordEcho.qml"`; `grep -c 'easeEmphasizedDecel' "$SRC/lucidui/PasswordEcho.qml"` | 2; 1; 0 (the Shape is gone — the morph is live); 2 (birth + death shut) |
+| 122 | `grep -c 'nixos-config local patch 122' "$SRC/Prefs.qml"`; `grep -c 'Prefs.ambientMotion' "$SRC/lucidwidgets/WeatherWidget.qml" "$SRC/lucidwidgets/WeatherIcon.qml" "$SRC/lucidwidgets/TimerWidget.qml" "$SRC/lucidwidgets/BatteryWidget.qml" "$SRC/lucidwidgets/MediaWidget.qml" "$SRC/lucidui/LinearProgress.qml" "$SRC/lucidbar/Mpris.qml"` | 3 (alias + defaults + inner bool); 1 each |
+| 123 | `grep -c 'framerate = 30' "$SRC/Cava.qml"`; `grep -c 'nixos-config local patch 123' "$SRC/Cava.qml"` | 1; 5 |
+| 124 | `grep -c 'lastEventRefresh' "$SRC/Net.qml" "$SRC/Audio.qml"`; `grep -c 'nixos-config local patch 124' "$SRC/Net.qml" "$SRC/Audio.qml"` | 3 each (declaration + check + set); 2 each (property comment + settle comment) |
+| 125 | `grep -c 'void KdeConnect.installed' "$SRC/shell.qml"`; `grep -c 'local patch 125' "$SRC/shell.qml"`; `grep -c 'interval: 1500' "$SRC/shell.qml"` | 1 (the eager touch is gone — it lives inside the Timer now); 1; 1 |
 | all | `diff -rq -x '.git' <cumulative-patch-tree> "$SRC"` | 0 differences (strongest gate — see §2 P5 attribution) |
 
 Caveats: a marker grep failing while the patch "applied" means a repair or
@@ -537,13 +553,13 @@ upstream change hollowed out the patch's effect — treat as a P3 repair, not a
 checklist footnote. If upstream renames a symbol inside a marker string, update
 this table in the same change (and `git add` it).
 
-## Appendix B — pins as of 2026-10-13
+## Appendix B — pins as of 2026-10-16
 
 | Input | Rev / version | Note |
 |---|---|---|
-| lucid | `e662954f73a39275f214923bb4dab6c85b3800ba` (v1.20, 2026-10-08) | 11 patches as listed in §1 |
+| lucid | `8bc32666da644db7d7ccbd88a751fefa1828ac04` (v1.20.1+, 2026-10-16) | 15 patches as listed in §1; v1.20.1 + 4 post-release commits |
 | quickshell | `4f508be500dea6e5732cc3d50382a0048b17e7b1` (0.3.2, 2026-10-08) | `minQuickshell = "0.3.2"` |
-| dank-greeter | `334b2c93d444b65e4fad5b16f3409bcdc013e40f` (1.6.2, 2026-09-27) | greeter, pairs with quickshell |
+| dank-greeter | `a8b106330db763abd17bcb8eba2f58cb94ebf7a8` (2026-10-16) | greeter, pairs with quickshell; session-list/XDG fixes + Go 1.27 |
 
 v1.20 caveats baked into this bump: upstream docs scope a "Hyprland 0.55.6+"
 floor to custom Lua binds only (README states no floor); yoga runs 0.55.4 —

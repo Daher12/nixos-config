@@ -66,6 +66,27 @@ let
       # scalar; `life` snaps the other scalars and animates only `born`.
       # Busy ripple, backspace fade, reveal and selection stay upstream.
       ./lucid-patches/121-plain-dots.patch
+      # 2026-10-17 performance round — DMS-class fixes ported onto v1.20.1.
+      # Baseline while idle: quickshell ~8% + Hyprland ~10% of a core, i.e.
+      # the shell feeds the compositor a steady frame stream (lucid #42/#43
+      # fixed the bar; these cover the stragglers). No ordering constraints
+      # with the German layer; all four apply after 121.
+      #   122 ambient motion gates — new Prefs.ambientMotion (seeded false by
+      #       the lucidSync migration below) gates the seven remaining
+      #       always-on infinite animations (desktop weather/timer/battery/
+      #       media widgets, wavy progress, bar media disc) + pref plumbing
+      #   123 cava idle suppression — framerate 60 -> 30 + epsilon
+      #       early-return so a silent visualiser stops repainting
+      #       (DMS 2c5a1a2 technique; bar's own cava already gated upstream)
+      #   124 net/audio poll hygiene — monitor-event refreshes rate-limited
+      #       to one per 5s; user actions and the 20s poll stay instant
+      #   125 startup warm-up deferral — the 11 inert-at-t0 singletons move
+      #       from shell.qml Component.onCompleted into a 1.5s Timer
+      #       (ShellRoot's default property takes any QObject — verified)
+      ./lucid-patches/122-ambient-motion-gates.patch
+      ./lucid-patches/123-cava-idle-suppression.patch
+      ./lucid-patches/124-net-audio-poll-hygiene.patch
+      ./lucid-patches/125-startup-warmup-defer.patch
     ];
     dontConfigure = true;
     dontBuild = true;
@@ -129,6 +150,14 @@ let
     {
       file = "widgets.json";
       dest = "lucidwidgets/widgets.json";
+    }
+    {
+      # upstream ships no default for this one: install.sh only carries an
+      # existing icons.json over from its backup, the desktop-icons feature
+      # writes it at runtime. Empty `file` = the seed step below skips it;
+      # the rsync still excludes it from --delete like every state file.
+      file = "";
+      dest = "luciddesktop/icons.json";
     }
   ];
 
@@ -474,12 +503,15 @@ in
       chmod -R u+rwX "$QS_DIR" "$LUCID_DIR"
 
       # Seed-if-absent (upstream's seed step; existing state always wins).
-      ${lib.concatMapStrings (s: ''
-        if [ ! -s "$QS_DIR/${s.dest}" ]; then
-          mkdir -p "$QS_DIR/$(dirname "${s.dest}")"
-          cp "$LUCID_SRC/defaults/${s.file}" "$QS_DIR/${s.dest}"
-        fi
-      '') stateFiles}
+      ${lib.concatMapStrings (
+        s:
+        lib.optionalString (s.file != "") ''
+          if [ ! -s "$QS_DIR/${s.dest}" ]; then
+            mkdir -p "$QS_DIR/$(dirname "${s.dest}")"
+            cp "$LUCID_SRC/defaults/${s.file}" "$QS_DIR/${s.dest}"
+          fi
+        ''
+      ) stateFiles}
 
       # support/lucid: launch-shell.sh (Qt render-backend picker) + theme
       # tooling. keybinds.json and wallpaper-outputs.conf are runtime-
@@ -623,6 +655,15 @@ in
       #                                   and wins. The Settings preview
       #                                   uses Qt.locale() too, so it shows
       #                                   the German format natively.
+      #   ambientMotion absent -> false  — patch 122's gate for the decorative
+      #                                   infinite loops (desktop widget spins,
+      #                                   wavy progress flow, bar media disc):
+      #                                   each one forces a frame per vsync and
+      #                                   keeps Hyprland re-blurring the layer
+      #                                   all session (~8%+10% of a core idle).
+      #                                   Re-enable per machine: "ambientMotion":
+      #                                   true in lucidprefs/prefs.json, then
+      #                                   systemctl --user restart lucid.
       # Live-tunable afterwards: Settings > General > Animation speed,
       # Settings > Bar > bar motion + the clock module card.
       if [ -s "$QS_DIR/lucidprefs/prefs.json" ]; then
@@ -632,6 +673,7 @@ in
           | if ((.barMotionScale // 1.35) == 1.35) then .barMotionScale = 1.0 else . end
           | if ((.motionScale // 1) == 1) then .motionScale = 0.85 else . end
           | if ((.clockDateFormat == "dayMonth") or (.clockDateFormat == "short")) then .clockDateFormat = "numeric" else . end
+          | if .ambientMotion == null then .ambientMotion = false else . end
         ' "$QS_DIR/lucidprefs/prefs.json" > "$QS_DIR/lucidprefs/prefs.json.tmp" \
           && mv "$QS_DIR/lucidprefs/prefs.json.tmp" "$QS_DIR/lucidprefs/prefs.json"
       fi

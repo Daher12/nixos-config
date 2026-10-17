@@ -1,0 +1,103 @@
+--- a/Prefs.qml
++++ b/Prefs.qml
+@@ -516,6 +516,7 @@
+     property alias windowModuleStyle: s.windowModuleStyle
+     property alias workspacesByDisplay: s.workspacesByDisplay
+     property alias audioMeters: s.audioMeters
++    property alias ambientMotion: s.ambientMotion // nixos-config local patch 122
+     property alias clockStyle: s.clockStyle
+     property alias clockDateFormat: s.clockDateFormat
+     property alias mediaStyle: s.mediaStyle
+@@ -977,6 +978,7 @@
+         "windowModuleStyle": "plain",
+         "workspacesByDisplay": true,
+         "audioMeters": true,
++        "ambientMotion": true, // nixos-config local patch 122
+         "clockStyle": "accent",
+         "clockDateFormat": "dayMonth",
+         "mediaStyle": "disc",
+@@ -1696,6 +1698,7 @@
+             property string windowModuleStyle: "plain"
+             property bool workspacesByDisplay: true
+             property bool audioMeters: true
++            property bool ambientMotion: true // nixos-config local patch 122: gates decorative infinite loops
+             property string clockStyle: "accent"
+             property string clockDateFormat: "dayMonth"
+             property string mediaStyle: "disc"
+--- a/lucidwidgets/WeatherWidget.qml
++++ b/lucidwidgets/WeatherWidget.qml
+@@ -126,7 +126,7 @@
+                     to: 360
+                     duration: 90000
+                     loops: Animation.Infinite
+-                    running: w.visible && !w.preview
++                    running: w.visible && !w.preview && Prefs.ambientMotion // nixos-config local patch 122
+                 }
+ 
+             }
+--- a/lucidwidgets/WeatherIcon.qml
++++ b/lucidwidgets/WeatherIcon.qml
+@@ -18,7 +18,7 @@
+     // visible is the effective one, so a hidden card stops every drift and spin
+     // rather than driving the animation clock for something nobody can see
+     readonly property bool moving: icon.live && icon.visible
+-    readonly property bool live: icon.animate && Theme.motionScale > 0
++    readonly property bool live: icon.animate && Theme.motionScale > 0 && Prefs.ambientMotion // nixos-config local patch 122
+     // the bar passes "sunny"/"cloudy"; everything else already matches
+     readonly property var symbols: ({
+         "clear": "clear_day",
+--- a/lucidwidgets/TimerWidget.qml
++++ b/lucidwidgets/TimerWidget.qml
+@@ -117,7 +117,7 @@
+                         to: 360
+                         duration: w.done ? 6000 : 40000
+                         loops: Animation.Infinite
+-                        running: (w.running || w.done) && w.visible && !w.preview
++                        running: w.running && w.visible && !w.preview && Prefs.ambientMotion // nixos-config local patch 122 (done spin dropped: it ran at 6s/rev until dismissed)
+                     }
+ 
+                 }
+--- a/lucidwidgets/BatteryWidget.qml
++++ b/lucidwidgets/BatteryWidget.qml
+@@ -253,7 +253,7 @@
+                 to: 360
+                 duration: 16000
+                 loops: Animation.Infinite
+-                running: w.charging && w.visible && !w.preview
++                running: w.charging && w.visible && !w.preview && Prefs.ambientMotion // nixos-config local patch 122
+             }
+ 
+         }
+--- a/lucidwidgets/MediaWidget.qml
++++ b/lucidwidgets/MediaWidget.qml
+@@ -754,7 +754,7 @@
+                 to: 360
+                 duration: 24000
+                 loops: Animation.Infinite
+-                running: w.playing && w.visible && !w.preview
++                running: w.playing && w.visible && !w.preview && Prefs.ambientMotion // nixos-config local patch 122
+             }
+ 
+             Icon {
+--- a/lucidui/LinearProgress.qml
++++ b/lucidui/LinearProgress.qml
+@@ -92,7 +92,7 @@
+     }
+ 
+     NumberAnimation on phase {
+-        running: lp.wavy && lp.animated && lp.flowing && lp.visible
++        running: lp.wavy && lp.animated && lp.flowing && lp.visible && Prefs.ambientMotion // nixos-config local patch 122
+         from: 0
+         to: Math.PI * 2
+         duration: 1400
+--- a/lucidbar/Mpris.qml
++++ b/lucidbar/Mpris.qml
+@@ -684,7 +684,7 @@
+                         to: 360
+                         duration: 14000
+                         loops: Animation.Infinite
+-                        running: root.isPlaying && compactArt.visible
++                        running: root.isPlaying && compactArt.visible && Prefs.ambientMotion // nixos-config local patch 122
+                     }
+ 
+                 }

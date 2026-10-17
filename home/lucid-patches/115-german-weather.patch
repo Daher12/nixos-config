@@ -1,6 +1,6 @@
-diff -ruN -x '*.rej' -x '*.orig' patch114/lucidbar/ClockToday.qml patch115/lucidbar/ClockToday.qml
---- patch114/lucidbar/ClockToday.qml	2026-10-10 08:59:49.895899673 +0200
-+++ patch115/lucidbar/ClockToday.qml	2026-10-10 09:00:57.333099329 +0200
+diff -ruN -x '*.rej' -x '*.orig' prev/lucidbar/ClockToday.qml work/lucidbar/ClockToday.qml
+--- prev/lucidbar/ClockToday.qml	2026-10-16 23:23:33.924011891 +0200
++++ work/lucidbar/ClockToday.qml	2026-10-16 23:25:22.752806635 +0200
 @@ -190,7 +190,7 @@
                  anchors.horizontalCenter: parent.horizontalCenter
                  role: "bodyMedium"
@@ -14,8 +14,8 @@ diff -ruN -x '*.rej' -x '*.orig' patch114/lucidbar/ClockToday.qml patch115/lucid
                  spacing: Theme.dp(6)
  
                  Repeater {
--                    model: page.wx ? [["thermostat", "Feels " + page.wx.feelsC + "°"], ["water_drop", page.wx.humidity + "%"], ["air", page.wx.windKmph + " km/h " + (page.wx.windDir || "")], ["umbrella", (page.wx.pop || 0) + "%"], ["light_mode", "UV " + page.wx.uv]] : []
-+                    model: page.wx ? [["thermostat", "Fühlt sich wie " + page.wx.feelsC + "° an"], ["water_drop", page.wx.humidity + " %"], ["air", page.wx.windKmph + " km/h " + (page.wx.windDir || "")], ["umbrella", (page.wx.pop || 0) + " %"], ["light_mode", "UV " + page.wx.uv]] : []
+-                    model: page.wx ? [["thermostat", "Feels " + Units.deg(page.wx.feelsC, page.wx.feelsF)], ["water_drop", page.wx.humidity + "%"], ["air", Units.wind(page.wx.windKmph, page.wx.windMph) + " " + (page.wx.windDir || "")], ["umbrella", (page.wx.pop || 0) + "%"], ["light_mode", "UV " + page.wx.uv]] : []
++                    model: page.wx ? [["thermostat", "Fühlt sich wie " + Units.deg(page.wx.feelsC, page.wx.feelsF) + " an"], ["water_drop", page.wx.humidity + " %"], ["air", Units.wind(page.wx.windKmph, page.wx.windMph) + " " + (page.wx.windDir || "")], ["umbrella", (page.wx.pop || 0) + " %"], ["light_mode", "UV " + page.wx.uv]] : [] // nixos-config local patch 115 (German)
  
                      Rectangle {
                          required property var modelData
@@ -28,10 +28,10 @@ diff -ruN -x '*.rej' -x '*.orig' patch114/lucidbar/ClockToday.qml patch115/lucid
                          }
  
                          WeatherIcon {
-diff -ruN -x '*.rej' -x '*.orig' patch114/lucidwidgets/GlanceWidget.qml patch115/lucidwidgets/GlanceWidget.qml
---- patch114/lucidwidgets/GlanceWidget.qml	2026-10-10 08:59:49.902585465 +0200
-+++ patch115/lucidwidgets/GlanceWidget.qml	2026-10-10 09:00:57.333930039 +0200
-@@ -32,7 +32,7 @@
+diff -ruN -x '*.rej' -x '*.orig' prev/lucidwidgets/GlanceWidget.qml work/lucidwidgets/GlanceWidget.qml
+--- prev/lucidwidgets/GlanceWidget.qml	2026-10-16 23:23:33.931030669 +0200
++++ work/lucidwidgets/GlanceWidget.qml	2026-10-16 23:23:34.131723334 +0200
+@@ -31,7 +31,7 @@
          if (w.preview)
              return {
              "icon": "event",
@@ -40,7 +40,7 @@ diff -ruN -x '*.rej' -x '*.orig' patch114/lucidwidgets/GlanceWidget.qml patch115
          };
  
          var h = Chrono.headline;
-@@ -48,7 +48,7 @@
+@@ -47,7 +47,7 @@
              var mins = Math.round((next[0].at - w.now) / 60000);
              return {
                  "icon": "event",
@@ -49,7 +49,7 @@ diff -ruN -x '*.rej' -x '*.orig' patch114/lucidwidgets/GlanceWidget.qml patch115
              };
          }
          if (w.playing)
-@@ -61,7 +61,7 @@
+@@ -60,7 +60,7 @@
          if (bat && bat.isPresent && bat.percentage <= 0.2 && bat.state === UPowerDeviceState.Discharging)
              return {
              "icon": "battery_alert",
@@ -58,7 +58,7 @@ diff -ruN -x '*.rej' -x '*.orig' patch114/lucidwidgets/GlanceWidget.qml patch115
          };
  
          if (w.report && w.report.sunset) {
-@@ -70,20 +70,20 @@
+@@ -69,20 +69,20 @@
              if (w.now < rise && rise - w.now < 6 * 3600000)
                  return {
                  "icon": "wb_twilight",
@@ -82,10 +82,10 @@ diff -ruN -x '*.rej' -x '*.orig' patch114/lucidwidgets/GlanceWidget.qml patch115
          };
  
          return null;
-diff -ruN -x '*.rej' -x '*.orig' patch114/lucidwidgets/WeatherWidget.qml patch115/lucidwidgets/WeatherWidget.qml
---- patch114/lucidwidgets/WeatherWidget.qml	2026-10-10 08:59:49.903045170 +0200
-+++ patch115/lucidwidgets/WeatherWidget.qml	2026-10-10 09:00:57.333531661 +0200
-@@ -46,14 +46,14 @@
+diff -ruN -x '*.rej' -x '*.orig' prev/lucidwidgets/WeatherWidget.qml work/lucidwidgets/WeatherWidget.qml
+--- prev/lucidwidgets/WeatherWidget.qml	2026-10-16 23:23:33.931469088 +0200
++++ work/lucidwidgets/WeatherWidget.qml	2026-10-16 23:23:34.131834947 +0200
+@@ -62,14 +62,14 @@
          if (!d || !d.date) {
              const fake = Loc.now();
              fake.setDate(fake.getDate() + i);
@@ -103,7 +103,7 @@ diff -ruN -x '*.rej' -x '*.orig' patch114/lucidwidgets/WeatherWidget.qml patch11
  
          if (!h.time)
              return (i * 3) + "h";
-@@ -82,7 +82,7 @@
+@@ -98,7 +98,7 @@
              anchors.horizontalCenter: parent.horizontalCenter
              role: "labelLarge"
              color: w.inkDim
@@ -112,7 +112,7 @@ diff -ruN -x '*.rej' -x '*.orig' patch114/lucidwidgets/WeatherWidget.qml patch11
          }
  
      }
-@@ -161,7 +161,7 @@
+@@ -177,7 +177,7 @@
              LText {
                  role: "bodySmall"
                  color: w.inkDim
@@ -121,9 +121,9 @@ diff -ruN -x '*.rej' -x '*.orig' patch114/lucidwidgets/WeatherWidget.qml patch11
              }
  
          }
-diff -ruN -x '*.rej' -x '*.orig' patch114/WeatherSource.qml patch115/WeatherSource.qml
---- patch114/WeatherSource.qml	2026-10-10 08:59:49.892585557 +0200
-+++ patch115/WeatherSource.qml	2026-10-10 09:00:57.332756356 +0200
+diff -ruN -x '*.rej' -x '*.orig' prev/WeatherSource.qml work/WeatherSource.qml
+--- prev/WeatherSource.qml	2026-10-16 23:23:33.921184261 +0200
++++ work/WeatherSource.qml	2026-10-16 23:23:34.131958764 +0200
 @@ -54,37 +54,37 @@
      function descFor(code) {
          const c = parseInt(code);

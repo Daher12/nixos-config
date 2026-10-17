@@ -176,6 +176,10 @@ in
           ".cache/current_theme"
           ".cache/current_wallpaper"
           ".cache/current_mode"
+          # Lucid Glass slider state: lucid writes kitty's include file at
+          # runtime (home/terminal.nix includes it when lucid is enabled);
+          # without this entry the slider position reset every boot.
+          ".config/kitty/lucid-glass.conf"
         ];
       };
     };

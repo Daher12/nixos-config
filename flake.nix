@@ -44,6 +44,11 @@
     # express "latest v2.*", so bump by editing the tag below, then
     # `nix flake update opencode`. Find the newest tag with:
     #   git ls-remote --tags https://github.com/anomalyco/opencode 'v2.*'
+    # v2.0.28+ are UNBUILDABLE from the flake (verified 2026-10-16, still
+    # unfixed on main): packages/cli/script/build.ts imports
+    # ../../../script/native-arch, but nix/node_modules.nix's src fileset
+    # does not include ../script — bump past v2.0.27 only after upstream
+    # adds ../script to that union.
     # Deliberately NO `nixpkgs.follows` here: upstream requires its pinned
     # nixpkgs-unstable (packageManager bun@1.4.2; nixos-26.05 only ships
     # bun 1.3.13, whose `bun install` fails extracting the big native
@@ -51,7 +56,7 @@
     # The libstdc++ LD_LIBRARY_PATH wrap in home/opencode.nix covers the
     # resulting stdenv mismatch.
     opencode = {
-      url = "github:anomalyco/opencode/v2.0.26";
+      url = "github:anomalyco/opencode/v2.0.27";
     };
 
     # Quickshell engine — upstream flake (docs: the GitHub mirror is

@@ -1,0 +1,57 @@
+--- a/shell.qml
++++ b/shell.qml
+@@ -40,7 +40,6 @@
+     // the sounds, so their ipc target answers before anything has played, and
+     // storage, which warns when space runs low and empties old trash
+     Component.onCompleted: {
+-        void KdeConnect.installed;
+         void Bt.present;
+         void BtReceive.status;
+         void BtAgent.status;
+@@ -51,23 +50,36 @@
+         void Glass.probed;
+         void Monitors.probed;
+         void HyprConfig.moduleProbed;
+-        void Startup.moduleProbed;
+-        void Updates.current;
+         void Notifs.count;
+         void Clip.probed;
+-        void Users.probed;
+-        void Polkit.registered;
+-        void Chrono.now;
+-        void Agenda.tick;
+-        void Zones.offsets;
+-        void Capture.state;
+         void NightLight.active;
+         void LiveWall.wanted;
+-        void Sounds.dir;
+-        void Storage.watching;
+         void WallTransitions.active;
+     }
+ 
++    // nixos-config local patch 125: the eleven warm-up touches nothing needs at
++    // first frame (kdeconnect, updates, users, polkit, chrono, agenda, zones,
++    // capture, sounds, storage, startup) instantiate 1.5s after load instead of
++    // on it, so login is not paying for their processes and watchers up front
++    Timer {
++        interval: 1500
++        running: true
++        repeat: false
++        onTriggered: {
++            void KdeConnect.installed;
++            void Updates.current;
++            void Users.probed;
++            void Polkit.registered;
++            void Chrono.now;
++            void Agenda.tick;
++            void Zones.offsets;
++            void Capture.state;
++            void Sounds.dir;
++            void Storage.watching;
++            void Startup.moduleProbed;
++        }
++    }
++
+     // the bar that speaks for the shell, of however many there are
+     function mainBar() {
+         const list = bars.instances;

@@ -1,852 +1,8 @@
-diff -ruN -x '*.rej' -x '*.orig' prev/lucidbar/BluetoothPanel.qml work/lucidbar/BluetoothPanel.qml
---- prev/lucidbar/BluetoothPanel.qml	2026-10-08 13:48:40.000000000 +0200
-+++ work/lucidbar/BluetoothPanel.qml	2026-10-10 16:12:35.922820852 +0200
-@@ -31,7 +31,7 @@
- 
-     readonly property string label: {
-         if (!root.btEnabled)
--            return "Off";
-+            return "Aus";
- 
-         if (root.connectedDevices.length === 1) {
-             let d = root.connectedDevices[0];
-@@ -39,15 +39,15 @@
-             return d.name + (batt !== "" ? " (" + batt + ")" : "");
-         }
-         if (root.connectedDevices.length > 1)
--            return root.connectedDevices.length + " devices connected";
-+            return root.connectedDevices.length + " Geräte verbunden";
- 
-         if (root.anyConnecting)
--            return "Connecting...";
-+            return "Verbinden…";
- 
-         if (root.discovering)
--            return "Scanning...";
-+            return "Suche…";
- 
--        return "Not connected";
-+        return "Nicht verbunden";
-     }
- 
-     function getBatteryText(dev) {
-@@ -59,7 +59,7 @@
-             return "";
- 
-         let pct = (b <= 1 && b > 0) ? Math.round(b * 100) : Math.round(b);
--        return pct + '%';
-+        return pct + ' %';
-     }
- 
-     function isMacLike(name) {
-@@ -213,7 +213,7 @@
-                     LText {
-                         anchors.verticalCenter: parent.verticalCenter
-                         role: "labelLarge"
--                        text: root.discovering ? "Looking for devices" : "Search for devices"
-+                        text: root.discovering ? "Suche nach Geräten" : "Nach Geräten suchen"
-                         color: root.discovering ? Theme.fgSecondaryContainer : Theme.text
-                     }
- 
-@@ -225,7 +225,7 @@
-                     anchors.verticalCenter: parent.verticalCenter
-                     visible: root.discovering
-                     role: "labelMedium"
--                    text: "Stop"
-+                    text: "Stopp"
-                     color: Theme.fgSecondaryContainer
-                 }
- 
-@@ -244,7 +244,7 @@
-                 anchors.verticalCenter: parent.verticalCenter
-                 role: "bodyMedium"
-                 color: Theme.subtext
--                text: "Visible to other devices"
-+                text: "Für andere Geräte sichtbar"
-             }
- 
-             Switch {
-@@ -268,7 +268,7 @@
- 
-             Text {
-                 anchors.horizontalCenter: parent.horizontalCenter
--                text: "Bluetooth is off"
-+                text: "Bluetooth ist aus"
-                 color: Theme.subtext
-                 font.family: Theme.fontFamily
-                 font.pixelSize: Theme.fs(12)
-@@ -277,7 +277,7 @@
- 
-             Text {
-                 anchors.horizontalCenter: parent.horizontalCenter
--                text: "Turn it on to see nearby devices"
-+                text: "Einschalten, um Geräte in der Nähe zu sehen"
-                 color: Theme.outlineStrong
-                 font.family: Theme.fontFamily
-                 font.pixelSize: Theme.fs(10)
-@@ -299,7 +299,7 @@
-                 visible: root.connectedDevices.length > 0
- 
-                 Text {
--                    text: "Connected"
-+                    text: "Verbunden"
-                     color: Theme.primary
-                     font.family: Theme.fontFamily
-                     font.bold: true
-@@ -326,7 +326,7 @@
-                 visible: root.pairedDevices.length > 0
- 
-                 Text {
--                    text: "Paired"
-+                    text: "Gekoppelt"
-                     color: Theme.primary
-                     font.family: Theme.fontFamily
-                     font.bold: true
-@@ -353,7 +353,7 @@
-                 visible: root.nearbyDevices.length > 0
- 
-                 Text {
--                    text: "Nearby"
-+                    text: "In der Nähe"
-                     color: Theme.primary
-                     font.family: Theme.fontFamily
-                     font.bold: true
-@@ -383,7 +383,7 @@
- 
-                 Text {
-                     anchors.horizontalCenter: parent.horizontalCenter
--                    text: root.discovering ? "Looking for devices…" : "No devices found"
-+                    text: root.discovering ? "Suche nach Geräten…" : "Keine Geräte gefunden"
-                     color: Theme.subtext
-                     font.family: Theme.fontFamily
-                     font.pixelSize: Theme.fs(12)
-@@ -393,7 +393,7 @@
-                 Text {
-                     anchors.horizontalCenter: parent.horizontalCenter
-                     visible: !root.discovering
--                    text: "Tap “Search for devices” to scan"
-+                    text: "Tippe auf „Nach Geräten suchen“, um zu scannen"
-                     color: Theme.outlineStrong
-                     font.family: Theme.fontFamily
-                     font.pixelSize: Theme.fs(10)
-@@ -563,19 +563,19 @@
-                             anchors.verticalCenter: parent.verticalCenter
-                             text: {
-                                 if (devItem.isPairing)
--                                    return "Pairing…";
-+                                    return "Koppeln…";
- 
-                                 if (devItem.isConnecting)
--                                    return "Connecting…";
-+                                    return "Verbinden…";
- 
-                                 if (devItem.isConnected) {
-                                     let batt = root.getBatteryText(devItem.modelData);
--                                    return "Connected" + (batt !== "" ? " · " + batt : "");
-+                                    return "Verbunden" + (batt !== "" ? " · " + batt : "");
-                                 }
-                                 if (devItem.isPaired)
--                                    return devItem.modelData.trusted ? "Paired · Trusted" : "Paired";
-+                                    return devItem.modelData.trusted ? "Gekoppelt · Vertraut" : "Gekoppelt";
- 
--                                return "Available";
-+                                return "Verfügbar";
-                             }
-                             color: devItem.isConnected ? Theme.accent : Theme.subtext
-                             font.family: Theme.fontFamily
-@@ -688,13 +688,13 @@
-                             anchors.centerIn: parent
-                             text: {
-                                 if (devItem.isPairing)
--                                    return "Pairing…";
-+                                    return "Koppeln…";
- 
-                                 if (devItem.isConnecting)
--                                    return "Connecting…";
-+                                    return "Verbinden…";
- 
-                                 if (devItem.group === "nearby")
--                                    return "Pair";
-+                                    return "Koppeln";
- 
-                                 return devItem.isConnected ? "Disconnect" : "Connect";
-                             }
-@@ -754,7 +754,7 @@
- 
-                         Text {
-                             anchors.centerIn: parent
--                            text: "Forget"
-+                            text: "Vergessen"
-                             color: Theme.text
-                             font.family: Theme.fontFamily
-                             font.bold: true
-@@ -795,7 +795,7 @@
- 
-                 Text {
-                     visible: devItem.isPairing
--                    text: "Cancel pairing"
-+                    text: "Koppeln abbrechen"
-                     color: Theme.subtext
-                     font.family: Theme.fontFamily
-                     font.pixelSize: Theme.fs(11)
-@@ -816,7 +816,7 @@
-                 Text {
-                     visible: devItem.actionFailed && !devItem.isConnected && !devItem.isPairing && !devItem.isConnecting
-                     width: parent.width - Theme.dp(46)
--                    text: devItem.group === "nearby" ? "Pairing failed. Please try again." : "Failed to connect. The device may be out of range."
-+                    text: devItem.group === "nearby" ? "Koppeln fehlgeschlagen. Bitte erneut versuchen." : "Verbindung fehlgeschlagen. Das Gerät ist vielleicht außer Reichweite."
-                     color: Theme.error
-                     font.family: Theme.fontFamily
-                     font.pixelSize: Theme.fs(10)
-@@ -857,7 +857,7 @@
-                         }
- 
-                         Text {
--                            text: "Auto-reconnect"
-+                            text: "Automatisch neu verbinden"
-                             color: Theme.subtext
-                             font.family: Theme.fontFamily
-                             font.bold: true
-@@ -904,7 +904,7 @@
-                         }
- 
-                         Text {
--                            text: "Allow wake"
-+                            text: "Aufwecken erlauben"
-                             color: Theme.subtext
-                             font.family: Theme.fontFamily
-                             font.bold: true
-@@ -950,7 +950,7 @@
-                         }
- 
-                         Text {
--                            text: "Block"
-+                            text: "Blockieren"
-                             color: Theme.subtext
-                             font.family: Theme.fontFamily
-                             font.bold: true
-@@ -972,7 +972,7 @@
- 
-                 Text {
-                     visible: devItem.group !== "nearby" && !devItem.renaming
--                    text: "Rename"
-+                    text: "Umbenennen"
-                     color: Theme.subtext
-                     font.family: Theme.fontFamily
-                     font.pixelSize: Theme.fs(11)
-diff -ruN -x '*.rej' -x '*.orig' prev/lucidbar/System.qml work/lucidbar/System.qml
---- prev/lucidbar/System.qml	2026-10-10 16:12:28.798814918 +0200
-+++ work/lucidbar/System.qml	2026-10-10 16:12:49.644805976 +0200
-@@ -228,9 +228,9 @@
-         const h = Math.floor((root.uptimeSecs % 86400) / 3600);
-         const m = Math.floor((root.uptimeSecs % 3600) / 60);
-         if (d > 0)
--            return "up " + d + "d " + h + "h";
-+            return "läuft " + d + " T " + h + " Std"; // nixos-config local patch 114 (German)
- 
--        return h > 0 ? "up " + h + "h " + m + "m" : "up " + m + "m";
-+        return h > 0 ? "läuft " + h + " Std " + m + " Min" : "läuft " + m + " Min";
-     }
- 
-     function pushSample(historyArr, v, max) {
-@@ -382,15 +382,15 @@
-     readonly property string tipOverline: {
-         switch (root.tipViewKind) {
-         case "wifi":
--            return wifiPanel.primaryIsEthernet ? "ETHERNET" : "WI-FI";
-+            return wifiPanel.primaryIsEthernet ? "ETHERNET" : "WLAN";
-         case "bluetooth":
-             return "BLUETOOTH";
-         case "volume":
--            return "VOLUME";
-+            return "LAUTSTÄRKE";
-         case "mic":
--            return "MICROPHONE";
-+            return "MIKROFON";
-         case "battery":
--            return "BATTERY";
-+            return "AKKU";
-         }
-         return "";
-     }
-@@ -398,38 +398,38 @@
-         switch (root.tipViewKind) {
-         case "wifi":
-             if (wifiPanel.primaryIsEthernet)
--                return "Wired connection";
-+                return "Kabelverbindung";
- 
-             if (!Networking.wifiEnabled)
--                return "Wi-Fi off";
-+                return "WLAN aus";
- 
-             if (wifiPanel.connecting)
--                return "Connecting…";
-+                return "Verbinden…";
- 
-             if (wifiPanel.wifiConnected && wifiPanel.activeNetwork)
-                 return wifiPanel.activeNetwork.name;
- 
--            return "Not connected";
-+            return "Nicht verbunden";
-         case "bluetooth":
-             if (!root.btEnabled)
--                return "Bluetooth off";
-+                return "Bluetooth aus";
- 
-             if (btPanel.connectedDevices.length === 1)
-                 return btPanel.connectedDevices[0].name;
- 
-             if (btPanel.connectedDevices.length > 1)
--                return btPanel.connectedDevices.length + " devices";
-+                return btPanel.connectedDevices.length + " Geräte verbunden";
- 
-             if (btPanel.anyConnecting)
--                return "Connecting…";
-+                return "Verbinden…";
- 
--            return "Not connected";
-+            return "Nicht verbunden";
-         case "volume":
--            return root.volMuted ? "Muted" : root.volumePercent + "%";
-+            return root.volMuted ? "Stumm" : root.volumePercent + " %";
-         case "mic":
--            return root.micMuted ? "Muted" : "Active";
-+            return root.micMuted ? "Stumm" : "Aktiv";
-         case "battery":
--            return root.batteryPresent ? root.batteryPercent + "%" : "No battery";
-+            return root.batteryPresent ? root.batteryPercent + " %" : "Kein Akku";
-         }
-         return "";
-     }
-@@ -437,13 +437,13 @@
-         switch (root.tipViewKind) {
-         case "wifi":
-             if (wifiPanel.primaryIsEthernet)
--                return wifiPanel.wiredDevice ? wifiPanel.wiredDevice.name : "Wired";
-+                return wifiPanel.wiredDevice ? wifiPanel.wiredDevice.name : "Kabelgebunden";
- 
-             if (!Networking.wifiEnabled)
--                return "Radio disabled";
-+                return "Funk deaktiviert";
- 
-             if (!wifiPanel.wifiConnected)
--                return wifiPanel.nearbyNetworks.length + " networks nearby";
-+                return wifiPanel.nearbyNetworks.length + " Netzwerke in der Nähe";
- 
-             const warn = wifiPanel.connectivityLabel();
-             const sig = wifiPanel.strengthLabel(wifiPanel.signalStrength) + " · " + Math.round(wifiPanel.signalStrength) + "%";
-@@ -454,7 +454,7 @@
- 
-             if (btPanel.connectedDevices.length === 1) {
-                 const b = btPanel.getBatteryText(btPanel.connectedDevices[0]);
--                return b !== "" ? "Connected · " + b + " battery" : "Connected";
-+                return b !== "" ? "Verbunden · " + b + " Akku" : "Verbunden";
-             }
-             if (btPanel.connectedDevices.length > 1)
-                 return btPanel.connectedDevices.map((d) => {
-@@ -462,9 +462,9 @@
-                 }).join(", ");
- 
-             if (btPanel.discovering)
--                return "Scanning…";
-+                return "Suche…";
- 
--            return btPanel.pairedDevices.length + " paired";
-+            return btPanel.pairedDevices.length + " gekoppelt";
-         case "volume":
-             return root.deviceLabel(root.sink);
-         case "mic":
-@@ -482,9 +482,9 @@
-             return "";
- 
-         if (root.battery.state === UPowerDeviceState.FullyCharged)
--            return "Fully charged";
-+            return "Vollständig geladen";
- 
--        return root.batteryCharging ? "Charging" : "On battery";
-+        return root.batteryCharging ? "Wird geladen" : "Im Akkubetrieb";
-     }
-     readonly property string tipBatteryTime: {
-         if (!root.battery)
-@@ -497,13 +497,13 @@
-         const h = Math.floor(secs / 3600);
-         const m = Math.round((secs % 3600) / 60);
-         const body = h > 0 ? h + "h " + m + "m" : m + "m";
--        return root.batteryCharging ? body + " to full" : body + " left";
-+        return root.batteryCharging ? body + " bis voll" : body + " übrig";
-     }
- 
-     // the stat card's second line: draw while discharging, else time
-     readonly property string batteryDetail: {
-         if (!root.batteryPresent)
--            return "no battery";
-+            return "kein Akku";
- 
-         const rate = root.battery ? root.battery.changeRate : 0;
-         if (!root.batteryCharging && rate > 0.05)
-@@ -512,7 +512,7 @@
-         if (root.tipBatteryTime !== "")
-             return root.tipBatteryTime;
- 
--        return root.batteryCharging ? "charging" : "on battery";
-+        return root.batteryCharging ? "wird geladen" : "im Akkubetrieb";
-     }
- 
-     onTipWantedChanged: {
-@@ -1047,16 +1047,16 @@
-     function tileLabel(key) {
-         switch (key) {
-         case "location":
--            return Prefs.gpsEnabled && Loc.busy ? "Locating" : "Location";
-+            return Prefs.gpsEnabled && Loc.busy ? "Ortung läuft" : "Standort";
-         case "record":
--            return Capture.active ? Capture.clock(Capture.seconds) : "Record";
-+            return Capture.active ? Capture.clock(Capture.seconds) : "Aufnahme";
-         case "timer":
-             return Chrono.headline ? Chrono.countdown(Chrono.headline.left) : "Timer";
-         case "gamemode":
-             if (root.gameModeBusy)
--                return root.gameModeOn ? "Starting" : "Stopping";
-+                return root.gameModeOn ? "Wird gestartet" : "Wird beendet";
- 
--            return root.gameModeFailed ? "Failed" : "Game";
-+            return root.gameModeFailed ? "Fehler" : "Spiel";
-         }
-         const t = Prefs.systemTileAt(key);
-         return t ? t.name : "";
-@@ -1525,7 +1525,7 @@
-                         LText {
-                             role: "titleMedium"
-                             weight: 600
--                            text: Qt.formatDate(root.nowDate, "dddd, d MMMM")
-+                            text: root.nowDate.toLocaleDateString(Qt.locale("de_DE"), "dddd, d. MMMM") // nixos-config local patch 114 (German: Qt.formatDate pins the C locale — explicit de_DE)
-                         }
- 
-                         LText {
-@@ -1677,7 +1677,7 @@
- 
-                             QuickTile {
-                                 icon: root.wifiGlyph
--                                name: wifiPanel.primaryIsEthernet ? "Ethernet" : "Wi-Fi"
-+                                name: wifiPanel.primaryIsEthernet ? "Ethernet" : "WLAN"
-                                 sub: wifiPanel.statusText
-                                 checked: Networking.wifiEnabled || wifiPanel.primaryIsEthernet
-                                 onToggled: Networking.wifiEnabled = !Networking.wifiEnabled
-@@ -1923,7 +1923,7 @@
-                                     width: gaugeRow.width / 4
-                                     value: root.ramPercent / 100
-                                     center: root.ramHistory.length > 0 ? Math.round(root.ramPercent) + "" : "—"
--                                    label: "Memory"
-+                                    label: "RAM"
-                                     detail: root.ramTotalGB > 0 ? root.ramUsedGB.toFixed(1) + " GB" : ""
-                                     tone: Theme.accent
-                                 }
-@@ -1932,8 +1932,8 @@
-                                     width: gaugeRow.width / 4
-                                     value: statsCard.diskPct
-                                     center: statsCard.selectedDiskInfo && statsCard.selectedDiskInfo.mounted ? Math.round(statsCard.diskPct * 100) + "" : "—"
--                                    label: root.selectedDisk || "Disk"
--                                    detail: statsCard.selectedDiskInfo ? (statsCard.selectedDiskInfo.mounted ? Math.round(statsCard.selectedDiskInfo.avail / 1.07374e+09) + " GB free" : "not mounted") : ""
-+                                    label: root.selectedDisk || "Datenträger"
-+                                    detail: statsCard.selectedDiskInfo ? (statsCard.selectedDiskInfo.mounted ? Math.round(statsCard.selectedDiskInfo.avail / 1.07374e+09) + " GB frei" : "nicht eingebunden") : ""
-                                     tone: statsCard.diskPct * 100 > 100 - Prefs.storageLowPercent ? Theme.error : Theme.accent
-                                     clickable: root.diskList.length > 1
-                                     onClicked: statsCard.cycleDisk()
-@@ -1943,7 +1943,7 @@
-                                     width: gaugeRow.width / 4
-                                     value: root.batteryPresent ? root.batteryPercent / 100 : 0
-                                     center: root.batteryPresent ? root.batteryPercent + "" : "—"
--                                    label: root.batteryCharging ? "Charging" : "Battery"
-+                                    label: root.batteryCharging ? "Wird geladen" : "Akku"
-                                     detail: root.batteryDetail
-                                     tone: root.batteryPercent <= 20 && !root.batteryCharging ? Theme.error : Theme.accent
-                                     centerIcon: root.batteryCharging ? "bolt" : ""
-@@ -2023,15 +2023,15 @@
-                             case "bluetooth":
-                                 return "Bluetooth";
-                             case "output":
--                                return "Sound output";
-+                                return "Tonausgabe";
-                             case "power":
--                                return "Power";
-+                                return "Energie";
-                             case "tiles":
--                                return "Edit tiles";
-+                                return "Kacheln bearbeiten";
-                             case "profile":
--                                return "Power profile";
-+                                return "Energieprofil";
-                             case "nightlight":
--                                return "Night light";
-+                                return "Nachtlicht";
-                             }
-                             return "";
-                         }
-@@ -2043,7 +2043,7 @@
-                         visible: root.view === "tiles" && Prefs.isModified("systemTiles")
-                         variant: "text"
-                         size: "xs"
--                        text: "Reset"
-+                        text: "Zurücksetzen"
-                         onClicked: Prefs.resetKeys(["systemTiles"])
-                     }
- 
-@@ -2158,7 +2158,7 @@
-                                 disabled: !devOpt.usable
-                                 icon: devOpt.lower.indexOf("head") >= 0 || devOpt.lower.indexOf("bluez") >= 0 ? "headphones" : (devOpt.lower.indexOf("hdmi") >= 0 ? "tv" : "speaker")
-                                 headline: root.deviceLabel(devOpt.modelData)
--                                supporting: devOpt.isCurrent ? "Playing here" : (devOpt.usable ? "" : "Not connected")
-+                                supporting: devOpt.isCurrent ? "Wird hier wiedergegeben" : (devOpt.usable ? "" : "Nicht verbunden")
-                                 onClicked: {
-                                     if (devOpt.usable)
-                                         Pipewire.preferredDefaultAudioSink = devOpt.modelData;
-@@ -2181,7 +2181,7 @@
-                             horizontalAlignment: Text.AlignHCenter
-                             role: "bodyMedium"
-                             color: Theme.subtext
--                            text: "No output devices"
-+                            text: "Keine Ausgabegeräte"
-                             topPadding: root.sp5
-                             bottomPadding: root.sp5
-                         }
-@@ -2211,7 +2211,7 @@
-                                 containerColor: pw.armed ? Theme.errorContainer : Theme.withBlur(Theme.surfaceHigh)
-                                 icon: pw.modelData.icon
-                                 iconColor: pw.armed ? Theme.fgErrorContainer : Theme.subtext
--                                headline: pw.armed ? "Click again to " + pw.modelData.label.toLowerCase() : pw.modelData.label
-+                                headline: pw.armed ? "Erneut klicken für " + pw.modelData.label : pw.modelData.label
-                                 onClicked: root.powerPick(pw.modelData.id)
-                             }
- 
-@@ -2236,7 +2236,7 @@
-                                 width: parent.width
-                                 role: "bodySmall"
-                                 color: Theme.subtext
--                                text: "Drag to rearrange, or tap − to take a tile out"
-+                                text: "Zum Umordnen ziehen oder mit − entfernen"
-                                 wrapMode: Text.WordWrap
-                             }
- 
-@@ -2251,7 +2251,7 @@
-                                     anchors.centerIn: parent
-                                     role: "bodyMedium"
-                                     color: Theme.subtext
--                                    text: "The panel has no tiles"
-+                                    text: "Das Panel hat keine Kacheln"
-                                 }
- 
-                                 Repeater {
-@@ -2399,7 +2399,7 @@
-                             LText {
-                                 role: "titleSmall"
-                                 color: root.tileOverSpare ? Theme.text : Theme.subtext
--                                text: root.tileOverSpare ? "Release to take it out" : "Tap to add"
-+                                text: root.tileOverSpare ? "Loslassen zum Entfernen" : "Zum Hinzufügen tippen"
-                             }
- 
-                             Item {
-@@ -2432,7 +2432,7 @@
-                                     width: parent.width
-                                     role: "bodyMedium"
-                                     color: Theme.subtext
--                                    text: "Every tile is already in the panel"
-+                                    text: "Alle Kacheln sind bereits im Panel"
-                                 }
- 
-                                 Repeater {
-diff -ruN -x '*.rej' -x '*.orig' prev/lucidbar/WifiPanel.qml work/lucidbar/WifiPanel.qml
---- prev/lucidbar/WifiPanel.qml	2026-10-08 13:48:40.000000000 +0200
-+++ work/lucidbar/WifiPanel.qml	2026-10-10 16:12:35.923601226 +0200
-@@ -196,7 +196,7 @@
-                     }
- 
-                     Text {
--                        text: netItem.isConnected ? "Connected · " + root.strengthLabel(root.pct(netItem.modelData.signalStrength || 0)) : root.strengthLabel(root.pct(netItem.modelData.signalStrength || 0)) + (netItem.isSecured ? "" : " · Open")
-+                        text: netItem.isConnected ? "Verbunden · " + root.strengthLabel(root.pct(netItem.modelData.signalStrength || 0)) : root.strengthLabel(root.pct(netItem.modelData.signalStrength || 0)) + (netItem.isSecured ? "" : " · Offen") /* nixos-config local patch 114 (German) */
-                         color: netItem.isConnected ? Theme.accent : Theme.subtext
-                         font.family: Theme.fontFamily
-                         font.pixelSize: Theme.fs(11)
-@@ -276,7 +276,7 @@
-                         anchors.left: parent.left
-                         anchors.leftMargin: Theme.dp(10)
-                         anchors.verticalCenter: parent.verticalCenter
--                        text: "Enter password..."
-+                        text: "Passwort eingeben…"
-                         color: Theme.outlineStrong
-                         font.family: Theme.fontFamily
-                         font.pixelSize: Theme.fs(11)
-@@ -330,7 +330,7 @@
- 
-                         Text {
-                             anchors.centerIn: parent
--                            text: netItem.isConnecting ? "Connecting..." : (netItem.isConnected ? "Disconnect" : "Connect")
-+                            text: netItem.isConnecting ? "Verbinden…" : (netItem.isConnected ? "Trennen" : "Verbinden")
-                             color: netItem.isConnecting ? Theme.subtext : (netItem.isConnected ? Theme.accent : Theme.bgOpaque)
-                             font.family: Theme.fontFamily
-                             font.bold: true
-@@ -394,7 +394,7 @@
- 
-                         Text {
-                             anchors.centerIn: parent
--                            text: "Forget Network"
-+                            text: "Netzwerk vergessen"
-                             color: Theme.text
-                             font.family: Theme.fontFamily
-                             font.bold: true
-@@ -506,7 +506,7 @@
- 
-                     visible: netItem.connectFailed && !netItem.isConnected && !netItem.isConnecting
-                     width: parent.width - Theme.dp(46)
--                    text: netItem.failReason || (netItem.attemptedWithNewPassword ? "Incorrect password." : "Connection failed.")
-+                    text: netItem.failReason || (netItem.attemptedWithNewPassword ? "Falsches Passwort." : "Verbindung fehlgeschlagen.")
-                     color: Theme.error
-                     font.family: Theme.fontFamily
-                     font.pixelSize: Theme.fs(10)
-@@ -546,7 +546,7 @@
-                     }
- 
-                     Text {
--                        text: "Connect automatically"
-+                        text: "Automatisch verbinden"
-                         color: Theme.subtext
-                         font.family: Theme.fontFamily
-                         font.bold: true
-@@ -620,7 +620,7 @@
-     property string hiddenSsid: ""
-     property string hiddenPsk: ""
-     property bool hiddenFailed: false
--    readonly property string hiddenErrorDetail: root.hiddenFailed ? (hiddenStderr.text.trim().length > 0 ? hiddenStderr.text.trim() : "nmcli failed to connect (no further detail available).") : ""
-+    readonly property string hiddenErrorDetail: root.hiddenFailed ? (hiddenStderr.text.trim().length > 0 ? hiddenStderr.text.trim() : "nmcli konnte sich nicht verbinden (keine weiteren Details).") : ""
-     readonly property bool ethernetConnected: !!(root.wiredDevice && root.wiredDevice.connected)
-     readonly property bool connecting: wifiDevice && wifiDevice.state === ConnectionState.Connecting
-     readonly property bool wifiConnected: wifiDevice ? wifiDevice.connected : false
-@@ -639,12 +639,12 @@
-             return "Ethernet";
- 
-         if (root.connecting)
--            return "Connecting...";
-+            return "Verbinden…";
- 
-         if (root.wifiConnected && root.activeNetwork)
-             return root.activeNetwork.name;
- 
--        return "Disconnected";
-+        return "Getrennt";
-     }
-     property real lastRx: -1
-     property real lastTx: -1
-@@ -679,15 +679,15 @@
-     function failReasonText(reason) {
-         switch (reason) {
-         case ConnectionFailReason.NoSecrets:
--            return "No password saved for this network.";
-+            return "Kein Passwort für dieses Netzwerk gespeichert.";
-         case ConnectionFailReason.WifiAuthTimeout:
--            return "Authentication timed out.";
-+            return "Authentifizierung hat zu lange gedauert.";
-         case ConnectionFailReason.WifiClientFailed:
--            return "The Wi-Fi client failed to connect.";
-+            return "Der WLAN-Client konnte sich nicht verbinden.";
-         case ConnectionFailReason.WifiClientDisconnected:
--            return "Disconnected during the connection attempt.";
-+            return "Verbindung wurde beim Aufbau getrennt.";
-         case ConnectionFailReason.WifiNetworkLost:
--            return "The network went out of range.";
-+            return "Das Netzwerk ist außer Reichweite.";
-         default:
-             return ConnectionFailReason.toString(reason);
-         }
-@@ -773,12 +773,12 @@
- 
-     function strengthLabel(s) {
-         if (s >= 66)
--            return "Strong";
-+            return "Stark";
- 
-         if (s >= 33)
--            return "Good";
-+            return "Gut";
- 
--        return "Weak";
-+        return "Schwach";
-     }
- 
-     function refreshActiveNetwork() {
-@@ -825,11 +825,11 @@
-     function connectivityLabel() {
-         switch (Networking.connectivity) {
-         case NetworkConnectivity.None:
--            return "No internet access";
-+            return "Kein Internetzugang";
-         case NetworkConnectivity.Portal:
--            return "Sign-in required";
-+            return "Anmeldung erforderlich";
-         case NetworkConnectivity.Limited:
--            return "Limited connectivity";
-+            return "Eingeschränkte Verbindung";
-         default:
-             return "";
-         }
-@@ -872,7 +872,7 @@
-             root.pendingNetworkName = "";
-             root.setUiState(targetNetwork.name, {
-                 "connectFailed": true,
--                "failReason": "Timed out waiting for a response from the network.",
-+                "failReason": "Zeitüberschreitung beim Warten auf eine Antwort des Netzwerks.",
-                 "showPasswordInput": secured,
-                 "isUntrustedAttempt": secured
-             });
-@@ -1014,7 +1014,7 @@
-                 anchors.right: parent.right
-                 anchors.verticalCenter: parent.verticalCenter
-                 visible: Networking.canCheckConnectivity
--                text: "Recheck"
-+                text: "Erneut prüfen"
-                 color: Theme.accentMuted
-                 font.family: Theme.fontFamily
-                 font.pixelSize: Theme.fs(10)
-@@ -1067,15 +1067,15 @@
-                 Text {
-                     text: {
-                         if (!root.wiredDevice)
--                            return "No cable connected";
-+                            return "Kein Kabel verbunden";
- 
-                         if (root.ethernetConnected)
--                            return "Connected" + (root.wiredDevice.linkSpeed > 0 ? " · " + root.wiredDevice.linkSpeed + " Mbps" : "");
-+                            return "Verbunden" + (root.wiredDevice.linkSpeed > 0 ? " · " + root.wiredDevice.linkSpeed + " Mbps" : "");
- 
-                         if (root.wiredDevice.hasLink)
--                            return "Cable connected · not configured";
-+                            return "Kabel verbunden · nicht konfiguriert";
- 
--                        return "No cable connected";
-+                        return "Kein Kabel verbunden";
-                     }
-                     color: root.ethernetConnected ? Theme.accent : Theme.subtext
-                     font.family: Theme.fontFamily
-@@ -1098,7 +1098,7 @@
- 
-                 Text {
-                     anchors.centerIn: parent
--                    text: "Disconnect"
-+                    text: "Trennen"
-                     color: Theme.text
-                     font.family: Theme.fontFamily
-                     font.bold: true
-@@ -1133,7 +1133,7 @@
-         Text {
-             visible: !Networking.wifiHardwareEnabled
-             width: parent.width
--            text: "Wi-Fi is disabled by a hardware switch"
-+            text: "WLAN ist per Hardware-Schalter deaktiviert"
-             color: Theme.subtext
-             font.family: Theme.fontFamily
-             font.pixelSize: Theme.fs(11)
-@@ -1220,7 +1220,7 @@
-                     LText {
-                         anchors.verticalCenter: parent.verticalCenter
-                         role: "labelLarge"
--                        text: scanButton.scanning ? "Looking for networks" : "Search for networks"
-+                        text: scanButton.scanning ? "Suche nach Netzwerken" : "Nach Netzwerken suchen"
-                         color: scanButton.scanning ? Theme.fgSecondaryContainer : Theme.text
-                     }
- 
-@@ -1232,7 +1232,7 @@
-                     anchors.verticalCenter: parent.verticalCenter
-                     visible: scanButton.scanning
-                     role: "labelMedium"
--                    text: "Stop"
-+                    text: "Stopp"
-                     color: Theme.fgSecondaryContainer
-                 }
- 
-@@ -1253,7 +1253,7 @@
-                 visible: root.connectedNetworks.length > 0
- 
-                 Text {
--                    text: "Connected"
-+                    text: "Verbunden"
-                     color: Theme.primary
-                     font.family: Theme.fontFamily
-                     font.bold: true
-@@ -1279,7 +1279,7 @@
-                 visible: root.savedNetworks.length > 0
- 
-                 Text {
--                    text: "Saved"
-+                    text: "Gespeichert"
-                     color: Theme.primary
-                     font.family: Theme.fontFamily
-                     font.bold: true
-@@ -1305,7 +1305,7 @@
-                 visible: root.nearbyNetworks.length > 0
- 
-                 Text {
--                    text: "Nearby"
-+                    text: "In der Nähe"
-                     color: Theme.primary
-                     font.family: Theme.fontFamily
-                     font.bold: true
-@@ -1334,7 +1334,7 @@
- 
-                 Text {
-                     anchors.horizontalCenter: parent.horizontalCenter
--                    text: scanButton.scanning ? "Looking for networks…" : "No networks found"
-+                    text: scanButton.scanning ? "Suche nach Netzwerken…" : "Keine Netzwerke gefunden"
-                     color: Theme.subtext
-                     font.family: Theme.fontFamily
-                     font.pixelSize: Theme.fs(12)
-@@ -1350,7 +1350,7 @@
- 
-                 Text {
-                     visible: !root.hiddenFormOpen
--                    text: "Connect to hidden network"
-+                    text: "Mit verborgenem Netzwerk verbinden"
-                     color: Theme.subtext
-                     font.family: Theme.fontFamily
-                     font.pixelSize: Theme.fs(11)
-@@ -1388,7 +1388,7 @@
-                             anchors.left: parent.left
-                             anchors.leftMargin: Theme.dp(10)
-                             anchors.verticalCenter: parent.verticalCenter
--                            text: "Network name (SSID)"
-+                            text: "Netzwerkname (SSID)"
-                             color: Theme.outlineStrong
-                             font.family: Theme.fontFamily
-                             font.pixelSize: Theme.fs(11)
-@@ -1432,7 +1432,7 @@
-                             anchors.left: parent.left
-                             anchors.leftMargin: Theme.dp(10)
-                             anchors.verticalCenter: parent.verticalCenter
--                            text: "Password (leave blank if open)"
-+                            text: "Passwort (leer lassen bei offenem Netz)"
-                             color: Theme.outlineStrong
-                             font.family: Theme.fontFamily
-                             font.pixelSize: Theme.fs(11)
-@@ -1490,7 +1490,7 @@
- 
-                             Text {
-                                 anchors.centerIn: parent
--                                text: "Connect"
-+                                text: "Verbinden"
-                                 color: Theme.bg
-                                 font.family: Theme.fontFamily
-                                 font.bold: true
-@@ -1519,7 +1519,7 @@
- 
-                             Text {
-                                 anchors.centerIn: parent
--                                text: "Cancel"
-+                                text: "Abbrechen"
-                                 color: Theme.text
-                                 font.family: Theme.fontFamily
-                                 font.bold: true
-diff -ruN -x '*.rej' -x '*.orig' prev/Power.qml work/Power.qml
---- prev/Power.qml	2026-10-08 13:48:40.000000000 +0200
-+++ work/Power.qml	2026-10-10 16:12:35.923912909 +0200
-@@ -11,11 +11,11 @@
+diff --git a/Power.qml b/Power.qml
+index 98381f3..133f14d 100644
+--- a/Power.qml
++++ b/Power.qml
+@@ -11,11 +11,11 @@ Singleton {
      id: root
  
      readonly property var actions: [
@@ -863,7 +19,7 @@ diff -ruN -x '*.rej' -x '*.orig' prev/Power.qml work/Power.qml
      ]
  
      readonly property int profile: PowerProfiles.profile
-@@ -50,22 +50,22 @@
+@@ -50,22 +50,22 @@ Singleton {
  
      function name(p) {
          if (p === PowerProfile.Performance)
@@ -892,7 +48,7 @@ diff -ruN -x '*.rej' -x '*.orig' prev/Power.qml work/Power.qml
      }
  
      // a bolt, a leaf and a gauge, as material symbol names
-@@ -81,12 +81,12 @@
+@@ -81,12 +81,12 @@ Singleton {
  
      function degradationText(reason) {
          if (reason === "lap-detected")
@@ -908,10 +64,11 @@ diff -ruN -x '*.rej' -x '*.orig' prev/Power.qml work/Power.qml
      }
  
      function set(p) {
-diff -ruN -x '*.rej' -x '*.orig' prev/Prefs.qml work/Prefs.qml
---- prev/Prefs.qml	2026-10-08 13:48:40.000000000 +0200
-+++ work/Prefs.qml	2026-10-10 16:12:35.924063576 +0200
-@@ -115,39 +115,39 @@
+diff --git a/Prefs.qml b/Prefs.qml
+index 6d374e6..e391970 100644
+--- a/Prefs.qml
++++ b/Prefs.qml
+@@ -118,39 +118,39 @@ Singleton {
      // every tile the system panel's grid can carry. the panel shows the ones
      // named in systemTiles, in that order, and its editor offers the rest
      readonly property var systemTileCatalog: [
@@ -975,3 +132,860 @@ diff -ruN -x '*.rej' -x '*.orig' prev/Prefs.qml work/Prefs.qml
      ]
  
      function systemTileAt(key) {
+diff --git a/lucidbar/BluetoothPanel.qml b/lucidbar/BluetoothPanel.qml
+index 1e53be0..535044f 100644
+--- a/lucidbar/BluetoothPanel.qml
++++ b/lucidbar/BluetoothPanel.qml
+@@ -33,7 +33,7 @@ Item {
+ 
+     readonly property string label: {
+         if (!root.btEnabled)
+-            return "Off";
++            return "Aus";
+ 
+         if (root.connectedDevices.length === 1) {
+             let d = root.connectedDevices[0];
+@@ -41,15 +41,15 @@ Item {
+             return d.name + (batt !== "" ? " (" + batt + ")" : "");
+         }
+         if (root.connectedDevices.length > 1)
+-            return root.connectedDevices.length + " devices connected";
++            return root.connectedDevices.length + " Geräte verbunden";
+ 
+         if (root.anyConnecting)
+-            return "Connecting...";
++            return "Verbinden…";
+ 
+         if (root.discovering)
+-            return "Scanning...";
++            return "Suche…";
+ 
+-        return "Not connected";
++        return "Nicht verbunden";
+     }
+ 
+     function getBatteryText(dev) {
+@@ -61,7 +61,7 @@ Item {
+             return "";
+ 
+         let pct = (b <= 1 && b > 0) ? Math.round(b * 100) : Math.round(b);
+-        return pct + '%';
++        return pct + ' %';
+     }
+ 
+     function isMacLike(name) {
+@@ -216,7 +216,7 @@ Item {
+                     LText {
+                         anchors.verticalCenter: parent.verticalCenter
+                         role: "labelLarge"
+-                        text: root.discovering ? "Looking for devices" : "Search for devices"
++                        text: root.discovering ? "Suche nach Geräten" : "Nach Geräten suchen"
+                         color: root.discovering ? Theme.fgSecondaryContainer : Theme.text
+                     }
+ 
+@@ -228,7 +228,7 @@ Item {
+                     anchors.verticalCenter: parent.verticalCenter
+                     visible: root.discovering
+                     role: "labelMedium"
+-                    text: "Stop"
++                    text: "Stopp"
+                     color: Theme.fgSecondaryContainer
+                 }
+ 
+@@ -247,7 +247,7 @@ Item {
+                 anchors.verticalCenter: parent.verticalCenter
+                 role: "bodyMedium"
+                 color: Theme.subtext
+-                text: "Visible to other devices"
++                text: "Für andere Geräte sichtbar"
+             }
+ 
+             Switch {
+@@ -271,7 +271,7 @@ Item {
+ 
+             Text {
+                 anchors.horizontalCenter: parent.horizontalCenter
+-                text: "Bluetooth is off"
++                text: "Bluetooth ist aus"
+                 color: Theme.subtext
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fs(12)
+@@ -280,7 +280,7 @@ Item {
+ 
+             Text {
+                 anchors.horizontalCenter: parent.horizontalCenter
+-                text: "Turn it on to see nearby devices"
++                text: "Einschalten, um Geräte in der Nähe zu sehen"
+                 color: Theme.outlineStrong
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fs(10)
+@@ -302,7 +302,7 @@ Item {
+                 visible: root.connectedDevices.length > 0
+ 
+                 Text {
+-                    text: "Connected"
++                    text: "Verbunden"
+                     color: Theme.primary
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -329,7 +329,7 @@ Item {
+                 visible: root.pairedDevices.length > 0
+ 
+                 Text {
+-                    text: "Paired"
++                    text: "Gekoppelt"
+                     color: Theme.primary
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -356,7 +356,7 @@ Item {
+                 visible: root.nearbyDevices.length > 0
+ 
+                 Text {
+-                    text: "Nearby"
++                    text: "In der Nähe"
+                     color: Theme.primary
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -386,7 +386,7 @@ Item {
+ 
+                 Text {
+                     anchors.horizontalCenter: parent.horizontalCenter
+-                    text: root.discovering ? "Looking for devices…" : "No devices found"
++                    text: root.discovering ? "Suche nach Geräten…" : "Keine Geräte gefunden"
+                     color: Theme.subtext
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(12)
+@@ -396,7 +396,7 @@ Item {
+                 Text {
+                     anchors.horizontalCenter: parent.horizontalCenter
+                     visible: !root.discovering
+-                    text: "Tap “Search for devices” to scan"
++                    text: "Tippe auf „Nach Geräten suchen“, um zu scannen"
+                     color: Theme.outlineStrong
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(10)
+@@ -566,19 +566,19 @@ Item {
+                             anchors.verticalCenter: parent.verticalCenter
+                             text: {
+                                 if (devItem.isPairing)
+-                                    return "Pairing…";
++                                    return "Koppeln…";
+ 
+                                 if (devItem.isConnecting)
+-                                    return "Connecting…";
++                                    return "Verbinden…";
+ 
+                                 if (devItem.isConnected) {
+                                     let batt = root.getBatteryText(devItem.modelData);
+-                                    return "Connected" + (batt !== "" ? " · " + batt : "");
++                                    return "Verbunden" + (batt !== "" ? " · " + batt : "");
+                                 }
+                                 if (devItem.isPaired)
+-                                    return devItem.modelData.trusted ? "Paired · Trusted" : "Paired";
++                                    return devItem.modelData.trusted ? "Gekoppelt · Vertraut" : "Gekoppelt";
+ 
+-                                return "Available";
++                                return "Verfügbar";
+                             }
+                             color: devItem.isConnected ? Theme.accent : Theme.subtext
+                             font.family: Theme.fontFamily
+@@ -691,13 +691,13 @@ Item {
+                             anchors.centerIn: parent
+                             text: {
+                                 if (devItem.isPairing)
+-                                    return "Pairing…";
++                                    return "Koppeln…";
+ 
+                                 if (devItem.isConnecting)
+-                                    return "Connecting…";
++                                    return "Verbinden…";
+ 
+                                 if (devItem.group === "nearby")
+-                                    return "Pair";
++                                    return "Koppeln";
+ 
+                                 return devItem.isConnected ? "Disconnect" : "Connect";
+                             }
+@@ -757,7 +757,7 @@ Item {
+ 
+                         Text {
+                             anchors.centerIn: parent
+-                            text: "Forget"
++                            text: "Vergessen"
+                             color: Theme.text
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -798,7 +798,7 @@ Item {
+ 
+                 Text {
+                     visible: devItem.isPairing
+-                    text: "Cancel pairing"
++                    text: "Koppeln abbrechen"
+                     color: Theme.subtext
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(11)
+@@ -819,7 +819,7 @@ Item {
+                 Text {
+                     visible: devItem.actionFailed && !devItem.isConnected && !devItem.isPairing && !devItem.isConnecting
+                     width: parent.width - Theme.dp(46)
+-                    text: devItem.group === "nearby" ? "Pairing failed. Please try again." : "Failed to connect. The device may be out of range."
++                    text: devItem.group === "nearby" ? "Koppeln fehlgeschlagen. Bitte erneut versuchen." : "Verbindung fehlgeschlagen. Das Gerät ist vielleicht außer Reichweite."
+                     color: Theme.error
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(10)
+@@ -860,7 +860,7 @@ Item {
+                         }
+ 
+                         Text {
+-                            text: "Auto-reconnect"
++                            text: "Automatisch neu verbinden"
+                             color: Theme.subtext
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -907,7 +907,7 @@ Item {
+                         }
+ 
+                         Text {
+-                            text: "Allow wake"
++                            text: "Aufwecken erlauben"
+                             color: Theme.subtext
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -953,7 +953,7 @@ Item {
+                         }
+ 
+                         Text {
+-                            text: "Block"
++                            text: "Blockieren"
+                             color: Theme.subtext
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -981,7 +981,7 @@ Item {
+                     // connected takes files just the same
+                     Text {
+                         visible: Bt.canReceiveFiles(devItem.modelData.address)
+-                        text: "Send files"
++                        text: "Dateien senden" // nixos-config local patch 114 (German)
+                         color: Theme.subtext
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fs(11)
+@@ -1005,7 +1005,7 @@ Item {
+                     }
+ 
+                     Text {
+-                        text: "Rename"
++                        text: "Umbenennen"
+                         color: Theme.subtext
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fs(11)
+diff --git a/lucidbar/System.qml b/lucidbar/System.qml
+index 57d536b..98d8f30 100644
+--- a/lucidbar/System.qml
++++ b/lucidbar/System.qml
+@@ -228,9 +228,9 @@ BarPill {
+         const h = Math.floor((root.uptimeSecs % 86400) / 3600);
+         const m = Math.floor((root.uptimeSecs % 3600) / 60);
+         if (d > 0)
+-            return "up " + d + "d " + h + "h";
++            return "läuft " + d + " T " + h + " Std"; // nixos-config local patch 114 (German)
+ 
+-        return h > 0 ? "up " + h + "h " + m + "m" : "up " + m + "m";
++        return h > 0 ? "läuft " + h + " Std " + m + " Min" : "läuft " + m + " Min";
+     }
+ 
+     function pushSample(historyArr, v, max) {
+@@ -382,15 +382,15 @@ BarPill {
+     readonly property string tipOverline: {
+         switch (root.tipViewKind) {
+         case "wifi":
+-            return wifiPanel.primaryIsEthernet ? "ETHERNET" : "WI-FI";
++            return wifiPanel.primaryIsEthernet ? "ETHERNET" : "WLAN";
+         case "bluetooth":
+             return "BLUETOOTH";
+         case "volume":
+-            return "VOLUME";
++            return "LAUTSTÄRKE";
+         case "mic":
+-            return "MICROPHONE";
++            return "MIKROFON";
+         case "battery":
+-            return "BATTERY";
++            return "AKKU";
+         }
+         return "";
+     }
+@@ -398,38 +398,38 @@ BarPill {
+         switch (root.tipViewKind) {
+         case "wifi":
+             if (wifiPanel.primaryIsEthernet)
+-                return "Wired connection";
++                return "Kabelverbindung";
+ 
+             if (!Networking.wifiEnabled)
+-                return "Wi-Fi off";
++                return "WLAN aus";
+ 
+             if (wifiPanel.connecting)
+-                return "Connecting…";
++                return "Verbinden…";
+ 
+             if (wifiPanel.wifiConnected && wifiPanel.activeNetwork)
+                 return wifiPanel.activeNetwork.name;
+ 
+-            return "Not connected";
++            return "Nicht verbunden";
+         case "bluetooth":
+             if (!root.btEnabled)
+-                return "Bluetooth off";
++                return "Bluetooth aus";
+ 
+             if (btPanel.connectedDevices.length === 1)
+                 return btPanel.connectedDevices[0].name;
+ 
+             if (btPanel.connectedDevices.length > 1)
+-                return btPanel.connectedDevices.length + " devices";
++                return btPanel.connectedDevices.length + " Geräte verbunden";
+ 
+             if (btPanel.anyConnecting)
+-                return "Connecting…";
++                return "Verbinden…";
+ 
+-            return "Not connected";
++            return "Nicht verbunden";
+         case "volume":
+-            return root.volMuted ? "Muted" : root.volumePercent + "%";
++            return root.volMuted ? "Stumm" : root.volumePercent + " %";
+         case "mic":
+-            return root.micMuted ? "Muted" : "Active";
++            return root.micMuted ? "Stumm" : "Aktiv";
+         case "battery":
+-            return root.batteryPresent ? root.batteryPercent + "%" : "No battery";
++            return root.batteryPresent ? root.batteryPercent + " %" : "Kein Akku";
+         }
+         return "";
+     }
+@@ -437,13 +437,13 @@ BarPill {
+         switch (root.tipViewKind) {
+         case "wifi":
+             if (wifiPanel.primaryIsEthernet)
+-                return wifiPanel.wiredDevice ? wifiPanel.wiredDevice.name : "Wired";
++                return wifiPanel.wiredDevice ? wifiPanel.wiredDevice.name : "Kabelgebunden";
+ 
+             if (!Networking.wifiEnabled)
+-                return "Radio disabled";
++                return "Funk deaktiviert";
+ 
+             if (!wifiPanel.wifiConnected)
+-                return wifiPanel.nearbyNetworks.length + " networks nearby";
++                return wifiPanel.nearbyNetworks.length + " Netzwerke in der Nähe";
+ 
+             const warn = wifiPanel.connectivityLabel();
+             const sig = wifiPanel.strengthLabel(wifiPanel.signalStrength) + " · " + Math.round(wifiPanel.signalStrength) + "%";
+@@ -454,7 +454,7 @@ BarPill {
+ 
+             if (btPanel.connectedDevices.length === 1) {
+                 const b = btPanel.getBatteryText(btPanel.connectedDevices[0]);
+-                return b !== "" ? "Connected · " + b + " battery" : "Connected";
++                return b !== "" ? "Verbunden · " + b + " Akku" : "Verbunden";
+             }
+             if (btPanel.connectedDevices.length > 1)
+                 return btPanel.connectedDevices.map((d) => {
+@@ -462,9 +462,9 @@ BarPill {
+                 }).join(", ");
+ 
+             if (btPanel.discovering)
+-                return "Scanning…";
++                return "Suche…";
+ 
+-            return btPanel.pairedDevices.length + " paired";
++            return btPanel.pairedDevices.length + " gekoppelt";
+         case "volume":
+             return root.deviceLabel(root.sink);
+         case "mic":
+@@ -482,9 +482,9 @@ BarPill {
+             return "";
+ 
+         if (root.battery.state === UPowerDeviceState.FullyCharged)
+-            return "Fully charged";
++            return "Vollständig geladen";
+ 
+-        return root.batteryCharging ? "Charging" : "On battery";
++        return root.batteryCharging ? "Wird geladen" : "Im Akkubetrieb";
+     }
+     readonly property string tipBatteryTime: {
+         if (!root.battery)
+@@ -497,13 +497,13 @@ BarPill {
+         const h = Math.floor(secs / 3600);
+         const m = Math.round((secs % 3600) / 60);
+         const body = h > 0 ? h + "h " + m + "m" : m + "m";
+-        return root.batteryCharging ? body + " to full" : body + " left";
++        return root.batteryCharging ? body + " bis voll" : body + " übrig";
+     }
+ 
+     // the stat card's second line: draw while discharging, else time
+     readonly property string batteryDetail: {
+         if (!root.batteryPresent)
+-            return "no battery";
++            return "kein Akku";
+ 
+         const rate = root.battery ? root.battery.changeRate : 0;
+         if (!root.batteryCharging && rate > 0.05)
+@@ -512,7 +512,7 @@ BarPill {
+         if (root.tipBatteryTime !== "")
+             return root.tipBatteryTime;
+ 
+-        return root.batteryCharging ? "charging" : "on battery";
++        return root.batteryCharging ? "wird geladen" : "im Akkubetrieb";
+     }
+ 
+     onTipWantedChanged: {
+@@ -1047,16 +1047,16 @@ BarPill {
+     function tileLabel(key) {
+         switch (key) {
+         case "location":
+-            return Prefs.gpsEnabled && Loc.busy ? "Locating" : "Location";
++            return Prefs.gpsEnabled && Loc.busy ? "Ortung läuft" : "Standort";
+         case "record":
+-            return Capture.active ? Capture.clock(Capture.seconds) : "Record";
++            return Capture.active ? Capture.clock(Capture.seconds) : "Aufnahme";
+         case "timer":
+             return Chrono.headline ? Chrono.countdown(Chrono.headline.left) : "Timer";
+         case "gamemode":
+             if (root.gameModeBusy)
+-                return root.gameModeOn ? "Starting" : "Stopping";
++                return root.gameModeOn ? "Wird gestartet" : "Wird beendet";
+ 
+-            return root.gameModeFailed ? "Failed" : "Game";
++            return root.gameModeFailed ? "Fehler" : "Spiel";
+         }
+         const t = Prefs.systemTileAt(key);
+         return t ? t.name : "";
+@@ -1525,7 +1525,7 @@ BarPill {
+                         LText {
+                             role: "titleMedium"
+                             weight: 600
+-                            text: Qt.formatDate(root.nowDate, "dddd, d MMMM")
++                            text: root.nowDate.toLocaleDateString(Qt.locale("de_DE"), "dddd, d. MMMM") // nixos-config local patch 114 (German: Qt.formatDate pins the C locale — explicit de_DE)
+                         }
+ 
+                         LText {
+@@ -1677,7 +1677,7 @@ BarPill {
+ 
+                             QuickTile {
+                                 icon: root.wifiGlyph
+-                                name: wifiPanel.primaryIsEthernet ? "Ethernet" : "Wi-Fi"
++                                name: wifiPanel.primaryIsEthernet ? "Ethernet" : "WLAN"
+                                 sub: wifiPanel.statusText
+                                 checked: Networking.wifiEnabled || wifiPanel.primaryIsEthernet
+                                 onToggled: Networking.wifiEnabled = !Networking.wifiEnabled
+@@ -1923,7 +1923,7 @@ BarPill {
+                                     width: gaugeRow.width / 4
+                                     value: root.ramPercent / 100
+                                     center: root.ramHistory.length > 0 ? Math.round(root.ramPercent) + "" : "—"
+-                                    label: "Memory"
++                                    label: "RAM"
+                                     detail: root.ramTotalGB > 0 ? root.ramUsedGB.toFixed(1) + " GB" : ""
+                                     tone: Theme.accent
+                                 }
+@@ -1932,8 +1932,8 @@ BarPill {
+                                     width: gaugeRow.width / 4
+                                     value: statsCard.diskPct
+                                     center: statsCard.selectedDiskInfo && statsCard.selectedDiskInfo.mounted ? Math.round(statsCard.diskPct * 100) + "" : "—"
+-                                    label: root.selectedDisk || "Disk"
+-                                    detail: statsCard.selectedDiskInfo ? (statsCard.selectedDiskInfo.mounted ? Math.round(statsCard.selectedDiskInfo.avail / 1.07374e+09) + " GB free" : "not mounted") : ""
++                                    label: root.selectedDisk || "Datenträger"
++                                    detail: statsCard.selectedDiskInfo ? (statsCard.selectedDiskInfo.mounted ? Math.round(statsCard.selectedDiskInfo.avail / 1.07374e+09) + " GB frei" : "nicht eingebunden") : ""
+                                     tone: statsCard.diskPct * 100 > 100 - Prefs.storageLowPercent ? Theme.error : Theme.accent
+                                     clickable: root.diskList.length > 1
+                                     onClicked: statsCard.cycleDisk()
+@@ -1943,7 +1943,7 @@ BarPill {
+                                     width: gaugeRow.width / 4
+                                     value: root.batteryPresent ? root.batteryPercent / 100 : 0
+                                     center: root.batteryPresent ? root.batteryPercent + "" : "—"
+-                                    label: root.batteryCharging ? "Charging" : "Battery"
++                                    label: root.batteryCharging ? "Wird geladen" : "Akku"
+                                     detail: root.batteryDetail
+                                     tone: root.batteryPercent <= 20 && !root.batteryCharging ? Theme.error : Theme.accent
+                                     centerIcon: root.batteryCharging ? "bolt" : ""
+@@ -2023,15 +2023,15 @@ BarPill {
+                             case "bluetooth":
+                                 return "Bluetooth";
+                             case "output":
+-                                return "Sound output";
++                                return "Tonausgabe";
+                             case "power":
+-                                return "Power";
++                                return "Energie";
+                             case "tiles":
+-                                return "Edit tiles";
++                                return "Kacheln bearbeiten";
+                             case "profile":
+-                                return "Power profile";
++                                return "Energieprofil";
+                             case "nightlight":
+-                                return "Night light";
++                                return "Nachtlicht";
+                             }
+                             return "";
+                         }
+@@ -2043,7 +2043,7 @@ BarPill {
+                         visible: root.view === "tiles" && Prefs.isModified("systemTiles")
+                         variant: "text"
+                         size: "xs"
+-                        text: "Reset"
++                        text: "Zurücksetzen"
+                         onClicked: Prefs.resetKeys(["systemTiles"])
+                     }
+ 
+@@ -2159,7 +2159,7 @@ BarPill {
+                                 disabled: !devOpt.usable
+                                 icon: devOpt.lower.indexOf("head") >= 0 || devOpt.lower.indexOf("bluez") >= 0 ? "headphones" : (devOpt.lower.indexOf("hdmi") >= 0 ? "tv" : "speaker")
+                                 headline: root.deviceLabel(devOpt.modelData)
+-                                supporting: devOpt.isCurrent ? "Playing here" : (devOpt.usable ? "" : "Not connected")
++                                supporting: devOpt.isCurrent ? "Wird hier wiedergegeben" : (devOpt.usable ? "" : "Nicht verbunden")
+                                 onClicked: {
+                                     if (devOpt.usable)
+                                         Pipewire.preferredDefaultAudioSink = devOpt.modelData;
+@@ -2182,7 +2182,7 @@ BarPill {
+                             horizontalAlignment: Text.AlignHCenter
+                             role: "bodyMedium"
+                             color: Theme.subtext
+-                            text: "No output devices"
++                            text: "Keine Ausgabegeräte"
+                             topPadding: root.sp5
+                             bottomPadding: root.sp5
+                         }
+@@ -2212,7 +2212,7 @@ BarPill {
+                                 containerColor: pw.armed ? Theme.errorContainer : Theme.withBlur(Theme.surfaceHigh)
+                                 icon: pw.modelData.icon
+                                 iconColor: pw.armed ? Theme.fgErrorContainer : Theme.subtext
+-                                headline: pw.armed ? "Click again to " + pw.modelData.label.toLowerCase() : pw.modelData.label
++                                headline: pw.armed ? "Erneut klicken für " + pw.modelData.label : pw.modelData.label
+                                 onClicked: root.powerPick(pw.modelData.id)
+                             }
+ 
+@@ -2237,7 +2237,7 @@ BarPill {
+                                 width: parent.width
+                                 role: "bodySmall"
+                                 color: Theme.subtext
+-                                text: "Drag to rearrange, or tap − to take a tile out"
++                                text: "Zum Umordnen ziehen oder mit − entfernen"
+                                 wrapMode: Text.WordWrap
+                             }
+ 
+@@ -2252,7 +2252,7 @@ BarPill {
+                                     anchors.centerIn: parent
+                                     role: "bodyMedium"
+                                     color: Theme.subtext
+-                                    text: "The panel has no tiles"
++                                    text: "Das Panel hat keine Kacheln"
+                                 }
+ 
+                                 Repeater {
+@@ -2400,7 +2400,7 @@ BarPill {
+                             LText {
+                                 role: "titleSmall"
+                                 color: root.tileOverSpare ? Theme.text : Theme.subtext
+-                                text: root.tileOverSpare ? "Release to take it out" : "Tap to add"
++                                text: root.tileOverSpare ? "Loslassen zum Entfernen" : "Zum Hinzufügen tippen"
+                             }
+ 
+                             Item {
+@@ -2433,7 +2433,7 @@ BarPill {
+                                     width: parent.width
+                                     role: "bodyMedium"
+                                     color: Theme.subtext
+-                                    text: "Every tile is already in the panel"
++                                    text: "Alle Kacheln sind bereits im Panel"
+                                 }
+ 
+                                 Repeater {
+diff --git a/lucidbar/WifiPanel.qml b/lucidbar/WifiPanel.qml
+index 8556175..ae93002 100644
+--- a/lucidbar/WifiPanel.qml
++++ b/lucidbar/WifiPanel.qml
+@@ -196,7 +196,7 @@ Item {
+                     }
+ 
+                     Text {
+-                        text: netItem.isConnected ? "Connected · " + root.strengthLabel(root.pct(netItem.modelData.signalStrength || 0)) : root.strengthLabel(root.pct(netItem.modelData.signalStrength || 0)) + (netItem.isSecured ? "" : " · Open")
++                        text: netItem.isConnected ? "Verbunden · " + root.strengthLabel(root.pct(netItem.modelData.signalStrength || 0)) : root.strengthLabel(root.pct(netItem.modelData.signalStrength || 0)) + (netItem.isSecured ? "" : " · Offen") /* nixos-config local patch 114 (German) */
+                         color: netItem.isConnected ? Theme.accent : Theme.subtext
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fs(11)
+@@ -276,7 +276,7 @@ Item {
+                         anchors.left: parent.left
+                         anchors.leftMargin: Theme.dp(10)
+                         anchors.verticalCenter: parent.verticalCenter
+-                        text: "Enter password..."
++                        text: "Passwort eingeben…"
+                         color: Theme.outlineStrong
+                         font.family: Theme.fontFamily
+                         font.pixelSize: Theme.fs(11)
+@@ -330,7 +330,7 @@ Item {
+ 
+                         Text {
+                             anchors.centerIn: parent
+-                            text: netItem.isConnecting ? "Connecting..." : (netItem.isConnected ? "Disconnect" : "Connect")
++                            text: netItem.isConnecting ? "Verbinden…" : (netItem.isConnected ? "Trennen" : "Verbinden")
+                             color: netItem.isConnecting ? Theme.subtext : (netItem.isConnected ? Theme.accent : Theme.bgOpaque)
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -394,7 +394,7 @@ Item {
+ 
+                         Text {
+                             anchors.centerIn: parent
+-                            text: "Forget Network"
++                            text: "Netzwerk vergessen"
+                             color: Theme.text
+                             font.family: Theme.fontFamily
+                             font.bold: true
+@@ -506,7 +506,7 @@ Item {
+ 
+                     visible: netItem.connectFailed && !netItem.isConnected && !netItem.isConnecting
+                     width: parent.width - Theme.dp(46)
+-                    text: netItem.failReason || (netItem.attemptedWithNewPassword ? "Incorrect password." : "Connection failed.")
++                    text: netItem.failReason || (netItem.attemptedWithNewPassword ? "Falsches Passwort." : "Verbindung fehlgeschlagen.")
+                     color: Theme.error
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(10)
+@@ -546,7 +546,7 @@ Item {
+                     }
+ 
+                     Text {
+-                        text: "Connect automatically"
++                        text: "Automatisch verbinden"
+                         color: Theme.subtext
+                         font.family: Theme.fontFamily
+                         font.bold: true
+@@ -620,7 +620,7 @@ Item {
+     property string hiddenSsid: ""
+     property string hiddenPsk: ""
+     property bool hiddenFailed: false
+-    readonly property string hiddenErrorDetail: root.hiddenFailed ? (hiddenStderr.text.trim().length > 0 ? hiddenStderr.text.trim() : "nmcli failed to connect (no further detail available).") : ""
++    readonly property string hiddenErrorDetail: root.hiddenFailed ? (hiddenStderr.text.trim().length > 0 ? hiddenStderr.text.trim() : "nmcli konnte sich nicht verbinden (keine weiteren Details).") : ""
+     readonly property bool ethernetConnected: !!(root.wiredDevice && root.wiredDevice.connected)
+     readonly property bool connecting: wifiDevice && wifiDevice.state === ConnectionState.Connecting
+     readonly property bool wifiConnected: wifiDevice ? wifiDevice.connected : false
+@@ -639,12 +639,12 @@ Item {
+             return "Ethernet";
+ 
+         if (root.connecting)
+-            return "Connecting...";
++            return "Verbinden…";
+ 
+         if (root.wifiConnected && root.activeNetwork)
+             return root.activeNetwork.name;
+ 
+-        return "Disconnected";
++        return "Getrennt";
+     }
+     property real lastRx: -1
+     property real lastTx: -1
+@@ -679,15 +679,15 @@ Item {
+     function failReasonText(reason) {
+         switch (reason) {
+         case ConnectionFailReason.NoSecrets:
+-            return "No password saved for this network.";
++            return "Kein Passwort für dieses Netzwerk gespeichert.";
+         case ConnectionFailReason.WifiAuthTimeout:
+-            return "Authentication timed out.";
++            return "Authentifizierung hat zu lange gedauert.";
+         case ConnectionFailReason.WifiClientFailed:
+-            return "The Wi-Fi client failed to connect.";
++            return "Der WLAN-Client konnte sich nicht verbinden.";
+         case ConnectionFailReason.WifiClientDisconnected:
+-            return "Disconnected during the connection attempt.";
++            return "Verbindung wurde beim Aufbau getrennt.";
+         case ConnectionFailReason.WifiNetworkLost:
+-            return "The network went out of range.";
++            return "Das Netzwerk ist außer Reichweite.";
+         default:
+             return ConnectionFailReason.toString(reason);
+         }
+@@ -773,12 +773,12 @@ Item {
+ 
+     function strengthLabel(s) {
+         if (s >= 66)
+-            return "Strong";
++            return "Stark";
+ 
+         if (s >= 33)
+-            return "Good";
++            return "Gut";
+ 
+-        return "Weak";
++        return "Schwach";
+     }
+ 
+     function refreshActiveNetwork() {
+@@ -825,11 +825,11 @@ Item {
+     function connectivityLabel() {
+         switch (Networking.connectivity) {
+         case NetworkConnectivity.None:
+-            return "No internet access";
++            return "Kein Internetzugang";
+         case NetworkConnectivity.Portal:
+-            return "Sign-in required";
++            return "Anmeldung erforderlich";
+         case NetworkConnectivity.Limited:
+-            return "Limited connectivity";
++            return "Eingeschränkte Verbindung";
+         default:
+             return "";
+         }
+@@ -872,7 +872,7 @@ Item {
+             root.pendingNetworkName = "";
+             root.setUiState(targetNetwork.name, {
+                 "connectFailed": true,
+-                "failReason": "Timed out waiting for a response from the network.",
++                "failReason": "Zeitüberschreitung beim Warten auf eine Antwort des Netzwerks.",
+                 "showPasswordInput": secured,
+                 "isUntrustedAttempt": secured
+             });
+@@ -1014,7 +1014,7 @@ Item {
+                 anchors.right: parent.right
+                 anchors.verticalCenter: parent.verticalCenter
+                 visible: Networking.canCheckConnectivity
+-                text: "Recheck"
++                text: "Erneut prüfen"
+                 color: Theme.accentMuted
+                 font.family: Theme.fontFamily
+                 font.pixelSize: Theme.fs(10)
+@@ -1067,15 +1067,15 @@ Item {
+                 Text {
+                     text: {
+                         if (!root.wiredDevice)
+-                            return "No cable connected";
++                            return "Kein Kabel verbunden";
+ 
+                         if (root.ethernetConnected)
+-                            return "Connected" + (root.wiredDevice.linkSpeed > 0 ? " · " + root.wiredDevice.linkSpeed + " Mbps" : "");
++                            return "Verbunden" + (root.wiredDevice.linkSpeed > 0 ? " · " + root.wiredDevice.linkSpeed + " Mbps" : "");
+ 
+                         if (root.wiredDevice.hasLink)
+-                            return "Cable connected · not configured";
++                            return "Kabel verbunden · nicht konfiguriert";
+ 
+-                        return "No cable connected";
++                        return "Kein Kabel verbunden";
+                     }
+                     color: root.ethernetConnected ? Theme.accent : Theme.subtext
+                     font.family: Theme.fontFamily
+@@ -1098,7 +1098,7 @@ Item {
+ 
+                 Text {
+                     anchors.centerIn: parent
+-                    text: "Disconnect"
++                    text: "Trennen"
+                     color: Theme.text
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -1133,7 +1133,7 @@ Item {
+         Text {
+             visible: !Networking.wifiHardwareEnabled
+             width: parent.width
+-            text: "Wi-Fi is disabled by a hardware switch"
++            text: "WLAN ist per Hardware-Schalter deaktiviert"
+             color: Theme.subtext
+             font.family: Theme.fontFamily
+             font.pixelSize: Theme.fs(11)
+@@ -1220,7 +1220,7 @@ Item {
+                     LText {
+                         anchors.verticalCenter: parent.verticalCenter
+                         role: "labelLarge"
+-                        text: scanButton.scanning ? "Looking for networks" : "Search for networks"
++                        text: scanButton.scanning ? "Suche nach Netzwerken" : "Nach Netzwerken suchen"
+                         color: scanButton.scanning ? Theme.fgSecondaryContainer : Theme.text
+                     }
+ 
+@@ -1232,7 +1232,7 @@ Item {
+                     anchors.verticalCenter: parent.verticalCenter
+                     visible: scanButton.scanning
+                     role: "labelMedium"
+-                    text: "Stop"
++                    text: "Stopp"
+                     color: Theme.fgSecondaryContainer
+                 }
+ 
+@@ -1253,7 +1253,7 @@ Item {
+                 visible: root.connectedNetworks.length > 0
+ 
+                 Text {
+-                    text: "Connected"
++                    text: "Verbunden"
+                     color: Theme.primary
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -1279,7 +1279,7 @@ Item {
+                 visible: root.savedNetworks.length > 0
+ 
+                 Text {
+-                    text: "Saved"
++                    text: "Gespeichert"
+                     color: Theme.primary
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -1305,7 +1305,7 @@ Item {
+                 visible: root.nearbyNetworks.length > 0
+ 
+                 Text {
+-                    text: "Nearby"
++                    text: "In der Nähe"
+                     color: Theme.primary
+                     font.family: Theme.fontFamily
+                     font.bold: true
+@@ -1334,7 +1334,7 @@ Item {
+ 
+                 Text {
+                     anchors.horizontalCenter: parent.horizontalCenter
+-                    text: scanButton.scanning ? "Looking for networks…" : "No networks found"
++                    text: scanButton.scanning ? "Suche nach Netzwerken…" : "Keine Netzwerke gefunden"
+                     color: Theme.subtext
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(12)
+@@ -1350,7 +1350,7 @@ Item {
+ 
+                 Text {
+                     visible: !root.hiddenFormOpen
+-                    text: "Connect to hidden network"
++                    text: "Mit verborgenem Netzwerk verbinden"
+                     color: Theme.subtext
+                     font.family: Theme.fontFamily
+                     font.pixelSize: Theme.fs(11)
+@@ -1388,7 +1388,7 @@ Item {
+                             anchors.left: parent.left
+                             anchors.leftMargin: Theme.dp(10)
+                             anchors.verticalCenter: parent.verticalCenter
+-                            text: "Network name (SSID)"
++                            text: "Netzwerkname (SSID)"
+                             color: Theme.outlineStrong
+                             font.family: Theme.fontFamily
+                             font.pixelSize: Theme.fs(11)
+@@ -1432,7 +1432,7 @@ Item {
+                             anchors.left: parent.left
+                             anchors.leftMargin: Theme.dp(10)
+                             anchors.verticalCenter: parent.verticalCenter
+-                            text: "Password (leave blank if open)"
++                            text: "Passwort (leer lassen bei offenem Netz)"
+                             color: Theme.outlineStrong
+                             font.family: Theme.fontFamily
+                             font.pixelSize: Theme.fs(11)
+@@ -1490,7 +1490,7 @@ Item {
+ 
+                             Text {
+                                 anchors.centerIn: parent
+-                                text: "Connect"
++                                text: "Verbinden"
+                                 color: Theme.bg
+                                 font.family: Theme.fontFamily
+                                 font.bold: true
+@@ -1519,7 +1519,7 @@ Item {
+ 
+                             Text {
+                                 anchors.centerIn: parent
+-                                text: "Cancel"
++                                text: "Abbrechen"
+                                 color: Theme.text
+                                 font.family: Theme.fontFamily
+                                 font.bold: true
