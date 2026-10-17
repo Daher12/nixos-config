@@ -7,7 +7,7 @@
 
 let
   # Single source for the light/dark theme + icon names: declared as options
-  # above so home/lucid.nix (auto light/dark wrapper) reads the same values
+  # below so home/lucid.nix (auto light/dark wrapper) reads the same values
   # instead of mirroring plain let-bindings with a "keep in sync" comment.
   inherit (config.desktop.theme)
     gtkDark

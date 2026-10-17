@@ -207,7 +207,9 @@ in
     (lib.mkIf cfg.utilities.btop {
       programs.btop = {
         enable = true;
-        settings.color_theme = "tomorrow-night";
+        # nord ships with btop (share/btop/themes) — matches the terminal,
+        # bat and Hyprland-border palette (was tomorrow-night).
+        settings.color_theme = "nord";
       };
     })
 
