@@ -146,9 +146,10 @@ in
 
   config = {
     # Cursor and session environment — set once at login, not per mode-switch.
-    # NOTE: modules/features/onlyoffice.nix may override XCURSOR_SIZE at the
-    # NixOS level (environment.sessionVariables) when setGlobalCursorSize=true.
-    # That takes precedence over these HM-level variables for affected hosts.
+    # NOTE: uwsm's env preloader sources /etc/profile last, so any
+    # environment.sessionVariables entry for these vars would beat the
+    # values chosen here at boot (that is why ONLYOFFICE's bigger cursor is
+    # scoped to its own .desktop wrap, modules/features/onlyoffice.nix).
     dconf.settings."org/gnome/desktop/interface" = {
       cursor-theme = cursorName;
       cursor-size = cursorSize;

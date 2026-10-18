@@ -177,8 +177,12 @@
     onlyoffice = {
       enable = true;
       installCompatibilityFonts = false;
+      # Bigger in-app cursor, injected per app by the .desktop wrap
+      # (modules/features/onlyoffice.nix). NOT exported globally: uwsm's env
+      # preloader sources /etc/profile last, so a global XCURSOR_SIZE=64 beat
+      # theme.nix's 32 for the whole session — oversized cursor on the boot
+      # lock screen (2026-10-18).
       cursorSize = 64;
-      setGlobalCursorSize = true;
     };
 
     sops = {

@@ -91,7 +91,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | `oomd.nix` | systemd-oomd |
 | `zram.nix` | ZRAM swap |
 | `nas.nix` | NFS/SMB mounts (Tailscale) |
-| `onlyoffice.nix` | OnlyOffice integration |
+| `onlyoffice.nix` | OnlyOffice integration — the app's .desktop wrap injects `XCURSOR_SIZE=cursorSize` (64 on yoga) per app; never exported globally since 2026-10-18, because uwsm's env preloader sources /etc/profile last and a global export beat theme.nix's HM-level 32 at boot (the oversized cursor on the reboot lock screen) |
 | `filesystem.nix` | Btrfs scrub/balance, ext4 tuning |
 | `network-optimization.nix` | BBR, buffer tuning |
 
