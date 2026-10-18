@@ -83,6 +83,19 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Spotify desktop client patched with SpotX (ad blocking) at build
+    # time. Overlay-only upstream flake (no NixOS/HM module), consumed by
+    # modules/features/spotify.nix. Manual pin like lucid/quickshell: the
+    # upstream bot re-aligns SpotX-Bash with nixpkgs' spotify every ~6 h,
+    # and we follow OUR nixpkgs — if a nixpkgs bump outpaces their pin,
+    # the spotify-spotx build fails loudly ("Nixpkgs Spotify X is newer
+    # than SpotX-Bash Y"). Fix: `nix flake update spotx-nix`. Deliberately
+    # NOT in the update-safe list.
+    spotx-nix = {
+      url = "github:SpotX-Official/SpotX-Nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Lucid desktop shell (github:Sn3akyy1/lucid): Material 3 Expressive
     # Quickshell shell (bar, dock, launcher, lock screen, notifications,
     # settings GUI). Upstream ships no Nix packaging — the only install path

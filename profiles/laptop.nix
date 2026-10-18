@@ -28,6 +28,10 @@
     # Managed Brave policies (/etc/brave/policies/managed/origin.json):
     # Origin mode + debloat.
     brave.enable = lib.mkDefault true;
+
+    # Spotify desktop client, SpotX-patched at build time
+    # (modules/features/spotify.nix, spotx-nix flake input).
+    spotify.enable = lib.mkDefault true;
   };
 
   # --- Fleet laptop baseline (host copies removed 2026-10-17) ---

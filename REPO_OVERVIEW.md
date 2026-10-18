@@ -83,6 +83,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 | `mnamer.nix` | mnamer media renaming tooling (feature options + `mnamer-tools` wrapper; consumed by nix-media) |
 | `secureboot.nix` | Lanzaboote Secure Boot |
 | `sops.nix` | SOPS-nix secret decryption |
+| `spotify.nix` | Spotify desktop client patched with SpotX (ad blocking) at build time (`features.spotify.enable`, laptops via `profiles/laptop.nix`): consumes the overlay-only `spotx-nix` flake input (no NixOS/HM module upstream) inside `mkIf` — disabled hosts never evaluate `spotify-spotx`; `spotxArgs` option passes extra SpotX-Bash flags; state persisted on yoga as `~/.config/spotify` |
 | `virtualization.nix` | QEMU/KVM, libvirt, virt-manager, SPICE USB redirection, per-guest launchers/DHCP reservations (`features.virtualization.guests`), virtio-win ISO at `/var/lib/libvirt/images/virtio-win.iso`, self-healing default-network unit, libvirt firewall backend pinned to iptables + scoped virbr0 DHCP/DNS input rules (see Known Gotchas) |
 | `vpn.nix` | Tailscale mesh VPN |
 | `power-tlp.nix` | TLP power management |
@@ -109,7 +110,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 
 | File | Includes |
 |------|----------|
-| `laptop.nix` | bluetooth, TLP, zram, network-optimization, zen kernel, oomd, SecureBoot, Tailscale, system76-scheduler (stock config — its `settings.*` are documented as ignored under `useStockConfig`, so none are set). Fleet laptop baseline moved here from the host files 2026-10-17: `core.users.description`, `core.openssh` (mgmt-LAN SSH), `features.nas`/`features.brave` enables, nftables firewall hardening comment + `openssh.openFirewall = false` |
+| `laptop.nix` | bluetooth, TLP, zram, network-optimization, zen kernel, oomd, SecureBoot, Tailscale, system76-scheduler (stock config — its `settings.*` are documented as ignored under `useStockConfig`, so none are set). Fleet laptop baseline moved here from the host files 2026-10-17: `core.users.description`, `core.openssh` (mgmt-LAN SSH), `features.nas`/`features.brave`/`features.spotify` enables, nftables firewall hardening comment + `openssh.openFirewall = false` |
 | `desktop-gnome.nix` | GNOME desktop, fonts |
 | `desktop-hyprland.nix` | Hyprland + Lucid shell desktop, fonts |
 
@@ -243,7 +244,7 @@ Steps:
 4. `nix build` — builds the host's toplevel derivation
 5. Optionally activates: `test` (temporary), `boot` (next boot), `switch` (live)
 
-Safe inputs are updated; locked inputs (lanzaboote, opencode, `quickshell` + `dank-greeter` desktop pins, `lucid`) are NOT updated by this script.
+Safe inputs are updated; locked inputs (lanzaboote, opencode, `quickshell` + `dank-greeter` desktop pins, `lucid`, `spotx-nix`) are NOT updated by this script.
 
 ---
 
@@ -540,6 +541,10 @@ Fix: `home/theme.nix` sets `gtk.enable = !config.desktop.lucid.enable` — Lucid
 
 The second half of the 2026-09-30 NAT incident: `inet nixos-fw` has policy drop and only trusted lo/tailscale0, and an ACCEPT in libvirt's iptables-nft table cannot override another table's drop — so DHCP/DNS from the bridge never reached the host dnsmasq (guests showed "identifying → unidentified network"). The initial fix trusted `virbr0` wholesale (`firewall.trustedInterfaces`), which let the Windows guest reach **every** host service. Now `modules/features/virtualization.nix` opens exactly the two ports the default network needs via `firewall.extraInputRules` (udp/67 DHCP, udp+tcp/53 DNS on `iifname "virbr0"`); everything else from the bridge stays dropped. nftables-only — silently ignored under the iptables backend, where libvirt's own rules coexist anyway. Behavior is pinned by `tests/virbr0-firewall.nix` (`nix build .#nixosTests.x86_64-linux.virbr0-firewall`): a guest node on the same bridge must get a DHCP lease and DNS answers, and must NOT reach a canary host port. Symptom if the rules regress: guest "unidentified network" / no lease; first diagnostic `sudo nft list ruleset | grep virbr0`.
 
+### spotify-spotx build fails after a nixpkgs bump — SpotX-Bash pin drift (laptops, added 2026-10-18)
+
+`modules/features/spotify.nix` consumes `github:SpotX-Official/SpotX-Nix` with `nixpkgs.follows` — we build spotify-spotx against OUR nixpkgs' spotify, while the SpotX-Bash patch script rides SpotX-Nix's own lock (their bot re-aligns the two every ~6 h). If a nixpkgs bump ships a spotify newer than their currently-pinned SpotX-Bash supports, the spotify-spotx derivation fails the build loudly with `Nixpkgs Spotify X is newer than SpotX-Bash Y`. Fix: `nix flake update spotx-nix` (pulls their newer lock, which has the matching SpotX-Bash), re-stage `flake.lock`, rebuild. That is also why `spotx-nix` is deliberately NOT in `scripts/update-safe`'s input list — a blind update there could equally pull a SpotX-Bash ahead of a pinned-older nixpkgs; treat it like the lucid/quickshell manual pins. `--premium`-style extra flags go through `features.spotify.spotxArgs` (build-time only; interactive/client-install options are rejected during a Nix build).
+
 
 ---
 
@@ -594,6 +599,7 @@ Any error in the rollback script aborts the service → `OnFailure = "emergency.
 | Theme/dark mode | `home/theme.nix` |
 | Terminal/shell | `home/terminal.nix` |
 | Browser config | `home/browsers.nix` |
+| Spotify (SpotX-patched) | `modules/features/spotify.nix` |
 | Windows VMs (virt-manager) | `modules/features/virtualization.nix` |
 | Disk layout (yoga, latitude) | `hosts/<name>/disks.nix` |
 | Docker containers | `hosts/nix-media/docker.nix` |

@@ -17,6 +17,7 @@
     ./power-tlp.nix
     ./secureboot.nix
     ./sops.nix
+    ./spotify.nix
     ./virtualization.nix
     ./vpn.nix
     ./zram.nix
