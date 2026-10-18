@@ -62,10 +62,12 @@
   #                 ~9.5G use — kernel log 2026-09-03). Best-effort: on
   #                 swapoff failure, hibernate anyway.
   #   post hibernate re-create zram via systemd-zram-setup@zram0.service
-  #                 (covers resume AND
-  #                 aborted attempts; the pre-phase swapoff leaves the
-  #                 device at disksize 0, so a plain swapon cannot
-  #                 work), classify the outcome (real resume ⇒
+  #                 (covers resume AND aborted attempts; the pre-phase
+  #                 swapoff leaves the device at disksize 0, so a plain
+  #                 swapon cannot work; a resume race that leaves the
+  #                 device initialized-but-not-swapped is handled by
+  #                 reset + start, see post:hibernate), classify the
+  #                 outcome (real resume ⇒
   #                 BOOTTIME−MONOTONIC divergence grew by the off-time,
   #                 logged as "cycle completed"; in-place abort ⇒
   #                 divergence unchanged + uptime growth > 30s — see
@@ -295,20 +297,67 @@
           else
             log "WARNING: swapoff /dev/zram0 failed, hibernating anyway"
           fi
+        else
+          # Silent-skip trap (2026-10-18): after the zram re-create race
+          # left zram off, this grep quietly failed and the image would
+          # have been taken WITH zram pages resident in RAM — the
+          # 2026-09-03 -ENOMEM abort setup above ~9.5G use. Make it loud.
+          log "WARNING: zram0 not swapped on - hibernating without the zram swap-out; -ENOMEM abort risk above ~9.5G RAM use"
         fi
         ;;
       post:hibernate)
-        if [ -b /dev/zram0 ] && ! grep -q '^/dev/zram0 ' /proc/swaps; then
-          # swapoff above auto-resets zram to disksize 0, so a plain
-          # swapon fails ("could not read swap header", journal
-          # 2026-09-06). Restart the generator's setup unit instead:
-          # ExecStop (--reset-device) + ExecStart (--setup-device)
-          # recreate size/algorithm/priority from the NixOS-generated
-          # zram-generator.conf.
-          if systemctl restart systemd-zram-setup@zram0.service; then
+        # Resume-side race (2026-10-18 19:59:11): ~22ms after hibernation
+        # exit something re-initialized zram0 (correct size + lz4) BEFORE
+        # this hook's restart ran, so the generator's first write failed
+        # with "Can't change algorithm for initialized device" (EBUSY) and
+        # never reached mkswap/swapon — zram swap stayed off until the
+        # next reboot. Let such an instance settle, then only act if zram
+        # is still not swapped on.
+        sleep 2
+        if ! [ -b /dev/zram0 ]; then
+          log "WARNING: /dev/zram0 missing after resume"
+        elif grep -q '^/dev/zram0 ' /proc/swaps; then
+          log "zram0 already swapped on after resume"
+        else
+          if ! systemctl restart systemd-zram-setup@zram0.service; then
+            # swapoff above auto-resets zram to disksize 0, so a plain
+            # swapon fails ("could not read swap header", journal
+            # 2026-09-06); the setup unit's generator recreates
+            # size/algorithm/priority from the NixOS-generated
+            # zram-generator.conf. EBUSY on comp_algorithm means the
+            # resume race left the device initialized (disksize > 0)
+            # without swap on it — zram-generator writes the algorithm
+            # first and refuses initialized devices, so only a reset
+            # lets it run. Safe here — nothing is swapped on zram0. (NOT
+            # `echo 0 > disksize`: the kernel rejects 0 with -EINVAL;
+            # the reset attribute wants a 1.)
+            if ! zramctl --reset /dev/zram0 2>/dev/null && ! echo 1 > /sys/block/zram0/reset; then
+              log "WARNING: could not reset initialized zram0"
+            else
+              log "zram0 was initialized without swap (resume race): device reset"
+              systemctl start systemd-zram-setup@zram0.service \
+                || log "WARNING: zram setup unit still failing after reset"
+            fi
+          fi
+          # Truth is /proc/swaps, not the setup unit's exit code: the
+          # swapon rides the setup unit's transaction (observed 2026-10-18
+          # 01:12, and via "Dependency failed for Compressed Swap" at
+          # 19:59) and lags it by ~0.1s, but the dependency chain is
+          # generator-managed — poll for the actual swapon, poke the swap
+          # unit directly once if the chain stalls, and report the real
+          # end state either way.
+          waited=0
+          while [ "$waited" -lt 5 ] && ! grep -q '^/dev/zram0 ' /proc/swaps; do
+            if [ "$waited" = "2" ]; then
+              systemctl start dev-zram0.swap 2>/dev/null
+            fi
+            sleep 1
+            waited=$((waited + 1))
+          done
+          if grep -q '^/dev/zram0 ' /proc/swaps; then
             log "zram0 re-created via systemd-zram-setup@zram0.service"
           else
-            log "WARNING: re-creating zram0 failed; disk swapfile still active"
+            log "WARNING: zram0 swap not active after resume; disk swapfile still active"
           fi
         fi
         # Abort detection + proportional response. Two depths, from the
