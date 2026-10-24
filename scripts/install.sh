@@ -42,8 +42,6 @@ EOF
 [[ $# -ge 1 ]] || usage
 FLAKE_TARGET="$1"
 USER_NAME="${USER_NAME:-dk}"
-USER_UID="1000"
-USER_GID="1000"
 REPO_URL="${REPO_URL:-https://github.com/Daher12/nixos-config}"
 
 # --- Helpers ---
@@ -128,6 +126,22 @@ info "Host:         $FLAKE_TARGET"
 info "Disko:        $([ $HAS_DISKO -eq 1 ] && echo 'yes' || echo 'no')"
 info "Impermanence: $([ $HAS_IMPERMANENCE -eq 1 ] && echo 'yes' || echo 'no')"
 info "sops:         $([ $HAS_SOPS -eq 1 ] && echo "enabled (method=$SOPS_METHOD)" || echo 'disabled')"
+
+# The primary user's uid/gid come from the evaluated config, not assumptions —
+# nix-media pins dk to uid 1001 / gid 982 (NFS anon mapping), so chowning
+# restored user data to a hardcoded 1000:1000 would give it the wrong numeric
+# owner. When the group gid is not pinned (yoga/latitude — allocated at first
+# boot), it resolves empty and the chown below touches the uid only, keeping
+# the backup's group ownership.
+USER_UID=$(nix eval --raw "$CONFIG_DIR#nixosConfigurations.$FLAKE_TARGET.config.users.users.$USER_NAME.uid" \
+  --apply 'u: if u == null then "1000" else toString u') \
+  || die "Could not evaluate users.users.$USER_NAME.uid"
+USER_GROUP=$(nix eval --raw "$CONFIG_DIR#nixosConfigurations.$FLAKE_TARGET.config.users.users.$USER_NAME.group") \
+  || die "Could not evaluate users.users.$USER_NAME.group"
+USER_GID=$(nix eval --raw "$CONFIG_DIR#nixosConfigurations.$FLAKE_TARGET.config.users.groups.$USER_GROUP.gid" \
+  --apply 'g: if g == null then "" else toString g') \
+  || die "Could not evaluate users.groups.$USER_GROUP.gid"
+info "User:         $USER_NAME (uid=$USER_UID, group=$USER_GROUP gid=${USER_GID:-first-boot allocated})"
 
 # --- Backup prompt ---
 
@@ -350,7 +364,9 @@ git -C "$USER_HOME/nixos-config" checkout --detach "$PINNED_COMMIT" \
 rm -rf "$USER_HOME/nixos-config/.git"
 
 info "Fixing user permissions..."
-chown -R "$USER_UID:$USER_GID" "$USER_HOME"
+# "uid:" with an empty group (unpinned gid) sets the uid and leaves the
+# restored group ownership untouched — chown's documented syntax.
+chown -R "$USER_UID${USER_GID:+:$USER_GID}" "$USER_HOME"
 if [[ -d "$USER_HOME/.ssh" ]]; then
   chmod 700 "$USER_HOME/.ssh"
   find "$USER_HOME/.ssh" -type f       -exec chmod 600 {} +

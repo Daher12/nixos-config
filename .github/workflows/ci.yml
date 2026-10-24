@@ -1,0 +1,45 @@
+# Push/PR gate: same verification the weekly bump runs, so hand edits get
+# checked before they reach the fleet — the weekly cron alone validated
+# nothing between bumps. Kept deliberately in sync with bump.yml's steps.
+name: "CI: check + dry-build"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            accept-flake-config = true
+            experimental-features = nix-command flakes
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
+            substituters = https://cache.nixos.org https://nix-community.cachix.org
+
+      - name: Verify configurations
+        shell: bash
+        run: |
+          set -euo pipefail
+          nix flake check --all-systems --impure --keep-going
+          for host in $(nix eval --json '.#nixosConfigurations' --apply 'builtins.attrNames' | jq -r '.[]'); do
+            echo "::group::Verifying $host"
+            nix build ".#nixosConfigurations.${host}.config.system.build.toplevel" --dry-run --impure
+            echo "::endgroup::"
+          done

@@ -2,13 +2,15 @@ name: "Maintain: Update Flake Lock"
 
 concurrency:
   group: ${{ github.workflow }}
-  cancel-in-progress: true
+  # false: the weekly cron must never cancel a long-running manual
+  # include_lanzaboote verification mid-flight (they share this group).
+  cancel-in-progress: false
 
 on:
   schedule:
-    # Weekly Saturday 02:00 UTC: the bump and the 04:00-local host
-    # auto-upgrades land a full day before the Sunday nix-media reboot,
-    # so the fleet burns in the bumped closure on the daily drivers first.
+    # Weekly Saturday 02:00 UTC: the bump lands a full day before the
+    # Sunday nix-media reboot, and the hosts' 05:00 Europe/Berlin daily
+    # auto-upgrades burn in the bumped closure on the daily drivers first.
     - cron: "0 2 * * 6"
   workflow_dispatch:
     inputs:
@@ -74,6 +76,6 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: |
-            chore(flake): update inputs & format
+            chore(flake): update inputs & format [skip ci]
             nixpkgs: ${{ steps.update.outputs.nixpkgs_rev }}
           file_pattern: flake.lock **/*.nix

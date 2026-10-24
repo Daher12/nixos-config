@@ -4,7 +4,21 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  update-safe <host> [test|boot|switch|build-only]
+  update-safe <host> [test|boot|switch|build-only] [--pin <input>]... [--push]
+
+--pin appends a manually-pinned flake input to the update list (repeatable).
+The safe inputs (nixpkgs, home-manager, sops-nix, ...) update every run; the
+deliberate pins only move when passed here:
+  --pin quickshell  --pin dank-greeter  --pin opencode
+  --pin lanzaboote  --pin spotx-nix
+lucid is NOT bumpable this way: it is a flake=false source pin and its
+build-time patch layer may reject — follow LUCID_RUNBOOK.md instead.
+
+After a successful build the updated flake.lock is committed automatically
+(pathspec-limited to flake.lock — nothing else staged in the tree is swept
+in). --push additionally publishes the commit, which is what lets nix-media's
+daily `git pull --ff-only` auto-upgrade pick the bump up; without it, push
+manually at your leisure.
 
 Examples:
   update-safe yoga
@@ -12,16 +26,44 @@ Examples:
   update-safe latitude test
   update-safe yoga boot
   update-safe nix-media switch
+  update-safe yoga boot --pin quickshell --pin dank-greeter
+  update-safe yoga boot --push
 EOF
 }
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
+# Positional args (host, optional action) + repeatable --pin/--push flags.
+pins=()
+positional=()
+push=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --pin)
+      if [[ $# -lt 2 ]]; then
+        echo "--pin requires an input name" >&2
+        usage
+        exit 1
+      fi
+      pins+=("$2")
+      shift 2
+      ;;
+    --push)
+      push=1
+      shift
+      ;;
+    *)
+      positional+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ ${#positional[@]} -lt 1 || ${#positional[@]} -gt 2 ]]; then
   usage
   exit 1
 fi
 
-host="$1"
-action="${2:-build-only}"
+host="${positional[0]}"
+action="${positional[1]:-build-only}"
 
 case "$host" in
   yoga|yoga-gnome|latitude|nix-media) ;;
@@ -44,20 +86,47 @@ esac
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+# A dirty flake.lock wedges BOTH the pull below and nix-media's daily
+# `git pull --ff-only` in nixos-upgrade (CI's weekly lock bump would collide
+# → hourly retry + ntfy spam until someone commits). Commit or stash first.
+if ! git diff --quiet -- flake.lock || ! git diff --cached --quiet -- flake.lock; then
+  echo "ERROR: flake.lock has uncommitted changes from a previous run." >&2
+  echo "Commit them (git commit -- flake.lock) or git checkout -- flake.lock," >&2
+  echo "then re-run." >&2
+  exit 1
+fi
+
 echo "==> Pull latest changes"
 git pull --ff-only
 
-echo "==> Update safe flake inputs"
+if ((${#pins[@]} > 0)); then
+  echo "==> Update safe flake inputs + pinned: ${pins[*]}"
+else
+  echo "==> Update safe flake inputs"
+fi
 nix flake update \
   nixpkgs nixos-hardware \
   home-manager sops-nix disko impermanence \
-  preload-ng
+  preload-ng \
+  ${pins[@]+"${pins[@]}"}
 
 echo "==> Run flake checks"
 nix flake check --impure --keep-going
 
 echo "==> Build host: $host"
 nix build ".#nixosConfigurations.${host}.config.system.build.toplevel"
+
+# Commit the updated lock. The pathspec limits the commit to flake.lock —
+# anything else staged in the tree (parallel agent work) stays staged and
+# is NOT swept in. A dirty lock left behind would collide with the next
+# CI bump on nix-media's daily pull.
+if ! git diff --quiet -- flake.lock; then
+  echo "==> Commit flake.lock"
+  git add flake.lock
+  git commit -m "chore(flake): update inputs (update-safe ${host})" -- flake.lock
+else
+  echo "==> flake.lock unchanged — nothing to commit"
+fi
 
 case "$action" in
   build-only)
@@ -76,3 +145,10 @@ case "$action" in
     sudo nixos-rebuild switch --flake ".#${host}"
     ;;
 esac
+
+if ((push)); then
+  echo "==> Pushing"
+  git push
+else
+  echo "==> Done. Publish with 'git push' (or pass --push) so nix-media's auto-upgrade sees the bump."
+fi
