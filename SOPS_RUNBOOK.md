@@ -29,6 +29,7 @@ Current files:
 |---|---|---|
 | `yoga.yaml` | `dk_password_hash`, `root_password_hash` | ✅ fixed 2026-09-13: re-encrypted to the ssh-derived identity + current admin key |
 | `nix-media.yaml` | `grafana_admin_password`, `ntfy_url`, `ntfy_topic`, `dk_password_hash` | ⚠️ still encrypted to the RETIRED admin key → §3 (all keys stay; nothing dead inside except nothing — keep all) |
+| `nix-media-litellm.yaml` | `litellm_config` (gateway model list + keys) | ✅ side file created 2026-10-04 to the CURRENT keys — the pattern for new nix-media secrets until §3 re-encrypts `nix-media.yaml` (creation rule in `.sops.yaml`) |
 | `latitude.yaml` | `dk_password_hash` (live) + `wifi_home_psk`, `wifi_work_psk` (dead, 0 config refs) | ⚠️ still encrypted to the RETIRED admin key → §3 (drops the two wifi PSKs) |
 
 Why this design: yoga's on-device decryption needs no manual key provisioning

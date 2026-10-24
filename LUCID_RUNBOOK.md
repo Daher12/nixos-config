@@ -49,7 +49,7 @@ The chain:
 ```
 flake input `lucid`                      github:Sn3akyy1/lucid, flake = false,
                                          NO ref pin → tracks default branch
-  └─ lucidPatched                        stdenv.mkDerivation, home/lucid.nix:26
+  └─ lucidPatched                        stdenv.mkDerivation, home/lucid.nix:44
      │                                   src = lucid input, `patches =` list
      │                                   applied IN LIST ORDER (see table)
      └─ store path  /nix/store/…-lucid-source-<version>-local
@@ -80,7 +80,7 @@ nix flake metadata --json | jq '.LockedNodes // .locks.nodes
 
 ### Patch inventory
 
-Since the 2026-10-17 perf round exactly FIFTEEN patches are applied (the
+Since the 2026-10-24 journal round exactly EIGHTEEN patches are applied (the
 `patches =` list in `home/lucid.nix`, in this order — the struck ~~112~~ row
 below is historical, not counted):
 
@@ -102,19 +102,34 @@ below is historical, not counted):
 | 123 | `123-cava-idle-suppression.patch` | Desktop-visualiser cava only (root `Cava.qml`; the bar's own cava in `Mpris.qml` is upstream-gated and untouched): `framerate = 60` → `30`, and the SplitParser (a) snaps the never-ending `p * 0.78` decay tail to zero below the 0.015 motion cutoff and (b) skips the `root.levels = out` assignment when every band moved < 0.005 (or the band count changed) — a silent visualiser stops repainting instead of re-firing the levels var at the framerate (DMS 2c5a1a2 technique) | 5 | Beat response unchanged (any band ≥ 0.02 assigns); bars still decay smoothly to zero, then the property goes quiet |
 | 124 | `124-net-audio-poll-hygiene.patch` | Monitor-event storms rate-limited to one full sweep per 5s via a new `lastEventRefresh` floor in the settle timers: `Net.qml` (nmcli monitor → 700ms debounce → nmcli/netinfo.py sweep — RSSI churn re-arms it constantly) and `Audio.qml` (pactl subscribe / Pipewire nodes → 600ms debounce → full `pactl list` sweep) | 2 + 2 | Direct `refresh()` callers stay instant: user actions, Audio actionProc + respawn watchdog, Net 20s poll, startup. The monitor processes and debounce timers are untouched (they are the change detectors); the bar wifi icon reads native Quickshell.Networking anyway |
 | 125 | `125-startup-warmup-defer.patch` | `shell.qml` eager warm-up split: `Component.onCompleted` keeps the 15 touches with t0 ordering requirements (Bt/BtReceive/BtAgent, Net, Idle, Env, Specials, Glass, Monitors, HyprConfig, Notifs, Clip, NightLight, LiveWall, WallTransitions); the 11 inert-at-t0 singletons (KdeConnect, Updates, Users, Polkit, Chrono, Agenda, Zones, Capture, Sounds, Storage, Startup) move into a one-shot 1.5s `Timer` beside it | 1 | ShellRoot's default property is `children: QQmlListProperty&lt;QObject&gt;` (verified in the pinned quickshell 0.3.2 source, `src/core/reload.hpp`) so a plain `Timer` is a legal child. Worst case a consumer instantiates a deferred singleton early anyway — the deferral is pure win, never a break |
+| 126 | `126-clock-static-colon.patch` | 2026-10-24 idle round: bar `Clock.qml` stops the per-second repaint — the colon opacity is plain `1` (upstream blinked it 1↔0.35 every second *through a 400ms fade* whenever `clockShowSeconds` was off, i.e. near-continuous bar + blur damage) and the always-on 1s tick becomes minute-aligned while seconds are hidden (`interval: Prefs.clockShowSeconds ? 1000 : (60 - root.now.getSeconds()) * 1000` — the binding re-anchors to the wall-clock minute on every update) | 1 | 116 first when both touch Clock.qml (disjoint hunks). With seconds shown upstream behavior is byte-preserved (the colon was already solid then). Watch: if a future Clock.qml change adds a second consumer of per-second `root.now`, the minute tick starves it — re-check on bump |
+| 127 | `127-agenda-sweep-throttle.patch` | 2026-10-24 idle round: `Agenda.qml` reminder sweep timer 1s → 5s — `check()` is minute-granular by design (`minuteKey` dedup, countdown text reads `minuteKey`), so the 1s sweep was pure wake-up churn; worst case a due reminder rings ~4s late | 1 | 118 first when both touch Agenda.qml (disjoint hunks — 118 does recurrence strings, 127 only the Timer) |
+| 128 | `128-fingerprint-off.patch` | 2026-10-24 journal round: `Lockscreen.qml` fingerprint PamContext gated off — upstream arms its second PamContext (config `fingerprint` from the shipped `pam/fingerprint` → bare `pam_fprintd.so`, bypassing `/etc/pam.d`) on EVERY `lockNow()`; this host has no reader and no fprintd in the closure, so each attempt died at dlopen (PAM code 28 "Modul ist nicht bekannt") and the capped backoff retried ~once a minute for as long as the screen stayed locked (~1400 failed attempts/boot). New `readonly property bool fingerEnabled: false` + early return at the top of `startFinger()` (the only entry point: `lockNow` + the retry timer); `stopFinger()` callers and the password `login` PamContext untouched | 2 | Marker grep: `grep -c fingerEnabled Lockscreen.qml` = 2. Re-enabling needs ALL of: flag `true`, `services.fprintd.enable`, actual reader hardware, AND an absolute store path in `pam/fingerprint` (bare name never resolves on NixOS). Only patch touching the Lockscreen fingerprint section — 113's Lockscreen.qml hunks are disjoint text strings |
+| 129 | `129-wifi-connect-resilience.patch` | 2026-10-24 wifi round: `WifiPanel.qml` connect-failure UX — the 102 watch item hit for cause (post-resume EC rfkill glitch wedged iwd into ~3 min of instant `connect-failed, status: 1`; the panel showed "Kein Passwort … gespeichert" + a password box for the SAVED network, and a re-typed PSK failed identically — zero auth frames ever reached the driver). Removes the forced pre-connect disconnect in `attemptConnect`/`submitPassword` (it raced iwd), adds ONE silent retry (`retryOrFail`, wired into `onConnectionFailed` + the 15 s timeout timer), and for saved networks suppresses both the misleading NoSecrets text (falls back to "Verbindung fehlgeschlagen.") and the password box; from the second manual failed round on, the box IS offered (changed-router-PSK escape hatch). Does NOT auto-heal a hard driver wedge — wifi off/on remains the manual out | 2 | Marker grep: `grep -c maxConnectAttempts lucidbar/WifiPanel.qml` = 2; `grep -c root.activeNetwork.disconnect lucidbar/WifiPanel.qml` = 0 (both forced-disconnect sites removed). Second patch touching WifiPanel.qml besides 114 — disjoint (114 = German strings, 129 = connect logic) |
 
 **Dropped for good at v1.20 (upstream absorbed):** `103` (disk card counts
 LVM/LUKS), `105` (tiles user-arrangeable), `109` (password beads upstream).
 **Superseded by settings:** `003`+`106` (mpris pill = `mediaHideIdle` pref,
 seeded by the lucidSync migration). **Deliberately not re-added (watch):**
-`102` wifi connect resilience (if saved-network clicks time out again,
-re-express it), `108` 24h reminders (upstream is clock24h-aware), `110` lock
-layout chip (re-evaluate if the chip misreads the German layout).
+`108` 24h reminders (upstream is clock24h-aware), `110` lock layout chip
+(re-evaluate if the chip misreads the German layout). `102` wifi connect
+resilience sat on this watch list until 2026-10-24, when the predicted
+regression hit for cause (post-resume iwd wedge shown as "Kein Passwort …
+gespeichert" + password box on a SAVED network) — re-expressed as `129`.
 **2026-10-17 perf round (122–125):** DMS-class fixes ported onto v1.20.1 after
 a measured idle baseline of quickshell ~8% + Hyprland ~10% of a core (the
 shell fed the compositor a steady frame stream; lucid #42/#43 had already
 fixed the bar's own loops upstream). No ordering constraints with the German
-layer; all four apply after 121.
+layer; all four apply after 121. **2026-10-24 idle round (126–127):** went
+live that day via `systemctl --user restart lucid` for 122–125 (quickshell
+58→45 ms/s measured); the remaining unconditional repainter was the bar clock
+— see rows 126/127. Patch numbers 126/127 are now TAKEN; the shelved
+quickshell PR #1049 plan must renumber its earmarked lucid pragma patch
+(122→126 in that plan's text) to **≥129** (128 = fingerprint-off).
+**2026-10-24 journal round (128):** the lock screen's fingerprint PAM was
+silently broken since the v1.20.1 activation (first error 2026-10-17 04:01,
+boot −2) — no reader, no fprintd, ~one "Modul ist nicht bekannt" triplet per
+locked minute — see row 128.
 **Attempted and reverted 2026-10-11/12 (120, smooth caret):** five designs in
 one day — delegate+Behavior, SmoothCaret follower component, FrameAnimation
 lerp, static-id delegate bindings, slot-follower child — every one QC-green
@@ -270,9 +285,10 @@ for p in /home/dk/nixos-config/home/lucid-patches/*.patch; do
     #   2. Read work/<file> (new-upstream + earlier patches).
     #   3. Read ~/.config/quickshell/<file> (intended end state at the old base).
     #   4. Edit work/<file> so it expresses the patch's intent on the new code.
-    #      For 002/107: find the new upstream English string (the '- ' lines of
-    #      the old patch are the old English text) and translate it to the same
-    #      German wording used in the deployed tree.
+    #      For the German patches (113-119): find the new upstream English
+    #      string (the '- ' lines of the old patch are the old English text)
+    #      and translate it to the same German wording used in the deployed
+    #      tree.
     #   5. rm work/<file>.rej (and any *.orig).
     #   6. Regenerate THIS patch file:
     #        diff -ruN -x '*.rej' -x '*.orig' prev work \
@@ -291,7 +307,7 @@ Decision rules during manual repair:
 | Patch applies as "previously applied / reversed" — upstream fixed it themselves | Delete the patch file AND its entry (with its comment block) from `patches =` in `home/lucid.nix`; note in report. For 101 you may also drop just the affected file's hunks |
 | Upstream rewrote the whole area; you cannot tell what the intent maps to | ABORT the loop, restore the patch file (`git restore home/lucid-patches/`), STOP per §7 |
 | More than ~half the patches reject | STOP per §7 (offer the full-regeneration option as a user decision — it re-splits the whole layer from the deployed tree and loses per-patch history) |
-| German patch (002/107) with a brand-new upstream string not in the old patch | Add its translation only if the string is in the old English→German mapping; otherwise leave English and note it for the user |
+| German patch (113-119) with a brand-new upstream string not in the old patch | Add its translation only if the string is in the old English→German mapping; otherwise leave English and note it for the user |
 
 **Pass:** the loop completes, no `.rej`/`.orig` remain, changed patch files are
 in `home/lucid-patches/`. Then `git add home/lucid-patches/*.patch` (index rule)
@@ -389,7 +405,7 @@ Report per §7, then hand the user:
 | Windows open/close snappier (windowsIn/out split, no popin), border/fade quick | Hyprland motion block (home/hyprland.nix) |
 | Shell animations feel tighter (bar popouts, launcher) | motion prefs (motionScale 0.85, barMotionScale 1.0 — live-tunable in Settings) |
 | New v1.20 surfaces: clock app, widgets panel, night-light tile, Storage page, sounds | v1.20 deps/asset sync |
-| Expected regressions BY DESIGN (dropped patches, not bugs): wifi saved-network behavior = upstream (watch for the old forced-disconnect bug — if it resurfaces, re-express 102); lock beads/layout chip = upstream | §1 dropped list |
+| Expected regressions BY DESIGN (dropped patches, not bugs): lock beads/layout chip = upstream. Wifi saved-network behavior is 129-protected since 2026-10-24 (102 re-expressed) — a lingering "Kein Passwort … gespeichert" now signals a real iwd/driver failure, not the panel bug | §1 dropped list |
 
 ## 3. Scenario B — quickshell / dank-greeter bump
 
@@ -472,10 +488,10 @@ qs ipc call launcher toggle                               # exercise IPC (opens 
 | Disk card shows `0 / 932 GB` | 103 was DROPPED (upstream counts LVM/LUKS itself now) | If it still misattributes, report upstream bug, do not resurrect the patch blindly |
 | Lock screen: all dots twitch on each keystroke | 109 was DROPPED (upstream feature) | upstream bug → report upstream |
 | Lock chip reads wrong layout | 110 was DROPPED — re-evaluate against v1.20 chip | re-express per P3 if confirmed broken |
-| Wifi: saved-network clicks time out, password box appears | 102 was DROPPED — the old upstream bug may be back | re-express 102 per P3 from git history |
+| Wifi: saved-network click fails / "Kein Passwort … gespeichert" | With 129 live this is a REAL iwd/driver failure — the NoSecrets mapping lies (2026-10-24: EC rfkill glitch after s2idle resume wedged iwd ~3 min; re-typed PSK failed identically, zero auth frames at the kernel). Without 129 (pin bump dropped it): the old upstream bug is back | journalctl -b -u iwd + NetworkManager around the event; wifi off/on toggle heals an rfkill wedge; only if 129 is missing, re-express per P3 |
 | Keybinds partly dead | NOT a patch — json.lua loader | Check `$XDG_RUNTIME_DIR/lucid-keybinds-status.json` exists and `hyprctl binds \| grep -c bind` (user-run); then §5 of REPO_OVERVIEW "Lucid deployment" |
 | QML syntax errors crash-looping the shell | a repaired patch introduced bad syntax | `journalctl --user -u lucid -b` → the file+line; fix the patch; qmllint sanity: `nix build nixpkgs#qt6.qtdeclarative -o /tmp/qtd` then find qmllint under its `bin/` (lives in qtdeclarative, NOT qttools; the `.bin` output attr no longer exists in current nixpkgs) |
-| `module "Qt5Compat.GraphicalEffects" is not installed` (or any other Qt module) at shell load | upstream imports a Qt module that is not a qtbase/qtdeclarative builtin — Arch ships it system-wide, our quickshell wrapper does not carry it | Add the module to the flake.nix overlay: `quickshell = inputs.quickshell.packages.<sys>.quickshell.withModules [ final.qt6.qt5compat ]` (quickshell's own packaging hook — its wrapper folds Qt-module buildInputs into the baked `NIXPKGS_QT6_QML_IMPORT_PATH`; happened 2026-10-10, v1.20's Workspaces/ShapedImage import Qt5Compat). Gate: `strings $(readlink toplevel/sw/bin/qs) \| grep qt5compat` after a toplevel build |
+| `module "Qt5Compat.GraphicalEffects" is not installed` (or any other Qt module) at shell load | upstream imports a Qt module that is not a qtbase/qtdeclarative builtin — Arch ships it system-wide, our quickshell wrapper does not carry it | Add the module to the replicated wrapper's `buildInputs` in the flake.nix overlay (`buildInputs = qsUnwrapped.buildInputs ++ [ final.qt6.qt5compat ]`). ⚠️ Do NOT use upstream's `passthru.withModules` — it closes over the ORIGINAL wrapper let-binding and silently discards the overlay's `overrideAttrs` (the 201 engine patch would vanish; see the ⚠️ block in flake.nix). Happened 2026-10-10: v1.20's Workspaces/ShapedImage import Qt5Compat. Gate: `strings $(readlink toplevel/sw/bin/qs) \| grep qt5compat` after a toplevel build |
 | Anything not in this table | — | Collect the two journalctl outputs, STOP, report |
 
 ## 6. Rollback
@@ -546,6 +562,10 @@ path (P5). `grep -c` counts lines; expected value in the last column.
 | 123 | `grep -c 'framerate = 30' "$SRC/Cava.qml"`; `grep -c 'nixos-config local patch 123' "$SRC/Cava.qml"` | 1; 5 |
 | 124 | `grep -c 'lastEventRefresh' "$SRC/Net.qml" "$SRC/Audio.qml"`; `grep -c 'nixos-config local patch 124' "$SRC/Net.qml" "$SRC/Audio.qml"` | 3 each (declaration + check + set); 2 each (property comment + settle comment) |
 | 125 | `grep -c 'void KdeConnect.installed' "$SRC/shell.qml"`; `grep -c 'local patch 125' "$SRC/shell.qml"`; `grep -c 'interval: 1500' "$SRC/shell.qml"` | 1 (the eager touch is gone — it lives inside the Timer now); 1; 1 |
+| 126 | `grep -c 'nixos-config local patch 126' "$SRC/lucidbar/Clock.qml"`; `grep -c 'interval: Prefs.clockShowSeconds ? 1000' "$SRC/lucidbar/Clock.qml"`; `grep -c 'opacity: 1' "$SRC/lucidbar/Clock.qml"` | 2 (tick comment + colon comment); 1; 1 |
+| 127 | `grep -c 'nixos-config local patch 127' "$SRC/Agenda.qml"`; `grep -c 'interval: 5000' "$SRC/Agenda.qml"` | 1; 1 |
+| 128 | `grep -c 'fingerEnabled' "$SRC/Lockscreen.qml"` | 2 |
+| 129 | `grep -c 'maxConnectAttempts' "$SRC/lucidbar/WifiPanel.qml"`; `grep -c 'root.activeNetwork.disconnect' "$SRC/lucidbar/WifiPanel.qml"` | 2; 0 (both forced-disconnect call sites gone) |
 | all | `diff -rq -x '.git' <cumulative-patch-tree> "$SRC"` | 0 differences (strongest gate — see §2 P5 attribution) |
 
 Caveats: a marker grep failing while the patch "applied" means a repair or
@@ -553,13 +573,13 @@ upstream change hollowed out the patch's effect — treat as a P3 repair, not a
 checklist footnote. If upstream renames a symbol inside a marker string, update
 this table in the same change (and `git add` it).
 
-## Appendix B — pins as of 2026-10-16
+## Appendix B — pins as of 2026-10-24
 
 | Input | Rev / version | Note |
 |---|---|---|
-| lucid | `8bc32666da644db7d7ccbd88a751fefa1828ac04` (v1.20.1+, 2026-10-16) | 15 patches as listed in §1; v1.20.1 + 4 post-release commits |
-| quickshell | `4f508be500dea6e5732cc3d50382a0048b17e7b1` (0.3.2, 2026-10-08) | `minQuickshell = "0.3.2"` |
-| dank-greeter | `a8b106330db763abd17bcb8eba2f58cb94ebf7a8` (2026-10-16) | greeter, pairs with quickshell; session-list/XDG fixes + Go 1.27 |
+| lucid | `8bc32666da644db7d7ccbd88a751fefa1828ac04` (v1.20.1+, 2026-10-16) | 17 patches as listed in §1; v1.20.1 + 4 post-release commits |
+| quickshell | `9b0f339b19057f4731bf3b48293307d7ef241671` (0.3.2+, 2026-10-22) | master still declares `VERSION "0.3.2"`; `minQuickshell = "0.3.2"` |
+| dank-greeter | `920def3454f681a2616923617b266fed44108088` (duxlabs-dev/dux-greeter, 2026-10-23) | greeter, pairs with quickshell; repo renamed from AvengeMedia/dank-greeter |
 
 v1.20 caveats baked into this bump: upstream docs scope a "Hyprland 0.55.6+"
 floor to custom Lua binds only (README states no floor); yoga runs 0.55.4 —

@@ -11,7 +11,7 @@
 **A single flake, three machines, zero snowflakes.**
 
 [![NixOS 26.05](https://img.shields.io/badge/NixOS-26.05-5277C3?style=for-the-badge&logo=nixos&logoColor=white)](https://nixos.org)
-[![Lix](https://img.shields.io/badge/Lix-2.94-7E3FF2?style=for-the-badge)](https://lix.systems)
+[![Lix](https://img.shields.io/badge/Lix-unpinned_latest-7E3FF2?style=for-the-badge)](https://lix.systems)
 [![Flakes](https://img.shields.io/badge/Flakes-Enabled-41BAC1?style=for-the-badge)](https://nix.wiki/wiki/Flakes)
 [![Home Manager](https://img.shields.io/badge/Home--Manager-Integrated-5277C3?style=for-the-badge)](https://github.com/nix-community/home-manager)
 [![CI](https://img.shields.io/github/actions/workflow/status/daher12/nixos-config/bump.yml?style=for-the-badge&label=CI)](https://github.com/daher12/nixos-config/actions)
@@ -69,9 +69,9 @@ Daily driver: encrypted, impermanence-wiped, secure-booted work machine.
   Colloid-Nord GTK theme, Fluent icons and Posy cursors are shared by both.
 - **Power:** custom suspend-then-hibernate sleep hook (`yoga-s2h`) working
   around systemd 260 firmware bugs; TLP; ryzenadj TDP profiles; automatic
-  120→60 Hz panel switch on battery (both sessions); hibernation
-  currently parked pending an upstream amdgpu/TTM fix (documented in
-  REPO_OVERVIEW).
+  120→60 Hz panel switch on battery (both sessions). Hibernation works
+  end-to-end (re-armed 2026-10-18 after the abort-detector fix; post-mortem
+  in REPO_OVERVIEW).
 - **Virtualization:** libvirt/QEMU with virt-manager, SPICE USB redirection,
   per-guest launchers with DHCP-reserved IPs (`features.virtualization.guests`
   — currently two Windows 11 guests).
@@ -107,7 +107,8 @@ Headless Intel N100 box serving media to the LAN and over Tailscale.
   ntfy push notifications, smartd disk alerts, boot/failure notifications.
 - **Storage:** two XFS disks pooled with MergerFS, NFS export to the fleet,
   read-ahead tuning for USB-attached rotational disks.
-- **Ops:** nightly auto-upgrade (boot-staged), Sunday idle-aware reboot
+- **Ops:** daily 05:00 auto-upgrade (boot-staged; pulls the fleet repo first,
+  so CI's weekly bump reaches this host unattended), Sunday idle-aware reboot
   with activity guards, weekly GC and Docker prune.
 
 </details>
@@ -133,12 +134,19 @@ nixos-config/
 ├── hosts/               # per-machine config + home-manager glue
 ├── home/                # shared home-manager: browsers, terminal, theme, git
 ├── pkgs/                # custom packages: colloid-gtk, fluent-icons,
-│   │                    #   zcode (AppImage), mikromcp
+│   │                    #   zcode (AppImage), mikromcp, is-on-ac
+├── quickshell-patches/  # build-time patches for the quickshell ENGINE
 ├── secrets/             # sops-encrypted per-host secrets
-├── tests/               # NixOS VM tests (litellm gateway, SSH firewall)
+├── tests/               # NixOS VM tests (litellm gateway, SSH firewall,
+│   │                    #   virbr0 firewall)
 ├── scripts/             # install.sh (fresh install), update-safe (safe updates)
 └── .github/workflows/   # weekly input bump + lint CI, opencode PR bot
 ```
+
+The `home/` directory also carries the whole desktop-shell layer:
+`hyprland.nix` (compositor Lua config), `lucid.nix` (Lucid shell deployment),
+`lucid-patches/` (the build-time QML patch layer) and `lucid-themes/`
+(repo-managed theme pair) — see `LUCID_RUNBOOK.md` before touching any of it.
 
 Every host is one `mkHost` call in `flake.nix`:
 
@@ -186,11 +194,16 @@ Full architecture, re-encryption and rotation procedures: **`SOPS_RUNBOOK.md`**.
   **nixfmt** (formatting) over the whole repo, plus evaluation of all three
   hosts.
 - **NixOS VM tests** in `tests/` (run explicitly, kept out of CI for speed):
-  `nix build .#nixosTests.x86_64-linux.litellm-gateway` and `.#ssh-firewall`.
-- **CI** (`.github/workflows/bump.yml`): weekly (Saturdays 02:00 UTC) — update
-  the safe flake inputs → check → dry-build all three hosts → format →
-  auto-commit. Locked inputs (lanzaboote, opencode) only move on explicit
-  request.
+  `nix build .#nixosTests.x86_64-linux.litellm-gateway`, `.#ssh-firewall`,
+  `.#virbr0-firewall`.
+- **CI** (`.github/workflows/`): `ci.yml` on every push/PR — flake check
+  (statix, deadnix, nixfmt) + dry-build of every host, so hand edits are
+  verified before they reach the fleet. `bump.yml` weekly (Saturdays 02:00
+  UTC) — update the safe flake inputs → same verification → format →
+  auto-commit. The locked inputs (lanzaboote, opencode, quickshell,
+  dank-greeter, lucid, spotx-nix) only move deliberately — procedures in
+  REPO_OVERVIEW § Manual Pins & Manual Packages; `update-safe --pin <input>`
+  is the interactive path for them.
 - `nix develop` provides a secrets/ops toolshell (sops, age, ssh-to-age, yq, jq).
 
 </details>
@@ -203,8 +216,11 @@ Full architecture, re-encryption and rotation procedures: **`SOPS_RUNBOOK.md`**.
 # Rebuild the machine you're on
 sudo nixos-rebuild switch --flake .#$(hostname)
 
-# Update inputs the safe way (pull, update safe inputs, check, build, optional deploy)
-./scripts/update-safe <host> [build-only|test|boot|switch]   # `nus` on yoga
+# Update inputs the safe way (pull, update safe inputs, check, build, optional
+# deploy; --pin adds a manual pin to the update list; the updated flake.lock is
+# auto-committed after a successful build — pass --push to publish it, which
+# is what lets nix-media's daily auto-upgrade pick the bump up)
+./scripts/update-safe <host> [build-only|test|boot|switch] [--pin <input>] [--push]   # `nus` on both laptops
 
 # Format & lint (nix fmt needs explicit file arguments)
 nix fmt <changed .nix files> && nix flake check
@@ -236,9 +252,11 @@ verification checks the bootloader and the sops identity chain.
 
 | Document | Contents |
 |----------|----------|
-| [`REPO_OVERVIEW.md`](REPO_OVERVIEW.md) | Per-file map of the whole repo, impermanence boot sequence, and **Known Gotchas** (Plymouth/AMD initrd, the suspend-then-hibernate post-mortem, NixOS 26.05 migration notes) |
+| [`REPO_OVERVIEW.md`](REPO_OVERVIEW.md) | Per-file map of the whole repo, **Manual Pins & Manual Packages** (every held-back input + its bump procedure), impermanence boot sequence, and **Known Gotchas** (Plymouth/AMD initrd, the suspend-then-hibernate post-mortem, NixOS 26.05 migration notes) |
+| [`LUCID_RUNBOOK.md`](LUCID_RUNBOOK.md) | Executor procedure for lucid / quickshell / dank-greeter pin bumps and lucid-patches triage — read before touching the desktop shell |
 | [`SOPS_RUNBOOK.md`](SOPS_RUNBOOK.md) | Secrets architecture, re-encryption/rotation procedures, troubleshooting |
 | [`AGENTS.md`](AGENTS.md) | Rules for AI coding agents working in this repo (conventions, verification workflow, house rules) |
+| [`AGENTS-global.md`](AGENTS-global.md) | Machine-wide rules for opencode sessions on this user's machines |
 
 ---
 

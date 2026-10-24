@@ -14,18 +14,20 @@ follow `LUCID_RUNBOOK.md`.
 ## Layout
 
 - `hosts/<name>/` — per-host NixOS modules (`default.nix`, hardware/disks, home-manager user config in `home.nix`)
-- `home/` — shared home-manager modules (browsers, git, opencode, terminal, theme), imported via `../../home`
+- `home/` — shared home-manager modules (browsers, git, opencode, terminal, theme, hyprland, lucid + its patch layer), imported via `../../home`
 - `modules/` — shared NixOS option modules (`modules/core`, `modules/features`, `modules/hardware`, `modules/roles`)
 - `profiles/` — hardware/system profiles
 - `pkgs/` — custom nix packages (e.g. `mikromcp.nix`)
-- `secrets/` — sops-nix encrypted secrets (hosts/yoga.yaml, hosts/latitude.yaml, hosts/nix-media.yaml)
-- `scripts/` — helper scripts (`update-safe` is the safe rebuild path, exposed as the `nus` fish function)
+- `quickshell-patches/` — build-time patches for the quickshell engine input
+- `tests/` — NixOS VM tests (`nix build .#nixosTests.x86_64-linux.<name>`)
+- `secrets/` — sops-nix encrypted secrets (hosts/yoga.yaml, hosts/latitude.yaml, hosts/nix-media.yaml, hosts/nix-media-litellm.yaml)
+- `scripts/` — helper scripts (`update-safe` is the safe rebuild path, exposed as the `nus` fish function; `install.sh` for fresh installs)
 - `lib/` — flake library functions
 
 ## Conventions
 
 - Flake-based: `nixosConfigurations` per host, home-manager integrated per user.
-- Module style: 4-attr function headers (`{ config, lib, pkgs, ... }:`), nixfmt formatting, option-based feature toggles under `custom.*` or `features.*`.
+- Module style: 4-attr function headers (`{ config, lib, pkgs, ... }:`), nixfmt formatting, option-based feature toggles: NixOS side `features.*` (opt-in), `core.*`, `hardware.*`, `roles.*`; home-manager side top-level namespaces (`browsers.*`, `desktop.*`, `programs.terminal`, `opencode`, `custom.*`).
 - Impermanence is in use: user state must be explicitly persisted via `home.persistence."/persist"` or `environment.persistence."/persist/system"`. If you add a program that writes state to `$HOME`, add the corresponding persistence entries.
 - Secrets never go into plain files — use sops-nix (`secrets/`, `.sops.yaml`). Never commit plaintext keys; `api.key`-style files must stay out of commits.
 - Package overrides that fix runtime issues should carry a comment explaining why (see the opencode `LD_LIBRARY_PATH` wrap in `home/opencode.nix`).
@@ -36,6 +38,7 @@ follow `LUCID_RUNBOOK.md`.
 - Run `nix fmt` on changed `.nix` files and validate with `nix flake check` (or a dry-build of the affected host) before finishing.
 - Prefer editing existing modules over creating new ones; follow the existing naming (`enable` options, `mkEnableOption`).
 - Rebuild/testing: use `scripts/update-safe` guidance or `nixos-rebuild` with `--flake .#<host>`; do not run `nixos-rebuild switch` or reboot without asking.
+- `scripts/update-safe` auto-commits the `flake.lock` it updates (pathspec-limited to that one file, `--push` publishes) — that commit is the script's behavior when the USER runs it and does not license agents to commit anything else; the NEVER-commit rule above still applies to agent-driven changes.
 - The `result` symlink and `.gcroots`-style artifacts are build outputs — ignore them, never commit them.
 - Flake evaluation (and `nix fmt`, `nix flake check`, `nixos-rebuild --flake .#<host>`) reads the file from the **git index**, not the working tree. Newly created files are invisible to these commands until staged: run `git add <newfile>` first (staging only — never commit unless asked). Symptom if forgotten: `error: getting status of '/nix/store/...-source/<file>': No such file or directory`.
 - The flake formatter's bare invocation (`nix fmt`) pipes stdin and fails with `unexpected end of input` — pass files explicitly: `nix fmt <changed .nix files>`.
