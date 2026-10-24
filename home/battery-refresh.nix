@@ -22,44 +22,34 @@ let
   posX = if posParts != null then lib.head posParts else "0";
   posY = if posParts != null then lib.elemAt posParts 1 else "0";
 
+  # Integer part of the configured rate: both probes report rounded
+  # integers, so `want` must be integer-shaped too.
+  panelHz = lib.head (builtins.match "([0-9]+)(\\.[0-9]+)?" (lib.elemAt modeParts 1));
+
   # Shared loop logic: re-derive (power, lid[, ext]) every pollInterval
-  # seconds and apply the mode whenever the observed state changed and the
-  # guards pass. `last` only advances on a successful apply or a guard
-  # block, so a failed apply retries on the next poll instead of being
-  # swallowed until the next state change (compositor socket races at
-  # session start, transient D-Bus errors).
+  # seconds, then compare the panel's ACTUAL refresh rate (probeFn) against
+  # the desired one for the power state, applying the mode whenever they
+  # differ and the guards pass. The comparison is against reality, not
+  # remembered state, so anything that resets the panel behind the daemon's
+  # back — hibernate resume (the compositor re-applies its configured mode
+  # on thaw), a config reload, a manual mode switch — self-heals within one
+  # poll instead of silently sticking at the wrong rate.
   #
-  # Trigger conditions (deliberate, all of them):
-  #   - AC plug/unplug  -> switch 120 Hz <-> battery refresh rate
-  #   - lid reopen      -> re-apply (the lid switch restores the configured
-  #                        120 Hz mode; without this the panel would stay at
-  #                        120 Hz on battery until the next AC transition)
+  # Guards (deliberate, both of them):
   #   - lid closed      -> never touch the panel (the lid switch disabled
   #                        it; applying to a disabled panel is at best a
   #                        no-op and at worst re-enables it — reload-on-open
-  #                        restores the configured mode anyway)
+  #                        restores the configured mode and the next poll
+  #                        re-lowers it)
   #   - external output connected (GNOME only) -> never touch the panel
   #                        (`set -L` replaces the whole monitor configuration)
   #
-  # applyFn must return non-zero on failure (the loop relies on it).
-  daemonText = applyFn: extGuard: ''
-    is_on_ac() {
-      for psu in /sys/class/power_supply/*; do
-        local type_file="$psu/type"
-        local online_file="$psu/online"
-        if [ -f "$type_file" ] && [ -f "$online_file" ]; then
-          local type
-          type=$(cat "$type_file")
-          local online
-          online=$(cat "$online_file")
-          if [ "$online" = "1" ] && { [ "$type" = "Mains" ] || [ "$type" = "USB" ]; }; then
-            return 0
-          fi
-        fi
-      done
-      return 1
-    }
-
+  # probeFn must print the panel's current integer Hz and return non-zero
+  # when it can't (compositor socket races at session start, session
+  # teardown); applyFn must return non-zero on failure. A failed probe or
+  # apply simply retries on the next poll, when the actual rate still
+  # differs.
+  daemonText = probeFn: applyFn: extGuard: ''
     lid_open() {
       local f
       for f in /proc/acpi/button/lid/*/state; do
@@ -80,6 +70,10 @@ let
       }
     ''}
 
+    current_hz() {
+      ${probeFn}
+    }
+
     apply() {
       ${applyFn}
     }
@@ -87,28 +81,29 @@ let
     can_apply() {
       [ "$lid" = open ] || return 1
       ${lib.optionalString extGuard ''
-        [ "$ext" = "none" ] || return 1
+        [ "$ext" = none ] || return 1
       ''}
       return 0
     }
 
-    last=""
     while true; do
-      if is_on_ac; then pwr=ac; else pwr=bat; fi
+      if is-on-ac; then pwr=ac; else pwr=bat; fi
       if lid_open; then lid=open; else lid=closed; fi
       ${lib.optionalString extGuard ''
         if ext_connected; then ext=ext; else ext=none; fi
       ''}
-      state="$pwr,$lid${lib.optionalString extGuard ",$ext"}"
-      if [ "$state" != "$last" ]; then
-        if can_apply; then
-          if [ "$pwr" = ac ]; then
-            if apply "${panel.mode}"; then last="$state"; fi
-          else
-            if apply "${batMode}"; then last="$state"; fi
-          fi
+      if can_apply; then
+        if [ "$pwr" = ac ]; then
+          want='${panelHz}'
+          mode='${panel.mode}'
         else
-          last="$state"
+          want='${toString cfg.refreshRate}'
+          mode='${batMode}'
+        fi
+        have=$(current_hz) || have=""
+        if [ -n "$have" ] && [ "$have" != "$want" ]; then
+          echo "battery-refresh: ${panel.output} at ''${have} Hz, restoring ''${want} Hz (''${pwr})" >&2
+          apply "$mode" || true
         fi
       fi
       sleep ${toString cfg.pollInterval}
@@ -117,32 +112,39 @@ let
 
   # Hyprland session: hyprctl talks to the compositor (uwsm imports
   # HYPRLAND_INSTANCE_SIGNATURE/XDG_RUNTIME_DIR into the user manager, where
-  # this runs as a service).
-  #
-  # Hyprland 0.55 moved monitors into the Lua config parser, where the old
-  # `hyprctl keyword monitor ...` is refused ("keyword can't work with
-  # non-legacy parsers") while still exiting 0 — a silent no-op that looked
-  # healthy for weeks. The runtime path is `hyprctl eval` on hl.monitor.
-  # eval ALSO exits 0 on Lua errors and prints "ok" on success, so the
-  # output — not the exit code — is the success signal.
+  # this runs as a service). `hyprctl eval` instead of `keyword monitor`:
+  # see home/hyprland.nix (0.55's Lua parser silently ignores keyword).
+  # eval exits 0 even on Lua errors and prints "ok" on success, so the
+  # output — not the exit code — is the success signal. The probe reads the
+  # monitor JSON's top-level `refreshRate` (0.55 emits no currentMode
+  # object).
   hyprlandDaemon = pkgs.writeShellApplication {
     name = "battery-refresh";
     runtimeInputs = [
       pkgs.coreutils
       pkgs.gnugrep
       pkgs.hyprland
+      # AC/battery probe shared with modules/hardware/ryzen-tdp.nix
+      pkgs.is-on-ac
+      pkgs.jq
     ];
     text = ''
       set -euo pipefail
 
-      ${daemonText ''
-        local out
-        out=$(hyprctl eval "hl.monitor({output='${panel.output}', mode='$1', position='${panel.position}', scale='${panel.scale}'})" 2>&1) || true
-        if [ "$out" != "ok" ]; then
-          echo "battery-refresh: hyprctl eval failed: $out" >&2
-          return 1
-        fi
-      '' false}
+      ${daemonText
+        ''
+          hyprctl -j monitors | jq -r '.[] | select(.name=="${panel.output}") | .refreshRate | round'
+        ''
+        ''
+          local out
+          out=$(hyprctl eval "hl.monitor({output='${panel.output}', mode='$1', position='${panel.position}', scale='${panel.scale}'})" 2>&1) || true
+          if [ "$out" != "ok" ]; then
+            echo "battery-refresh: hyprctl eval failed: $out" >&2
+            return 1
+          fi
+        ''
+        false
+      }
     '';
   };
 
@@ -155,11 +157,30 @@ let
       pkgs.coreutils
       pkgs.gnugrep
       pkgs.gnome-monitor-config
+      pkgs.gnused
+      # AC/battery probe shared with modules/hardware/ryzen-tdp.nix
+      pkgs.is-on-ac
+      pkgs.jq
     ];
     text = ''
       set -euo pipefail
 
-      ${daemonText ''gnome-monitor-config set -L -p -M ${panel.output} -m "$1" -s ${panel.scale} -t normal -x ${posX} -y ${posY}'' true}
+      ${daemonText
+        ''
+          # `list` marks the active mode with a trailing " CURRENT"; exactly
+          # one logical monitor is expected (the ext guard already refuses
+          # to act when an external output is connected). jq does the
+          # rounding — locale-free, and %g may print a fractional rate.
+          local cur hz
+          cur=$(gnome-monitor-config list | grep ' CURRENT$') || return 1
+          [ "$(printf '%s\n' "$cur" | wc -l)" -eq 1 ] || return 1
+          hz=$(printf '%s\n' "$cur" | sed -n 's/^.*@\([0-9.][0-9.]*\) .*/\1/p')
+          [ -n "$hz" ] || return 1
+          printf '%s\n' "$hz" | jq -r 'round'
+        ''
+        ''gnome-monitor-config set -L -p -M ${panel.output} -m "$1" -s ${panel.scale} -t normal -x ${posX} -y ${posY}''
+        true
+      }
     '';
   };
 in

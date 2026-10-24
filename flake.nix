@@ -126,17 +126,17 @@
           fluent-icon-theme = final.callPackage ./pkgs/fluent-icon-theme.nix { };
           zcode = final.callPackage ./pkgs/zcode.nix { };
           mikromcp = final.callPackage ./pkgs/mikromcp.nix { };
+          is-on-ac = final.callPackage ./pkgs/is-on-ac.nix { };
         })
         # Desktop stack from upstream flakes, built against the main nixpkgs
         # (quickshell's docs mark the follows "THIS IS IMPORTANT" — mismatched
-        # system deps crash). nixpkgs-unstable is GONE: no second nixpkgs
-        # eval, and no binary cache — the first build per pin bump compiles
-        # quickshell locally. Greeter (AvengeMedia 1.6.2) runs at every boot;
-        # Lucid (home/lucid.nix) runs on quickshell; both exec the SYSTEM
-        # quickshell — any bump of quickshell/lucid/greeter is a three-way
-        # pairing, see the floor gate in home/lucid.nix. The DMS shell itself
-        # was removed 2026-09-27 (rollback: rebuild dms-caelestia-look@4b2f965
-        # from history).
+        # system deps crash). nixpkgs-unstable is GONE: the desktop stack
+        # rides the main nixpkgs eval (opencode's pinned input is the only
+        # second one), and there is no binary cache — the first build per pin
+        # bump compiles quickshell locally. Greeter (duxlabs-dev 1.6.2) runs
+        # at every boot; Lucid (home/lucid.nix) runs on quickshell; both exec
+        # the SYSTEM quickshell — any bump of quickshell/lucid/greeter is a
+        # three-way pairing, see the floor gate in home/lucid.nix.
         (final: _prev: {
           dms-greeter = inputs.dank-greeter.packages.${final.stdenv.hostPlatform.system}.dms-greeter;
           # withModules appends Qt modules to the wrapper derivation, whose

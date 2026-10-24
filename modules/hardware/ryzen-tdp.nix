@@ -1,4 +1,3 @@
-# modules/hardware/ryzen-tdp.nix
 {
   config,
   lib,
@@ -72,6 +71,7 @@ in
         runtimeInputs = [
           pkgs.coreutils
           pkgs.gnugrep
+          pkgs.is-on-ac
           pkgs.ryzenadj
           pkgs.util-linux
         ];
@@ -80,27 +80,8 @@ in
 
           LOCK_FILE=/run/ryzen-tdp.lock
 
-          is_on_ac() {
-            for psu in /sys/class/power_supply/*; do
-               local type_file="$psu/type"
-               local online_file="$psu/online"
-
-               if [ -f "$type_file" ] && [ -f "$online_file" ]; then
-                  local type
-                  type=$(cat "$type_file")
-                  local online
-                  online=$(cat "$online_file")
-
-                  if [ "$online" = "1" ] && { [ "$type" = "Mains" ] || [ "$type" = "USB" ]; }; then
-                     return 0
-                  fi
-               fi
-            done
-            return 1
-          }
-
           apply_limits() {
-            if is_on_ac; then
+            if is-on-ac; then
               echo "Power: AC – applying ${toString cfg.ac.stapm}W STAPM"
               ryzenadj \
                 --stapm-limit=${toMW cfg.ac.stapm} \
@@ -139,8 +120,12 @@ in
         ];
 
         unitConfig = {
-          StartLimitBurst = 5;
-          StartLimitIntervalSec = 10;
+          # Rate limiting disabled: plug/unplug transitions emit several
+          # power_supply events in quick succession and each start costs
+          # settleDelaySec — the default 5-per-10s burst limit could drop
+          # the final state for up to a watchdog interval after an AC flip.
+          StartLimitBurst = 0;
+          StartLimitIntervalSec = 0;
           ConditionPathExistsGlob = "/sys/class/power_supply/*/online";
         };
 
