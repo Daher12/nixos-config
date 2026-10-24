@@ -117,9 +117,6 @@ in
       port = 9090;
       listenAddress = "127.0.0.1";
       retentionTime = "30d";
-      extraFlags = [
-        "--storage.tsdb.wal-compression"
-      ];
       globalConfig = {
         scrape_interval = "30s";
         evaluation_interval = "30s";
@@ -231,6 +228,10 @@ in
         server = {
           http_port = config.roles.media.ports.grafana;
           http_addr = "127.0.0.1";
+          # %(domain)s defaults to localhost, which made root_url compose
+          # https://localhost/grafana for share links — pin the MagicDNS
+          # name caddy.nix serves the vhost under (same zone literal).
+          domain = "nix-media.tail6db26.ts.net";
           root_url = "%(protocol)s://%(domain)s/grafana";
           serve_from_sub_path = true;
           enable_gzip = true;
@@ -345,9 +346,6 @@ in
           User = "root";
           StateDirectory = "prometheus-node-exporter";
           StateDirectoryMode = "0755";
-          ExecStartPre = [
-            "${pkgs.coreutils}/bin/chown prometheus:prometheus /var/lib/prometheus-node-exporter"
-          ];
           TimeoutStartSec = "8s";
           MemoryMax = "32M";
           CPUQuota = "10%";

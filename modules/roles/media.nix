@@ -9,7 +9,7 @@ in
     nfsAnonUid = lib.mkOption {
       type = lib.types.int;
       default = 1001;
-      description = "UID for NFS anon mapping (estate standard)";
+      description = "UID for NFS anon mapping (fleet standard, pinned with the host user uid)";
     };
     nfsAnonGid = lib.mkOption {
       type = lib.types.int;
@@ -35,7 +35,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # Centralized NFS configuration
     services.nfs.server = {
       enable = true;
       # Relies on firewall/Tailscale for access control

@@ -66,8 +66,6 @@ in
 {
   services.caddy = {
     enable = true;
-    user = "caddy";
-    group = "caddy";
 
     # Hardcoded tailnet MagicDNS zone — breaks silently if the tailnet is
     # ever renamed (no clean eval-time source; accepted literal).
@@ -93,15 +91,8 @@ in
     '';
   };
 
-  # Deploy the templated HTML to /etc/caddy
   environment.etc."caddy/landing.html".source = landingPage;
 
   # Allow Caddy to read Tailscale certs
   services.tailscale.permitCertUid = "caddy";
-
-  systemd.services.caddy.serviceConfig = {
-    LogsDirectory = "caddy";
-    Restart = "on-failure";
-    RestartSec = "5s";
-  };
 }

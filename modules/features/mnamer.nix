@@ -343,7 +343,5 @@ in
       resolvedPackage
       mnamerTools
     ];
-
-    environment.etc."mnamer/config.json".source = settingsFile;
   };
 }

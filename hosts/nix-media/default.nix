@@ -36,6 +36,14 @@ in
 
     users.defaultShell = "zsh";
     sysctl.optimizeForServer = true;
+
+    # Declarative SSH trust: yoga's key, so the primary laptop can reach the
+    # real sshd (port 26, sshPort below — scripted fleet access; Tailscale
+    # SSH's browser re-auth no longer blocks automation). Additive to any
+    # imperative ~/.ssh/authorized_keys (see the option's description).
+    users.authorizedKeys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE900h7UUGyAcICSsxmX2xqEDcF1PTkonC/r9l3xroES dk@yoga"
+    ];
   };
 
   roles.media = {
@@ -49,8 +57,6 @@ in
   core.openssh.enable = true;
 
   boot = {
-    # configurationLimit = 10 via the modules/core/boot.nix mkDefault.
-
     kernelParams = [ "transparent_hugepage=madvise" ];
     kernel.sysctl."vm.dirty_writeback_centisecs" = 200;
   };
@@ -109,10 +115,16 @@ in
     };
   };
 
+  # Tone mapping (HDR→SDR) runs INSIDE the Jellyfin container, which gets
+  # /dev/dri passed through and carries its own userspace (LSIO bundles the
+  # media/NEO runtime — NEOReadDebugKeys in docker.nix is that in-container
+  # NEO). Host-side OpenCL/VPL would only serve host processes, and there
+  # are none — intel-compute-runtime alone is several hundred MB of closure
+  # for nothing. The load-bearing host halves are the GuC/HuC firmware
+  # (enableGuc) + kernel driver; enableOpenCL/enableVpl stay off. Post-change
+  # QC: play one transcode.
   hardware.intel-gpu = {
     enable = true;
-    enableOpenCL = true; # Critical for HDR→SDR tone mapping
-    enableVpl = true;
     enableGuc = true;
   };
 
@@ -206,7 +218,6 @@ in
   services = {
     journald.extraConfig = ''
       Storage=persistent
-      Compress=yes
       SystemMaxUse=500M
       SystemMaxFileSize=50M
       MaxRetentionSec=2592000
@@ -214,7 +225,6 @@ in
       RateLimitBurst=1000
     '';
 
-    logrotate.enable = true;
     # sshd hardening + key-only auth via core.openssh
     # (PasswordAuthentication/PermitRootLogin/UseDns off,
     # KbdInteractiveAuthentication=false — never passwords, key or
@@ -224,10 +234,8 @@ in
       ports = [ sshPort ];
       openFirewall = true;
     };
-    fstrim = {
-      enable = true;
-      interval = "weekly";
-    };
+    # fstrim weekly is derived by features.filesystem for the ext4 root —
+    # no host-side restatement needed.
 
     # thermald comes from hardware.intel-gpu (mkDefault)
     # Server host — no audio stack needed. Overrides mkDefault in modules/core/audio.nix.

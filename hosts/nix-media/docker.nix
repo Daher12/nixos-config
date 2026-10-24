@@ -42,7 +42,7 @@ let
 
   storagePath = "/mnt/storage";
   dockerPath = "/home/${mainUser}/docker";
-  jellyfinCachePath = "/var/cache/jellyfin"; # Now 6GB tmpfs
+  jellyfinCachePath = "/var/cache/jellyfin";
 in
 {
   virtualisation = {
@@ -70,16 +70,14 @@ in
             # — the project dropped it; the install method is now the
             # version-aware plugin repository manifest
             # (https://intro-skipper.org/manifest.json). The plugin itself
-            # persists in /config/data/plugins ("Intro Skipper" 12.0.4.0,
-            # matching the pinned Jellyfin 12.0) and loads without the mod;
-            # the dead env only logged "(ERROR) OFFLINE" at every container
-            # start. When unpinning to 12.1+: update the plugin via its
-            # repository in the dashboard.
+            # persists in /config/data/plugins ("Intro Skipper" 12.0.4.0)
+            # and loads without the mod. Jellyfin runs :latest with the
+            # weekly auto-update (see images.jellyfin) — when it lands
+            # 12.1+, update the plugin via its repository in the dashboard.
             PGID = gid;
             PUID = uid;
             TZ = tz;
             LIBVA_DRIVER_NAME = "iHD";
-            JELLYFIN_Network__BaseUrl = "/jellyfin";
             # N100 QSV tuning for 4K transcodes
             JELLYFIN_FFmpeg__probesize = "100000000";
             JELLYFIN_FFmpeg__analyzeduration = "100000000";
