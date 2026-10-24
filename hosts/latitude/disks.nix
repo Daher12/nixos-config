@@ -10,13 +10,10 @@
 #   covers system rollback, filesystem-independent.
 # - Simplest recovery story (fsck.ext4) for keeping an old machine alive.
 #
-# ADOPTING the pre-disko install WITHOUT reinstalling: the generated NixOS
-# config references partitions by GPT partlabel (ESP, cryptroot). Relabel the
-# existing partitions to match (non-destructive, metadata only) before the
-# first rebuild on the new config:
-#   lsblk -o NAME,PARTLABEL,FSTYPE   # verify: partition 1 = vfat, 2 = LUKS
-#   sudo sgdisk --change-name=1:ESP --change-name=2:cryptroot /dev/sda
-# A fresh install.sh run creates these labels itself (disko --change-name).
+# Mounting goes by GPT partlabel (ESP, cryptroot). A fresh install.sh run
+# creates those labels itself (disko); adopting a pre-existing install without
+# reinstalling instead requires a non-destructive relabel first — recipe in
+# git history (this file, pre-2026-10).
 {
   disko.devices = {
     disk.main = {
@@ -59,7 +56,6 @@
                 mountpoint = "/";
                 mountOptions = [
                   "noatime"
-                  "nodiratime"
                   "commit=30"
                 ];
               };

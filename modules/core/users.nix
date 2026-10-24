@@ -38,6 +38,16 @@ in
         description = "Oh-My-Zsh theme";
       };
     };
+    authorizedKeys = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = ''
+        SSH public keys authorized for the main user. Additive by design:
+        NixOS writes them to /etc/ssh/authorized_keys.d/$USER (which sshd
+        reads in addition to ~/.ssh/authorized_keys), so imperative keys
+        keep working.
+      '';
+    };
   };
 
   config = {
@@ -76,6 +86,7 @@ in
         group = mainUser;
         hashedPasswordFile = lib.mkIf sopsEnabled config.sops.secrets."${mainUser}_password_hash".path;
         shell = pkgs.${cfg.defaultShell};
+        openssh.authorizedKeys.keys = cfg.authorizedKeys;
         extraGroups = [
           "networkmanager"
           "wheel"

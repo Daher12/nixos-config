@@ -13,18 +13,15 @@
   ];
 
   boot = {
-    initrd = {
-      availableKernelModules = [
-        "xhci_pci"
-        "ehci_pci"
-        "ahci"
-        "sd_mod"
-        "sdhci_pci"
-      ];
-      kernelModules = [ ];
-    };
-    kernelModules = [ "kvm-intel" ];
-    extraModulePackages = [ ];
+    initrd.availableKernelModules = [
+      "xhci_pci"
+      "ehci_pci"
+      "ahci"
+      "sd_mod"
+      "sdhci_pci"
+    ];
+    # kvm-intel + empty generate-config leftovers removed 2026-10-24:
+    # features.virtualization is off on this host, nothing uses /dev/kvm.
   };
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";

@@ -55,7 +55,6 @@
       ];
     };
 
-    # MergerFS Pool
     "/mnt/storage" = {
       device = "/mnt/disk1:/mnt/disk2";
       fsType = "fuse.mergerfs";

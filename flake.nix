@@ -330,7 +330,6 @@
           hostname = "latitude";
           mainUser = "dk";
           withHardware = true;
-          lix = true;
           profiles = [
             "laptop"
             "desktop-gnome"
