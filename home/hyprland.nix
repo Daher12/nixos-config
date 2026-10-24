@@ -7,11 +7,10 @@
 let
   cfg = config.desktop.hyprland;
 
-  # Hyprland 0.55+ Lua config. Ported from the old hyprlang dots
-  # (~/Downloads/dots-main/hypr/hyprland.conf). The Lucid shell
-  # (home/lucid.nix) provides bar/launcher/lock/notifications/idle — its
-  # keybinds, surface rules and glass layers are loaded from the modules
-  # required near the end of this file.
+  # Hyprland 0.55+ Lua config. The Lucid shell (home/lucid.nix) provides
+  # bar/launcher/lock/notifications/idle — its keybinds, surface rules and
+  # glass layers are loaded from the modules required near the end of this
+  # file.
   monitorLua = m: ''
     hl.monitor({
         output   = "${m.output}",
@@ -87,9 +86,8 @@ let
     pcall(require, "modules.lucid-look")
 
     -- Look & feel. Geometry/shadow/blur/motion are owned here (Nix);
-    -- border colors are the static Nord pair below (the DMS-era matugen
-    -- colors.lua drop-in is gone with DMS; Lucid's matugen only colors
-    -- the shell and GTK).
+    -- border colors are the static Nord pair below — Lucid's matugen only
+    -- colors the shell and GTK, never the compositor.
     hl.config({
         general = {
             gaps_in  = 8,
@@ -229,7 +227,7 @@ let
         hl.bind("ALT + " .. i % 10, hl.dsp.window.move({ workspace = i }))
     end
 
-    -- Apps & shell surfaces (lucid IPC equivalents of the old dms-ipc binds)
+    -- Apps & shell surfaces (lucid IPC)
     hl.bind(mainMod .. " + T",         hl.dsp.exec_cmd(terminal))
     hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exec_cmd(fileManager))
     hl.bind(mainMod .. " + F1",        hl.dsp.exec_cmd(browser))
@@ -242,27 +240,26 @@ let
     hl.bind(mainMod .. " + M",     hl.dsp.exec_cmd("${cfg.terminal} -e btop"))
     hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd("qs ipc call settings toggle"))
 
-    -- Scratchpad ("magic" special workspace, as before lucid)
+    -- Scratchpad ("magic" special workspace)
     hl.bind(mainMod .. " + S",         hl.dsp.workspace.toggle_special("magic"))
     hl.bind(mainMod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:magic" }))
 
     ${lidSwitchLua}
 
-    -- App float rules kept from the ported config (float targets that are
-    -- actually installed). The two generic rules this file used to carry
-    -- (suppress-maximize-events, fix-xwayland-drags) are NOT duplicated
-    -- here: lucid's windowrules module below defines them identically.
+    -- App float rules (float targets that are actually installed). The two
+    -- generic rules (suppress-maximize-events, fix-xwayland-drags) are
+    -- deliberately NOT set here: lucid's windowrules module below defines
+    -- them identically.
     hl.window_rule({ name = "float-file-roller", match = { class = "org.gnome.FileRoller" }, float = true })
     hl.window_rule({ name = "float-loupe",       match = { class = "org.gnome.Loupe" }, float = true })
-    -- Firefox Bitwarden popup (German-locale title, as before)
+    -- Firefox Bitwarden popup (German-locale title)
     hl.window_rule({ name = "float-bitwarden-popup", match = { class = "firefox", title = "Erweiterung: .*Bitwarden.*" }, float = true })
 
     -- Lucid runtime modules (deployed from the lucid flake input by
     -- home/lucid.nix). binds.lua loads ~/.config/lucid/keybinds.json — the
     -- complete bind set (launcher, workspaces, scratchpads, mouse, media
     -- and screenshot keys); windowrules floats lucid surfaces; layerrules
-    -- blurs its glass layers (replaces the hand-rolled dms-blur-* rules —
-    -- the dms namespaces are gone); glass is the per-app translucency
+    -- blurs its glass layers; glass is the per-app translucency
     -- loader (Settings > Glass writes ~/.config/hypr/lucid-glass.lua).
     -- pcall keeps the compositor alive if a module is mid-sync or missing.
     pcall(require, "modules.json")
@@ -283,8 +280,8 @@ let
     -- shell, so hyprpolkitagent is no longer autostarted (kept installed
     -- as a manual fallback).
     hl.on("hyprland.start", function()
-        -- Clipboard history backend (kept from the DMS setup; lucid's
-        -- clipboard launcher reads cliphist too).
+        -- Clipboard history backend (lucid's clipboard launcher reads
+        -- cliphist too).
         hl.exec_cmd("wl-paste --watch cliphist store")
     end)
 
@@ -298,7 +295,7 @@ in
     terminal = lib.mkOption {
       type = lib.types.str;
       # kitty (single-instance wrap, home/terminal.nix) — also lucid's F9
-      # terminal bind since the 2026-09-27 consolidation.
+      # terminal bind.
       default = "kitty";
       description = "Terminal command for the SUPER+T bind";
     };

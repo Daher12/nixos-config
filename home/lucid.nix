@@ -87,6 +87,41 @@ let
       ./lucid-patches/123-cava-idle-suppression.patch
       ./lucid-patches/124-net-audio-poll-hygiene.patch
       ./lucid-patches/125-startup-warmup-defer.patch
+      # 2026-10-24 idle-CPU round two — the last unconditional 1Hz repainter.
+      # Measured 2026-10-24 on the pre-round shell: quickshell ~58 +
+      # Hyprland ~80 ms/s idle; activating 122-125 (restart alone) cut
+      # quickshell to ~45; what remained was the clock blinking the bar
+      # colon through a 400ms fade every second even with seconds hidden.
+      # Upstream behavior is preserved whenever clockShowSeconds is on.
+      #   126 clock static colon — colon opacity 1 (no per-second blink) and
+      #       the 1s tick becomes minute-aligned while seconds are hidden
+      #   127 agenda sweep throttle — reminder sweep 1s -> 5s (check() is
+      #       minute-granular by design; a ring may land ~4s late)
+      ./lucid-patches/126-clock-static-colon.patch
+      ./lucid-patches/127-agenda-sweep-throttle.patch
+      # 2026-10-24 journal hygiene — the lock screen arms upstream's second
+      # PamContext ("fingerprint", pam/fingerprint -> pam_fprintd.so) on every
+      # lockNow(); this host has no reader and no fprintd in the closure, so
+      # each attempt died at dlopen (PAM code 28 "Modul ist nicht bekannt")
+      # and the capped backoff retried once a minute for as long as the
+      # screen stayed locked (~1400 failed attempts per boot in the journal).
+      # A readonly fingerEnabled: false gate at the top of startFinger() —
+      # the only entry point (lockNow + the retry timer) — so nothing arms.
+      # Re-enabling needs both this flag and a working pam_fprintd (absolute
+      # store path in pam/fingerprint + services.fprintd + hardware).
+      ./lucid-patches/128-fingerprint-off.patch
+      # 2026-10-24 wifi connect resilience — re-expressed pre-v1.20 patch 102
+      # (predicted regression in the runbook's watch list; incident
+      # 2026-10-24 22:49: minutes after s2idle resume an EC rfkill glitch
+      # wedged iwd into 3 min of instant connect-failed status 1, and the
+      # panel showed "Kein Passwort … gespeichert" + a password box for the
+      # SAVED network — re-typing the PSK failed identically). 129 removes
+      # the forced pre-connect disconnect (it raced iwd), adds one silent
+      # retry, and for saved networks suppresses both the misleading
+      # NoSecrets text and the password box; a second manual connect round
+      # after a failure still offers the box (changed-router-PSK escape
+      # hatch). A hard driver wedge still needs the wifi off/on toggle.
+      ./lucid-patches/129-wifi-connect-resilience.patch
     ];
     dontConfigure = true;
     dontBuild = true;
@@ -100,8 +135,9 @@ let
   };
 
   # Every file upstream install.sh treats as runtime state (its tar
-  # --exclude list, v1.10.5): excluded from the sync so `--delete` cannot
-  # wipe user settings on an update, and seeded from defaults/ when absent.
+  # --exclude list; version tracked by the drift gate below): excluded from
+  # the sync so `--delete` cannot wipe user settings on an update, and
+  # seeded from defaults/ when absent.
   # Drift-gated: upstreamStateFiles below parses upstream install.sh's
   # excludes; on mismatch the build fails with both lists instead of
   # silently resetting one setting per rebuild (add new files here when

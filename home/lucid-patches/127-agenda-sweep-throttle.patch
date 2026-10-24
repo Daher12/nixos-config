@@ -1,0 +1,14 @@
+--- a/Agenda.qml
++++ b/Agenda.qml
+@@ -273,7 +273,10 @@
+     }
+ 
+     Timer {
+-        interval: 1000
++        // nixos-config local patch 127: check() is minute-granular by design
++        // (minuteKey dedup, countdown text) — a 1s sweep was pure wake-up
++        // churn; a due reminder may now ring up to ~4s late
++        interval: 5000
+         repeat: true
+         running: true
+         onTriggered: root.check()

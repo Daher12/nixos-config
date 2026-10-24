@@ -6,9 +6,8 @@
 }:
 
 let
-  # Single source for the light/dark theme + icon names: declared as options
-  # below so home/lucid.nix (auto light/dark wrapper) reads the same values
-  # instead of mirroring plain let-bindings with a "keep in sync" comment.
+  # Light/dark theme + icon names come from the desktop.theme options below —
+  # single source (see that block for the libadwaita caveat).
   inherit (config.desktop.theme)
     gtkDark
     gtkLight
@@ -165,7 +164,8 @@ in
       XCURSOR_SIZE = toString cursorSize;
     };
 
-    # Prevent HM from trying to own these (your script owns them).
+    # HM must not claim these: on non-lucid hosts the switch-theme script
+    # (below) rewrites them; on lucid hosts Lucid's own theming does.
     xdg.configFile = {
       "gtk-4.0/gtk.css".enable = lib.mkForce false;
       "gtk-4.0/gtk-dark.css".enable = lib.mkForce false;
@@ -215,7 +215,7 @@ in
     };
 
     # darkman day/night GTK switching — disabled on the Hyprland attr, where
-    # DMS matugen dynamic theming owns GTK (features.desktop-hyprland).
+    # Lucid's matugen dynamic theming owns GTK (features.desktop-hyprland).
     # Running both would fight over ~/.config/gtk-4.0 and GTK_THEME.
     services.darkman = lib.mkIf (!config.desktop.hyprland.enable) {
       enable = true;

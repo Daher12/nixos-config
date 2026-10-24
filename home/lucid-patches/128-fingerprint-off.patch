@@ -1,0 +1,21 @@
+--- a/Lockscreen.qml
++++ b/Lockscreen.qml
+@@ -447,10 +447,18 @@
+     // ── fingerprint ────────────────────────────────────────────────────────
+     // pam_fprintd fails without a word when the reader is busy (a resume,
+     // another prompt holding it) or missing, so those retries back off
++    // (128, 2026-10-24) gated off: this host has no fingerprint reader and
++    // the system closure has no fprintd, so every attempt dlopen-failed
++    // ("Modul ist nicht bekannt") and the capped backoff retried once a
++    // minute for as long as the screen stayed locked
++    readonly property bool fingerEnabled: false
+     property bool fingerHeard: false
+     property int fingerQuiet: 0
+ 
+     function startFinger() {
++        if (!root.fingerEnabled)
++            return ;
++
+         if (!root.locked || root.leaving || root.granted || fprint.active)
+             return ;
+ 

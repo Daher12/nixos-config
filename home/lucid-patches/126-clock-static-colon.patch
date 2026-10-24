@@ -1,0 +1,29 @@
+--- a/lucidbar/Clock.qml
++++ b/lucidbar/Clock.qml
+@@ -89,7 +89,11 @@
+     }
+ 
+     Timer {
+-        interval: 1000
++        // nixos-config local patch 126: with seconds hidden nothing in the
++        // time display changes within a minute, so tick once per minute
++        // (re-anchored to the wall-clock minute on every update) instead of
++        // waking the bar every second
++        interval: Prefs.clockShowSeconds ? 1000 : (60 - root.now.getSeconds()) * 1000
+         repeat: true
+         running: true
+         triggeredOnStart: true
+@@ -310,7 +314,12 @@
+                             rounded: 100
+                             color: root.timeInk
+                             text: ":"
+-                            opacity: root.now.getSeconds() % 2 === 0 || Prefs.clockShowSeconds ? 1 : 0.35
++                            // nixos-config local patch 126: the blink needs a
++                            // bar repaint every second (plus a 400ms fade per
++                            // flip); keep the colon solid — upstream already
++                            // held it solid whenever clockShowSeconds was on,
++                            // so only the hidden-seconds blink goes away
++                            opacity: 1
+ 
+                             Behavior on opacity {
+                                 NumberAnimation {

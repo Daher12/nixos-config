@@ -1,0 +1,148 @@
+--- a/lucidbar/WifiPanel.qml
++++ b/lucidbar/WifiPanel.qml
+@@ -10,6 +10,13 @@
+ 
+     property bool active: false
+     property string expandedKey: ""
++    // (129, 2026-10-24) wifi connect resilience — re-expressed pre-v1.20
++    // patch 102: a failed connect of a SAVED network surfaced as NoSecrets
++    // ("Kein Passwort für dieses Netzwerk gespeichert.") even though the
++    // stored PSK was fine, and the forced pre-connect disconnect raced iwd
++    // into connect-failed (status 1). One silent retry; saved networks keep
++    // their stored PSK — a failure is not a wrong-password situation.
++    readonly property int maxConnectAttempts: 2
+ 
+     component EthernetGlyph: Item {
+         id: glyph
+@@ -69,6 +76,7 @@
+                     "showPasswordInput": false,
+                     "connectFailed": false,
+                     "attemptedWithNewPassword": false,
++                    "savedFailRounds": 0,
+                     "passwordText": "",
+                     "failReason": ""
+                 });
+@@ -81,11 +89,22 @@
+                     connectTimeoutTimer.stop();
+ 
+                 root.pendingNetworkName = "";
++                if (root.retryOrFail(netItem.modelData))
++                    return ;
++
++                // saved networks keep their stored PSK — a failure is not a
++                // wrong-password situation, don't offer the password box on
++                // the first failed round; from the second manual round on,
++                // offer it (covers a genuinely changed router PSK)
++                const state = root.uiStateFor(netItem.modelData.name);
++                const savedNet = netItem.modelData.known === true && !state.attemptedWithNewPassword;
++                const secondRound = savedNet && (state.savedFailRounds || 0) >= 1;
+                 root.setUiState(netItem.modelData.name, {
+                     "connectFailed": true,
+-                    "failReason": root.failReasonText(reason),
+-                    "showPasswordInput": netItem.isSecured,
+-                    "isUntrustedAttempt": netItem.isSecured
++                    "failReason": savedNet ? "" : root.failReasonText(reason),
++                    "savedFailRounds": savedNet ? (state.savedFailRounds || 0) + 1 : 0,
++                    "showPasswordInput": netItem.isSecured && (!savedNet || secondRound),
++                    "isUntrustedAttempt": netItem.isSecured && (!savedNet || secondRound)
+                 });
+             }
+ 
+@@ -101,6 +120,8 @@
+                     "connectFailed": false,
+                     "showPasswordInput": false,
+                     "attemptedWithNewPassword": false,
++                    "connectAttempt": 0,
++                    "savedFailRounds": 0,
+                     "isUntrustedAttempt": false,
+                     "passwordText": "",
+                     "failReason": ""
+@@ -417,6 +438,7 @@
+                                     "showPasswordInput": false,
+                                     "connectFailed": false,
+                                     "attemptedWithNewPassword": false,
++                                    "savedFailRounds": 0,
+                                     "isUntrustedAttempt": false,
+                                     "passwordText": "",
+                                     "failReason": ""
+@@ -670,6 +692,8 @@
+             "showPasswordInput": false,
+             "connectFailed": false,
+             "attemptedWithNewPassword": false,
++            "connectAttempt": 0,
++            "savedFailRounds": 0,
+             "isUntrustedAttempt": false,
+             "passwordText": "",
+             "failReason": ""
+@@ -734,21 +758,35 @@
+         return network.security !== undefined && network.security !== WifiSecurityType.Open && network.security !== WifiSecurityType.Owe;
+     }
+ 
+-    function attemptConnect(network) {
++    function attemptConnect(network, isRetry) {
+         root.pendingNetworkName = network.name;
+         root.setUiState(network.name, {
+             "connectFailed": false,
+             "attemptedWithNewPassword": false,
+-            "failReason": ""
++            "failReason": "",
++            "connectAttempt": isRetry === true ? (root.uiStateFor(network.name).connectAttempt || 0) + 1 : 1
+         });
+-        if (root.activeNetwork && root.activeNetwork.name !== network.name)
+-            root.activeNetwork.disconnect();
+-
++        // NM's ActivateConnection takes over the device on its own — no
++        // explicit disconnect here: it raced iwd into connect-failed
++        // (status 1 on every BSS) right after a manual network switch
+         connectTimeoutTimer.targetNetwork = network;
+         connectTimeoutTimer.restart();
+         network.connect();
+     }
+ 
++    // One silent retry for saved-network connects: the first association
++    // after a manual switch or a resume regularly fails while iwd settles;
++    // the second attempt connects. Returns true when the failure was
++    // consumed by a retry.
++    function retryOrFail(network) {
++        const state = root.uiStateFor(network.name);
++        if (!state.attemptedWithNewPassword && (state.connectAttempt || 0) < root.maxConnectAttempts) {
++            attemptConnect(network, true);
++            return true;
++        }
++        return false;
++    }
++
+     function submitPassword(network, password) {
+         root.pendingNetworkName = network.name;
+         root.setUiState(network.name, {
+@@ -758,9 +796,6 @@
+             "passwordText": password,
+             "failReason": ""
+         });
+-        if (root.activeNetwork && root.activeNetwork.name !== network.name)
+-            root.activeNetwork.disconnect();
+-
+         connectTimeoutTimer.targetNetwork = network;
+         connectTimeoutTimer.restart();
+         network.connectWithPsk(password);
+@@ -870,11 +905,18 @@
+ 
+             const secured = root.isNetworkSecured(targetNetwork);
+             root.pendingNetworkName = "";
++            if (root.retryOrFail(targetNetwork))
++                return ;
++
++            const state = root.uiStateFor(targetNetwork.name);
++            const savedNet = targetNetwork.known === true && !state.attemptedWithNewPassword;
++            const secondRound = savedNet && (state.savedFailRounds || 0) >= 1;
+             root.setUiState(targetNetwork.name, {
+                 "connectFailed": true,
+                 "failReason": "Zeitüberschreitung beim Warten auf eine Antwort des Netzwerks.",
+-                "showPasswordInput": secured,
+-                "isUntrustedAttempt": secured
++                "savedFailRounds": savedNet ? (state.savedFailRounds || 0) + 1 : 0,
++                "showPasswordInput": secured && (!savedNet || secondRound),
++                "isUntrustedAttempt": secured && (!savedNet || secondRound)
+             });
+         }
+     }

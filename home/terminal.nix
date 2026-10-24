@@ -23,7 +23,7 @@ in
     ghostty = {
       enable = lib.mkOption {
         type = lib.types.bool;
-        # 2026-09-27: kitty won the default slot (SUPER+T, matugen-themed).
+        # 2026-09-27: kitty won the default slot (SUPER+T and lucid's F9).
         # Flip to true per host to bring ghostty back.
         default = false;
         description = "Enable Ghostty terminal";
@@ -91,9 +91,9 @@ in
         enable = true;
         package = pkgs.ghostty;
 
-        # Static Nord everywhere (2026-09-27: kitty is the default terminal,
-        # so the DMS-era dankcolors matugen branch is gone with DMS). The
-        # 0.93 translucency only makes sense under the Wayland compositor.
+        # Static Nord everywhere — no matugen branch: the shell's dynamic
+        # theming (Lucid) doesn't touch terminals. The 0.93 translucency only
+        # makes sense under the Wayland compositor.
         settings = {
           font-family = cfg.ghostty.fontFamily;
           font-size = cfg.ghostty.fontSize;
@@ -110,7 +110,7 @@ in
     })
 
     (lib.mkIf cfg.kitty.enable {
-      # The default terminal (2026-09-27 consolidation): SUPER+T
+      # The default terminal: SUPER+T
       # (desktop.hyprland.terminal) and lucid's F9 bind both open kitty.
       # Single-instance wrap:
       # --single-instance is CLI-only (no kitty.conf equivalent), and it is the
@@ -175,6 +175,14 @@ in
       programs.fish = {
         enable = true;
 
+        # update-safe wrapper: `nus <host> [test|boot|switch|build-only]
+        # [--pin <input>]`. Lives in the shared home so BOTH laptops have it
+        # (was yoga-only until 2026-10-19); nix-media (headless, git-only HM)
+        # calls the script by path.
+        functions.nus = ''
+          "$HOME/nixos-config/scripts/update-safe" $argv
+        '';
+
         interactiveShellInit = ''
           set -g fish_greeting
 
@@ -208,7 +216,7 @@ in
       programs.btop = {
         enable = true;
         # nord ships with btop (share/btop/themes) — matches the terminal,
-        # bat and Hyprland-border palette (was tomorrow-night).
+        # bat and Hyprland-border palette.
         settings.color_theme = "nord";
       };
     })

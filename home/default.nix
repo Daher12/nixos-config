@@ -1,7 +1,7 @@
 {
   config,
   lib,
-  homeDirectory ? "/home/${mainUser}",
+  homeDirectory,
   mainUser,
   ...
 }:
