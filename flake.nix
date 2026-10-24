@@ -8,6 +8,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Hard-pinned to the latest stable tag: lanzaboote owns Secure Boot key
+    # enrollment (lanzaboote-tool runs on every boot), so it never moves via
+    # the routine update sweep — only via the CI workflow_dispatch toggle
+    # include_lanzaboote or an explicit request.
     lanzaboote = {
       url = "github:nix-community/lanzaboote/v1.2.0";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -44,29 +48,32 @@
     # express "latest v2.*", so bump by editing the tag below, then
     # `nix flake update opencode`. Find the newest tag with:
     #   git ls-remote --tags https://github.com/anomalyco/opencode 'v2.*'
-    # v2.0.28+ are UNBUILDABLE from the flake (verified 2026-10-16, still
-    # unfixed on main): packages/cli/script/build.ts imports
-    # ../../../script/native-arch, but nix/node_modules.nix's src fileset
-    # does not include ../script — bump past v2.0.27 only after upstream
-    # adds ../script to that union.
+    # v2.0.28+ were UNBUILDABLE from the flake (their nix/node_modules.nix
+    # src fileset didn't ship ../script for
+    # packages/cli/script/build.ts's ../../../script/native-arch import).
+    # Upstream fixed it in 3171839709 ("fix(nix): ship the root script/ dir
+    # to the CLI build", 2026-10-19, first shipped in the v2.1 line) — the
+    # pin resumed moving at v2.1.4 (2026-10-24 sweep).
     # Deliberately NO `nixpkgs.follows` here: upstream requires its pinned
     # nixpkgs-unstable (packageManager bun@1.4.2; nixos-26.05 only ships
     # bun 1.3.13, whose `bun install` fails extracting the big native
-    # tarballs and hangs the build). Cost is one extra nixpkgs eval.
+    # tarballs and hangs the build). Cost: the flake's only second nixpkgs
+    # eval (input nixpkgs_2) — everything else shares the main one.
     # The libstdc++ LD_LIBRARY_PATH wrap in home/opencode.nix covers the
     # resulting stdenv mismatch.
     opencode = {
-      url = "github:anomalyco/opencode/v2.0.27";
+      url = "github:anomalyco/opencode/v2.1.4";
     };
 
     # Quickshell engine — upstream flake (docs: the GitHub mirror is
     # equivalent to git.outfoxxed.me). follows is upstream-mandated
-    # ("mismatched system dependencies will lead to crashes") and keeps
-    # ONE nixpkgs eval in this flake. Manual pin like lucid/dank-greeter:
-    # bump deliberately with `nix flake update quickshell`, then smoke-test
-    # shell AND greeter (lucid v1.10.5 + DankGreeter 1.6.2 tested against
-    # 0.3.1 — floor enforced in home/lucid.nix). No binary cache upstream:
-    # first build per pin bump compiles locally.
+    # ("mismatched system dependencies will lead to crashes") and keeps the
+    # desktop stack on the single main nixpkgs eval. Manual pin like
+    # lucid/dank-greeter: bump deliberately with `nix flake update
+    # quickshell`, then smoke-test shell AND greeter (lucid v1.20.1 +
+    # DankGreeter 1.6.2 — the pairing floor `minQuickshell = "0.3.2"` is
+    # enforced in home/lucid.nix). No binary cache upstream: first build
+    # per pin bump compiles locally.
     quickshell = {
       url = "github:quickshell-mirror/quickshell";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -75,11 +82,14 @@
     # DankGreeter NixOS module (programs.dms-greeter) from upstream — newer
     # standalone greeter (1.6.2). Both module and package come from this
     # flake now, built against the main nixpkgs (follows; pure Go build).
-    # Since 2026-09-30 the nixpkgs-unstable input is GONE — quickshell and
-    # dms-greeter no longer ride it, so there is exactly one nixpkgs eval
-    # in this flake and no binary cache for the desktop stack.
+    # Repo was renamed AvengeMedia/dank-greeter → duxlabs-dev/dux-greeter
+    # (URL updated 2026-10-24 while the GitHub redirect still works —
+    # redirects can expire). Since 2026-09-30 the nixpkgs-unstable input is
+    # GONE — quickshell and dms-greeter no longer ride it, so the desktop
+    # stack has one nixpkgs eval (opencode's pinned input is the only
+    # second one) and no binary cache.
     dank-greeter = {
-      url = "github:AvengeMedia/dank-greeter";
+      url = "github:duxlabs-dev/dux-greeter";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
