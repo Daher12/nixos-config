@@ -238,7 +238,8 @@
 
       # VM tests — run explicitly, not part of `checks` (CI stays fast):
       # nix build .#nixosTests.x86_64-linux.litellm-gateway / .ssh-firewall
-      #   / .virbr0-firewall
+      #   / .virbr0-firewall / .zram-heal / .yoga-s2h-logic
+      #   / .nix-media-upgrade-pipeline / .host-units-smoke
       nixosTests.${system} =
         (pkgs.callPackage ./tests/litellm-firewall.nix {
           litellmModule = ./modules/features/litellm.nix;
@@ -246,6 +247,33 @@
         // (pkgs.callPackage ./tests/virbr0-firewall.nix {
           virtualizationModule = ./modules/features/virtualization.nix;
           filesystemModule = ./modules/features/filesystem.nix;
+        })
+        // (pkgs.callPackage ./tests/zram-heal.nix {
+          zramModule = ./modules/features/zram.nix;
+        })
+        // (pkgs.callPackage ./tests/yoga-s2h.nix {
+          s2hModule = ./hosts/yoga/yoga-s2h.nix;
+          zramModule = ./modules/features/zram.nix;
+        })
+        // (pkgs.callPackage ./tests/nix-media-pipeline.nix {
+          mediaRoleModule = ./modules/roles/media.nix;
+          maintenanceModule = ./hosts/nix-media/maintenance.nix;
+          ntfyModule = ./hosts/nix-media/ntfy.nix;
+          dockerModule = ./hosts/nix-media/docker.nix;
+          sopsStubModule = import ./tests/sops-stub.nix;
+        })
+        // (pkgs.callPackage ./tests/host-units-smoke.nix {
+          coreModule = ./modules/core;
+          featuresModule = ./modules/features;
+          rolesModule = ./modules/roles;
+          hardwareModule = ./modules/hardware;
+          diskoModule = inputs.disko.nixosModules.disko;
+          preloadNgModule = inputs.preload-ng.nixosModules.default;
+          homeManagerModule = inputs.home-manager.nixosModules.home-manager;
+          latitudeModule = ./hosts/latitude/default.nix;
+          sopsStubModule = import ./tests/sops-stub.nix;
+          flakeRoot = self.outPath;
+          inherit inputs self;
         });
 
       # Secrets/ops toolshell (SOPS_RUNBOOK.md): `nix develop` puts sops, yq,
