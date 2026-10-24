@@ -77,7 +77,6 @@ in
   };
 
   config = lib.mkMerge [
-    # Btrfs defaults
     (lib.mkIf (cfg.type == "btrfs") {
       features.filesystem = {
         btrfs.autoScrub = lib.mkDefault true;
@@ -85,16 +84,14 @@ in
       };
     })
 
-    # Apply mount options
     {
       fileSystems = lib.mapAttrs (_: opts: {
         options = lib.mkAfter opts;
       }) cfg.mountOptions;
     }
 
-    # Fstrim auto-detection (fixed for Disko)
-    # Btrfs-specific computations deferred into branches to avoid unconditional
-    # evaluation of config.fileSystems on non-btrfs hosts.
+    # Fstrim auto-detection. Btrfs-specific computations deferred into branches
+    # to avoid unconditional evaluation of config.fileSystems on non-btrfs hosts.
     {
       services.fstrim.enable =
         if cfg.enableFstrim != null then
@@ -110,7 +107,6 @@ in
       services.fstrim.interval = lib.mkIf config.services.fstrim.enable "weekly";
     }
 
-    # Btrfs scrub
     (lib.mkIf (cfg.type == "btrfs" && cfg.btrfs.autoScrub) {
       services.btrfs.autoScrub = {
         enable = true;
@@ -119,7 +115,6 @@ in
       };
     })
 
-    # Btrfs balance
     (lib.mkIf (cfg.type == "btrfs" && cfg.btrfs.autoBalance) {
       systemd.services.btrfs-balance = {
         description = "Monthly Btrfs balance";

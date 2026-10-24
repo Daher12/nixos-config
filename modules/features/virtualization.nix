@@ -22,7 +22,10 @@ in
 
     virtioWinIso = lib.mkOption {
       type = lib.types.bool;
-      default = true;
+      # Off by default: the ISO pins ~700 MB into EVERY system generation
+      # while it is only needed during Windows installation (the installed
+      # guest carries its drivers). Flip on temporarily for a fresh install.
+      default = false;
       description = ''
         Expose the upstream virtio-win driver ISO (~700 MB in the system
         closure) as /var/lib/libvirt/images/virtio-win.iso for Windows
@@ -255,9 +258,9 @@ in
       environment.systemPackages =
         with pkgs;
         [
-          virt-manager
+          # virt-manager comes from programs.virt-manager.enable above;
+          # swtpm from virtualisation.libvirtd.qemu.swtpm.enable.
           virt-viewer
-          swtpm
           remmina
           freerdp
           adwaita-icon-theme

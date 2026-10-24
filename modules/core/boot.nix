@@ -107,6 +107,9 @@ in
         timeout = lib.mkDefault 3;
         systemd-boot = {
           enable = lib.mkDefault (!sbActive);
+          # Trims boot ENTRIES + ESP kernels only — it never removes
+          # profile generations; store growth is bounded by the nix.gc
+          # window instead (see modules/core/nix.nix).
           configurationLimit = lib.mkDefault 10;
           consoleMode = lib.mkDefault "keep";
         };
@@ -119,8 +122,11 @@ in
       };
     };
 
-    services.udev.extraRules = ''
-      ACTION=="add|change", SUBSYSTEM=="block", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="none"
-    '';
+    # No scheduler udev rule: the kernel already defaults to `none` on
+    # NVMe and `mq-deadline` on SATA SSDs — the old rotational=="0" rule
+    # forced `none` onto the fleet's one SATA SSD (latitude), which is the
+    # wrong choice there. HDD tuning (read-ahead + none, where the USB
+    # bridge does its own queuing) stays per-host in nix-media's udev
+    # rules.
   };
 }

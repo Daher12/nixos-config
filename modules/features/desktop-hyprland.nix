@@ -157,7 +157,8 @@ in
 
       (lib.mkIf cfg.greeter.enable {
         # DankGreeter, split out of the shell in DMS 1.6.0: standalone Go
-        # binary + upstream NixOS module (github:AvengeMedia/dank-greeter),
+        # binary + upstream NixOS module (github:duxlabs-dev/dux-greeter,
+        # renamed from AvengeMedia/dank-greeter),
         # newer than the greeter baked into nixpkgs 26.05's dms-shell 1.4.6
         # (services.displayManager.dms-greeter stays unused). Package =
         # binary-cached unstable build via the flake overlay. The greeter

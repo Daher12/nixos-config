@@ -9,7 +9,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # FIX: Grouped "boot" attributes to satisfy Statix
     boot = {
       blacklistedKernelModules = [
         "nouveau"

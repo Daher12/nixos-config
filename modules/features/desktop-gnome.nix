@@ -91,25 +91,21 @@ in
         security.pam.services.gdm.enableGnomeKeyring = true;
 
         environment = {
+          # With core-apps.enable = false above, the only GNOME packages
+          # still auto-installed that we do NOT want are gnome-tour and
+          # gnome-user-docs (they ride the core-shell block, which is
+          # always on). The old list also excluded epiphany/geary/totem/
+          # gnome-photos/gedit/cheese/seahorse/calendar/maps/etc. — all of
+          # those come from core-apps (disabled) or are no longer installed
+          # by the module at all, so their exclude entries were no-ops
+          # (verified against the gnome module at the locked nixpkgs rev,
+          # 2026-10-24). The systemPackages re-adds below (calculator,
+          # text-editor, papers, nautilus, loupe, file-roller) are LIVE:
+          # core-apps is what provided them, and 26.05 folded the old
+          # core-utilities option into it.
           gnome.excludePackages = [
-            pkgs.gnome-photos
             pkgs.gnome-tour
-            pkgs.gedit
-            pkgs.cheese
-            pkgs.gnome-music
-            pkgs.epiphany
-            pkgs.geary
-            pkgs.totem
-            pkgs.gnome-contacts
-            pkgs.gnome-weather
-            pkgs.gnome-maps
-            pkgs.yelp
-            pkgs.seahorse
             pkgs.gnome-user-docs
-            pkgs.gnome-calendar
-            pkgs.simple-scan
-            pkgs.gnome-logs
-            pkgs.gnome-connections
           ];
 
           systemPackages = [

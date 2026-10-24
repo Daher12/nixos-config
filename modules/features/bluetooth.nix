@@ -29,8 +29,8 @@ in
     # confirmation/passkey request. 2026-10-06 journal: 13 failed pair
     # attempts via the lucid BT panel — bluetoothd "No agent available for
     # request type 2" and quickshell "Failed to pair: Authentication
-    # Failed" line up to the second. quickshell 0.3.1 has no
-    # AgentManager/RegisterAgent API at all and nothing else registers an
+    # Failed" line up to the second. quickshell exposes no
+    # AgentManager/RegisterAgent API and nothing else registers an
     # agent; already-paired devices keep working off cached link keys.
     # bt-agent with NoInputNoOutput makes BlueZ use JustWorks
     # (auto-accept, no passkey UI) — no MITM protection during pairing,

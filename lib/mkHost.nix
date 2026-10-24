@@ -9,7 +9,7 @@
   mainUser,
   system ? "x86_64-linux",
   profiles ? [ ],
-  withHardware ? false, # Explicit toggle replacing 'needsHardware' heuristic
+  withHardware ? false, # opt in to modules/hardware (GPU/firmware etc.)
   lix ? true, # true → Lix from nixpkgs (cached), false → CppNix
   extraModules ? [ ],
   hmModules ? [ ],
@@ -58,6 +58,9 @@ nixpkgs.lib.nixosSystem {
         overlays = colloidFluentOverlays;
       };
       networking.hostName = hostname;
+      # Traceability: `nixos-version --configuration-revision` answers "which
+      # commit is running". dirtyRev covers uncommitted working trees.
+      system.configurationRevision = self.rev or self.dirtyRev or null;
 
       home-manager = {
         useGlobalPkgs = true;

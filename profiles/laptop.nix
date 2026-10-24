@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ lib, pkgs, ... }:
 
 {
   features = {
@@ -21,7 +21,7 @@
 
     sops.enable = lib.mkDefault false;
 
-    # Common to both laptops (host copies removed 2026-10-17).
+    # Common to both laptops.
     # serverIp uses the features.nas option default (Tailscale IP of nix-media).
     nas.enable = lib.mkDefault true;
 
@@ -34,7 +34,7 @@
     spotify.enable = lib.mkDefault true;
   };
 
-  # --- Fleet laptop baseline (host copies removed 2026-10-17) ---
+  # --- Fleet laptop baseline ---
   core = {
     # Byte-identical on both laptops.
     users.description = lib.mkDefault "David";
@@ -50,8 +50,13 @@
     nix.gc.automatic = lib.mkDefault true;
   };
 
-  # --- Firewall hardening (activates on next operator `nixos-rebuild
-  # switch`; keep console/Tailscale access available before switching) ---
+  # VA-API info/testing tool (vainfo) — shared by both laptops' iGPUs; was
+  # duplicated in hosts/yoga + hosts/latitude systemPackages until 2026-10-19.
+  environment.systemPackages = [
+    pkgs.libva-utils
+  ];
+
+  # --- Firewall hardening ---
   # Default-deny input (NixOS firewall default policy) with explicit holes:
   # SSH only from the home management LAN (192.168.88.0/24), plus ICMP echo.
   # Loopback and established/related are allowed by the base firewall; the

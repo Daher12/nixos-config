@@ -49,7 +49,7 @@ in
       # nixpkgs — wrap with the current one or it dies on
       # `libstdc++.so.6: version GLIBCXX not found` (REPO_OVERVIEW Known
       # Gotchas). NixOS-generic, applies to every host using this module.
-      package = inputs.opencode.packages.x86_64-linux.default.overrideAttrs (previousAttrs: {
+      package = inputs.opencode.packages.${pkgs.system}.default.overrideAttrs (previousAttrs: {
         postFixup = (previousAttrs.postFixup or "") + ''
           wrapProgram $out/bin/opencode \
             --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ]}"
@@ -97,8 +97,6 @@ in
               };
             };
           };
-          # orcarouter provider removed 2026-09-09 along with its
-          # orcarouter_api_key sops secret (recoverable from git history).
         };
         permission = {
           edit = "ask";

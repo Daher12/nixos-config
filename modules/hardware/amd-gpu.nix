@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }:
 
@@ -19,19 +18,20 @@ in
       initrd.kernelModules = [ "amdgpu" ];
     };
 
-    hardware.graphics = {
-      enable = true;
-      enable32Bit = true;
-      extraPackages = [
-        pkgs.rocmPackages.clr
-        pkgs.libva-vdpau-driver
-        pkgs.libvdpau-va-gl
-      ];
-    };
+    # Mesa provides both VA-API (radeonsi) and VDPAU (libvdpau_radeonsi)
+    # natively for AMD — no extraPackages needed. Deliberately absent
+    # since 2026-10-24, none had a consumer in the fleet:
+    #   rocmPackages.clr — no OpenCL user anywhere
+    #   libva-vdpau-driver — VA-API-on-VDPAU bridge for NVIDIA; inert with
+    #     LIBVA_DRIVER_NAME=radeonsi
+    #   libvdpau-va-gl + VDPAU_DRIVER=va_gl — routed VDPAU consumers
+    #     through a slow VA-API/OpenGL wrapper instead of Mesa's hardware
+    #     radeonsi path
+    #   enable32Bit — no 32-bit (Steam/Wine) workload on any AMD host
+    hardware.graphics.enable = true;
 
     environment.sessionVariables = {
       LIBVA_DRIVER_NAME = "radeonsi";
-      VDPAU_DRIVER = "va_gl";
     };
   };
 }
