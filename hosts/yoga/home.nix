@@ -84,6 +84,14 @@ in
             directory = ".gnupg";
             mode = "0700";
           }
+          # adb/fastboot RSA keypair (~/.android/adbkey) — the host's adb
+          # setup (adbusers group + udev rule) is pointless without it:
+          # unpersisted, every reboot regenerates the key and each phone
+          # re-prompts "allow USB debugging?".
+          {
+            directory = ".android";
+            mode = "0700";
+          }
           {
             directory = ".config/sops/age";
             mode = "0700";
@@ -141,7 +149,6 @@ in
           # Clipboard history (wl-paste --watch cliphist store, home/hyprland.nix)
           ".cache/cliphist"
           # ZCode (Electron AppImage): auth/session + workspace state.
-          # Verify actual dirname after first launch: ls ~/.config | grep -i zcode
           ".config/ZCode"
           # ZCode auth/history lives here, not in ~/.config/ZCode
           ".zcode"
@@ -171,12 +178,8 @@ in
           ".config/monitors.xml"
           # set-wallpaper.sh state: active wallpaper/mode + theme name. Must
           # be FILES, not directories: lucid's shell scripts and QML FileViews
-          # read/write a file at exactly these paths. Persisted as directories
-          # from 2026-09-23, impermanence bind-mounted empty dirs over them
-          # and every read failed "Not a file" (journal spam each shell start;
-          # wallpaper/theme state markers unwritable). First switch after this
-          # move needs the stale /persist-side DIRS removed (empty):
-          #   sudo rmdir /persist/home/dk/.cache/current_{theme,wallpaper,mode}
+          # read/write a file at exactly these paths — as directories they get
+          # bind-mounted over and every read fails "Not a file".
           ".cache/current_theme"
           ".cache/current_wallpaper"
           ".cache/current_mode"
@@ -267,6 +270,10 @@ in
       };
     };
 
+    # Declarative bookmarks: derived from xdg.userDirs above. Nautilus
+    # bookmark edits made at runtime land in *.backup files at the next
+    # activation (HM re-plants the store symlink — the declarative list
+    # wins); add entries to allBookmarks here instead.
     home.file.".config/gtk-3.0/bookmarks".text = gtkBookmarksText;
     home.file.".config/gtk-4.0/bookmarks".text = gtkBookmarksText;
 
@@ -299,19 +306,15 @@ in
     ];
 
     # 120 -> 60 Hz on battery (~0.5-1 W at light load, the panel's EDID has
-    # a native 60 Hz timing for this mode). Triggers: AC plug/unplug, lid
-    # reopen; never while the lid is closed or (GNOME) a monitor is docked.
+    # a native 60 Hz timing for this mode). Enforces actual-vs-desired every
+    # poll, so AC transitions AND compositor-side resets (hibernate resume,
+    # reload) self-heal; never while the lid is closed or (GNOME) a monitor
+    # is docked.
     desktop.battery-refresh.enable = true;
 
     home.packages = [
       pkgs.zcode
       pkgs.obsidian
     ];
-
-    programs = {
-      fish.functions.nus = ''
-        "$HOME/nixos-config/scripts/update-safe" $argv
-      '';
-    };
   };
 }

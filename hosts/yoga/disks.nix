@@ -1,12 +1,11 @@
 _: # No arguments used in this module
 let
+  # noatime implies nodiratime; space_cache=v2 and the ssd allocator hint
+  # are kernel defaults (the extra flags were dropped 2026-10-24).
   btrfsOpts = [
     "compress-force=zstd:1"
     "noatime"
-    "nodiratime"
     "discard=async"
-    "space_cache=v2"
-    "ssd"
   ];
 in
 {

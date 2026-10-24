@@ -26,11 +26,8 @@
   # resumes/unwinds since, zero delayed oopses.
   # Re-arm discipline: run one supervised manual `systemctl hibernate`
   # first and expect the hook to log "hibernate cycle completed"; the
-  # automated path only fires after a 2h battery suspend anyway. The
-  # September 7.1.10/7.2.3 attempts can no longer be classified (journals
-  # rotated past Sep 16) — the deciding question there is physical: did
-  # the machine power off. Full campaign post-mortem in REPO_OVERVIEW
-  # Known Gotchas.
+  # automated path only fires after a 2h battery suspend anyway. Full
+  # campaign post-mortem in REPO_OVERVIEW Known Gotchas.
   #
   # How this hook works:
   #   pre suspend   on battery: remember a deadline in /run and arm
@@ -53,7 +50,16 @@
   #                 is always refused by logind, and going through it
   #                 3s later re-arms delayed_action + the lid holdoff
   #                 for the whole write), else disarm and let logind
-  #                 re-suspend into a fresh window. Lid open or on AC →
+  #                 re-suspend into a fresh window. Within the window
+  #                 + lid open + battery (the idle-suspend case,
+  #                 2026-10-19): the first elapsed window re-suspends
+  #                 15s out via the recheck transient unit — the
+  #                 machine is awake ~15s per cycle instead of the old
+  #                 "stay awake until hypridle re-suspends" — and the
+  #                 SECOND consecutive elapsed window hibernates, so
+  #                 an idle suspend left >2×DELAY unattended still
+  #                 reaches disk. Manual wake, AC, a completed cycle
+  #                 or a reboot resets the window counter. On AC →
   #                 clear, stay awake.
   #   pre hibernate stamp uptime+epoch for abort detection, then swap
   #                 zram out to the disk swapfile so those pages are
@@ -79,10 +85,9 @@
   #                 re-suspend and retry in 2h. Clear leftover timer
   #                 state either way.
   #
-  # First full-cycle telemetry (2026-09-07 night): suspend 02:00, RTC
-  # wake 04:00 to the second, image written, powered off ~11h, resumed
-  # with amdgpu SMU clean — total battery cost 35%→34% (≈1%, s2idle
-  # drain ≈0.25-0.5%/h). The 2h DELAY is cheap; no reason to shorten.
+  # The 2h timer is deliberately long — a full cycle costs ≈1% battery
+  # (measured 2026-09-07: 11h powered off, 35%→34%), so there is no reason
+  # to shorten it.
   #
   # NixOS pitfall: system-sleep hooks run with a minimal PATH — `grep`
   # was missing while `swapon` happened to resolve (journal 2026-09-05),
@@ -102,6 +107,7 @@
     DEADLINE_FILE=/run/yoga-s2h-deadline
     HIBSTATE_FILE=/run/yoga-s2h-hibstate
     DECISION_FILE=/run/yoga-s2h-decision
+    OPENLID_FILE=/run/yoga-s2h-openlid
     DELAY=7200 # suspend phase before hibernate (seconds)
     # HIBERNATE_ENABLED gates the automated deadline hibernate (the 2h
     # window armed in pre:suspend). Re-armed 2026-10-18: two verified
@@ -114,6 +120,14 @@
     # only after a 2h battery suspend, so re-arming commits nothing
     # until then. Flip to 0 to re-park.
     HIBERNATE_ENABLED=1
+    # Open-lid (idle-suspend) deadline policy (2026-10-19): window 1
+    # re-suspends 15s out (see recheck:), window MAX_OPENLID hibernates.
+    # The counter in OPENLID_FILE counts CONSECUTIVE elapsed windows —
+    # cleared on manual wake, AC suspend, a completed hibernate and
+    # reboot (tmpfs) — so a briefly-away machine stays in cheap s2idle
+    # and only an idle suspend left unattended for >MAX_OPENLID×DELAY
+    # pays for a full hibernate.
+    MAX_OPENLID=2
     # ABORT DETECTION (rewritten 2026-10-18 after a proven false
     # positive): this kernel INJECTS the hibernation off-time into
     # CLOCK_BOOTTIME (/proc/uptime) at resume — verified live: both real
@@ -142,7 +156,17 @@
     # aborts; it is kept only as a secondary trigger.
 
     log() { echo "yoga-s2h: $*"; }
-    on_ac() { [ "$(cat /sys/class/power_supply/ADP0/online 2>/dev/null)" = "1" ]; }
+    on_ac() {
+      # Glob, not a hardcoded ADP0: both companion probes (pkgs/is-on-ac,
+      # ryzen-tdp) glob too — a firmware/driver supply rename must not
+      # silently read "battery" forever (the RTC deadline would then be
+      # armed on AC, the exact state the guards exist to prevent).
+      for f in /sys/class/power_supply/*/online; do
+        [ -r "$f" ] || continue
+        [ "$(cat "$f" 2>/dev/null)" = "1" ] && return 0
+      done
+      return 1
+    }
     lid_open() { grep -qs '^state:.*open' /proc/acpi/button/lid/*/state; }
     now_uptime() { cut -d' ' -f1 /proc/uptime | cut -d. -f1; }
     # CLOCK_MONOTONIC seconds, taken from the newest journal record's
@@ -192,13 +216,31 @@
         # "recheck)" pattern never matched and the abort response was
         # silently skipped (fixed 2026-09-09). "recheck:*" also covers a
         # hypothetical in-hook re-entry with an action set.
-        # Deferred from post:hibernate via systemd-run (logind refuses
-        # in-hook sleep/reboot requests). Acts on the decision recorded
-        # there, re-checked against fresh lid/AC state at fire time.
+        # Deferred from post:suspend (open-lid window 1) and
+        # post:hibernate (abort response) via systemd-run (logind
+        # refuses in-hook sleep/reboot requests). Acts on the decision
+        # recorded there, re-checked against fresh lid/AC state at
+        # fire time.
         [ -r "$DECISION_FILE" ] || exit 0
         decision=$(cat "$DECISION_FILE")
         rm -f "$DECISION_FILE"
-        if lid_open; then
+        if [ "$decision" = "openlid-resuspend" ]; then
+          # Open-lid window 1 re-suspend: lid open is the EXPECTED
+          # state here (checked before the post-abort guard, which
+          # would drop the decision), so only AC cancels — plugging
+          # in mid-window means no hibernate is needed. The fresh
+          # suspend arms window 2 via pre:suspend. AC also ends the
+          # episode: clear the window counter, same as every other
+          # AC/manual-wake exit, so the next battery episode starts
+          # at window 1 again.
+          if on_ac; then
+            rm -f "$OPENLID_FILE"
+            log "open-lid recheck: on AC, staying awake (window cycle dropped)"
+          else
+            log "open-lid recheck: re-suspending (next deadline hibernates)"
+            systemctl suspend
+          fi
+        elif lid_open; then
           log "post-abort recheck: lid is open, staying awake ($decision dropped)"
         elif on_ac; then
           log "post-abort recheck: on AC, staying awake ($decision dropped)"
@@ -213,6 +255,7 @@
       pre:suspend)
         if on_ac; then
           disarm
+          rm -f "$OPENLID_FILE"
           log "suspend on AC: no hibernate timer"
         elif [ "$HIBERNATE_ENABLED" != "1" ]; then
           # Hibernate parked → no RTC timer either: waking every 2h
@@ -220,6 +263,7 @@
           # nothing. A plain unbounded s2idle is the whole policy
           # while parked (~0.25-0.5%/h).
           disarm
+          rm -f "$OPENLID_FILE"
           log "suspend on battery: hibernate parked, no RTC timer"
         else
           now=$(date +%s)
@@ -251,6 +295,7 @@
         if [ "$remaining" -gt "$TOLERANCE" ]; then
           if lid_open || on_ac; then
             disarm
+            rm -f "$OPENLID_FILE"
             log "manual wake ''${remaining}s before deadline: timer cleared"
           else
             # Lid still closed + still on battery + far from the
@@ -261,12 +306,48 @@
             clear_alarms
             log "spurious wake ''${remaining}s before deadline: deadline kept, will re-suspend"
           fi
-        elif lid_open; then
-          disarm
-          log "timer reached but lid is open: staying awake"
         elif on_ac; then
+          # Checked BEFORE the lid-open branch: AC plugged mid-window
+          # (without waking the machine) must keep the machine awake
+          # whatever the lid says — the window logic below must never
+          # hibernate or re-suspend on AC.
           disarm
+          rm -f "$OPENLID_FILE"
           log "timer reached but on AC: staying awake"
+        elif lid_open; then
+          # Idle-suspend deadline with the lid open (2026-10-19): the
+          # old behavior ("staying awake") left the machine up until
+          # hypridle's 2h idle timer fired — screen lit ~10min of it,
+          # ~0.5%/h on battery. Now: window 1 re-suspends 15s out via
+          # the recheck transient unit, window MAX_OPENLID hibernates
+          # through the same deferred unit as the lid-closed path. The
+          # counter counts elapsed windows INCLUDING this one, so the
+          # compare happens after the increment (an earlier
+          # compare-then-increment draft hibernated only at the third
+          # deadline — caught by the /tmp/s2h-harness simulation).
+          disarm
+          if [ "$HIBERNATE_ENABLED" != "1" ]; then
+            log "timer reached but lid is open: staying awake (hibernate parked)"
+          else
+            openlid_count=$(cat "$OPENLID_FILE" 2>/dev/null || echo 0)
+            openlid_count=$((openlid_count + 1))
+            if [ "$openlid_count" -ge "$MAX_OPENLID" ]; then
+              rm -f "$OPENLID_FILE"
+              log "lid open, window $openlid_count/$MAX_OPENLID elapsed: hibernating"
+              if systemd-run --collect --unit=yoga-s2h-hibernate --on-active=3s systemctl hibernate; then
+                log "hibernate deferred 3s via transient unit (logind refuses in-hook requests)"
+              else
+                log "WARNING: failed to schedule hibernate"
+              fi
+            else
+              echo "$openlid_count" > "$OPENLID_FILE"
+              log "lid open, window $openlid_count/$MAX_OPENLID elapsed: re-suspending in 15s"
+              echo openlid-resuspend > "$DECISION_FILE"
+              if ! systemd-run --collect --unit=yoga-s2h-recheck --on-active=15s -- /etc/systemd/system-sleep/yoga-s2h recheck; then
+                log "WARNING: failed to schedule re-suspend"
+              fi
+            fi
+          fi
         else
           disarm
           if [ "$HIBERNATE_ENABLED" = "1" ]; then
@@ -314,30 +395,24 @@
         # next reboot. Let such an instance settle, then only act if zram
         # is still not swapped on.
         sleep 2
-        if ! [ -b /dev/zram0 ]; then
-          log "WARNING: /dev/zram0 missing after resume"
-        elif grep -q '^/dev/zram0 ' /proc/swaps; then
+        if grep -q '^/dev/zram0 ' /proc/swaps; then
           log "zram0 already swapped on after resume"
         else
+          # Residue handling lives in the setup unit's template ExecStartPre
+          # now (modules/features/zram.nix): reset a stale-initialized device
+          # and re-create it via zram-control/hot_add. On this kernel (7.2.9)
+          # a reset REMOVES the hot-added device ("zram: Removed device:
+          # zram0", journal 2026-10-19 00:46), so the hook's old manual
+          # `zramctl --reset` + plain start left NO device for the setup to
+          # configure — ENOENT instead of the EBUSY it was written for. The
+          # unit owns the whole dance; restart = generator reset-device
+          # (no-op on an unconfigured device) + healed start.
+          if ! [ -b /dev/zram0 ]; then
+            log "zram0 missing after resume - re-creating via systemd-zram-setup@zram0 (hot_add)"
+          fi
           if ! systemctl restart systemd-zram-setup@zram0.service; then
-            # swapoff above auto-resets zram to disksize 0, so a plain
-            # swapon fails ("could not read swap header", journal
-            # 2026-09-06); the setup unit's generator recreates
-            # size/algorithm/priority from the NixOS-generated
-            # zram-generator.conf. EBUSY on comp_algorithm means the
-            # resume race left the device initialized (disksize > 0)
-            # without swap on it — zram-generator writes the algorithm
-            # first and refuses initialized devices, so only a reset
-            # lets it run. Safe here — nothing is swapped on zram0. (NOT
-            # `echo 0 > disksize`: the kernel rejects 0 with -EINVAL;
-            # the reset attribute wants a 1.)
-            if ! zramctl --reset /dev/zram0 2>/dev/null && ! echo 1 > /sys/block/zram0/reset; then
-              log "WARNING: could not reset initialized zram0"
-            else
-              log "zram0 was initialized without swap (resume race): device reset"
-              systemctl start systemd-zram-setup@zram0.service \
-                || log "WARNING: zram setup unit still failing after reset"
-            fi
+            systemctl start systemd-zram-setup@zram0.service \
+              || log "WARNING: zram setup unit failed twice after resume"
           fi
           # Truth is /proc/swaps, not the setup unit's exit code: the
           # swapon rides the setup unit's transaction (observed 2026-10-18
@@ -424,6 +499,9 @@
           fi
         fi
         disarm
+        # A completed cycle (or abort) ends the open-lid episode; the
+        # next one starts fresh at window 1.
+        rm -f "$OPENLID_FILE"
         ;;
     esac
     exit 0

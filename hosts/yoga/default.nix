@@ -16,8 +16,9 @@
     neededForUsers = true;
   };
 
-  # MikroTik MCP (mikromcp): flip to false to disable the opencode MCP server
-  # (keeps ~/.mikromcp data persisted either way).
+  # MikroTik MCP (mikromcp): disabled on yoga (the RouterOS sessions live
+  # elsewhere) — flip to true to enable the opencode MCP server (keeps
+  # ~/.mikromcp data persisted either way).
   # windows-mcp runs inside the windows11 VM (192.168.122.139, NAT bridge);
   # the opencode MCP entry only works while the VM and its server are up.
   home-manager.users.${mainUser}.custom = {
@@ -59,14 +60,14 @@
         "sd_mod"
       ];
 
-      # Prevent amdgpu from loading in initrd so simpledrm survives for Plymouth.
-      # lib.mkForce beats amd-gpu.nix and nixos-hardware yoga module.
-      # Preserves btrfs/dm_mod (LUKS) and kvm/kvm-amd (amd-kvm.nix).
+      # Prevent amdgpu from loading in initrd so simpledrm survives for
+      # Plymouth (symptom if it regresses: the LUKS prompt shows an ~8s delay
+      # or falls back to text mode). lib.mkForce beats amd-gpu.nix and
+      # nixos-hardware yoga module. Preserves btrfs/dm_mod (LUKS); kvm/amd-kvm
+      # load at stage 2 — nothing virtualizes inside the initrd.
       kernelModules = lib.mkForce [
         "btrfs"
         "dm_mod"
-        "kvm"
-        "kvm-amd"
       ];
 
       # Block udev PCI modalias auto-load of amdgpu in initrd.
@@ -214,7 +215,11 @@
     kernel.extraParams = [
       "zswap.enabled=0"
       "amd_pstate=active"
-      "amdgpu.ppfeaturemask=0xffffffff"
+      # amdgpu.ppfeaturemask (full unlock) removed 2026-10-24: nothing in
+      # the fleet reads the GPU power-play tables (ryzenadj talks to the
+      # CPU SMU, not the GPU) — it only widened the GPU clocking attack
+      # surface. Re-add "amdgpu.ppfeaturemask=0xffffffff" if GPU-side
+      # overclock/undervolt tooling is ever used.
       # Hibernation to the btrfs swapfile (/var/lib/swap/swapfile). The offset
       # is the swapfile's *device-physical* start (NOT filefrag's value):
       #   sudo btrfs inspect-internal map-swapfile -r /var/lib/swap/swapfile
@@ -223,10 +228,6 @@
       # swapfile block groups. If hibernate ever boots normally instead of
       # resuming (stale offset = lost session, no corruption), re-derive it.
       "resume_offset=7697093"
-      # Uncomment if Plymouth LUKS prompt shows 8s delay or text-mode fallback.
-      # Blocks amdgpu module_init in initrd so simpledrm survives for Plymouth.
-      # Not needed if LUKS prompt appears promptly via simpledrm.
-      # "initcall_blacklist=amdgpu_init"
     ];
 
     virtualization = {
@@ -247,14 +248,13 @@
 
     power-tlp.settings = {
       TLP_DEFAULT_MODE = "BAT";
-      CPU_DRIVER_OPMODE_ON_AC = "active";
-      CPU_DRIVER_OPMODE_ON_BAT = "active";
+      # amd_pstate=active on the kernel cmdline (and TLP's own default)
+      # already select the active cpufreq driver; CPU_SCALING_MIN_FREQ was
+      # dropped 2026-10-24 — it pinned the hardware floor (no-op).
       CPU_SCALING_GOVERNOR_ON_AC = "powersave";
       CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
       CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
       CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
-      CPU_SCALING_MIN_FREQ_ON_AC = 403730;
-      CPU_SCALING_MIN_FREQ_ON_BAT = 403730;
       PLATFORM_PROFILE_ON_AC = "performance";
       PLATFORM_PROFILE_ON_BAT = "balanced";
       PCIE_ASPM_ON_BAT = "powersupersave";
@@ -319,22 +319,16 @@
       "d /persist 0755 root root - -"
       "d /persist/home/ 0711 ${mainUser} ${mainUser} - -"
       "d /persist/home/${mainUser} 0700 ${mainUser} ${mainUser} - -"
-      "d /persist/system/var/lib/local-passwords 0700 root root - -"
     ];
   };
 
   services = {
     # Lid policy is inherited from profiles/laptop.nix (suspend on battery,
     # ignore on AC/docked) — deliberately NOT "suspend-then-hibernate":
-    # systemd 260's s2h never hibernates on this machine. Its RTC wakealarm
-    # fires ~1s before the (microsecond-precision, truncated-to-seconds)
-    # BOOTTIME timer deadline, so every timer wake is misclassified as a
-    # manual wakeup and s2h exits silently; logind's 30s resume holdoff then
-    # re-triggers the still-closed lid and the cycle restarts (observed
-    # 2026-09-04/05: 2h loops all night, zero hibernations, ~30s awake per
-    # cycle — also the extra battery drain). The "then hibernate after 2h"
-    # half lives in the system-sleep hook below instead. Full analysis in
-    # REPO_OVERVIEW Known Gotchas.
+    # systemd 260's built-in s2h never hibernates on this machine. The
+    # "then hibernate after 2h" half lives in the system-sleep hook below
+    # instead (hosts/yoga/yoga-s2h.nix — full design rationale and the
+    # s2h failure analysis in its header and REPO_OVERVIEW Known Gotchas).
 
     journald.extraConfig = "SystemMaxUse=200M";
     # sshd hardening via core.openssh (PasswordAuthentication=no,
@@ -355,7 +349,6 @@
   environment = {
     systemPackages = [
       pkgs.android-tools
-      pkgs.libva-utils
       pkgs.vulkan-tools
     ];
 
@@ -369,7 +362,6 @@
         "/var/lib/nixos"
         "/var/lib/systemd"
         "/var/lib/tailscale"
-        "/var/lib/sops-nix"
         "/var/lib/upower"
         "/var/lib/colord"
         "/var/db/sudo/lectured"
