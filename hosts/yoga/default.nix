@@ -320,6 +320,63 @@
       "d /persist/home/ 0711 ${mainUser} ${mainUser} - -"
       "d /persist/home/${mainUser} 0700 ${mainUser} ${mainUser} - -"
     ];
+
+    # Post-resume wifi heal for the EC rfkill wedge: after s2idle resume the
+    # radio is sometimes left soft-blocked and connects fail generically
+    # (journal 2026-10-24 22:49: 3-minute outage, healed only by a manual
+    # rfkill toggle; the same EC state soft-blocks wifi at every boot, where
+    # iwd's retry recovers it in seconds). Wait out the normal reconnect,
+    # then cycle the radio once and give iwd 40s to reassociate. Always
+    # exits 0 — "no known network nearby" is normal, not a unit failure.
+    # Hibernate resumes as a fresh boot here (HibernateMode=shutdown below),
+    # where hibernate.target is never activated; that path relies on the
+    # boot-time self-recovery, and suspend is the observed failure mode.
+    services.yoga-wifi-resume-heal = {
+      description = "Post-resume wifi radio heal (EC rfkill wedge)";
+      # Resume idiom: jobs wanted by the sleep targets are queued at sleep
+      # entry and run after wake. suspend-then-hibernate (yoga-s2h) can
+      # trigger this twice per cycle; the connection check makes that
+      # harmless.
+      after = [
+        "suspend.target"
+        "hibernate.target"
+      ];
+      wantedBy = [
+        "suspend.target"
+        "hibernate.target"
+      ];
+      unitConfig.ConditionPathExists = "/sys/class/net/wlan0";
+      serviceConfig = {
+        Type = "oneshot";
+        TimeoutStartSec = "2min";
+      };
+      path = [ pkgs.networkmanager ];
+      # Match the full state token "100 (connected": a bare "connected"
+      # pattern also matches "30 (disconnected)" and the heal would never
+      # fire (caught in QC 2026-10-28).
+      script = ''
+        sleep 8
+        if nmcli -t -f GENERAL.STATE device show wlan0 2>/dev/null | grep -q '100 (connected'; then
+          echo "wifi connected 8s after resume, no heal needed"
+          exit 0
+        fi
+        echo "wlan0 not connected 8s after resume - cycling radio (EC rfkill wedge heal)"
+        nmcli radio wifi off
+        sleep 2
+        nmcli radio wifi on
+        i=0
+        while [ "$i" -lt 20 ]; do
+          sleep 2
+          if nmcli -t -f GENERAL.STATE device show wlan0 2>/dev/null | grep -q '100 (connected'; then
+            echo "reconnected after radio cycle"
+            exit 0
+          fi
+          i=$((i + 1))
+        done
+        echo "still not connected 40s after radio cycle (no known network?) - done"
+        exit 0
+      '';
+    };
   };
 
   services = {
@@ -405,7 +462,12 @@
           "Downloads"
           "Musik"
           "Bilder"
-          "Öffentlich"
+          # "Öffentlich" would generate home-dk-Öffentlich.mount — systemd
+          # rejects non-ASCII unit names ("not a valid unit name", journal
+          # 2026-09-25 onward), so that bind never activated. The persisted
+          # dir is the ASCII name; ~/.Öffentlich stays working as a symlink
+          # to it (see home.nix).
+          "public"
           "Vorlagen"
           "Videos"
           "nixos-config"

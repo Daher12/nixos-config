@@ -13,7 +13,7 @@ let
     download = "${homeDir}/Downloads";
     music = "${homeDir}/Musik";
     pictures = "${homeDir}/Bilder";
-    publicShare = "${homeDir}/Öffentlich";
+    publicShare = "${homeDir}/public";
     templates = "${homeDir}/Vorlagen";
     videos = "${homeDir}/Videos";
   };
@@ -264,7 +264,7 @@ in
         download = "$HOME/Downloads";
         music = "$HOME/Musik";
         pictures = "$HOME/Bilder";
-        publicShare = "$HOME/Öffentlich";
+        publicShare = "$HOME/public";
         templates = "$HOME/Vorlagen";
         videos = "$HOME/Videos";
       };
@@ -276,6 +276,12 @@ in
     # wins); add entries to allBookmarks here instead.
     home.file.".config/gtk-3.0/bookmarks".text = gtkBookmarksText;
     home.file.".config/gtk-4.0/bookmarks".text = gtkBookmarksText;
+
+    # XDG publicShare points at ~/public because the persisted directory
+    # must have an ASCII name (systemd rejects non-ASCII mount-unit names —
+    # ~/Öffentlich never persisted, journal: "not a valid unit name"). The
+    # German path keeps working as a symlink into it.
+    home.file."Öffentlich".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/public";
 
     # Refresh the user desktop database after the obsidian.desktop entry
     # above is (re)linked: Chromium/Brave resolve protocol handlers through
