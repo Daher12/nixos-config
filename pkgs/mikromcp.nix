@@ -5,7 +5,7 @@
   fetchurl,
 }:
 let
-  version = "1.14.1";
+  version = "1.16.0";
   # Two derivations because the npm registry tarball ships no
   # package-lock.json (npm pack drops it), and buildNpmPackage's
   # npmDepsHash fingerprinting requires one. The lockfile is vendored in
@@ -16,7 +16,7 @@ let
     inherit version;
     src = fetchurl {
       url = "https://registry.npmjs.org/mikromcp/-/mikromcp-${version}.tgz";
-      hash = "sha256-s06iNA+20A0UVMtVTo2SBvU/VxQE+nBtWwcfm4d4bsg=";
+      hash = "sha256-3PNzib7D089m8+6Jdi8Fi5vqQXiropzqd+L+oSQeqZk=";
     };
     dontBuild = true;
     installPhase = ''
@@ -33,7 +33,7 @@ buildNpmPackage {
   inherit version;
   src = srcWithLock;
 
-  npmDepsHash = "sha256-wpjFNyZFBipUqJMKYr3QNOI+ggxdzwidXICvCo75VEE=";
+  npmDepsHash = "sha256-O+aexHRur/JrwJu9pDNrYSF99xUXoIgyi0oUn+Lteq0=";
 
   dontNpmBuild = true;
 
