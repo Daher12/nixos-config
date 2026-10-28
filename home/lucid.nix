@@ -126,6 +126,14 @@ let
     dontConfigure = true;
     dontBuild = true;
     dontFixup = true; # byte-identical output to the sed-era tree
+    # GNU patch drops a `<file>.qml.orig` backup next to every file it had to
+    # patch non-cleanly (fuzz offsets). Left in place they ride the lucidSync
+    # rsync into the live shell tree (Notifs.qml.orig sat deployed for a whole
+    # pin generation) — sweep them after the patch phase; a *.rej would have
+    # failed the build above already.
+    postPatch = ''
+      find . -name '*.orig' -delete
+    '';
     installPhase = ''
       runHook preInstall
       mkdir -p $out
@@ -249,6 +257,20 @@ let
   # Operation not permitted", observed 2026-10-01).
   lucidPath = "/run/wrappers/bin:/run/current-system/sw/bin:/etc/profiles/per-user/${mainUser}/bin:%h/.local/bin";
 
+  # gsettings inside the lucid user units needs BOTH vars: the bare session
+  # env carries neither ("No schemas installed"), and the schema dir alone is
+  # actively wrong — without the dconf GIO module gsettings reads defaults
+  # ("Adwaita") instead of the live dconf db (unit env repro 2026-10-10).
+  # Shared by lucid, lucid-auto-mode and lucid-shell-dark so future units
+  # can't drift again: auto-mode/shell-dark lacked them until 2026-10-28 and
+  # every gs_set gsettings retry failed permanently (30/30 runs since
+  # 2026-10-12, incl. mid-session timer fires — not a login race), burning
+  # the retry loop into the dconf fallback every time.
+  lucidGsettingsEnv = [
+    "GSETTINGS_SCHEMA_DIR=${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}/glib-2.0/schemas"
+    "GIO_EXTRA_MODULES=${pkgs.dconf.lib}/lib/gio/modules"
+  ];
+
   # Auto light/dark (user decision 2026-09-23: fixed times, NOT solar —
   # darkman is disabled on this host for fighting matugen over GTK, and a
   # trigger that shifts daily is hard to audit). One timer fires at both
@@ -347,12 +369,16 @@ let
                 || echo "warning: wallpaper re-apply failed" >&2
             fi
 
-            # gsettings races the uwsm environment import on the login run
-            # (schemas not visible yet → "Keine Schemata installiert",
-            # 2026-09-27 boot): retry briefly, then fall back to dconf — it
-            # needs no schemas, so it is immune to the race, while writing
-            # the same key on the same bus. Without the fallback, Firefox
-            # and every color-scheme-following app stayed dark all day
+            # gsettings needs GSETTINGS_SCHEMA_DIR in the unit env — the
+            # units below carry it since 2026-10-28, and before that EVERY
+            # attempt failed instantly with "No schemas installed" (30/30
+            # runs since 2026-10-12, including mid-session timer fires, so
+            # the earlier "uwsm import race at login" theory was wrong —
+            # the schema dir was simply never in the manager env). The
+            # retry + dconf fallback stays as belt-and-braces for a genuine
+            # login race: dconf needs no schemas, writes the same key on
+            # the same bus, and without a working fallback Firefox and
+            # every color-scheme-following app stayed dark all day
             # (both boots 2026-09-30: all three keys "skipped", ini files
             # light, dconf dark).
             gs_set() {
@@ -578,6 +604,13 @@ in
         --exclude 'keybinds.json' --exclude 'wallpaper-outputs.conf' \
         --exclude 'themes' \
         "$LUCID_SRC/support/lucid/" "$LUCID_DIR/"
+      # rsync -rt keeps source modes for NEW files, and upstream ships
+      # sync-starship.sh non-executable (444 in the store tree; matugen-
+      # options.sh too, but that one is only ever sourced) — the chmod -R
+      # u+rwX below turns 444 into 644, still non-exec, so apply-theme.sh's
+      # direct exec failed EACCES ("could not repaint starship") on every
+      # theme apply since 2026-10-12. Assert the exec bit after the sync.
+      ${pkgs.findutils}/bin/find "$LUCID_DIR" -maxdepth 1 -type f -name '*.sh' -exec chmod +x -- {} +
       ${pkgs.rsync}/bin/rsync -rt \
         "$LUCID_SRC/support/lucid/themes/" "$LUCID_DIR/themes/"
 
@@ -847,6 +880,13 @@ in
         };
         Service = {
           ExecStart = "${config.home.homeDirectory}/.config/lucid/launch-shell.sh";
+          # hyprsunset (night light) is spawned by the shell itself and, with
+          # KillMode=process below, survives every lucid restart as an
+          # orphan — restarts stacked duplicate daemons (journal 2026-10-24
+          # and 2026-10-28: "Found left-over process ... (hyprsunset)").
+          # The "-" prefix makes the non-zero exit on the very first start
+          # (nothing to kill) harmless; the shell respawns it as needed.
+          ExecStartPre = "-${pkgs.procps}/bin/pkill -x hyprsunset";
           Restart = "always";
           RestartSec = 1;
           # Default KillMode=control-group kills this unit's whole cgroup on
@@ -889,9 +929,8 @@ in
             "PATH=${lucidPath}"
             "QT_QPA_PLATFORM=wayland"
             "LANG=de_DE.UTF-8"
-            "GSETTINGS_SCHEMA_DIR=${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}/glib-2.0/schemas"
-            "GIO_EXTRA_MODULES=${pkgs.dconf.lib}/lib/gio/modules"
-          ];
+          ]
+          ++ lucidGsettingsEnv;
         };
         Install.WantedBy = [ "graphical-session.target" ];
       };
@@ -934,10 +973,14 @@ in
           ExecStart = "${lucidAutoMode}/bin/lucid-auto-mode";
           # Same PATH discipline as lucid.service (lucidPath there):
           # apply-theme.sh/set-mode.sh shell out to matugen, awww, jq,
-          # python3 — all system deps.
+          # python3 — all system deps. The gsettings env is load-bearing
+          # here: without it gs_set's retries fail permanently ("No
+          # schemas installed", 30/30 runs incl. mid-session timer fires)
+          # and apply-theme.sh's own gsettings nudge silently no-ops.
           Environment = [
             "PATH=${lucidPath}"
-          ];
+          ]
+          ++ lucidGsettingsEnv;
         };
         Install.WantedBy = [ "graphical-session.target" ];
       };
@@ -956,10 +999,12 @@ in
           Type = "oneshot";
           ExecStart = "${lucidPinShellDark}/bin/lucid-pin-shell-dark";
           # apply-theme.sh shells out to python3/jq; current_mode write needs
-          # the same PATH discipline as the units above.
+          # the same PATH discipline as the units above. Gsettings env: same
+          # reason as lucid-auto-mode (apply-theme.sh's GTK-reload nudge).
           Environment = [
             "PATH=${lucidPath}"
-          ];
+          ]
+          ++ lucidGsettingsEnv;
         };
         Install.WantedBy = [ "graphical-session.target" ];
       };

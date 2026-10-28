@@ -1,6 +1,7 @@
---- a/shell.qml
-+++ b/shell.qml
-@@ -40,7 +40,6 @@
+diff -ruN -x '*.rej' -x '*.orig' prev/shell.qml work/shell.qml
+--- prev/shell.qml	2026-10-28 00:18:58.772136768 +0100
++++ work/shell.qml	2026-10-28 00:18:58.818052517 +0100
+@@ -41,7 +41,6 @@
      // the sounds, so their ipc target answers before anything has played, and
      // storage, which warns when space runs low and empties old trash
      Component.onCompleted: {
@@ -8,7 +9,7 @@
          void Bt.present;
          void BtReceive.status;
          void BtAgent.status;
-@@ -51,23 +50,36 @@
+@@ -52,20 +51,10 @@
          void Glass.probed;
          void Monitors.probed;
          void HyprConfig.moduleProbed;
@@ -27,6 +28,10 @@
 -        void Sounds.dir;
 -        void Storage.watching;
          void WallTransitions.active;
+         // the combined output is remade at login by the service that keeps it
+         if (Prefs.audioCombine !== "")
+@@ -73,6 +62,29 @@
+ 
      }
  
 +    // nixos-config local patch 125: the eleven warm-up touches nothing needs at
