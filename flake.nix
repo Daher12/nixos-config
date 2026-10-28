@@ -53,7 +53,9 @@
     # packages/cli/script/build.ts's ../../../script/native-arch import).
     # Upstream fixed it in 3171839709 ("fix(nix): ship the root script/ dir
     # to the CLI build", 2026-10-19, first shipped in the v2.1 line) — the
-    # pin resumed moving at v2.1.4 (2026-10-24 sweep).
+    # pin resumed moving at v2.1.4 (2026-10-24 sweep) and reached v2.2.0 in
+    # the 2026-10-28 sweep (gate: `nix build github:anomalyco/opencode/v2.2.0`
+    # clean before touching this tag — keep that gate per bump).
     # Deliberately NO `nixpkgs.follows` here: upstream requires its pinned
     # nixpkgs-unstable (packageManager bun@1.4.2; nixos-26.05 only ships
     # bun 1.3.13, whose `bun install` fails extracting the big native
@@ -62,7 +64,7 @@
     # The libstdc++ LD_LIBRARY_PATH wrap in home/opencode.nix covers the
     # resulting stdenv mismatch.
     opencode = {
-      url = "github:anomalyco/opencode/v2.1.4";
+      url = "github:anomalyco/opencode/v2.2.0";
     };
 
     # Quickshell engine — upstream flake (docs: the GitHub mirror is
@@ -71,7 +73,7 @@
     # desktop stack on the single main nixpkgs eval. Manual pin like
     # lucid/dank-greeter: bump deliberately with `nix flake update
     # quickshell`, then smoke-test shell AND greeter (lucid v1.20.1 +
-    # DankGreeter 1.6.2 — the pairing floor `minQuickshell = "0.3.2"` is
+    # dux-greeter v2.0.0 — the pairing floor `minQuickshell = "0.3.2"` is
     # enforced in home/lucid.nix). No binary cache upstream: first build
     # per pin bump compiles locally.
     quickshell = {
@@ -79,9 +81,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # DankGreeter NixOS module (programs.dms-greeter) from upstream — newer
-    # standalone greeter (1.6.2). Both module and package come from this
-    # flake now, built against the main nixpkgs (follows; pure Go build).
+    # dux-greeter NixOS module (programs.dms-greeter) from upstream — newer
+    # standalone greeter (v2.0.0 rebrand, 2026-10-20). Both module and
+    # package come from this flake now, built against the main nixpkgs
+    # (follows; pure Go build).
     # Repo was renamed AvengeMedia/dank-greeter → duxlabs-dev/dux-greeter
     # (URL updated 2026-10-24 while the GitHub redirect still works —
     # redirects can expire). Since 2026-09-30 the nixpkgs-unstable input is
