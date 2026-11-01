@@ -4,7 +4,7 @@
      property string detailUuid: ""
      property string lastError: ""
      property bool busy: false
-+    // // nixos-config local patch 124: floor between monitor-storm refreshes
++    // nixos-config local patch 124: floor between monitor-storm refreshes
 +    property double lastEventRefresh: 0
      // a saved network's password and QR code, read only while a Share view
      // is open for it and dropped when that view goes away
@@ -31,7 +31,7 @@
  
      // what the machine plays through and listens on right now
      readonly property var sink: Pipewire.defaultAudioSink
-+    // // nixos-config local patch 124: floor between monitor-storm refreshes
++    // nixos-config local patch 124: floor between monitor-storm refreshes
 +    property double lastEventRefresh: 0
      readonly property var source: Pipewire.defaultAudioSource
      readonly property var nodes: Pipewire.nodes ? Pipewire.nodes.values : []

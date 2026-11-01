@@ -41,22 +41,34 @@ let
   # the env could not reach), and 119 Germanizes the session screen
   # (lucidsession/Session.qml) + the power panel header/uptime chip
   # (lucidbar/SessionMenu.qml).
+  # 2026-11-01 German dictionary switch: the string-literal German patches
+  # (113, 114, 115, 117, 118, 119 — ~2,280 lines, the layer's dominant bump
+  # cost) are replaced by line-level EN->DE rules applied at build time by
+  # ./lucid-german/translate.py from ./lucid-german/en-de.json. A rule that
+  # matches nothing fails the build loudly (upstream reworded = same
+  # loudness a patch .rej had); upkeep is additive-only (new upstream
+  # strings stay English until a rule is added). The non-literal hunks —
+  # Qt.locale("de_DE") date, three German concatenation expressions, the
+  # LockMedia marker comment — stayed as patch 131 so wording and code
+  # semantics stay separable. Proven byte-identical to the 19-patch output
+  # (diff of the built lucid-source store paths = 0, except the intended
+  # 2-line 124 comment fix). 129 was re-expressed
+  # against English context (its old hunks sat on 114's German text).
   lucidPatched = pkgs.stdenv.mkDerivation {
     pname = "lucid-source";
     # derived from upstream's VERSION file — a pin bump can't leave it stale
     version = "${lib.trim (builtins.readFile (lucidSrc + "/VERSION"))}-local";
     src = lucidSrc;
+    nativeBuildInputs = [ pkgs.python3 ];
     patches = [
       ./lucid-patches/001-nixos-paths.patch
       ./lucid-patches/104-bar-indicators.patch
       ./lucid-patches/111-tray-icons-hidpi.patch
-      ./lucid-patches/113-german-lockscreen.patch
-      ./lucid-patches/114-german-system.patch
-      ./lucid-patches/115-german-weather.patch
+      # German string replacements (lock screen, dashboard, weather, notifs,
+      # clock app, session) moved to ./lucid-german/ on 2026-11-01 — applied
+      # by the postPatch translator below. Patch 116 below is ordering, not
+      # wording, and stays a patch.
       ./lucid-patches/116-clock-inline-order.patch
-      ./lucid-patches/117-german-notifs.patch
-      ./lucid-patches/118-german-clockapp.patch
-      ./lucid-patches/119-german-session.patch
       # 2026-10-12 plain password dots, v2: user saw the v1 fade-in live and
       # preferred the pre-v1.20 birth instead — each typed character starts
       # as the caret's own line (2dp wide, 45% opacity) and settles into the
@@ -121,7 +133,17 @@ let
       # NoSecrets text and the password box; a second manual connect round
       # after a failure still offers the box (changed-router-PSK escape
       # hatch). A hard driver wedge still needs the wifi off/on toggle.
+      # 2026-11-01: re-expressed against English context — the old hunks
+      # sat on 114's German WifiPanel text, which moved into the dictionary.
       ./lucid-patches/129-wifi-connect-resilience.patch
+      # 2026-11-01 German residual — the non-literal parts of the former
+      # 113/114/115/118/119: the LockMedia marker comment + German title
+      # line, the explicit Qt.locale("de_DE") dashboard date, three German
+      # concatenation expressions (ClockToday tiles, Chrono pomodoro
+      # announce, SessionMenu uptime). Everything wording-only from those
+      # patches lives in home/lucid-german/en-de.json now; keeping code
+      # semantics here separable from wording there.
+      ./lucid-patches/131-german-residual.patch
     ];
     dontConfigure = true;
     dontBuild = true;
@@ -131,7 +153,11 @@ let
     # rsync into the live shell tree (Notifs.qml.orig sat deployed for a whole
     # pin generation) — sweep them after the patch phase; a *.rej would have
     # failed the build above already.
+    # The German dictionary runs after the patch phase: line rules from
+    # lucid-german/en-de.json, zero-match rule = build failure (see the
+    # translator's header for the upkeep policy).
     postPatch = ''
+      python3 ${./lucid-german/translate.py} . ${./lucid-german/en-de.json}
       find . -name '*.orig' -delete
     '';
     installPhase = ''
@@ -672,38 +698,22 @@ in
           && mv "$LUCID_DIR/keybinds.json.tmp" "$LUCID_DIR/keybinds.json"
       fi
 
-      # 2026-10-31 lucid 1.20.5.5: upstream's "files" bind (SUPER+E) moved
-      # from nautilus to Lumen, the in-shell file manager (lucidlumen/).
-      # Migrate an existing keybinds.json in place while it still matches
-      # the old default; a cmd edited in Lucid Settings survives (same
-      # policy as the ghostty->kitty migration above). Fresh seeds get the
-      # Lumen cmd straight from upstream's keybinds.json.
+      # 2026-11-01 revert of the 2026-10-31 Lumen wiring: Lumen's window
+      # never loaded on this setup (PreviewPane.qml imports QtMultimedia,
+      # which the quickshell wrapper was missing — fixed in flake.nix the
+      # same day), so SUPER+E goes back to nautilus. Migrate in place
+      # while the cmd is still the Lumen default — the exact literal both
+      # the earlier migration wrote AND a fresh seed ships (support/hypr/
+      # keybinds.json) — so this one guard converges hosts still carrying
+      # the Lumen bind as well as fresh installs; a cmd edited in Lucid
+      # Settings survives (same policy as the ghostty->kitty migration).
       if [ -s "$LUCID_DIR/keybinds.json" ] \
-        && ${pkgs.jq}/bin/jq -e '.binds[] | select(.id == "files") | .cmd == "nautilus"' \
+        && ${pkgs.jq}/bin/jq -e '.binds[] | select(.id == "files") | .cmd == "$HOME/.config/quickshell/lucidlumen/lumen"' \
              "$LUCID_DIR/keybinds.json" > /dev/null; then
-        ${pkgs.jq}/bin/jq --arg cmd '$HOME/.config/quickshell/lucidlumen/lumen' \
-          '(.binds[] | select(.id == "files") | .cmd) = $cmd' \
+        ${pkgs.jq}/bin/jq '(.binds[] | select(.id == "files") | .cmd) = "nautilus"' \
           "$LUCID_DIR/keybinds.json" > "$LUCID_DIR/keybinds.json.tmp" \
           && mv "$LUCID_DIR/keybinds.json.tmp" "$LUCID_DIR/keybinds.json"
       fi
-
-      # Lumen + Lens desktop entries, the way upstream install.sh registers
-      # them: `--default` writes ~/.local/share/applications/lucid.{lumen,
-      # lens}.desktop (launcher rows, dock icon) and makes Lumen what opens
-      # folders / Lens what opens pictures (xdg-mime). NOT passing
-      # --portal: that rewrites the user-level xdg-desktop-portal config
-      # and would switch EVERY app's open/save dialog to Lumen — opt in
-      # manually with `lumen --portal` if wanted (lumen --portal-off
-      # reverts). Re-runs are idempotent file writes; the entries are
-      # rewritten at every activation because ~/.local/share/applications
-      # is not persisted on the impermanence hosts.
-      for registrar in lucidlumen/lumen lucidlens/lens; do
-        if [[ -x "$QS_DIR/$registrar" ]]; then
-          if ! PATH="/run/current-system/sw/bin:$PATH" "$QS_DIR/$registrar" --default; then
-            echo "warning: $registrar --default failed — launcher entry not written" >&2
-          fi
-        fi
-      done
 
       # 2026-10-09 v1.20: the session screen and the window switcher are new
       # surfaces with new default binds — an existing keybinds.json only

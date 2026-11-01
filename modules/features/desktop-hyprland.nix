@@ -137,6 +137,19 @@ in
         services.gvfs.enable = true;
         programs.dconf.enable = lib.mkDefault true;
 
+        # GObject typelib search path for lucid's python daemons: lensd.py /
+        # lumend.py (spawned by the Lens/Lumen quickshell instances) do
+        # `gi.require_version("GdkPixbuf", "2.0")` through pygobject, and the
+        # GdkPixbuf typelib ships with gdk-pixbuf — on no search path by
+        # default (gi's built-in dir only carries the glib namespaces), so
+        # lensd crash-looped once a second ("Namespace GdkPixbuf not
+        # available", /run/user/<uid>/quickshell/by-id/*/log.log). gi falls
+        # back to its built-in dir after this path, so Gio/GObject keep
+        # resolving.
+        environment.sessionVariables.GI_TYPELIB_PATH = lib.makeSearchPath "lib/girepository-1.0" [
+          pkgs.gdk-pixbuf
+        ];
+
         # Secrets: gnome-keyring with unlock at greeter login (PAM service of
         # the greetd-backed DankGreeter).
         services.gnome.gnome-keyring.enable = true;

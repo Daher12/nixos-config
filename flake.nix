@@ -216,8 +216,16 @@
               # launcher files entry would die). qtimageformats carries the
               # webp/tiff/tga/icns codecs Lens, the photo widget and the
               # what's-new sheet draw.
+              # qtmultimedia: also in upstream install.sh's PKG_REQUIRED —
+              # lucidlumen/PreviewPane.qml imports QtMultimedia at the top
+              # level, and skipping it (2026-10-31 bump wired webengine but
+              # not multimedia) killed the whole Lumen window on launch
+              # (module "QtMultimedia" is not installed). Also lazily
+              # imported by lucidlens/Movie.qml, luciddesktop/QuickLookMedia.qml,
+              # lucidlock/LockLive.qml and lucidlive/LiveShell.qml.
               buildInputs = qsUnwrapped.buildInputs ++ [
                 final.qt6.qt5compat
+                final.qt6.qtmultimedia
                 final.qt6.qtwebengine
                 final.qt6.qtimageformats
               ];

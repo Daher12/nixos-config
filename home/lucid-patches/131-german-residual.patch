@@ -1,0 +1,61 @@
+diff -ruN a/Chrono.qml b/Chrono.qml
+--- a/Chrono.qml	2026-11-01 22:02:08.224672445 +0100
++++ b/Chrono.qml	2026-11-01 22:04:35.041625350 +0100
+@@ -402,7 +402,7 @@
+         }
+         // after the phase change, so a focus that held do not disturb has let go
+         if (announce)
+-            root.finished(title, next === "focus" ? "Time to focus for " + Prefs.pomodoroFocus + " minutes" : root.phaseLabel(next) + " — " + root.phaseMinutes(next) + " minutes");
++            root.finished(title, next === "focus" ? "Zeit für " + Prefs.pomodoroFocus + " Minuten Fokus" : root.phaseLabel(next) + " — " + root.phaseMinutes(next) + " Minuten");
+ 
+     }
+ 
+diff -ruN a/lucidbar/ClockToday.qml b/lucidbar/ClockToday.qml
+--- a/lucidbar/ClockToday.qml	2026-11-01 22:02:08.184842467 +0100
++++ b/lucidbar/ClockToday.qml	2026-11-01 22:04:35.006310215 +0100
+@@ -272,7 +272,7 @@
+                 spacing: Theme.dp(6)
+ 
+                 Repeater {
+-                    model: page.wx ? [["thermostat", "Feels " + Units.deg(page.wx.feelsC, page.wx.feelsF)], ["water_drop", page.wx.humidity + "%"], ["air", Units.wind(page.wx.windKmph, page.wx.windMph) + " " + (page.wx.windDir || "")], ["umbrella", (page.wx.pop || 0) + "%"], ["light_mode", "UV " + page.wx.uv]] : []
++                    model: page.wx ? [["thermostat", "Fühlt sich wie " + Units.deg(page.wx.feelsC, page.wx.feelsF) + " an"], ["water_drop", page.wx.humidity + " %"], ["air", Units.wind(page.wx.windKmph, page.wx.windMph) + " " + (page.wx.windDir || "")], ["umbrella", (page.wx.pop || 0) + " %"], ["light_mode", "UV " + page.wx.uv]] : [] // nixos-config local patch 115 (German)
+ 
+                     Rectangle {
+                         required property var modelData
+diff -ruN a/lucidbar/SessionMenu.qml b/lucidbar/SessionMenu.qml
+--- a/lucidbar/SessionMenu.qml	2026-11-01 22:02:08.184842467 +0100
++++ b/lucidbar/SessionMenu.qml	2026-11-01 22:04:35.006624413 +0100
+@@ -120,7 +120,7 @@
+                     const d = Math.floor(s / 86400);
+                     const h = Math.floor(s % 86400 / 3600);
+                     const m = Math.floor(s % 3600 / 60);
+-                    root.uptime = "Up " + (d > 0 ? d + (d === 1 ? " day " : " days ") : "") + (d > 0 || h > 0 ? h + " h " : "") + m + " min";
++                    root.uptime = "läuft " + (d > 0 ? d + " T " : "") + (d > 0 || h > 0 ? h + " Std " : "") + m + " Min"; // nixos-config local patch 119 (German)
+                 }
+                 root.canHibernate = /"yes"/.test(lines[1] || "");
+             }
+diff -ruN a/lucidbar/System.qml b/lucidbar/System.qml
+--- a/lucidbar/System.qml	2026-11-01 22:02:08.185486494 +0100
++++ b/lucidbar/System.qml	2026-11-01 22:04:35.006624413 +0100
+@@ -1525,7 +1525,7 @@
+                         LText {
+                             role: "titleMedium"
+                             weight: 600
+-                            text: Qt.formatDate(root.nowDate, "dddd, d MMMM")
++                            text: root.nowDate.toLocaleDateString(Qt.locale("de_DE"), "dddd, d. MMMM") // nixos-config local patch 114 (German: Qt.formatDate pins the C locale — explicit de_DE)
+                         }
+ 
+                         LText {
+diff -ruN a/lucidlock/LockMedia.qml b/lucidlock/LockMedia.qml
+--- a/lucidlock/LockMedia.qml	2026-11-01 22:02:08.193486736 +0100
++++ b/lucidlock/LockMedia.qml	2026-11-01 22:04:35.014245000 +0100
+@@ -22,7 +22,8 @@
+         return media.players.length > 0 ? media.players[0] : null;
+     }
+     readonly property bool playing: !!media.player && media.player.playbackState === MprisPlaybackState.Playing
+-    readonly property string title: media.player ? (media.player.trackTitle || "Unknown track") : ""
++    // nixos-config local patch 113 (German)
++    readonly property string title: media.player ? (media.player.trackTitle || "Unbekannter Titel") : ""
+     readonly property string artist: media.player ? (media.player.trackArtist || media.player.identity || "") : ""
+     readonly property real length: media.player ? media.player.length : 0
+     // a remote cover through the cache, never straight into the Image: Qt's

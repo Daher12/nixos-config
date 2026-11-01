@@ -1,5 +1,6 @@
---- a/lucidbar/WifiPanel.qml
-+++ b/lucidbar/WifiPanel.qml
+diff -ruN a/lucidbar/WifiPanel.qml b/lucidbar/WifiPanel.qml
+--- a/lucidbar/WifiPanel.qml	2026-11-01 21:52:36.114191767 +0100
++++ b/lucidbar/WifiPanel.qml	2026-11-01 21:52:36.162194276 +0100
 @@ -10,6 +10,13 @@
  
      property bool active: false
@@ -137,9 +138,10 @@
 +            const secondRound = savedNet && (state.savedFailRounds || 0) >= 1;
              root.setUiState(targetNetwork.name, {
                  "connectFailed": true,
-                 "failReason": "Zeitüberschreitung beim Warten auf eine Antwort des Netzwerks.",
+-                "failReason": "Timed out waiting for a response from the network.",
 -                "showPasswordInput": secured,
 -                "isUntrustedAttempt": secured
++                "failReason": "Zeitüberschreitung beim Warten auf eine Antwort des Netzwerks.",
 +                "savedFailRounds": savedNet ? (state.savedFailRounds || 0) + 1 : 0,
 +                "showPasswordInput": secured && (!savedNet || secondRound),
 +                "isUntrustedAttempt": secured && (!savedNet || secondRound)
