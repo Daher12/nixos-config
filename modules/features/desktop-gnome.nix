@@ -43,10 +43,9 @@ in
             assertion = cfg.autoLogin -> cfg.autoLoginUser != "";
             message = "autoLoginUser must be set when autoLogin is enabled";
           }
-          {
-            assertion = builtins.hasAttr "home-manager" config;
-            message = "features.desktop-gnome requires home-manager to be included via mkHost";
-          }
+          # No assertion possible here: a missing home-manager module fails
+          # option merge ("home-manager.users does not exist") before
+          # assertions run. The HM import is unconditional via mkHost.
           {
             assertion = !config.features.desktop-hyprland.enable;
             message = "features.desktop-gnome and features.desktop-hyprland are mutually exclusive — switch via the flake attrs (yoga = Hyprland, yoga-gnome = GNOME)";

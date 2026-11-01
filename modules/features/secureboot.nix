@@ -18,6 +18,7 @@ in
     pkiBundle = lib.mkOption {
       type = lib.types.str;
       default = "/var/lib/sbctl";
+      description = "Path to the sbctl PKI bundle holding the UEFI secure-boot keys";
     };
   };
 
@@ -31,7 +32,7 @@ in
       inherit (cfg) pkiBundle;
     };
 
-    environment.persistence = lib.mkIf (config.features.impermanence.enable or false) {
+    environment.persistence = lib.mkIf config.features.impermanence.enable {
       "/persist/system".directories = [ cfg.pkiBundle ];
     };
   };

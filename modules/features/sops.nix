@@ -35,7 +35,7 @@ let
 
   # Bypass impermanence bind-mount lifecycle: point directly to persist volume.
   # Guarantees key availability during early boot and nixos-install chroot (no systemd).
-  persistPrefix = lib.optionalString (config.features.impermanence.enable or false) "/persist/system";
+  persistPrefix = lib.optionalString config.features.impermanence.enable "/persist/system";
 in
 {
   options.features.sops = {

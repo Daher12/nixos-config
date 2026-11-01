@@ -104,79 +104,87 @@ in
 
   config = lib.mkIf cfg.enable (
     let
-      guests = lib.mapAttrs (guestName: guest: rec {
-        icon = pkgs.stdenv.mkDerivation {
-          pname = "${guestName}-icon";
-          version = "1.0";
-          dontUnpack = true;
-          installPhase = ''
-              mkdir -p $out/share/icons/hicolor/256x256/apps
-              cat > $out/share/icons/hicolor/256x256/apps/${guestName}.svg <<'SVG'
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-                <rect width="256" height="256" rx="32" fill="${guest.iconColor}"/>
-                <g fill="#fff">
-                  <rect x="28" y="28" width="100" height="100" rx="8"/>
-                  <rect x="148" y="28" width="100" height="100" rx="8"/>
-                  <rect x="28" y="148" width="100" height="100" rx="8"/>
-                  <rect x="148" y="148" width="100" height="100" rx="8"/>
-                </g>
-                ${lib.optionalString (guest.badge != null) ''
-                  <rect x="140" y="196" width="108" height="42" rx="12" fill="#1f2937"/>
-                  <text x="194" y="224" font-family="sans-serif" font-size="26" font-weight="bold" fill="#fff" text-anchor="middle">${guest.badge}</text>
-                ''}
-              </svg>
-            SVG
+      guests = lib.mapAttrs (
+        guestName: guest:
+        let
+          # let-bound (not rec): desktop's exec interpolates the launcher's
+          # store path.
+          launcher = pkgs.writeShellScriptBin guestName ''
+            virsh="${pkgs.libvirt}/bin/virsh -c qemu:///system"
+            viewer="${pkgs.virt-viewer}/bin/virt-viewer"
+
+            # spice-gtk finds spice-client-glib-usb-acl-helper through $PATH,
+            # and only the /run/wrappers/bin copy carries cap_fowner (needed
+            # to ACL the usb node for the user). Pin it via the upstream env
+            # override so USB redirection survives launchers that hand us a
+            # minimal PATH (lucid dock, 2026-10-01).
+            export SPICE_USB_ACL_BINARY="/run/wrappers/bin/spice-client-glib-usb-acl-helper"
+
+            if ! $virsh dominfo "${guest.name}" >/dev/null 2>&1; then
+              echo "VM '${guest.name}' not found. Define it in virt-manager first." >&2
+              exit 1
+            fi
+
+            state=$($virsh domstate "${guest.name}" 2>/dev/null | tr -d '[:space:]')
+
+            if [ "$state" != "running" ]; then
+              echo "Starting ${guest.name}..."
+              $virsh start "${guest.name}"
+              echo "Waiting for guest to boot..."
+              for _ in $(seq 1 30); do
+                sleep 2
+                state=$($virsh domstate "${guest.name}" 2>/dev/null | tr -d '[:space:]')
+                if [ "$state" = "running" ]; then
+                  sleep 5
+                  break
+                fi
+              done
+            fi
+
+            exec $viewer --full-screen --connect "qemu:///system" "${guest.name}"
           '';
-        };
+        in
+        {
+          inherit launcher;
 
-        launcher = pkgs.writeShellScriptBin guestName ''
-          virsh="${pkgs.libvirt}/bin/virsh -c qemu:///system"
-          viewer="${pkgs.virt-viewer}/bin/virt-viewer"
+          icon = pkgs.stdenv.mkDerivation {
+            pname = "${guestName}-icon";
+            version = "1.0";
+            dontUnpack = true;
+            installPhase = ''
+                mkdir -p $out/share/icons/hicolor/256x256/apps
+                cat > $out/share/icons/hicolor/256x256/apps/${guestName}.svg <<'SVG'
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+                  <rect width="256" height="256" rx="32" fill="${guest.iconColor}"/>
+                  <g fill="#fff">
+                    <rect x="28" y="28" width="100" height="100" rx="8"/>
+                    <rect x="148" y="28" width="100" height="100" rx="8"/>
+                    <rect x="28" y="148" width="100" height="100" rx="8"/>
+                    <rect x="148" y="148" width="100" height="100" rx="8"/>
+                  </g>
+                  ${lib.optionalString (guest.badge != null) ''
+                    <rect x="140" y="196" width="108" height="42" rx="12" fill="#1f2937"/>
+                    <text x="194" y="224" font-family="sans-serif" font-size="26" font-weight="bold" fill="#fff" text-anchor="middle">${guest.badge}</text>
+                  ''}
+                </svg>
+              SVG
+            '';
+          };
 
-          # spice-gtk finds spice-client-glib-usb-acl-helper through $PATH,
-          # and only the /run/wrappers/bin copy carries cap_fowner (needed
-          # to ACL the usb node for the user). Pin it via the upstream env
-          # override so USB redirection survives launchers that hand us a
-          # minimal PATH (lucid dock, 2026-10-01).
-          export SPICE_USB_ACL_BINARY="/run/wrappers/bin/spice-client-glib-usb-acl-helper"
-
-          if ! $virsh dominfo "${guest.name}" >/dev/null 2>&1; then
-            echo "VM '${guest.name}' not found. Define it in virt-manager first." >&2
-            exit 1
-          fi
-
-          state=$($virsh domstate "${guest.name}" 2>/dev/null | tr -d '[:space:]')
-
-          if [ "$state" != "running" ]; then
-            echo "Starting ${guest.name}..."
-            $virsh start "${guest.name}"
-            echo "Waiting for guest to boot..."
-            for _ in $(seq 1 30); do
-              sleep 2
-              state=$($virsh domstate "${guest.name}" 2>/dev/null | tr -d '[:space:]')
-              if [ "$state" = "running" ]; then
-                sleep 5
-                break
-              fi
-            done
-          fi
-
-          exec $viewer --full-screen --connect "qemu:///system" "${guest.name}"
-        '';
-
-        desktop = pkgs.makeDesktopItem {
-          name = guestName;
-          inherit (guest) desktopName;
-          comment = guest.description;
-          exec = "${launcher}/bin/${guestName}";
-          icon = guestName;
-          terminal = false;
-          categories = [
-            "System"
-            "Emulator"
-          ];
-        };
-      }) cfg.guests;
+          desktop = pkgs.makeDesktopItem {
+            name = guestName;
+            inherit (guest) desktopName;
+            comment = guest.description;
+            exec = "${launcher}/bin/${guestName}";
+            icon = guestName;
+            terminal = false;
+            categories = [
+              "System"
+              "Emulator"
+            ];
+          };
+        }
+      ) cfg.guests;
 
       guestPackages = lib.concatLists (
         lib.mapAttrsToList (_: guest: [

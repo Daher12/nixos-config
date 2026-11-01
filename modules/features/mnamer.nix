@@ -54,9 +54,11 @@ let
         scene
         verbose
         language
-        ignore
         mask
         ;
+
+      # RHS `ignore` is the let-bound option value (attrset is not rec).
+      ignore = ignore ++ cfg.extraIgnore;
 
       no_overwrite = cfg.noOverwrite;
       no_guess = cfg.noGuess;
@@ -272,6 +274,12 @@ in
       description = "Regex patterns to ignore.";
     };
 
+    extraIgnore = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = "Additional ignore regexes appended to `ignore` in the generated config.";
+    };
+
     mask = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [
@@ -339,7 +347,9 @@ in
       }
     ];
 
-    environment.systemPackages = [
+    # mkIf gate: without it a null resolvedPackage crashes eval on list
+    # coercion before the friendly assertion above can fire.
+    environment.systemPackages = lib.mkIf (resolvedPackage != null) [
       resolvedPackage
       mnamerTools
     ];

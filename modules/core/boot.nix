@@ -7,7 +7,7 @@
 
 let
   cfg = config.core.boot;
-  sbActive = config.features.secureboot.enable or false;
+  sbActive = config.features.secureboot.enable;
 in
 {
   options.core.boot = {

@@ -8,7 +8,7 @@
 
 let
   cfg = config.core.users;
-  sopsEnabled = config.features.sops.enable or false;
+  sopsEnabled = config.features.sops.enable;
 in
 {
   options.core.users = {

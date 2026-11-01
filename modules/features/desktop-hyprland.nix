@@ -93,10 +93,9 @@ in
     lib.mkMerge [
       {
         assertions = [
-          {
-            assertion = builtins.hasAttr "home-manager" config;
-            message = "features.desktop-hyprland requires home-manager to be included via mkHost";
-          }
+          # No assertion possible here: a missing home-manager module fails
+          # option merge ("home-manager.users does not exist") before
+          # assertions run. The HM import is unconditional via mkHost.
           {
             assertion = !config.features.desktop-gnome.enable;
             message = "features.desktop-hyprland and features.desktop-gnome are mutually exclusive — switch via the flake attrs (yoga = Hyprland, yoga-gnome = GNOME)";

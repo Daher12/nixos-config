@@ -30,7 +30,7 @@ in
   config = lib.mkIf cfg.enable {
     assertions = [
       {
-        assertion = config.features.vpn.tailscale.enable or false;
+        assertion = config.features.vpn.tailscale.enable;
         message = "features.nas requires features.vpn.tailscale.enable = true";
       }
       {

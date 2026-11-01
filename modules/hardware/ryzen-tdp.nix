@@ -17,18 +17,22 @@ in
       stapm = lib.mkOption {
         type = lib.types.int;
         default = 54;
+        description = "AC STAPM limit in watts (sustained power)";
       };
       fast = lib.mkOption {
         type = lib.types.int;
         default = 60;
+        description = "AC FAST limit in watts (short boost)";
       };
       slow = lib.mkOption {
         type = lib.types.int;
         default = 54;
+        description = "AC SLOW limit in watts (long boost)";
       };
       temp = lib.mkOption {
         type = lib.types.int;
         default = 95;
+        description = "AC Tctl temperature limit in °C";
       };
     };
 
@@ -36,18 +40,22 @@ in
       stapm = lib.mkOption {
         type = lib.types.int;
         default = 25;
+        description = "Battery STAPM limit in watts (sustained power)";
       };
       fast = lib.mkOption {
         type = lib.types.int;
         default = 30;
+        description = "Battery FAST limit in watts (short boost)";
       };
       slow = lib.mkOption {
         type = lib.types.int;
         default = 25;
+        description = "Battery SLOW limit in watts (long boost)";
       };
       temp = lib.mkOption {
         type = lib.types.int;
         default = 85;
+        description = "Battery Tctl temperature limit in °C";
       };
     };
 

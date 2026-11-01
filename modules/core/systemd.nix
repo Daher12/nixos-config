@@ -13,5 +13,6 @@
     coredump.enable = lib.mkForce false;
   };
 
-  documentation.enable = lib.mkForce false;
+  # Default-off so a host can opt back in; no host does today.
+  documentation.enable = lib.mkDefault false;
 }

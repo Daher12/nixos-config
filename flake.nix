@@ -305,72 +305,69 @@
         ];
       };
 
-      nixosConfigurations = {
-        # Physical Laptop: Yoga (AMD) — Hyprland + Lucid + DankGreeter.
-        # Desktop switch (no config edits): rebuild from .#yoga-gnome for GNOME.
-        yoga = mkHost {
-          hostname = "yoga";
-          mainUser = "dk";
-          withHardware = true; # Enables /modules/hardware evaluation
-          profiles = [
-            "laptop"
-            "desktop-hyprland"
-          ];
-          extraModules = [
-            inputs.nixos-hardware.nixosModules.lenovo-yoga-7-slim-gen8
-            ./hosts/yoga/default.nix
-          ];
-          hmModules = [ ./hosts/yoga/home.nix ];
-          extraSpecialArgs = { };
-        };
+      nixosConfigurations =
+        let
+          # Shared argset for both yoga attrs (the desktop profiles are the
+          # only field that differs — see yoga-gnome below).
+          yogaArgs = {
+            hostname = "yoga";
+            mainUser = "dk";
+            withHardware = true; # Enables /modules/hardware evaluation
+            profiles = [
+              "laptop"
+              "desktop-hyprland"
+            ];
+            extraModules = [
+              inputs.nixos-hardware.nixosModules.lenovo-yoga-7-slim-gen8
+              ./hosts/yoga/default.nix
+            ];
+            hmModules = [ ./hosts/yoga/home.nix ];
+          };
+        in
+        {
+          # Physical Laptop: Yoga (AMD) — Hyprland + Lucid + DankGreeter.
+          # Desktop switch (no config edits): rebuild from .#yoga-gnome for GNOME.
+          yoga = mkHost yogaArgs;
 
-        # Same machine, GNOME desktop (GDM). Switch targets, nothing else differs.
-        yoga-gnome = mkHost {
-          hostname = "yoga";
-          mainUser = "dk";
-          withHardware = true;
-          profiles = [
-            "laptop"
-            "desktop-gnome"
-          ];
-          extraModules = [
-            inputs.nixos-hardware.nixosModules.lenovo-yoga-7-slim-gen8
-            ./hosts/yoga/default.nix
-          ];
-          hmModules = [ ./hosts/yoga/home.nix ];
-          extraSpecialArgs = { };
-        };
+          # Same machine, GNOME desktop (GDM). Switch targets, nothing else differs.
+          yoga-gnome = mkHost (
+            yogaArgs
+            // {
+              profiles = [
+                "laptop"
+                "desktop-gnome"
+              ];
+            }
+          );
 
-        # Physical Laptop: Latitude (Intel)
-        latitude = mkHost {
-          hostname = "latitude";
-          mainUser = "dk";
-          withHardware = true;
-          profiles = [
-            "laptop"
-            "desktop-gnome"
-          ];
-          extraModules = [
-            inputs.preload-ng.nixosModules.default
-            ./hosts/latitude/default.nix
-          ];
-          hmModules = [ ./hosts/latitude/home.nix ];
-          extraSpecialArgs = { };
-        };
+          # Physical Laptop: Latitude (Intel)
+          latitude = mkHost {
+            hostname = "latitude";
+            mainUser = "dk";
+            withHardware = true;
+            profiles = [
+              "laptop"
+              "desktop-gnome"
+            ];
+            extraModules = [
+              inputs.preload-ng.nixosModules.default
+              ./hosts/latitude/default.nix
+            ];
+            hmModules = [ ./hosts/latitude/home.nix ];
+          };
 
-        # Physical Media Server (Intel)
-        nix-media = mkHost {
-          hostname = "nix-media";
-          mainUser = "dk";
-          withHardware = true; # Enabled to support the physical Intel GPU for transcoding
-          lix = false; # CppNix — headless server has no interactive use case for Lix improvements
-          profiles = [ ];
-          extraModules = [
-            ./hosts/nix-media/default.nix
-          ];
-          hmModules = [ ./hosts/nix-media/home.nix ];
-          extraSpecialArgs = { };
+          # Physical Media Server (Intel)
+          nix-media = mkHost {
+            hostname = "nix-media";
+            mainUser = "dk";
+            withHardware = true; # Enabled to support the physical Intel GPU for transcoding
+            lix = false; # CppNix — headless server has no interactive use case for Lix improvements
+            profiles = [ ];
+            extraModules = [
+              ./hosts/nix-media/default.nix
+            ];
+            hmModules = [ ./hosts/nix-media/home.nix ];
+          };
         };
-      };
     };
 }
