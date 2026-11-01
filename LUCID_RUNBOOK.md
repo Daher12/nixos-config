@@ -12,15 +12,19 @@ patch layer: what happens when the lucid (or quickshell / dank-greeter) flake
 input moves, how the build-time patches are validated or repaired, and what to
 do when things break at build, activation, or runtime.
 
-Last verified against the repo on 2026-10-28 (lucid @ `4b8fc9a4`, post-v1.20.1
-"self-updater" commit, 19 patches — the 2026-10-28 bump re-expressed two
-patches on upstream's reworked Clock.qml/shell.qml: 116 (the date surfaces
-became bold day+date `Row`s with a `lookPref`/`root.look` mechanism; the same
-two `visible:` flips + dot suppression re-applied on the Rows) and 125
-(upstream added an `audioCombine` warm-up touch that stays eager; the same 11
-inert singletons move into the Timer); `lucidPatched` also gained a postPatch
-`*.orig` sweep — GNU patch drops backup files on fuzz/offset hunks and they
-were riding the rsync into the live tree); see the inventory.
+Last verified against the repo on 2026-10-31 (lucid @ `2945eabac`, the upstream
+**beta 1.20.5.5** — Lumen file manager + Lens picture viewer + LucidShot
+rebuild + edit mode, 19 patches — the 2026-10-31 bump re-expressed two patches
+on upstream's churn: 001 (the appScanner awk gained a 9th output field
+`clean(cats)`; the same NixOS dirs + locale-aware `Name[...]` rule + marker
+re-applied on the new line) and 111 (upstream's `lucidSlot` feature changed
+the two `visible:` lines after the tray icon sites; the same
+`backer.sourceSize` insertions re-placed); the stateFiles gate gained
+`lucidbar/chrono.json` (Chrono app state, shipped default-less like
+icons.json). New-surface wiring this bump: the quickshell wrapper gained
+`qt6.qtwebengine` + `qt6.qtimageformats` (Lumen preview pane / image codecs),
+and `lucidSync` registers Lumen/Lens desktop entries (`--default`, never
+`--portal`) + migrates the `files` keybind nautilus→Lumen); see the inventory.
 
 ---
 
@@ -408,6 +412,9 @@ Report per §7, then hand the user:
 | New v1.20 surfaces: clock app, widgets panel, night-light tile, Storage page, sounds | v1.20 deps/asset sync |
 | Start button renders at the bar's end; switching a module's look animates; Settings → About shows the version and does NOT get an Update clicked | new 2026-10-20 upstream (start module, look-switch animation, self-updater — §5 warning row) |
 | Bar clock inline look still reads Date · time (not time · date), day/date bold per upstream's new styling | 116 re-expressed 2026-10-28 |
+| SUPER+E opens **Lumen** (file manager window); launcher lists Lumen and Lens; a folder in the launcher opens in Lumen | 2026-10-31 wiring (files keybind migration, `lumen/lens --default` entries) |
+| Lumen opens (preview pane loads — qtwebengine present); Lens opens a picture | wrapper qt6.qtwebengine + qt6.qtimageformats |
+| New 1.20.5.5 surfaces render: desktop edit mode, Poster clock face on the wallpaper, LucidShot toolbar, Jelly motion on panels | upstream beta surfaces (report upstream bugs, do not patch) |
 | Expected regressions BY DESIGN (dropped patches, not bugs): lock beads/layout chip = upstream. Wifi saved-network behavior is 129-protected since 2026-10-24 (102 re-expressed) — a lingering "Kein Passwort … gespeichert" now signals a real iwd/driver failure, not the panel bug | §1 dropped list |
 
 ## 3. Scenario B — quickshell / dank-greeter bump
@@ -494,6 +501,8 @@ qs ipc call launcher toggle                               # exercise IPC (opens 
 | Wifi: saved-network click fails / "Kein Passwort … gespeichert" | With 129 live this is a REAL iwd/driver failure — the NoSecrets mapping lies (2026-10-24: EC rfkill glitch after s2idle resume wedged iwd ~3 min; re-typed PSK failed identically, zero auth frames at the kernel). Without 129 (pin bump dropped it): the old upstream bug is back | journalctl -b -u iwd + NetworkManager around the event; wifi off/on toggle heals an rfkill wedge; only if 129 is missing, re-express per P3 |
 | Keybinds partly dead | NOT a patch — json.lua loader | Check `$XDG_RUNTIME_DIR/lucid-keybinds-status.json` exists and `hyprctl binds \| grep -c bind` (user-run); then §5 of REPO_OVERVIEW "Lucid deployment" |
 | "Lucid vX is out" notification / an Update button in Settings → About | NOT a patch — the upstream **self-updater** (`lucidupdate/`, landed 2026-10-20): an hourly version probe (deferred 1.5s by our 125) plus one deduped notification per new release. Download/install only runs on an explicit click → confirm → **sudo password** | **Never click Update / Install on NixOS** — `install.sh` would overwrite the Nix-synced `~/.config/quickshell` with unpinned upstream (German patches, NixOS paths, pref migrations gone) until the next HM activation re-converges it. Damage is transient and self-healing (rsync + lucid restart after the next switch); if it happens, `sudo nixos-rebuild switch` + `systemctl --user restart lucid` and re-verify the smoke table. Deliberately NOT patched out (minimal scope, one deliberate click + password to trigger) — re-decide if the notification nags |
+| Lumen window never opens / SUPER+E dead / Lumen preview pane blank | NOT a patch — Lumen (1.20.5.5) imports QtWebEngine for its preview; if the wrapper's `qt6.qtwebengine` folding ever regresses, the whole window fails to load ("a window with an import it can't resolve doesn't load at all") | `journalctl --user -u lucid -b` shows the QML import error; check `strings $(readlink -f $(command -v qs)) | grep -c qtwebengine` ≥1 after a toplevel build; launcher entry missing → check `~/.local/share/applications/lucid.lumen.desktop` exists (lucidSync rewrites it every activation) |
+| Every app's file dialog suddenly opens in Lumen (or should and doesn't) | NOT a patch — the `--portal` opt-in (deliberately NOT done by lucidSync) | `lumen --portal` switches dialogs to Lumen, `lumen --portal-off` reverts (writes `~/.config/xdg-desktop-portal/hyprland-portals.conf` + restarts portals) |
 | QML syntax errors crash-looping the shell | a repaired patch introduced bad syntax | `journalctl --user -u lucid -b` → the file+line; fix the patch; qmllint sanity: `nix build nixpkgs#qt6.qtdeclarative -o /tmp/qtd` then find qmllint under its `bin/` (lives in qtdeclarative, NOT qttools; the `.bin` output attr no longer exists in current nixpkgs) |
 | `module "Qt5Compat.GraphicalEffects" is not installed` (or any other Qt module) at shell load | upstream imports a Qt module that is not a qtbase/qtdeclarative builtin — Arch ships it system-wide, our quickshell wrapper does not carry it | Add the module to the replicated wrapper's `buildInputs` in the flake.nix overlay (`buildInputs = qsUnwrapped.buildInputs ++ [ final.qt6.qt5compat ]`). ⚠️ Do NOT use upstream's `passthru.withModules` — it closes over the ORIGINAL wrapper let-binding and silently discards the overlay's `overrideAttrs` (the 201 engine patch would vanish; see the ⚠️ block in flake.nix). Happened 2026-10-10: v1.20's Workspaces/ShapedImage import Qt5Compat. Gate: `strings $(readlink toplevel/sw/bin/qs) \| grep qt5compat` after a toplevel build |
 | Anything not in this table | — | Collect the two journalctl outputs, STOP, report |
@@ -581,9 +590,9 @@ this table in the same change (and `git add` it).
 
 | Input | Rev / version | Note |
 |---|---|---|
-| lucid | `4b8fc9a450683795ddfb1764cc92fb282f14f75a` (v1.20.1+, 2026-10-20) | 19 patches as listed in §1; new upstream self-updater (`lucidupdate/`) — see the §5 runtime row. 116 + 125 re-expressed on this base 2026-10-28 |
+| lucid | `2945eabacff3ead45835a53433c41ea4b6688b6f` (v1.20.5.5 **beta**, 2026-10-31) | 19 patches as listed in §1; 001 + 111 re-expressed on this base 2026-10-31. New upstream apps ride the tree sync: Lumen (file manager, `lucidlumen/`), Lens (picture viewer, `lucidlens/`), edit mode (`Edit.qml`/`lucidedit/`), the tonal icon set (`lucidicons/`); `Recorder.qml` is gone (merged into the LucidShot rebuild). New upstream hard requirement: qt6-webengine (Lumen preview) — folded into the flake overlay's quickshell wrapper together with qt6-imageformats. `lucidSync` runs `lumen --default` + `lens --default` at activation (desktop entries + folder/picture mime handlers; NOT `--portal`) and migrates the `files` keybind nautilus→Lumen while it matches the old default. `lumen.lua` (GTK_USE_PORTAL + portal-dialog float rule) deliberately NOT deployed — portal-flow only. Upstream HEAD is a declared beta: new surfaces may be buggy upstream |
 | quickshell | `9b0f339b19057f4731bf3b48293307d7ef241671` (0.3.2+, 2026-10-22) | unchanged — pin equals upstream master tip (verified 2026-10-27, no release in sight: v0.3.2 still newest, PR #1049 disk cache still open); `minQuickshell = "0.3.2"` |
-| dank-greeter | `0f5de0577cc118091cab9ed8d7976919f0161251` (duxlabs-dev/dux-greeter, 2026-10-27) | greeter, pairs with quickshell; CI/installer/qml-common bumps since `920def34`, still v2.0.0-line, no newer tag |
+| dank-greeter | `45b82d84d947a2c6491d4f16a5d0a84ee379dfeb` (duxlabs-dev/dux-greeter, 2026-10-31) | greeter, pairs with quickshell; still v2.0.0-line, no newer tag |
 
 v1.20 caveats baked into this bump: upstream docs scope a "Hyprland 0.55.6+"
 floor to custom Lua binds only (README states no floor); yoga runs 0.55.4 —

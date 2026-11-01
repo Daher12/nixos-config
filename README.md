@@ -137,9 +137,11 @@ nixos-config/
 │   │                    #   zcode (AppImage), mikromcp, is-on-ac
 ├── quickshell-patches/  # build-time patches for the quickshell ENGINE
 ├── secrets/             # sops-encrypted per-host secrets
-├── tests/               # NixOS VM tests (litellm gateway, SSH firewall,
-│   │                    #   virbr0 firewall)
-├── scripts/             # install.sh (fresh install), update-safe (safe updates)
+├── tests/               # NixOS VM tests (7: litellm gateway, SSH firewall,
+│   │                    #   virbr0 firewall, zram heal, yoga s2h logic,
+│   │                    #   nix-media upgrade pipeline, host units smoke)
+├── scripts/             # install.sh (fresh install), update-safe (safe
+│   │                    #   updates), test-suite (shared agent QC)
 └── .github/workflows/   # weekly input bump + lint CI, opencode PR bot
 ```
 
@@ -193,9 +195,13 @@ Full architecture, re-encryption and rotation procedures: **`SOPS_RUNBOOK.md`**.
 - `nix flake check` runs **statix** (idiom), **deadnix** (dead code) and
   **nixfmt** (formatting) over the whole repo, plus evaluation of all three
   hosts.
-- **NixOS VM tests** in `tests/` (run explicitly, kept out of CI for speed):
-  `nix build .#nixosTests.x86_64-linux.litellm-gateway`, `.#ssh-firewall`,
-  `.#virbr0-firewall`.
+- **NixOS VM tests** in `tests/` (7 of them — litellm gateway, SSH firewall,
+  virbr0 firewall, zram heal, yoga s2h logic, nix-media upgrade pipeline,
+  host units smoke), kept out of CI for speed and run explicitly through the
+  shared runner: `scripts/test-suite vm [name…]` (`full` = fast tier + VM
+  battery, `suggest` maps changed files to covering tests). AI agents follow
+  the confirmation gate in AGENTS.md § Verification workflow (QC) before
+  launching the battery.
 - **CI** (`.github/workflows/`): `ci.yml` on every push/PR — flake check
   (statix, deadnix, nixfmt) + dry-build of every host, so hand edits are
   verified before they reach the fleet. `bump.yml` weekly (Saturdays 02:00
