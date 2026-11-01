@@ -1,0 +1,27 @@
+---
+name: log-sweep-fixes-2026-10-28
+description: Targeted journal sweep found 4 fixable issues; fixes EXECUTED+QC
+  green STAGED (wifi resume heal, Öffentlich→public, lucid hyprsunset dedup);
+  Fix 4 stale-state = user-run commands
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: sess_4ad2010b-f2dc-478d-9ee6-f4efb9d172b3
+---
+
+Targeted log sweep 2026-10-28 (3 scan agents) after the accidental lucid theme-switch error find. Theme family CONFIRMED FIXED LIVE: lucid-auto-mode ran sub-second with zero warnings at 08:22:09 (23 failing runs since 10-14 before); fingerprint PAM spam 0 this boot. No failed units, no coredumps.
+
+**Fixes EXECUTED + QC green (nix fmt, dry-build, home-files byte checks) + STAGED, pending switch:**
+1. `hosts/yoga/default.nix`: `systemd.services.yoga-wifi-resume-heal` — WantedBy/After suspend.target+hibernate.target, ConditionPathExists wlan0, nmcli radio cycle if not connected 8s after resume, always exit 0. Justified: Oct 24 22:49 post-resume wedge (3-min outage, manual toggle healed); EC rfkill soft-blocks wifi at EVERY boot (self-recovers 1–12s). HibernateMode=shutdown → hibernate resumes as fresh boot, target never activated (boot self-recovery covers it).
+2. Öffentlich→public: impermanence generated `home-dk-Öffentlich.mount` — systemd rejects non-ASCII unit names ("not a valid unit name, ignoring", 68× since 09-25) → ~/Öffentlich NEVER persisted (latent data loss, dir was empty). Now: persistence entry `"public"` (default.nix), xdg publicShare + xdgDirs → `$HOME/public` (home.nix), `home.file."Öffentlich".source = config.lib.file.mkOutOfStoreSymlink "${homeDir}/public"` (chain verified in home-files). `rmdir ~/Öffentlich /persist/home/dk/Öffentlich` DONE (both empty); `/persist/home/dk/public` pre-created 755 dk:dk. NOTE: old-gen HM activation recreates ~/Öffentlich/.keep at boot — re-run rmdir if a boot happens before switch, else HM clobber error.
+3. `home/lucid.nix` lucid.service: `ExecStartPre = "-${pkgs.procps}/bin/pkill -x hyprsunset"` — restarts stacked orphan night-light daemons (KillMode=process stays, deliberate for dock-spawned apps).
+
+**Fix 4a = USER-run (sudo needed):** rm ghost NM profiles in /persist/system/etc/NetworkManager/system-connections (home-wifi/work-wifi.nmconnection dangling, warned every boot since repo deleted sops templates in 9d10344) — still open. **Fix 4b RETRACTED (hypothesis wrong):** the zram 99-local.rules udev error was NOT stale @blank state — it was ordinary repo config (shared block-scheduler rule), removed from the working tree ~Sep 30 (staged-then-switched) and committed in 1e9adfc Oct 25. Last real journal error Sep 30 16:51; live gen has no scheduler rule; user's @blank rm correctly hit ENOENT (which also proves the ro→rw property flip works). @blank never needed touching. Lesson: journal "every boot since X" claims need date-of-last-occurrence verification against commit/staged-switch timeline before inferring persistent-state leftovers. Scan-agent boot attribution ("5x since Oct 21") was off — direct `journalctl | grep | sort -u` on timestamps is authoritative.
+
+**Watch items / open:** amdgpu dcn31_program_compbuf_size REG_WAIT WARNING (1× ever, 08:23 2026-10-28 during display reconfig — escalate if recurs); ioremap errors at every sleep transition (cosmetic firmware quirk); BT hci0+ideapad_bluetooth soft-blocked while config enables it (nothing in repo blocks it — EC state, intent unconfirmed); nix-media unreachable (Tailscale SSH re-auth demanded, link in ssh output); dbus-broker "duplicate name" floods -p err (packaging noise). Historical wifi windows Oct 5/18 = AP-side (FRITZ!Box mesh), NOT the wedge.
+
+**QC round (same day) caught + fixed 1 real bug:** heal script's `grep -q connected` also matches "(dis**connected**)" → condition always true → heal would NEVER fire. Fixed to `grep -q '100 (connected'` (matches nmcli's `GENERAL.STATE:100 (connected)` token exactly). Full QC green after fix: dry-build yoga + yoga-gnome (gnome variant also validated — closes the old desktop-switch OPEN item), nix flake check (statix/deadnix/nixfmt all pass, 4 configs eval), byte-diff deployed-vs-built home-files shows EXACTLY 3 deltas (user-dirs.dirs 1 line, lucid.service +1 ExecStartPre line, gtk bookmarks identical), systemd.units has home-dk-public.mount and ZERO Öffentlich units. Eval lore: impermanence persistence option can't be coerced via nix eval --json (forces removed `method` option) and mounts live in config.systemd.units not systemd.mounts/fileSystems; HM unit eval path is `.Service.ExecStartPre` (no serviceConfig).
+
+**Fix 4a NM ghost cleanup — DONE + VERIFIED 2026-10-28 11:2x:** user's `sudo ls` showed exactly the 8 real profiles, ghosts gone; `sudo nmcli connection reload` ran clean; journal after reload = ZERO warnings/load-failures. All 8 real profiles intact (`nmcli -f NAME,FILENAME connection show` — FRITZ!Box 7590 active on wlan0). Persist dir is root-only (EACCES for dk — explains the scan agent's false "does not exist"). Agent shell CANNOT run `nmcli connection reload` (polkit "Zugriff verweigert" — not an authorized local session); `nmcli -f NAME,FILENAME connection show` works unprivileged. Final proof = next boot's NM journal (baseline: 2 warnings at the 23:47 pre-cleanup boot). **@blank verified ro=true by user after the dance — boot-rollback risk closed.**
+
+Related: [[update-sweep-2026-10-28]] (parallel session, still pending same switch), [[lucid-wifi-129-2026-10-24]] (wedge root cause; the "build heal if recurs" follow-up is now DONE).

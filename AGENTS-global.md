@@ -27,6 +27,10 @@ Personal, machine-wide rules applied in every opencode session. Project-level
 - The opencode bash tool executes in `bash`, not fish — run tool commands in POSIX/bash.
 - Prefer Nix-idiomatic solutions when relevant; write fish only when editing fish config or giving the user paste-able shell commands.
 
+## Agent knowledge base
+
+- Durable agent knowledge (incident records, audits, executed plans) is mirrored per project under `~/nixos-config/docs/knowledge/` — subdirs: `nixos-config/`, `optimized_network/` (RouterOS), `default/` (cross-project), `cleanyourtv/`. Before non-trivial work in one of those areas, read the matching `MEMORY.md` index there and any entries it flags as relevant; keep the records updated only in the tool that owns them (ZCode auto-memory re-exports via `~/nixos-config/scripts/export-zcode-memory`).
+
 ## FORCE override
 
 - Any user command starting with `FORCE` overrides all other rules, including permission denials and safety checks.

@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Mirror the ZCode auto-memory archive into docs/knowledge/ so opencode (and
+# any other agent) reads the same knowledge base. Run this periodically while
+# both tools are in use, and once more on migration day before retiring ZCode
+# (docs/opencode-migration.md).
+#
+#   scripts/export-zcode-memory            # mirror all projects
+#   scripts/export-zcode-memory --check    # only report drift + secret scan
+#
+# Layout: ~/.zcode/cli/memories/projects/<name>-<hash>/memory/<files>.md
+#      -> docs/knowledge/<name>/  (hash suffix stripped)
+#
+# Secrets never reach the repo: every sync is staged in a temp dir and scanned
+# BEFORE anything lands under docs/knowledge (2026-11-01: one LiteLLM master
+# key found this way, now redacted in BOTH stores; value stays recoverable via
+# the sops readback noted in that memory).
+set -euo pipefail
+
+SRC="${ZCODE_MEM_DIR:-$HOME/.zcode/cli/memories/projects}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DST="$REPO_ROOT/docs/knowledge"
+mode="${1:---sync}"
+CHECK=0
+[ "$mode" = "--check" ] && CHECK=1
+
+if [ ! -d "$SRC" ]; then
+  echo "error: $SRC not found (ZCode not installed here?) — set ZCODE_MEM_DIR" >&2
+  exit 1
+fi
+
+stage="$(mktemp -d)"
+trap 'rm -rf "$stage"' EXIT
+
+drift=0
+for proj in "$SRC"/*/; do
+  name="$(basename "$proj")"
+  name="${name%-*}" # strip the per-install hash suffix
+  if [ ! -d "$proj/memory" ]; then
+    echo "skip $name (no memory dir)"
+    continue
+  fi
+  rsync -a "$proj/memory/" "$stage/$name/"
+  if [ "$CHECK" -eq 1 ] && ! diff -rq "$proj/memory" "$DST/$name" >/dev/null 2>&1; then
+    echo "DRIFT: $name"
+    drift=1
+  fi
+done
+
+# House rule: no secrets in plain files. Scan the staged copy so a hit is
+# reported without the key ever being written into the repo tree.
+if [ -n "$(grep -rInE 'sk-[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH|EC) PRIVATE|ghp_[A-Za-z0-9]{20,}' "$stage" 2>/dev/null || true)" ]; then
+  echo "SECRET SCAN HITS — nothing written to docs/knowledge:" >&2
+  grep -rInE 'sk-[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH|EC) PRIVATE|ghp_[A-Za-z0-9]{20,}' "$stage" >&2 || true
+  exit 2
+fi
+
+if [ "$CHECK" -eq 1 ]; then
+  [ "$drift" -eq 0 ] && echo "in sync, no secrets"
+  exit "$drift"
+fi
+
+for staged in "$stage"/*/; do
+  name="$(basename "$staged")"
+  mkdir -p "$DST/$name"
+  rsync -a --delete "$staged" "$DST/$name/"
+  echo "synced $name"
+done

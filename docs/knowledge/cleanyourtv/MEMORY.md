@@ -1,0 +1,1 @@
+- [waipu G2 stick session](waipu-g2-stick-session.md) — disable refused→suspend+appops, ProjEngMenu back as Home per owner, docs PR on Daher12 fork (docs/waipu-stick-g2), nix-shell JDK17 + adb-binary push path, no gh/no upstream push rights

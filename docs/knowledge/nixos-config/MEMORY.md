@@ -1,0 +1,126 @@
+# Memory Index
+
+- [Lucid German dictionary switch 2026-11-01](lucid-german-dictionary-2026-11-01.md) — EXECUTED+QC green STAGED: 113-119 → en-de.json (318 line rules) + translate.py postPatch (zero-match=build fail), 131 residual, 129 re-based EN, byte-proof 0-diff (then 2 comment lines via 124 fix), stable-tags-only bump (keep 1.20.5.5 beta, no downgrade), 001 upstream PR drafted, PR1049 abandoned; pending switch
+- [VPS watchdog + exit node plan 2026-11-01](vps-watchdog-exitnode-plan-2026-11-01.md) — PLAN ONLY (ExitPlanMode DENIED): new 1c/1GB/15GB VPS as gatus external watchdog (nix-media SPOF / heartbeat has no detector) + exit node, host `vps` via elitak/nixos-infect; all gatus/tailscale/infect facts verified in-file; backups+self-hosted-ntfy DECLINED by user; NOTHING executed
+- [Brightness keys 10% linear fix 2026-11-01](brightness-keys-e4-2026-11-01.md) — EXECUTED LIVE (no patch, no rebuild): keybinds.json cmds → `brightnessctl -n2 set 10%±` (user chose 10), hyprctl reload 55/55; durability proven (rsync-excluded, guarded migrations); onset NOT lucid; backup keybinds.json.bak-2026-11-01
+- [Lucid patchset maintenance plan 2026-11-01](lucid-patchset-maintenance-plan-2026-11-01.md) — PLAN ONLY (ExitPlanMode DENIED), user decisions LOCKED: German 113-119 → EN→DE dict translator in postPatch (131 residual, 130 stays reserved), upstream draft ONLY for 001, bump policy stable-tags-only but KEEP current beta 1.20.5.5 (no downgrade); upstream PR #97 obsoletes 104, #98 obsoletes 123 when merged; PR1049 disk-cache plan ABANDONED; NOTHING executed
+- [Lucid brightness steps plan 2026-11-01](lucid-brightness-steps-plan-2026-11-01.md) — SUPERSEDED (executed: brightness-keys-e4-2026-11-01, user chose 10% steps); diagnosis record (keys -e4 quartic vs linear OSD/sliders; patch 130 rejected; onset NOT lucid)
+- [Lumen revert + qtmultimedia fix 2026-11-01](lumen-revert-qtmultimedia-2026-11-01.md) — EXECUTED+QC green STAGED: SUPER+E→nautilus LIVE already (jq+mimeapps pin+lucid restart, no switch needed for that); root cause = wrapper missed qt6.qtmultimedia (fixed+strings-proven); lensd GI_TYPELIB_PATH fix; lore: detached qs logs only in by-id/log.log; pending switch+smoke
+- [Spotify cache persistence 2026-11-01](spotify-cache-persistence-2026-11-01.md) — EXECUTED+QC green STAGED: logout root cause = unpersisted ~/.cache/spotify (config dir was persisted since 10-18, NOT the problem); pending switch + deliberate reboot verify; lore: flake checks read WORKTREE of tracked files, parallel session's unstaged edits show up in flake check
+- [Lumen broken diagnosis 2026-11-01](lumen-broken-diagnosis-2026-11-01.md) — SUPERSEDED (executed: lumen-revert-qtmultimedia-2026-11-01); original plan-mode diagnosis record
+- [zcode→opencode parity EXECUTED 2026-11-01](zcode-opencode-parity-exec-2026-11-01.md) — EXECUTED+QC green STAGED: docs/knowledge mirror (litellm key redacted BOTH stores), export script (stage→scan→swap), 4 doc skills wired, +27 bash rules, glm-5.3; automations+zcode-only skills skipped by user; migration recipe in docs/opencode-migration.md; pending switch
+- [zcode→opencode parity plan 2026-11-01](zcode-opencode-parity-plan-2026-11-01.md) — SUPERSEDED (executed: zcode-opencode-parity-exec-2026-11-01); audit facts (zcode 149 memories/480 bash rules/2 automations; opencode skills+`opencode run` verified) in file
+- [Test-suite shared runner 2026-11-01](test-suite-shared-runner-2026-11-01.md) — EXECUTED+ALL GREEN STAGED: scripts/test-suite (fast/vm/full/suggest + user confirmation gate in AGENTS.md QC), ssh-firewall de-drifted to real openssh.nix, docs synced, 5/5 VM battery passed ≈11 min; no interactive test-vm (evaluated, rejected)
+- [Test-suite audit plan 2026-11-01](test-suite-audit-plan-2026-11-01.md) — SUPERSEDED (executed: test-suite-shared-runner-2026-11-01)
+- [Audit fix round 2026-10-31](audit-fix-round-2026-10-31.md) — EXECUTED+QC green STAGED; ⚠️ json-file log-opts crash dockerd (journald default); D skipped=2 open defects; pending switch
+- [Repo audit fix plan 2026-10-31](repo-audit-fix-plan-2026-10-31.md) — SUPERSEDED (executed: audit-fix-round-2026-10-31); handoff text + open-defect record in file
+- [Update sweep 2026-10-31](update-sweep-2026-10-31.md) — EXECUTED+QC green STAGED: nixpkgs 6f06d204, lucid 2945eab, opencode v2.2.4, zcode 3.16.3, fastmcp overlay; pending switch+smoke
+- [Update sweep plan 2026-10-31](update-sweep-plan-2026-10-31.md) — SUPERSEDED (executed: update-sweep-2026-10-31); plan-mode record
+- [Log sweep fixes 2026-10-28](log-sweep-fixes-2026-10-28.md) — EXECUTED+QC green STAGED (QC caught heal grep substring bug); @blank 4b RETRACTED (repo config, user verified ro=true); pending switch
+- [Log sweep triage 2026-10-28](log-sweep-triage-2026-10-28.md) — SUPERSEDED (executed: log-sweep-fixes-2026-10-28); scan diagnosis record
+- [Update sweep 2026-10-28](update-sweep-2026-10-28.md) — EXECUTED+QC green STAGED: pins + lucid 4b8fc9a, opencode v2.2.0, mikromcp 1.16.0, 116+125 re-expressed; pending switch+smoke
+- [Update sweep plan 2026-10-27](update-sweep-plan-2026-10-27.md) — SUPERSEDED (executed: update-sweep-2026-10-28)
+- [yoga slow boot = GC catch-up 2026-10-27](yoga-slowboot-gc-catchup-2026-10-27.md) — nix-gc timer at boot after weekend off (94s/20.6GiB), nothing broken; gen 190 → 2026-10-24 work LIVE; no "Startup finished" journal lore
+- [lucid-auto-mode gsettings fix plan 2026-10-27](lucid-auto-mode-gsettings-fix-plan-2026-10-27.md) — SUPERSEDED (executed: lucid-automode-gsettings-env-2026-10-28); plan-mode diagnosis record
+- [Lucid wifi patch 129 2026-10-24](lucid-wifi-129-2026-10-24.md) — EXECUTED+QC green STAGED: 102 re-expressed (silent retry, generic failure text); wedge = EC rfkill post-resume, heal = wifi toggle; auto radio-cycle NOT built; pending switch
+- [Lucid fingerprint-off patch 128 2026-10-24](lucid-fingerprint-off-128-2026-10-24.md) — EXECUTED+QC green STAGED: "Modul ist nicht bekannt" = lock's 2nd fingerprint PamContext → 128 gates startFinger(); pending switch; PR1049 pragma patch ≥129
+- [yoga wifi "no password saved" incident 2026-10-24](yoga-wifi-nopassword-incident-2026-10-24.md) — SUPERSEDED (executed: lucid-wifi-129-2026-10-24); plan-mode diagnosis record
+- [Lucid fingerprint PAM diagnosis 2026-10-24](lucid-fingerprint-pam-diagnosis-2026-10-24.md) — SUPERSEDED (executed: lucid-fingerprint-off-128-2026-10-24); plan-mode diagnosis record
+- [Cleanup round 2026-10-24](cleanup-round-2026-10-24.md) — EXECUTED+QC green STAGED: weekly-reboot Result guard, update-safe auto-commit/--push, latitude dead-tuning+swapfile, heartbeat; ⚠️ testScript `''`-trap lore in file
+- [battery-refresh resume heal 2026-10-24](battery-refresh-resume-heal-2026-10-24.md) — EXECUTED live-proven STAGED: hibernate resume stuck 120Hz → probe actual Hz each poll; `''${var}` escape + flake-check-doesn't-build lore
+- [Update sweep 2026-10-24](update-sweep-2026-10-24.md) — EXECUTED+QC green STAGED: pins except lucid (held); opencode v2.1.4, mikromcp 1.14.1, dux rename; API-403 jq-lock lore; pending switch
+- [Workflow simulation suite 2026-10-19](workflow-simulation-suite-2026-10-19.md) — EXECUTED ALL GREEN STAGED: 4 permanent VM tests (zram-heal, yoga-s2h-logic, nix-media-upgrade-pipeline, host-units-smoke) + ntfy Result-probe bug fixed; VM lore in file
+- [Audit fixes round 2 2026-10-17](audit-fixes-round2-2026-10-17.md) — EXECUTED+QC green STAGED: keymap de fleet-wide, KbdInteractiveAuthentication=false, yoga uid pin, microcode both-vendor, laptop dedup→profile; pending switch+verify
+- [Update sweep 2026-10-16](update-sweep-2026-10-16.md) — EXECUTED+QC green STAGED: nixpkgs/HM/sops-nix, opencode v2.0.27, mikromcp 1.14.0, dank-greeter a8b10633, lucid v1.20.1; pending switch+smoke
+- [Fleet automation review executed 2026-10-19](fleet-automation-review-exec-2026-10-19.md) — EXECUTED+QC green STAGED: nix-media autoUpgrade pull fix, ci.yml gate, is-on-ac dedup, update-safe --pin, docs synced; pending switches+sops rekey+push
+- [Repo review 2026-10-19](repo-review-2026-10-19.md) — SUPERSEDED by fleet-automation-review-exec-2026-10-19; historical decisions + P1s in file
+- [yoga open-lid two-window hibernate plan 2026-10-19](yoga-openlid-two-window-plan-2026-10-19.md) — SUPERSEDED: EXECUTED same day, see yoga-hibernate-status; design record in file
+- [yoga switch unit failures 2026-10-18](yoga-switch-unit-failures-2026-10-18.md) — REAL bug: zen 7.2.9 `zramctl --reset` REMOVES the device → hot_add heal EXECUTED+STAGED; pending switch + start unit
+- [Docs+comment hygiene pass 2026-10-18](docs-comment-hygiene-pass-2026-10-18.md) — EXECUTED+QC green STAGED (33 files): runbook withModules trap fixed, install.sh uid eval fix (nix-media gid 982 NOT 1001); pending switch-free commit
+- [Repo docs/comments audit plan 2026-10-18](repo-docs-comments-audit-plan-2026-10-18.md) — SUPERSEDED (executed: docs-comment-hygiene-pass-2026-10-18); full inventory in file
+- [Spotify SpotX integration 2026-10-18](spotify-spotx-integration-2026-10-18.md) — EXECUTED+QC green STAGED: features/spotify.nix (overlay in mkIf, statix→inherit quirk), laptop profile; pending switch; pin-drift gotcha = `nix flake update spotx-nix`
+- [Spotify + SpotX-Nix plan 2026-10-18](spotify-spotx-plan-2026-10-18.md) — PLAN EXECUTED same day, see spotify-spotx-integration-2026-10-18; ⚠️ nixpkgs bump can outpace SpotX-Bash pin
+- [Lucid idle round 2: 126/127 2026-10-24](lucid-idle-round2-126-127-2026-10-24.md) — EXECUTED: 122-125 LIVE via lucid restart (58→45 ms/s); patches 126+127 STAGED; pending switch+lucid restart; PR1049 ≥128
+- [Idle CPU round 2026-10-24](idle-cpu-round-2026-10-24.md) — plan-mode record, SUPERSEDED same day by lucid-idle-round2-126-127-2026-10-24
+- [Lucid perf round 122-125 2026-10-17](lucid-perf-round-122-125-2026-10-17.md) — LIVE since 2026-10-24 restart: ambientMotion gates ×7, cava suppression, Net/Audio 5s floor, warm-up defer; patch lore in file
+- [Quickshell PR1049 disk-cache plan 2026-10-17](quickshell-pr1049-diskcache-plan-2026-10-17.md) — PLAN ready, NOTHING executed; ⚠️ its facts stale — see lucid-perf-round-122-125; full steps in file
+- [Repo review 2026-10-16](repo-review-2026-10-16.md) — review + fix plan, NOTHING executed (superseded by audit-fixes rounds); decisions + P1s in file
+- [Update sweep plan 2026-10-16](update-sweep-plan-2026-10-16.md) — SUPERSEDED by update-sweep-2026-10-16 (executed); pin audit in file
+- [Desktop switch architecture 2026-10-13](desktop-switch-architecture-2026-10-13.md) — yoga GNOME↔Hyprland switch = flake attr pair (yoga/yoga-gnome), 0 config edits; wiring map in file; OPEN: yoga-gnome dry-build validation
+- [Hyprland lock-no-outputs SEGV 2026-10-13](hyprland-lock-nooutputs-segv-2026-10-13.md) — EXECUTED+QC green STAGED: lock w/ zero outputs SEGVs 0.55.4; lid-close bind guarded in home/hyprland.nix; user: verify docked+solo lid-close
+- [Lucid shell-dark + apps-auto EXECUTED 2026-10-13](lucid-shell-dark-apps-auto-2026-10-13.md) — EXECUTED+QC green STAGED: lucidAutoMode --apps-only split, lucidPinShellDark + login pin service; user: switch → start service → test midday
+- [Lucid grayscale pair + GTK diagnosis 2026-10-13](lucid-grayscale-pair-gtk-diagnosis-2026-10-13.md) — EXECUTED+QC green STAGED: home/lucid-themes/grayscale pair, lucidSync rsync+-nt guard; GTK libadwaita by-design; user: switch → pick Grayscale tile
+- [Lucid integration evaluation 2026-10-13](lucid-integration-evaluation-2026-10-13.md) — verdict KEEP architecture; German cluster (86% of layer) = the recurring tax; upstream PR candidates incl. 201; runbook fix handed to executor
+- [Lucid glass frost 2026-10-11](lucid-glass-frost-plan-2026-10-11.md) — EXECUTED+QC green STAGED: kitty extraConfig include, hyprland blur pins; pending: kitty restart → GTK frosted-vs-dim test
+- [Lock dots pre-v1.20 morph 2026-10-11](lucid-lock-dots-fadein-2026-10-11.md) — 121-plain-dots v2 EXECUTED after user live-tested v1 fade; ⚠️ parallel session re-materialized /tmp prev/work (verify patch `-` side = upstream); user: lock+type after switch
+- [Manual pkg updates 2026-10-10](manual-pkg-updates-2026-10-10.md) — EXECUTED+QC green STAGED: quickshell 0.3.2 (201 kept), opencode v2.0.26, mikromcp 1.13.1, zcode 3.14.5; minQuickshell 0.3.2 confirmed
+- [Lucid smooth-caret plan 2026-10-10](lucid-smoothcaret-plan-2026-10-10.md) — CLOSED+REVERTED 2026-10-12: all designs dead live (cursorRectangle never notifies); patch 120 removed, lore in file
+- [Lucid German round 2 + icon fix 2026-10-10](lucid-german-round2-iconfix-2026-10-10.md) — EXECUTED: 114 de_DE date, 119 session, 201 mutex→GUI-thread marshaling, GSETTINGS env on lucid.service; user: switch → visual+3× stress
+- [Lucid date + icon wedge 2026-10-10](lucid-date-iconwedge-2026-10-10.md) — SUPERSEDED by german-round2 (executed same evening); plan record
+- [Quickshell icon race fix 2026-10-10](quickshell-icon-race-fix-2026-10-10.md) — EXECUTED: 3-crash diagnosis, 201 QMutex stable BUT wedged reader → reworked in german-round2; ⚠️ withModules closure discards prior overrideAttrs
+- [Lucid v1.20 polish round 2026-10-10](lucid-v120-polish-plan-2026-10-10.md) — R1-R3 EXECUTED STAGED: 10-patch layer 104-118, 112 removed; gotchas: /tmp 2GB fills, flake-check lock race, grep -F
+- [Lucid v1.20 minimal bump EXECUTED 2026-10-09](lucid-v120-minimal-bump-2026-10-09.md) — pin e662954, 001-only layer, withModules qt5compat fix; ⚠️ live quickshell OUTLIVES switches → systemctl --user restart lucid
+- [Lucid v1.20 update plan 2026-10-09](lucid-v120-update-plan-2026-10-09.md) — SUPERSEDED by executed entry; P1 gate = lock rev == tag e662954
+- [Lucid runbook authored 2026-10-08](lucid-runbook-2026-10-08.md) — LUCID_RUNBOOK.md (repo ROOT — documentation/ gitignored!) = executor procedure for lucid bumps; 17-marker Appendix A
+- [Lucid lock beads + layout chip 2026-10-08](lucid-lock-beads-layoutchip-2026-10-08.md) — EXECUTED: 109 pooled beads (Repeater regen = all-dots twitch), 110 layout chip GERMAN; patch-add workflow template in file
+- [Lucid German touch-ups + lock clock 2026-10-07](lucid-german-touchups-lockclock-2026-10-07.md) — round-2 EXECUTED QC PASS, round-3 Notifs handed off NOT executed; WifiPanel:340 last EN; STAGED
+- [Lucid DE sweep + follow-up 2026-10-07](lucid-german-sweep-plan-2026-10-07.md) — EXECUTED: 107/108 sweep folded into 002/107; gates green STAGED; weather=Poznań default user self-fixes
+- [Lucid bar/dashboard fixes 2026-10-07](lucid-bar-dashboard-fixes-2026-10-07.md) — EXECUTED: 103-106 STAGED QC-green (LUKS tile, mic/vol hidden, dashboard tiles deleted); statix mimeApps un-reded flake check
+- [Lucid bluetooth pairing agent 2026-10-06](lucid-bluetooth-pairing-agent-2026-10-06.md) — VERIFIED+EXECUTED: pairing fail = NO BlueZ agent; bt-agent on multi-user.target; UNSTAGED — re-stage before flake QC; trust follow-up open
+- [yoga FnLock F-row 2026-10-06](yoga-fnlock-frow-2026-10-06.md) — root cause = lucid bare F1-F12 binds; fn_lock=1 = F-keys default (MEASURED); fix EXECUTED UNSTAGED (re-stage); evdev-capture technique in file
+- [yoga iwd band-flap fix 2026-10-06](yoga-iwd-band-flap-fix.md) — COMMITTED 5df41f6, VERIFIED LIVE 2026-10-28 (RoamThreshold -74/-80 + BandModifier5GHz 2.0); open: regdom 00, dup NM profile
+- [opencode 2.x build assessment 2026-10-05](opencode-2x-build-assessment-2026-10-05.md) — VERDICT optimal (2.x git tags only); v2.0.23 fixed completions → drop postInstall at bump, keep libstdc++ wrap
+- [Remotely Save OneDrive 400 2026-10-05](obsidian-remotely-save-onedrive-400.md) — RESOLVED: first-sync 400 = OneDrive folder-create conflictBehavior:replace bug (#1185); create Notes folder in web UI (recurring per device)
+- [Audit fixes 2026-10-04](audit-fixes-2026-10-04.md) — full-repo audit + P1/P2 fixes STAGED QC green; Grafana key + Jellyfin 0.0.0.0 user-accepted; P3 backlog in file
+- [MCP scoping remediation 2026-10-04](mcp-scoping-remediation-2026-10-04.md) — dup nix MCP killed, mikrotik scoped to RouterOS project, windows-mcp → repo workspace
+- [Brave Origin + Firefox default EXECUTED 2026-10-04](browser-default-brave-origin-2026-10-04.md) — origin.json policies + firefox mimeApps pin; COMMITTED 6488b6d; user: rm bloat.json + brave://policy check
+- [Obsidian + litellm integration 2026-10-04](obsidian-litellm-integration-2026-10-04.md) — gateway VERIFIED + coding-plan model STAGED (live 200); remaining: nix-media switch + Copilot pick; eval 2026-11-01
+- [nix-media SSH via Tailscale](nix-media-tailscale-ssh-access.md) — `ssh nix-media` = Tailscale SSH (MagicDNS); foreground ssh stalls SILENTLY — background it, read URL from log
+- [Audit fixes 2026-10-03](audit-fixes-2026-10-03.md) — virbr0 scoped DHCP/DNS + VM test, ADB group+udev, users.nix assertion, sudo per-tty; COMMITTED 6488b6d
+- [windows11-2 VM creation 2026-10-02](windows11-2-vm-creation-2026-10-02.md) — 26H2 VM SWAPPED into windows11 identity (old deleted, vol-clone nvram, MAC → .139); OPEN: SSH/mcp bootstrap in fresh guest
+- [Lucid PATH broke spice USB redirect 2026-10-01](lucid-path-wrappers-spice-usb-2026-10-01.md) — iPhone EPERM root cause: lucidPath lacked /run/wrappers/bin; fix STAGED
+- [Win11 VM remote access guide](windows11-vm-remote-access-guide.md) — REFERENCE: SSH bootstrap → windows-mcp via SSH Start-Process :8000/sse; raw curl/SSE JSON-RPC recipe
+- [Win11 VM management endpoint 2026-09-30](win11-vm-management-endpoint-2026-09-30.md) — OpenSSH @.139:22; windows-mcp SSE verified, fw scoped; opencode entry enabled=false → /mcp+Enter; server dies with VM
+- [Win11 VM guest side: Part E + SSH/MCP + iTunes 2026-09-30](windows11-vm-ssh-mcp-itunes-2026-09-30.md) — Part E EXECUTED (virtio video); ⚠️ two home-manager.users blocks = dynamic-attr error; raw SSE recipe in file
+- [Lucid wifi connect fix 2026-09-30](lucid-wifi-connect-fix-2026-09-30.md) — saved-network fails = attemptConnect force-disconnect → iwd status-1 storm; 102-wifi-connect-resilience STAGED
+- [Lucid mode-follow + wallpaper + pill dock 2026-09-30](lucid-mode-follow-wallpaper-dock-2026-09-30.md) — apps-stayed-dark = gs_set schema-race + STALE envColorScheme; ⚠️ dockStyle island runtime-only (never restart lucid)
+- [Quickshell packaging eval 2026-09-30](quickshell-packaging-eval-2026-09-30.md) — source build 4m12s, "double eval" myth busted, 26.05=0.3.0 below floor; build-timing trick via drvs bz2 mtimes
+- [Lucid hardening + quickshell flake EXECUTED 2026-09-30](lucid-hardening-quickshell-flake-2026-09-30.md) — themes --delete wipe + switch-theme guard + minQuickshell floor; ⚠️ MCP channel info can serve STALE versions — trust readlink /run/current-system
+- [Lucid build-time patches EXECUTED+REVIEWED 2026-09-28](lucid-buildtime-patches-2026-09-28.md) — seds → home/lucid-patches/*.patch via lucidPatched; ⚠️ top-level assert in module = infinite recursion; regen recipe in file
+- [Lucid matugen accent hue 2026-09-28](lucid-matugen-accent-color-2026-09-28.md) — user PIVOTED to static-theme import; themes wiped by lucidSync --delete; NOTHING executed
+- [Lucid patch-layer plan 2026-09-28](lucid-patch-layer-plan-2026-09-28.md) — audit verdict + APPROVED plan, superseded by execution record; own-fork REJECTED
+- [yoga energy+idle 2026-09-22](yoga-energy-idle-2026-09-22.md) — 60Hz switch DEAD under Hyprland 0.55 → hyprctl eval hl.monitor; lid binds via eval; COMMITTED 4b2f965 unpushed
+- [Lucid integration plan](lucid-integration-plan.md) — 2026-09-24 HM activation ABORTED (lucid envtool rewrites gtk settings.ini); fix = gtk.enable = !desktop.lucid.enable
+- [Lucid startup audit 2026-09-25](lucid-startup-analysis-2026-09-25.md) — ~10s boot delay = lock-at-boot deadlock (fixed); QML 3.7s load STRUCTURAL (qsintercept blocks Qt cache — do not chase)
+- [Kitty vs ghostty](kitty-vs-ghostty-evaluation.md) — switch-to-kitty COMMITTED 4054ed6; --single-instance symlinkJoin wrap; ⚠️ CLI queries silently IPC-forward; themeFile=Nord pin
+- [Virtualization audit + executor handoff 2026-09-30](virtualization-audit-2026-09-30.md) — audit sound; A–E EXECUTED; iTunes = viogpudo PERF CEILING; windows-mcp resolved same evening
+- [VM NAT firewall backend + virbr0 trust 2026-09-30](vm-nat-firewall-backend-2026-09-30.md) — VM internet DOUBLE root cause FIXED+verified: firewallBackend flip + virbr0 trustedInterfaces
+- [libvirt default-network bounce 2026-09-30](libvirt-default-network-bounce-2026-09-30.md) — drift check EVERY boot (32×); fix STAGED + timer; ⚠️ guests mapAttrs rec LOAD-BEARING
+- [Noctalia integration](noctalia-integration.md) — SUPERSEDED as live shell 2026-09-23; committed d85a786 on noctalia-testing (unpushed); lock via STATE-FILE HOT-RELOAD
+- [Plans for weaker executor](plans-for-weaker-executor.md) — user hands approved plans to a less-capable executor — plans must be self-contained (verbatim commands, one mechanical verification per unknown); unanswered AskUserQuestion = proceed w/ recommended
+- [Caelestia integration](caelestia-integration.md) — experiment CLOSED 2026-09-22 (user kept DMS); branches deleted; dms-caelestia-look unpushed; debug lore in file
+- [Git history rewrite 2026-09-19](git-history-rewrite-2026-09-19.md) — COMPLETE+PUSHED: baseline 240ad11, 797-commit archive, bump.yml weekly Sat 02:00 UTC; pending: clone reset on latitude/nix-media
+- [latitude disko + opencode](latitude-disko-opencode.md) — staged on testing 2026-09-17; live machine needs sgdisk partlabel relabel before first rebuild; impermanence SKIPPED
+- [install.sh audit 2026-09-17](install-sh-audit-2026-09-17.md) — update-safe usable; install.sh broken 4 ways; fixes offered NOT implemented
+- [Parallel index work](parallel-index-work.md) — other sessions stage into the same git index mid-session; never unstage/revert theirs, re-run QC on combined state
+- [User communication style](user-communication-style.md) — plain-language answer first, detail after; surface automatic behaviors with exact trigger conditions up front
+- [No secrets in chat](no-secrets-in-chat.md) — never request secret material in-chat — sops edit self-service + masked-decrypt verify; /tmp chmod-600 tmpfs fallback
+- [yoga hibernate status](yoga-hibernate-status.md) — WORKING 2026-10-18; open-lid two-window policy EXECUTED (59/59 asserts) STAGED; post-switch verify = journal grep "window 1/2"/"window 2/2"
+- [ZCode shell sandbox /etc](zcode-shell-sandbox-etc.md) — agent shells see fhsenv /etc, /run unwritable, sudo blocked; plan mode blocks Bash/Edit/git/nix; QC fallback = byte-diff closure tree
+- [Repo audit 2026-09-09](repo-audit-2026-09-09.md) — remediation committed+pushed (db15a2a); QC caught vulkan-tools regression; latitude+nix-media sops yamls STALE admin key
+- [RouterOS tooling program](routeros-tooling-program.md) — plan explained 2026-09-13, NOT executed; redact passwords BEFORE baseline commit
+- [Sops identity architecture 2026-09-13](sops-identity-architecture-2026-09-13.md) — yoga=ssh-derived identity PROVEN; latitude/nix-media re-encryption = SOPS_RUNBOOK §3; dry-build blind to secret files
+- [Repo audit 2026-09-14](repo-audit-2026-09-14.md) — all fixes staged on main (round 2); only sops re-encryption pending
+- [Ask, don't infer system state](ask-dont-infer-system-state.md) — journals show WHAT booted, not WHY; ask user about boot-menu picks and manual actions (burned 2026-09-16)
+- [yoga DMCUB firmware regression](yoga-dmcub-firmware-regression.md) — RESOLVED 2026-09-19: bad fw 20260910 → 20260810 pin; upstream fixed 20260916; pin removed
+- [Hyprland+DMS setup](hyprland-dms-setup.md) — DMS live 09-21 (historical); settings.json vs session.json (edits need dms stopped); night auto verified
+- [win11-work VM](win11-work-vm.md) — NEVER created; 2026-10-02 PIVOT to normal windows11 VM; removal candidate
+- [Jellyfin pin nix-media](jellyfin-pin-nix-media.md) — RESOLVED 2026-09-19: pin dropped, :latest + weekly auto-update; enable scheduled backups before 13.x
+- [yoga power audit 2026-09-19](yoga-power-audit-2026-09-19.md) — battery-refresh module added, Brave VA-API flag; conservation_mode sysfs found (off)
+- [yoga battery drain 2026-09-27](yoga-battery-drain-2026-09-27.md) — evening 73%→15% EXPLAINED by active use (ZCode Electron ~70%), no rogue consumer; ground truth /var/lib/upower/history-*.dat
+- [Coreutils audit 2026-09-19](coreutils-modernization-audit-2026-09-19.md) — modern tools installed but ZERO aliases; uutils SKIP (load-bearing ~7 sites); fix offered NOT staged
+- [Lucid light mode + icons 2026-09-26](lucid-lightmode-icons-2026-09-26.md) — light bar/dock = data not QML; shell reload kills zcode (cgroup) — KillMode=process fix proposed
+- [Hyprland gestures + ALT binds 2026-09-27](hyprland-gestures-altbinds-2026-09-27.md) — 3-finger horiz = workspace swipe, ALT+1..0 = movetoworkspace; STAGED; live keybinds.json = ground truth
+- [Lucid cleanup: DMS removal + kitty 2026-09-27](lucid-cleanup-dms-removal-2026-09-27.md) — DMS apparatus deleted, theme options dedup byte-proven; QC green; needs switch
+- [opencode v2 build mechanism 2026-10-05](opencode-v2-build-mechanism.md) — 2.x = upstream-flake source build ONLY; v2.0.23 COMMITTED 5df41f6; libstdc++ wrap remains
+- [lucid-auto-mode gsettings fix 2026-10-28](lucid-automode-gsettings-env-2026-10-28.md) — EXECUTED+QC STAGED: missing GSETTINGS_SCHEMA_DIR → lucidGsettingsEnv ×3 units; HM activation eval = .data not .text
