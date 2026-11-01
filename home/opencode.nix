@@ -37,6 +37,29 @@ in
       pkgs.mikromcp
     ];
 
+    # Portable document skills (docx/pdf/pptx/xlsx) for opencode's skill tool
+    # (~/.config/opencode/skills/<name>/SKILL.md). Sourced from the ZCode
+    # plugin cache (documents 0.2.1 / pdf 0.2.2, 2026-11-01) with the
+    # ZCode-only file-citation sections replaced by plain path reporting —
+    # see docs/opencode-migration.md. ZCode-bound skills (browser-use,
+    # computer-use, *-viewer, …) are intentionally not ported.
+    xdg.configFile = builtins.listToAttrs (
+      map
+        (name: {
+          name = "opencode/skills/${name}";
+          value = {
+            source = ./opencode-skills + "/${name}";
+            recursive = true;
+          };
+        })
+        [
+          "docx"
+          "pdf"
+          "pptx"
+          "xlsx"
+        ]
+    );
+
     # NOTE: no opencode-cache-clean service — it previously deleted
     # node_modules on boot, potentially breaking provider initialization.
     # OpenCode manages its own cache; deleting it forces re-download which
@@ -78,8 +101,12 @@ in
           # variants for small-model calls (title generation etc.), so the
           # default effort must live here. Agent variants still override it.
           # GLM has no "off" effort — low is the minimum.
-          "zai-coding-plan".models."glm-5.3-flash".options = {
-            reasoningEffort = "low";
+          "zai-coding-plan".models = {
+            "glm-5.3-flash".options.reasoningEffort = "low";
+            # Full-power model on the same plan (ZCode's main pick): kept
+            # selectable for hard tasks; high matches the default variant
+            # there. Flash above stays the cheap default.
+            "glm-5.3".options.reasoningEffort = "high";
           };
           openrouter = {
             models = {
@@ -127,6 +154,38 @@ in
             "du *" = "allow";
             "which *" = "allow";
             "jq *" = "allow";
+            # Curated from the ZCode bash allow-rulesets (2026-11-01 export of
+            # ~480 accumulated approvals; frequency-ranked, see
+            # docs/opencode-migration.md): read-only inspection plus the
+            # house-standard build/eval/format gate commands. Deliberately
+            # NOT auto-allowed: nix flake update, nix store gc/delete, sops,
+            # nixos-rebuild beyond dry-build, and test-suite vm/full (those
+            # keep the user confirmation gate from AGENTS.md QC).
+            "git status *" = "allow";
+            "git log *" = "allow";
+            "git show *" = "allow";
+            "git add *" = "allow";
+            "journalctl *" = "allow";
+            "nix eval *" = "allow";
+            "nix fmt *" = "allow";
+            "nix build *" = "allow";
+            "nix path-info *" = "allow";
+            "nix flake check" = "allow";
+            "nix flake check *" = "allow";
+            "nix flake show *" = "allow";
+            "nix flake metadata *" = "allow";
+            "nixos-rebuild dry-build *" = "allow";
+            "nixos-rebuild list-generations" = "allow";
+            "readlink *" = "allow";
+            "realpath *" = "allow";
+            "diff *" = "allow";
+            "systemctl status *" = "allow";
+            "systemctl cat *" = "allow";
+            "virsh list *" = "allow";
+            "virsh dominfo *" = "allow";
+            "virsh dumpxml *" = "allow";
+            "scripts/test-suite fast*" = "allow";
+            "scripts/test-suite suggest" = "allow";
           };
         };
         mcp = {
