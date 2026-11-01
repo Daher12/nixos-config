@@ -156,10 +156,13 @@ in
           # itself lives in ~/Dokumente/Notes, persisted via the system-level
           # Dokumente entry in hosts/yoga/default.nix.
           ".config/obsidian"
-          # Spotify (features.spotify): login, prefs and its offline
-          # cache all live under ~/.config/spotify — unpersisted, every
-          # boot would log out.
+          # Spotify (features.spotify): autologin blob + prefs live under
+          # ~/.config/spotify; the client validates its session against
+          # ~/.cache/spotify (storage.last-location) — wipe that and it
+          # treats the device as new and asks for login despite the
+          # persisted config blob.
           ".config/spotify"
+          ".cache/spotify"
           # Nautilus (the Hyprland file manager): view/sort preferences in
           # .config, starred files + metadata in .local/share — unpersisted,
           # both reset on every boot of the impermanence host.
