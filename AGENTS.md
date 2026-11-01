@@ -19,9 +19,9 @@ follow `LUCID_RUNBOOK.md`.
 - `profiles/` — hardware/system profiles
 - `pkgs/` — custom nix packages (e.g. `mikromcp.nix`)
 - `quickshell-patches/` — build-time patches for the quickshell engine input
-- `tests/` — NixOS VM tests (`nix build .#nixosTests.x86_64-linux.<name>`)
+- `tests/` — NixOS VM tests (7 of them; run via `scripts/test-suite vm`, not part of `checks`)
 - `secrets/` — sops-nix encrypted secrets (hosts/yoga.yaml, hosts/latitude.yaml, hosts/nix-media.yaml, hosts/nix-media-litellm.yaml)
-- `scripts/` — helper scripts (`update-safe` is the safe rebuild path, exposed as the `nus` fish function; `install.sh` for fresh installs)
+- `scripts/` — helper scripts (`update-safe` is the safe rebuild path, exposed as the `nus` fish function; `test-suite` is the shared verification suite; `install.sh` for fresh installs)
 - `lib/` — flake library functions
 
 ## Conventions
@@ -35,7 +35,7 @@ follow `LUCID_RUNBOOK.md`.
 ## House rules
 
 - NEVER commit, push, or create PRs unless the user explicitly asks.
-- Run `nix fmt` on changed `.nix` files and validate with `nix flake check` (or a dry-build of the affected host) before finishing.
+- Run `nix fmt` on changed `.nix` files and validate with `scripts/test-suite fast` (flake check + dry-builds) before finishing.
 - Prefer editing existing modules over creating new ones; follow the existing naming (`enable` options, `mkEnableOption`).
 - Rebuild/testing: use `scripts/update-safe` guidance or `nixos-rebuild` with `--flake .#<host>`; do not run `nixos-rebuild switch` or reboot without asking.
 - `scripts/update-safe` auto-commits the `flake.lock` it updates (pathspec-limited to that one file, `--push` publishes) — that commit is the script's behavior when the USER runs it and does not license agents to commit anything else; the NEVER-commit rule above still applies to agent-driven changes.
@@ -46,13 +46,27 @@ follow `LUCID_RUNBOOK.md`.
 
 ## Verification workflow (QC)
 
-Proven recipe for validating changes without a full rebuild:
+**`scripts/test-suite` is THE shared suite** — zcode, opencode and every other agent run the same commands through it; do not invent an ad-hoc verification pipeline.
+
+- **`test-suite fast [host…]`** — `nix flake check` (statix, deadnix, nixfmt) + per-host dry-build. This is the standing acceptance gate: run after every structural change. Cheap — needs **no confirmation**. Defaults to `yoga latitude nix-media` (yoga-gnome is dry-built weekly by CI).
+- **`test-suite vm [name…]`** — the NixOS VM battery, one QEMU boot per test (≈5–15 min each; names listed in `--help`). Gated — see below.
+- **`test-suite full [host…]`** — fast + vm.
+- **`test-suite suggest`** — maps the changed files to the covering VM tests and prints cost/commands for the gate decision.
+
+**Confirmation gate for `vm`/`full` (mandatory):** the battery is expensive, so never start it unasked and never skip it silently. Before running one:
+
+1. Run `scripts/test-suite suggest` and sanity-check its mapping against what you actually changed (a test counts as covering when its VM imports the changed module; unrelated coverage does not).
+2. Give the user a short evaluation: which tests cover the change, rough total runtime, and whether runtime evidence is needed at all (docs-only edits, formatting, and refactors already proven byte-identical do not need VMs).
+3. Recommend one of: full battery / the named subset / skip — then **ask the user whether to run fully, partly, or not at all**.
+4. Run only what was approved; report per-test PASS/FAIL either way.
+
+Targeted probes (still valid alongside the suite):
 
 - **Extracted/moved config must be proven behavior-preserving.** Build the home-manager files tree and diff the generated file against the deployed one:
   `nix build .#nixosConfigurations.yoga.config.home-manager.users.dk.home-files --no-link --print-out-paths`
   then `diff ~/.config/opencode/opencode.json <store-path>/.config/opencode/opencode.json`. A byte-identical diff means the refactor is safe.
 - **Inspect generated config values with `nix eval --json`** (e.g. persistence entries: `nix eval --json .#nixosConfigurations.yoga.config.home-manager.users.dk.home.persistence."/persist".directories --apply 'map (d: d.directory or d)'`) instead of grepping source.
-- **Dry-build is the acceptance gate:** `nixos-rebuild dry-build --flake .#<host>` after every structural change.
+- **Dry-build is the acceptance gate** — i.e. `test-suite fast` (or `nixos-rebuild dry-build --flake .#<host>` directly) after every structural change.
 
 ## Lessons learned (don't repeat)
 

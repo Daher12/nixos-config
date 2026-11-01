@@ -1,0 +1,240 @@
+#!/usr/bin/env bash
+# Shared verification suite for ALL agents working in this repo (zcode,
+# opencode, CI-style local runs). One entry point so nobody invents their own
+# pipeline. Tiers:
+#   fast  — flake checks (statix/deadnix/nixfmt) + per-host dry-build. The
+#           standing acceptance gate; cheap, always allowed.
+#   vm    — the NixOS VM battery (each test boots a QEMU VM). Expensive, so
+#           gated behind a short evaluation + user confirmation (see AGENTS.md
+#           "Verification workflow (QC)").
+#   full  — fast + vm.
+#   suggest — map changed files to the covering VM tests + a recommendation.
+set -euo pipefail
+
+readonly SELF_NAME="test-suite"
+# Resolve lazily enough that --help works outside a git tree: fall back to
+# cwd (the tiers themselves will fail loudly there — no flake present).
+REPO="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+readonly REPO
+
+readonly ALL_TESTS=(
+  litellm-gateway
+  ssh-firewall
+  virbr0-firewall
+  zram-heal
+  yoga-s2h-logic
+  nix-media-upgrade-pipeline
+  host-units-smoke
+)
+readonly ALL_HOSTS=(yoga yoga-gnome latitude nix-media)
+readonly DEFAULT_FAST_HOSTS=(yoga latitude nix-media) # yoga-gnome is covered by the weekly CI bump
+
+usage() {
+  cat <<EOF
+Usage:
+  $SELF_NAME fast [host...]      # flake checks + dry-build (minutes) — standing gate, no confirmation
+  $SELF_NAME vm [name...]        # NixOS VM battery (≈5–15 min per test) — needs user confirmation first
+  $SELF_NAME full [host...]      # fast + vm
+  $SELF_NAME suggest             # map changed files → covering VM tests + recommendation
+
+fast hosts default to: ${DEFAULT_FAST_HOSTS[*]}
+vm names (default all):
+  ${ALL_TESTS[*]}
+
+Agent protocol (AGENTS.md § Verification workflow (QC)):
+  fast    — run after every structural change; no confirmation needed.
+  vm/full — run '$SELF_NAME suggest' first, give the user a short evaluation
+            (which tests cover the change, rough runtime, whether runtime
+            evidence is needed at all), recommend full/partial/skip, and ASK
+            the user before starting. Never launch the battery unasked.
+EOF
+}
+
+is_test() {
+  local t
+  for t in "${ALL_TESTS[@]}"; do [[ "$1" == "$t" ]] && return 0; done
+  return 1
+}
+
+is_host() {
+  local h
+  for h in "${ALL_HOSTS[@]}"; do [[ "$1" == "$h" ]] && return 0; done
+  return 1
+}
+
+cmd_fast() {
+  local hosts=("$@") h
+  if ((${#hosts[@]} == 0)); then hosts=("${DEFAULT_FAST_HOSTS[@]}"); fi
+  for h in "${hosts[@]}"; do
+    is_host "$h" || { echo "Invalid host: $h" >&2; exit 1; }
+  done
+
+  cd "$REPO"
+  echo "==> Tier: fast (flake checks + dry-build: ${hosts[*]})"
+
+  # Flake evaluation reads the git INDEX, not the worktree — unstaged new
+  # files are invisible to everything below (AGENTS.md house rule).
+  local untracked
+  untracked="$(git ls-files --others --exclude-standard -- '*.nix')"
+  if [[ -n "$untracked" ]]; then
+    echo "WARNING: new .nix files not staged yet (invisible to flake eval — git add first):" >&2
+    sed 's/^/  /' <<<"$untracked" >&2
+  fi
+
+  echo "==> nix flake check (statix, deadnix, nixfmt, eval)"
+  nix flake check --impure --keep-going
+
+  local rc=0
+  for h in "${hosts[@]}"; do
+    echo "==> Dry-build: $h"
+    # Same evidence as `nixos-rebuild dry-build`, but works in agent
+    # sandboxes/CI: evaluates the toplevel and reports what would build/fetch.
+    nix build ".#nixosConfigurations.${h}.config.system.build.toplevel" --dry-run --impure || rc=1
+  done
+
+  if ((rc)); then
+    echo "fast tier: FAILED (see dry-build output above)" >&2
+    exit 1
+  fi
+  echo "fast tier: OK (${hosts[*]})"
+}
+
+cmd_vm() {
+  local tests=("$@") t
+  if ((${#tests[@]} == 0)); then tests=("${ALL_TESTS[@]}"); fi
+  for t in "${tests[@]}"; do
+    is_test "$t" || { echo "Unknown VM test: $t (valid: ${ALL_TESTS[*]})" >&2; exit 1; }
+  done
+
+  cd "$REPO"
+  echo "==> Tier: vm (${#tests[@]} test(s), each boots a QEMU VM)"
+  local failed=() t0
+  for t in "${tests[@]}"; do
+    echo "==> VM test: $t ($(date '+%H:%M:%S'))"
+    t0=$SECONDS
+    if nix build ".#nixosTests.x86_64-linux.${t}" --no-link; then
+      printf '==> PASS: %-28s (%ds)\n' "$t" "$((SECONDS - t0))"
+    else
+      printf '==> FAIL: %-28s (%ds) — full log: nix log .#nixosTests.x86_64-linux.%s\n' "$t" "$((SECONDS - t0))" "$t" >&2
+      failed+=("$t")
+    fi
+  done
+
+  echo
+  if ((${#failed[@]} > 0)); then
+    echo "vm tier: ${#failed[@]}/${#tests[@]} FAILED: ${failed[*]}" >&2
+    exit 1
+  fi
+  echo "vm tier: all ${#tests[@]} passed."
+}
+
+cmd_suggest() {
+  cd "$REPO"
+  # Changed (staged + unstaged vs HEAD) and brand-new files that can carry
+  # test-relevant behavior. Docs/lock/workflow noise can't map to a test.
+  local files
+  files="$(
+    {
+      git diff --name-only HEAD -- '*.nix' '*.py' '*.sh'
+      git ls-files --others --exclude-standard -- '*.nix' '*.py' '*.sh'
+    } | sort -u
+  )"
+
+  if [[ -z "$files" ]]; then
+    echo "No changed files — nothing to verify beyond a clean tree."
+    echo "Recommendation: skip the VM battery."
+    exit 0
+  fi
+
+  # Changed file → covering VM test. Keep in sync with flake.nix's
+  # nixosTests wiring and the imports inside tests/*.nix.
+  declare -A run=()
+  local f
+  while IFS= read -r f; do
+    case "$f" in
+      modules/features/litellm.nix) run[litellm-gateway]=1 ;;
+      modules/core/openssh.nix) run[ssh-firewall]=1 ;;
+      modules/features/virtualization.nix | modules/features/filesystem.nix) run[virbr0-firewall]=1 ;;
+      modules/features/zram.nix)
+        run[zram-heal]=1
+        run[yoga-s2h-logic]=1
+        ;;
+      hosts/yoga/yoga-s2h.nix) run[yoga-s2h-logic]=1 ;;
+      modules/roles/media.nix | hosts/nix-media/maintenance.nix | hosts/nix-media/ntfy.nix | hosts/nix-media/docker.nix)
+        run[nix-media-upgrade-pipeline]=1
+        ;;
+      # Broad smoke: the shared module trees, latitude's host module and the
+      # profiles all flow through host-units-smoke's full-repo eval.
+      modules/core/* | modules/features/* | modules/roles/* | modules/hardware/* | hosts/latitude/* | profiles/*)
+        run[host-units-smoke]=1
+        ;;
+      # A changed test file (or its helper) is itself a reason to run it.
+      tests/litellm-firewall.nix)
+        run[litellm-gateway]=1
+        run[ssh-firewall]=1
+        ;;
+      tests/virbr0-firewall.nix) run[virbr0-firewall]=1 ;;
+      tests/zram-heal.nix) run[zram-heal]=1 ;;
+      tests/yoga-s2h.nix | tests/s2h-harness.sh) run[yoga-s2h-logic]=1 ;;
+      tests/nix-media-pipeline.nix) run[nix-media-upgrade-pipeline]=1 ;;
+      tests/host-units-smoke.nix) run[host-units-smoke]=1 ;;
+      tests/sops-stub.nix)
+        run[nix-media-upgrade-pipeline]=1
+        run[host-units-smoke]=1
+        ;;
+      # Everything else (flake.nix, home/, pkgs/, scripts/, docs) is covered
+      # by the fast tier's eval/checks; no VM test imports it.
+    esac
+  done <<<"$files"
+
+  echo "Changed files:"
+  sed 's/^/  /' <<<"$files"
+  echo
+  if ((${#run[@]} == 0)); then
+    echo "No VM test covers any of these — the fast tier is the full check."
+    echo "Recommendation: skip the VM battery (run '$SELF_NAME fast' if not already green)."
+    exit 0
+  fi
+
+  local names
+  names="$(printf '%s\n' "${!run[@]}" | sort | paste -sd' ' -)"
+
+  echo "Covering VM tests: $names"
+  echo
+  echo "Evaluation input for the confirmation gate (AGENTS.md § Verification workflow (QC)):"
+  echo "  cost:       ≈5–15 min per test (${#run[@]} test(s) here; full battery is ${#ALL_TESTS[@]})"
+  echo "  command:    $SELF_NAME vm $names"
+  echo "  partial:    run only the covering subset above"
+  echo "  skip when:  docs-only, formatting, or refactors already proven"
+  echo "              behavior-preserving (e.g. byte-identical home-files diff)"
+}
+
+case "${1:-}" in
+  fast)
+    shift
+    cmd_fast "$@"
+    ;;
+  vm)
+    # Deliberately no interactive gate here: the runner is dumb by design —
+    # the confirmation gate lives in the agent protocol (AGENTS.md §
+    # Verification workflow (QC)), which also covers partial selections.
+    shift
+    cmd_vm "$@"
+    ;;
+  full)
+    shift
+    cmd_fast "$@"
+    cmd_vm "$@"
+    ;;
+  suggest)
+    cmd_suggest
+    ;;
+  -h | --help | help | "")
+    usage
+    ;;
+  *)
+    echo "Unknown tier: $1" >&2
+    usage >&2
+    exit 1
+    ;;
+esac
