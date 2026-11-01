@@ -28,12 +28,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ github.ref }}
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v31
+        uses: cachix/install-nix-action@fd24c48048070c1be9acd18c9d369a83f0fe94d7 # v31.8.1
         with:
           extra_nix_config: |
             accept-flake-config = true
@@ -50,6 +50,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.include_lanzaboote }}" == "true" ]]; then
             extra_inputs+=(lanzaboote)
           fi
+          # NOTE: this list is duplicated in scripts/update-safe (--pin allowlist) — change both together.
           nix flake update \
             nixpkgs nixos-hardware \
             home-manager sops-nix disko impermanence \
@@ -73,7 +74,7 @@ jobs:
         run: nix fmt -- $(find . -name '*.nix' -type f)
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v7
+        uses: stefanzweifel/git-auto-commit-action@d0b01107b5db882071f96de5dd4b54961ea93f4c # v7.2.1
         with:
           commit_message: |
             chore(flake): update inputs & format [skip ci]

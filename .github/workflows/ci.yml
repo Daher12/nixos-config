@@ -20,12 +20,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ github.ref }}
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v31
+        uses: cachix/install-nix-action@fd24c48048070c1be9acd18c9d369a83f0fe94d7 # v31.8.1
         with:
           extra_nix_config: |
             accept-flake-config = true
@@ -38,7 +38,8 @@ jobs:
         run: |
           set -euo pipefail
           nix flake check --all-systems --impure --keep-going
-          for host in $(nix eval --json '.#nixosConfigurations' --apply 'builtins.attrNames' | jq -r '.[]'); do
+          # yoga-gnome is covered by the weekly bump.yml run
+          for host in $(nix eval --json '.#nixosConfigurations' --apply 'builtins.attrNames' | jq -r '.[] | select(. != "yoga-gnome")'); do
             echo "::group::Verifying $host"
             nix build ".#nixosConfigurations.${host}.config.system.build.toplevel" --dry-run --impure
             echo "::endgroup::"

@@ -43,6 +43,12 @@ while [[ $# -gt 0 ]]; do
         usage
         exit 1
       fi
+      # Enforce what the usage text says: lucid must never move through here.
+      if [[ "$2" == "lucid" ]]; then
+        echo "refusing to pin lucid — it is a flake=false source pin whose" >&2
+        echo "build-time patch layer may reject; follow LUCID_RUNBOOK.md instead." >&2
+        exit 1
+      fi
       pins+=("$2")
       shift 2
       ;;
