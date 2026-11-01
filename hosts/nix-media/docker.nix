@@ -7,9 +7,11 @@
 
 let
   # --- HOST CONFIGURATION ---
-  # Hardware-specific GIDs (verify with `getent group render | cut -d: -f3`)
-  renderGid = "303";
-  videoGid = "26";
+  # Hardware GIDs, pinned declaratively in hosts/nix-media/default.nix
+  # (users.groups.{video,render}.gid) so allocation drift can't silently
+  # break QSV (permission denied on /dev/dri/renderD128).
+  renderGid = toString config.users.groups.render.gid;
+  videoGid = toString config.users.groups.video.gid;
 
   # ID Mapping from Media Role
   uid = toString config.roles.media.nfsAnonUid;
@@ -40,6 +42,13 @@ let
     subnet = "172.18.0.0/16";
   };
 
+  # Units on the shared docker network (was spelled out twice each in the
+  # network unit's before/requiredBy).
+  consumers = [
+    "docker-jellyfin.service"
+    "docker-audiobookshelf.service"
+  ];
+
   storagePath = "/mnt/storage";
   dockerPath = "/home/${mainUser}/docker";
   jellyfinCachePath = "/var/cache/jellyfin";
@@ -55,7 +64,17 @@ in
           "--force"
         ];
       };
-      daemon.settings."metrics-addr" = "127.0.0.1:${toString portCfg.dockerMetrics}";
+      # live-restore: containers survive daemon restarts/rebuilds.
+      # No json-file log-opts on purpose: NixOS defaults log-driver to
+      # "journald", so container stdout is already capped by the host's
+      # journald config in default.nix (SystemMaxUse=500M etc.) — and
+      # max-size/max-file are json-file-only opts that CRASH dockerd at
+      # start ("unknown log opt for journald driver"; caught by the
+      # nix-media-pipeline VM test 2026-10-31).
+      daemon.settings = {
+        "metrics-addr" = "127.0.0.1:${toString portCfg.dockerMetrics}";
+        "live-restore" = true;
+      };
     };
 
     oci-containers = {
@@ -193,17 +212,15 @@ in
           "docker.socket"
         ];
         requires = [ "docker.service" ];
-        before = [
-          "docker-jellyfin.service"
-          "docker-audiobookshelf.service"
-        ];
-        requiredBy = [
-          "docker-jellyfin.service"
-          "docker-audiobookshelf.service"
-        ];
+        before = consumers;
+        requiredBy = consumers;
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
+          NoNewPrivileges = true;
+          PrivateTmp = true;
+          ProtectSystem = "strict";
+          ProtectHome = "read-only";
         };
         path = [ pkgs.docker ];
         script = ''
@@ -222,6 +239,12 @@ in
         StartLimitIntervalSec = "5min";
       };
 
+      # Both data disks are nofail: without this gate a failed/late mount
+      # lets dockerd auto-create the bind sources as empty dirs on the root
+      # FS and the containers boot with empty libraries.
+      "docker-jellyfin".unitConfig.RequiresMountsFor = [ "/mnt/storage" ];
+      "docker-audiobookshelf".unitConfig.RequiresMountsFor = [ "/mnt/storage" ];
+
       "docker-audiobookshelf".serviceConfig = {
         IOWeight = 100;
         CPUWeight = 100;
@@ -238,21 +261,46 @@ in
       };
 
       "docker-image-refresh" = {
-        description = "Pull latest Docker images and restart containers";
+        description = "Pull latest Docker images and restart changed containers";
         serviceConfig = {
           Type = "oneshot";
           User = "root";
+          NoNewPrivileges = true;
+          PrivateTmp = true;
+          ProtectSystem = "strict";
+          ProtectHome = "read-only";
         };
         path = [
           pkgs.docker
           pkgs.systemd
         ];
         script = ''
-          set -e
-          docker pull ${images.jellyfin}
-          docker pull ${images.audiobookshelf}
-          docker pull ${images.cadvisor}
-          systemctl restart docker-jellyfin.service docker-audiobookshelf.service docker-cadvisor.service
+          set -eu
+          # Digest-compare: restart a container only when its image actually
+          # changed (the weekly pull otherwise bounced all three every Sunday
+          # 03:00 even with no new digest). A jellyfin restart is further
+          # skipped while ffmpeg is mid-transcode — the weekly timer retries
+          # next Sunday.
+          refresh() {
+            local image="$1" unit="$2"
+            local old new
+            old=$(docker image inspect -f '{{.Id}}' "$image" 2>/dev/null || echo none)
+            docker pull "$image"
+            new=$(docker image inspect -f '{{.Id}}' "$image")
+            if [ "$old" = "$new" ]; then
+              echo "no change: $unit"
+              return 0
+            fi
+            if [ "$unit" = "docker-jellyfin.service" ] && docker top jellyfin 2>/dev/null | grep -q ffmpeg; then
+              echo "image changed but jellyfin is transcoding - skipping restart, retried next run: $unit"
+              return 0
+            fi
+            systemctl restart "$unit"
+            echo "restarted: $unit"
+          }
+          refresh ${images.jellyfin} docker-jellyfin.service
+          refresh ${images.audiobookshelf} docker-audiobookshelf.service
+          refresh ${images.cadvisor} docker-cadvisor.service
           docker image prune -f
         '';
       };

@@ -47,6 +47,9 @@
           Type = "oneshot";
           TimeoutStartSec = "2min";
           PrivateTmp = true;
+          NoNewPrivileges = true;
+          ProtectSystem = "strict";
+          ProtectHome = "read-only";
         };
 
         path = with pkgs; [

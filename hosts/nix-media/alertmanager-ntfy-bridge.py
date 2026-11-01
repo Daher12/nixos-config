@@ -56,6 +56,12 @@ class AlertHandler(http.server.BaseHTTPRequestHandler):
         pass
 
 
-server = http.server.HTTPServer(("127.0.0.1", 9095), AlertHandler)
-print("Alertmanager-ntfy bridge listening on :9095")
+# Port from the unit (BRIDGE_PORT in monitoring.nix — single source with the
+# Alertmanager webhook target).
+BRIDGE_PORT = int(os.environ.get("BRIDGE_PORT", "9095"))
+
+# ThreadingHTTPServer: one slow ntfy.sh call must not block the webhook
+# listener (a burst of grouped alerts would otherwise time out Alertmanager).
+server = http.server.ThreadingHTTPServer(("127.0.0.1", BRIDGE_PORT), AlertHandler)
+print(f"Alertmanager-ntfy bridge listening on :{BRIDGE_PORT}")
 server.serve_forever()

@@ -31,7 +31,9 @@ in
     nix.gc = {
       automatic = true;
       dates = "Sun 04:00";
-      flags = "--delete-older-than 60d";
+      # 30d: daily autoUpgrade generations pile up fast; boot
+      # configurationLimit caps entries, so longer retention is dead weight.
+      flags = "--delete-older-than 30d";
     };
 
     users.defaultShell = "zsh";
@@ -98,14 +100,9 @@ in
       enable = true;
 
       # paths and formats keep the module defaults (/mnt/storage/{downloads,
-      # movies, shows} and the "{name} ({year})" naming scheme).
-      ignore = [
-        ".*sample.*"
-        "^RARBG.*"
-        ".*\\.part[0-9]+.*"
-        ".*\\btrailer\\b.*"
-        ".*\\bnfo\\b.*"
-      ];
+      # movies, shows} and the "{name} ({year})" naming scheme); ignore
+      # patterns likewise come from the module — this adds only the delta.
+      extraIgnore = [ ".*\\bnfo\\b.*" ];
 
       extraSettings = {
         hits = 8;
@@ -195,12 +192,22 @@ in
     };
   };
 
-  users.users.${mainUser} = {
-    uid = config.roles.media.nfsAnonUid;
-    extraGroups = [ "docker" ];
-  };
+  users = {
+    users.${mainUser} = {
+      uid = config.roles.media.nfsAnonUid;
+      extraGroups = [ "docker" ];
+    };
 
-  users.groups.${mainUser}.gid = config.roles.media.nfsAnonGid;
+    groups = {
+      ${mainUser}.gid = config.roles.media.nfsAnonGid;
+
+      # Hardware GID pins consumed by docker.nix (--group-add for /dev/dri
+      # access). Values equal the nixpkgs defaults (config-side no-op) — the
+      # point is that gid allocation drift can't silently break QSV.
+      video.gid = 26;
+      render.gid = 303;
+    };
+  };
 
   # HDD streaming fix — hangs in read-ahead, not scheduler.
   # Root cause: default read_ahead_kb=128 forces tiny USB transfers, starving

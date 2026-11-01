@@ -1,6 +1,10 @@
 { config, pkgs, ... }:
 
 let
+  # Single source for the alertmanager→ntfy bridge port (webhook target
+  # below + BRIDGE_PORT on the bridge service).
+  bridgePort = 9095;
+
   alertRulesFile = (pkgs.formats.yaml { }).generate "alert-rules.yaml" {
     groups = [
       {
@@ -48,6 +52,25 @@ let
             for = "5m";
             labels.severity = "warning";
             annotations.summary = "I/O wait > 50%";
+          }
+          {
+            # The mergerfs LowDiskSpace above only sees the aggregate: with
+            # moveonenospc, one full data disk is invisible until
+            # minfreespace=20G is exhausted cluster-wide. Watch each disk.
+            alert = "MediaDiskAlmostFull";
+            expr = ''100 - ((node_filesystem_avail_bytes{mountpoint=~"/mnt/disk[12]"} * 100) / node_filesystem_size_bytes{mountpoint=~"/mnt/disk[12]"}) > 90'';
+            for = "10m";
+            labels.severity = "warning";
+            annotations.summary = "Data disk < 10% free (per-disk, mergerfs aggregate hides this)";
+          }
+          {
+            # Catches what the OnFailure→ntfy bridge can miss: units in
+            # Restart=on-failure limbo and crash loops that never settle.
+            alert = "DockerUnitFailed";
+            expr = ''node_systemd_unit_state{name=~"docker-(jellyfin|audiobookshelf|cadvisor|network-jellyfin|image-refresh)\.service",state="failed"} == 1'';
+            for = "5m";
+            labels.severity = "critical";
+            annotations.summary = "Docker systemd unit failed for 5m";
           }
         ];
       }
@@ -213,7 +236,7 @@ in
               name = "ntfy";
               webhook_configs = [
                 {
-                  url = "http://127.0.0.1:9095/alert";
+                  url = "http://127.0.0.1:${toString bridgePort}/alert";
                   send_resolved = true;
                 }
               ];
@@ -297,6 +320,7 @@ in
           description = "Alertmanager to ntfy webhook bridge";
           wantedBy = [ "multi-user.target" ];
           after = [ "network.target" ];
+          environment.BRIDGE_PORT = toString bridgePort;
           serviceConfig = {
             Type = "simple";
             Restart = "always";
@@ -341,11 +365,17 @@ in
       };
       intel-gpu-metrics = {
         description = "Intel GPU Metrics Collector";
+        # Root is required: intel_gpu_top needs perf/drm access. Writes go
+        # only to StateDirectory (rw bind-mounted even under ProtectSystem).
         serviceConfig = {
           Type = "oneshot";
           User = "root";
           StateDirectory = "prometheus-node-exporter";
           StateDirectoryMode = "0755";
+          NoNewPrivileges = true;
+          PrivateTmp = true;
+          ProtectSystem = "strict";
+          ProtectHome = "read-only";
           TimeoutStartSec = "8s";
           MemoryMax = "32M";
           CPUQuota = "10%";

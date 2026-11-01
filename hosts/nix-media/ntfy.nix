@@ -23,8 +23,6 @@ let
     "nixos-upgrade"
   ];
 
-  failureServices = criticalServices;
-
   ntfySend = pkgs.writeShellScriptBin "ntfy-send" ''
     set -euo pipefail
 
@@ -66,7 +64,7 @@ in
 
   systemd = {
     services =
-      (lib.genAttrs failureServices (_: {
+      (lib.genAttrs criticalServices (_: {
         unitConfig.OnFailure = "ntfy-failure@%n";
       }))
       // {
@@ -74,6 +72,10 @@ in
           description = "Notify on %i failure";
           serviceConfig = {
             Type = "oneshot";
+            NoNewPrivileges = true;
+            PrivateTmp = true;
+            ProtectSystem = "strict";
+            ProtectHome = "read-only";
             ExecStart =
               let
                 # Wrapper that waits for transient failures to settle before notifying.
@@ -115,6 +117,10 @@ in
           serviceConfig = {
             Type = "oneshot";
             RemainAfterExit = true;
+            NoNewPrivileges = true;
+            PrivateTmp = true;
+            ProtectSystem = "strict";
+            ProtectHome = "read-only";
           };
           script = ''
             ${ntfySend}/bin/ntfy-send default computer,white_check_mark \
@@ -130,7 +136,13 @@ in
         ntfy-heartbeat = {
           description = "Daily alive ping via ntfy";
           path = [ pkgs.coreutils ];
-          serviceConfig.Type = "oneshot";
+          serviceConfig = {
+            Type = "oneshot";
+            NoNewPrivileges = true;
+            PrivateTmp = true;
+            ProtectSystem = "strict";
+            ProtectHome = "read-only";
+          };
           script = ''
             ${ntfySend}/bin/ntfy-send min heartbeat \
               "Heartbeat" \
