@@ -23,11 +23,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793106621,
-        "narHash": "sha256-UZQX8yFA4Kg2UlduElencdA+QXQO9LcQJCqWzUHGZMk=",
+        "lastModified": 1793444119,
+        "narHash": "sha256-4pQhSCByOSrC1XCXvpBgHrJHwMs3BU3IH02fZdREoPg=",
         "owner": "duxlabs-dev",
         "repo": "dux-greeter",
-        "rev": "0f5de0577cc118091cab9ed8d7976919f0161251",
+        "rev": "45b82d84d947a2c6491d4f16a5d0a84ee379dfeb",
         "type": "github"
       },
       "original": {
@@ -39,11 +39,11 @@
     "dank-qml-common": {
       "flake": false,
       "locked": {
-        "lastModified": 1793073767,
-        "narHash": "sha256-mT0Kp4m/FP2u+I6GAZJtBH7LGHh6tSibDuRv4M4YBbc=",
+        "lastModified": 1793444058,
+        "narHash": "sha256-YL9pm7n++0r6uXMQDg4CmB0++JGUezXIlgmp87KiUxM=",
         "owner": "duxlabs-dev",
         "repo": "dux-qml-common",
-        "rev": "08efce90fd4b2aa90c4064b57e48b14720bbe255",
+        "rev": "934de22f3e246dff16ab06368582c5ae8cbdc304",
         "type": "github"
       },
       "original": {
@@ -193,11 +193,11 @@
     "lucid": {
       "flake": false,
       "locked": {
-        "lastModified": 1792508685,
-        "narHash": "sha256-ACuiM4dBcCUoJBOqX5WFg0lVzCP3Ah+tq8L5D394sc0=",
+        "lastModified": 1793474870,
+        "narHash": "sha256-/NqvWPK5+CD7ZTrIeEdFj3T1D8ERAB1GlNi7GUaAAi4=",
         "owner": "Sn3akyy1",
         "repo": "lucid",
-        "rev": "4b8fc9a450683795ddfb1764cc92fb282f14f75a",
+        "rev": "2945eabacff3ead45835a53433c41ea4b6688b6f",
         "type": "github"
       },
       "original": {
@@ -264,16 +264,16 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1793088589,
-        "narHash": "sha256-fIko/sSjsKLbGKmOmi9RxLGIyYQWatvo/ZK0jamIS7Y=",
+        "lastModified": 1793374714,
+        "narHash": "sha256-Q26ABM+QF6PAjMSCSdp/ThjCazSJvJUJwP66Y31gzy0=",
         "owner": "anomalyco",
         "repo": "opencode",
-        "rev": "1097e2668b1e08ad63bdf0b1c4860b9bc01e420c",
+        "rev": "45898d0f8569225eb1ddb4ee13f8581b34dff311",
         "type": "github"
       },
       "original": {
         "owner": "anomalyco",
-        "ref": "v2.2.0",
+        "ref": "v2.2.4",
         "repo": "opencode",
         "type": "github"
       }
@@ -424,11 +424,11 @@
         "spotx-bash": "spotx-bash"
       },
       "locked": {
-        "lastModified": 1792945448,
-        "narHash": "sha256-ZQ1zQV9i3ODwPvKqld9YC8b2/f/1LKaPgAuvqbHV1IQ=",
+        "lastModified": 1793399040,
+        "narHash": "sha256-YqnpAKXcjC1rmgcPNxi0M/NBd4tDfm9PGtpSJBaBeqU=",
         "owner": "SpotX-Official",
         "repo": "SpotX-Nix",
-        "rev": "54f055db9c1bf60224a060bf3e289f23719edc01",
+        "rev": "070132b68c3a4818b57a7c57769dcaff8eafed68",
         "type": "github"
       },
       "original": {

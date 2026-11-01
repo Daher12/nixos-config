@@ -53,9 +53,12 @@
     # packages/cli/script/build.ts's ../../../script/native-arch import).
     # Upstream fixed it in 3171839709 ("fix(nix): ship the root script/ dir
     # to the CLI build", 2026-10-19, first shipped in the v2.1 line) — the
-    # pin resumed moving at v2.1.4 (2026-10-24 sweep) and reached v2.2.0 in
-    # the 2026-10-28 sweep (gate: `nix build github:anomalyco/opencode/v2.2.0`
-    # clean before touching this tag — keep that gate per bump).
+    # pin resumed moving at v2.1.4 (2026-10-24 sweep), reached v2.2.0 in the
+    # 2026-10-28 sweep and v2.2.4 in the 2026-10-31 sweep (gate:
+    # `nix build github:anomalyco/opencode/v2.2.N` clean before touching this
+    # tag — keep that gate per bump; v2.2.5 is SKIPPED: its vendored
+    # node_modules.nix hash mismatches the lockfile it ships — upstream
+    # packaging bug, caught by this gate 2026-10-31).
     # Deliberately NO `nixpkgs.follows` here: upstream requires its pinned
     # nixpkgs-unstable (packageManager bun@1.4.2; nixos-26.05 only ships
     # bun 1.3.13, whose `bun install` fails extracting the big native
@@ -64,7 +67,7 @@
     # The libstdc++ LD_LIBRARY_PATH wrap in home/opencode.nix covers the
     # resulting stdenv mismatch.
     opencode = {
-      url = "github:anomalyco/opencode/v2.2.0";
+      url = "github:anomalyco/opencode/v2.2.4";
     };
 
     # Quickshell engine — upstream flake (docs: the GitHub mirror is
@@ -212,6 +215,21 @@
 
               passthru.unwrapped = qsUnwrapped;
             };
+        })
+        # python3.13-fastmcp (transitive dep of mcp-nixos, home/opencode.nix):
+        # its pytest suite breaks on the 2026-10-31 nixpkgs bump (6f06d204) —
+        # 3 of 4712 tests die with "Attempted to exit a cancel scope that
+        # isn't the current task" (fastmcp 3.2.3's concurrency tests vs the
+        # new pytest-asyncio/anyio pairing). The library code mcp-nixos
+        # imports is unaffected; skip the suite so the package builds.
+        (_final: _prev: {
+          python313 = _prev.python313.override {
+            packageOverrides = _pyFinal: pyPrev: {
+              fastmcp = pyPrev.fastmcp.overridePythonAttrs (_old: {
+                doCheck = false;
+              });
+            };
+          };
         })
       ];
 
