@@ -82,8 +82,8 @@
     # cpuid API split in kernel 7.2 (the declarations moved out of the old
     # include chain into asm/cpuid/api.h), so the module fails to build on
     # any 7.2-based kernel — zen tracks 7.2 now too. Pin upstream's own fix
-    # (d298366, "Fix cpuid include on 7.2+ kernels", 2026-08-15); drop this
-    # override once nixpkgs moves past it.
+    # (d298366, "Fix cpuid include on 7.2+ kernels", 2026-08-15);
+    # TODO(nixpkgs): drop this override once nixpkgs moves past it.
     extraModulePackages = [
       (config.boot.kernelPackages."ryzen-smu".overrideAttrs (_: {
         version = "0.1.7-unstable-2026-08-15";
