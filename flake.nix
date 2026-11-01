@@ -249,13 +249,16 @@
         } "find ${self} -name '*.nix' -exec nixfmt --check {} + && touch $out";
       };
 
-      # VM tests — run explicitly, not part of `checks` (CI stays fast):
-      # nix build .#nixosTests.x86_64-linux.litellm-gateway / .ssh-firewall
-      #   / .virbr0-firewall / .zram-heal / .yoga-s2h-logic
-      #   / .nix-media-upgrade-pipeline / .host-units-smoke
+      # VM tests — run via `scripts/test-suite vm` (agent gate protocol in
+      # AGENTS.md § Verification workflow (QC)), not part of `checks` (CI
+      # stays fast). Direct form:
+      # nix build .#nixosTests.x86_64-linux.<litellm-gateway|ssh-firewall
+      #   |virbr0-firewall|zram-heal|yoga-s2h-logic
+      #   |nix-media-upgrade-pipeline|host-units-smoke>
       nixosTests.${system} =
         (pkgs.callPackage ./tests/litellm-firewall.nix {
           litellmModule = ./modules/features/litellm.nix;
+          opensshModule = ./modules/core/openssh.nix;
         })
         // (pkgs.callPackage ./tests/virbr0-firewall.nix {
           virtualizationModule = ./modules/features/virtualization.nix;

@@ -9,6 +9,7 @@
   pkgs,
   lib,
   litellmModule,
+  opensshModule,
 }:
 {
   litellm-gateway = testers.runNixOSTest {
@@ -46,21 +47,23 @@
     name = "ssh-firewall";
     nodes = {
       server = _: {
-        services.openssh = {
+        # The REAL fleet module (modules/core/openssh.nix): the nftables
+        # rule under test is generated from core.openssh.mgmtLanCidr +
+        # services.openssh.ports, exactly as deployed — no inline copy to
+        # drift away from the module.
+        imports = [ opensshModule ];
+
+        core.openssh = {
           enable = true;
-          openFirewall = false;
+          mgmtLanCidr = "192.168.88.0/24";
         };
-        # Mirrors core.openssh.mgmtLanCidr from modules/core/openssh.nix
-        # (kept inline: this VM builds the rule without the core module).
+        # The module scopes port 22 to the mgmt LAN instead of opening it
+        # globally, so the default openFirewall must stay off.
+        services.openssh.openFirewall = false;
         networking = {
           nftables.enable = true;
           useNetworkd = true;
-          firewall = {
-            allowPing = true;
-            extraInputRules = ''
-              ip saddr 192.168.88.0/24 tcp dport 22 ct state new accept comment "ssh from home management LAN"
-            '';
-          };
+          firewall.allowPing = true;
         };
         systemd.network = {
           enable = true;
