@@ -202,7 +202,25 @@
               pname = "${qsUnwrapped.pname}-wrapped";
 
               nativeBuildInputs = qsUnwrapped.nativeBuildInputs ++ [ final.qt6.wrapQtAppsHook ];
-              buildInputs = qsUnwrapped.buildInputs ++ [ final.qt6.qt5compat ];
+              # qt5compat: lucid v1.20 imports Qt5Compat.GraphicalEffects
+              # (lucidbar/Workspaces.qml, lucidui/ShapedImage.qml; upstream
+              # docs list qt6-5compat as a hard requirement, Arch installs it
+              # system-wide) — without it the shell crash-looped on
+              # "module Qt5Compat.GraphicalEffects is not installed" after
+              # the 2026-10-10 switch.
+              # qtwebengine + qtimageformats: lucid 1.20.5.5 (2026-10-31
+              # bump) gained Lumen, the in-shell file manager — upstream
+              # install.sh lists qt6-webengine as REQUIRED because Lumen's
+              # preview pane imports it ("a window with an import it can't
+              # resolve doesn't load at all", i.e. SUPER+E and every
+              # launcher files entry would die). qtimageformats carries the
+              # webp/tiff/tga/icns codecs Lens, the photo widget and the
+              # what's-new sheet draw.
+              buildInputs = qsUnwrapped.buildInputs ++ [
+                final.qt6.qt5compat
+                final.qt6.qtwebengine
+                final.qt6.qtimageformats
+              ];
 
               dontUnpack = true;
               dontConfigure = true;

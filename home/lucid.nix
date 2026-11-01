@@ -196,12 +196,17 @@ let
       dest = "lucidwidgets/widgets.json";
     }
     {
-      # upstream ships no default for this one: install.sh only carries an
-      # existing icons.json over from its backup, the desktop-icons feature
-      # writes it at runtime. Empty `file` = the seed step below skips it;
-      # the rsync still excludes it from --delete like every state file.
+      # upstream ships no default for these two: install.sh only carries an
+      # existing icons.json/chrono.json over from its backup (the
+      # desktop-icons feature and the Chrono app write them at runtime).
+      # Empty `file` = the seed step below skips them; the rsync still
+      # excludes them from --delete like every state file.
       file = "";
       dest = "luciddesktop/icons.json";
+    }
+    {
+      file = "";
+      dest = "lucidbar/chrono.json";
     }
   ];
 
@@ -666,6 +671,39 @@ in
           "$LUCID_DIR/keybinds.json" > "$LUCID_DIR/keybinds.json.tmp" \
           && mv "$LUCID_DIR/keybinds.json.tmp" "$LUCID_DIR/keybinds.json"
       fi
+
+      # 2026-10-31 lucid 1.20.5.5: upstream's "files" bind (SUPER+E) moved
+      # from nautilus to Lumen, the in-shell file manager (lucidlumen/).
+      # Migrate an existing keybinds.json in place while it still matches
+      # the old default; a cmd edited in Lucid Settings survives (same
+      # policy as the ghostty->kitty migration above). Fresh seeds get the
+      # Lumen cmd straight from upstream's keybinds.json.
+      if [ -s "$LUCID_DIR/keybinds.json" ] \
+        && ${pkgs.jq}/bin/jq -e '.binds[] | select(.id == "files") | .cmd == "nautilus"' \
+             "$LUCID_DIR/keybinds.json" > /dev/null; then
+        ${pkgs.jq}/bin/jq --arg cmd '$HOME/.config/quickshell/lucidlumen/lumen' \
+          '(.binds[] | select(.id == "files") | .cmd) = $cmd' \
+          "$LUCID_DIR/keybinds.json" > "$LUCID_DIR/keybinds.json.tmp" \
+          && mv "$LUCID_DIR/keybinds.json.tmp" "$LUCID_DIR/keybinds.json"
+      fi
+
+      # Lumen + Lens desktop entries, the way upstream install.sh registers
+      # them: `--default` writes ~/.local/share/applications/lucid.{lumen,
+      # lens}.desktop (launcher rows, dock icon) and makes Lumen what opens
+      # folders / Lens what opens pictures (xdg-mime). NOT passing
+      # --portal: that rewrites the user-level xdg-desktop-portal config
+      # and would switch EVERY app's open/save dialog to Lumen — opt in
+      # manually with `lumen --portal` if wanted (lumen --portal-off
+      # reverts). Re-runs are idempotent file writes; the entries are
+      # rewritten at every activation because ~/.local/share/applications
+      # is not persisted on the impermanence hosts.
+      for registrar in lucidlumen/lumen lucidlens/lens; do
+        if [[ -x "$QS_DIR/$registrar" ]]; then
+          if ! PATH="/run/current-system/sw/bin:$PATH" "$QS_DIR/$registrar" --default; then
+            echo "warning: $registrar --default failed — launcher entry not written" >&2
+          fi
+        fi
+      done
 
       # 2026-10-09 v1.20: the session screen and the window switcher are new
       # surfaces with new default binds — an existing keybinds.json only
