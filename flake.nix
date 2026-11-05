@@ -402,6 +402,19 @@
             }
           );
 
+          # Same machine, niri desktop (niri-testing branch trial): DMS as the
+          # session shell (modules/features/desktop-niri.nix), DankGreeter on
+          # the niri compositor. Switch target, nothing else differs.
+          yoga-niri = mkHost (
+            yogaArgs
+            // {
+              profiles = [
+                "laptop"
+                "desktop-niri"
+              ];
+            }
+          );
+
           # Physical Laptop: Latitude (Intel)
           latitude = mkHost {
             hostname = "latitude";

@@ -136,7 +136,11 @@ in
           # assertions run. The HM import is unconditional via mkHost.
           {
             assertion = !config.features.desktop-gnome.enable;
-            message = "features.desktop-hyprland and features.desktop-gnome are mutually exclusive — switch via the flake attrs (yoga = Hyprland, yoga-gnome = GNOME)";
+            message = "features.desktop-hyprland and features.desktop-gnome are mutually exclusive — switch via the flake attrs (yoga = Hyprland, yoga-gnome = GNOME, yoga-niri = niri)";
+          }
+          {
+            assertion = !config.features.desktop-niri.enable;
+            message = "features.desktop-hyprland and features.desktop-niri are mutually exclusive — switch via the flake attrs (yoga = Hyprland, yoga-gnome = GNOME, yoga-niri = niri)";
           }
           {
             assertion = !cfg.greeter.autoLogin || cfg.lucid.enable || cfg.dms.enable;
