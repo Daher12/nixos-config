@@ -127,6 +127,24 @@
       url = "github:Sn3akyy1/lucid";
       flake = false;
     };
+
+    # DMS / dux-shell — DankMaterialShell rebranded (duxlabs-dev), the
+    # quickshell shell the dux-shell branch evaluates as lucid's
+    # replacement: official Nix packaging (stable branch = tagged releases;
+    # nixpkgs' own dms-shell 1.4.x is stale by a major version, hence the
+    # flake). The NixOS module (nixosModules.dank-material-shell) is
+    # imported in modules/features/desktop-hyprland.nix; the package and
+    # quickshell default to this input built against our nixpkgs (follows —
+    # quickshell resolves through the overlaid pkgs.quickshell, patch 201
+    # included). Manual pin like lucid/quickshell/dank-greeter: bump
+    # deliberately with `nix flake update dux-shell`, then smoke-test shell
+    # AND greeter. The upstream home-manager module is deliberately NOT
+    # used (it assigns programs.quickshell, defined nowhere) — settings
+    # seeding lives in home/dms.nix.
+    dux-shell = {
+      url = "github:duxlabs-dev/dux-shell/stable";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =

@@ -63,17 +63,16 @@ let
       dbus-update-activation-environment --systemd GTK_THEME 2>/dev/null || true
 
       ${
-        if config.desktop.lucid.enable then
+        if config.desktop.lucid.enable || config.desktop.dms.enable then
           ''
-            # Lucid host: ~/.config/gtk-4.0 is owned by lucid — envtool writes
-            # the settings.ini theme names, matugen writes colors.css, and
-            # lucidSync appends `@import url('colors.css')` to a WRITABLE
-            # gtk.css. The colloid symlink farm of the non-lucid branch would
-            # point gtk.css into the read-only store; the next lucidSync
-            # append would then write through it and abort the whole HM
-            # activation (EACCES — the 2026-09-24 failure class). The
-            # gsettings swaps above still apply.
-            echo "switch-theme: lucid owns ~/.config/gtk-4.0 — css/assets symlinks skipped" >&2
+            # Shell host (lucid: envtool + lucidSync; DMS: its matugen writes
+            # gtk-{3,4}.0/colors.css): ~/.config/gtk-4.0 is owned by the
+            # session shell. The colloid symlink farm of the shell-less
+            # branch would point gtk.css into the read-only store; the
+            # shell's next write through it would abort (EACCES — the
+            # 2026-09-24 failure class). The gsettings swaps above still
+            # apply.
+            echo "switch-theme: the session shell owns ~/.config/gtk-4.0 — css/assets symlinks skipped" >&2
           ''
         else
           ''
@@ -190,14 +189,15 @@ in
     };
 
     # HM's gtk module would own ~/.config/gtk-{3.0,4.0}/settings.ini, but
-    # Lucid's envtool rewrites those files at every shell start (atomic
-    # rename — replaces the HM store symlink with a real file). The stale
-    # .backup HM keeps then aborts the next boot-time activation entirely
-    # (2026-09-24: no lucid.service, default cursor). Lucid owns the ini
-    # files on its host (dconf above covers the gsettings side); hosts
-    # without the shell keep the declarative HM theme.
+    # the session shell rewrites those files (lucid: envtool atomic rename
+    # — replaces the HM store symlink with a real file; DMS: its matugen
+    # flow owns the same dirs). The stale .backup HM keeps then aborts the
+    # next boot-time activation entirely (2026-09-24: no lucid.service,
+    # default cursor). The shell owns the ini files on its host (dconf
+    # above covers the gsettings side); hosts without a shell keep the
+    # declarative HM theme.
     gtk = {
-      enable = !config.desktop.lucid.enable;
+      enable = !config.desktop.lucid.enable && !config.desktop.dms.enable;
       theme = {
         name = gtkDark;
         package = colloid;

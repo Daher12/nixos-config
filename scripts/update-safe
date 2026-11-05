@@ -10,7 +10,7 @@ Usage:
 The safe inputs (nixpkgs, home-manager, sops-nix, ...) update every run; the
 deliberate pins only move when passed here:
   --pin quickshell  --pin dank-greeter  --pin opencode
-  --pin lanzaboote  --pin spotx-nix
+  --pin lanzaboote  --pin spotx-nix  --pin dux-shell
 lucid is NOT bumpable this way: it is a flake=false source pin and its
 build-time patch layer may reject — follow LUCID_RUNBOOK.md instead.
 

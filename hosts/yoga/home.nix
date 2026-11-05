@@ -133,6 +133,11 @@ in
           ".config/quickshell"
           ".config/lucid"
           ".cache/quickshell"
+          # DMS (dux-shell branch, home/dms.nix): settings.json (seeded once
+          # by the HM activation, then owned by DMS's Settings UI) + session
+          # state. Theme lives in a store symlink, needs no persistence.
+          ".config/dms"
+          ".local/state/dms"
           # awww wallpaper daemon image cache — its restore-on-start source.
           # Unpersisted, every reboot came up black under a static theme
           # (2026-09-30); lucid-auto-mode repairs the image at login too,

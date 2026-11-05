@@ -28,15 +28,38 @@ let
       ${pkgs.coreutils}/bin/sleep 0.2
     done
   '';
+
+  # Same uptime-gated contract for the DMS lock screen (dux-shell): the dms
+  # binary exposes `dms ipc call lock lock`, and the dms user service being
+  # started does not guarantee its IPC socket is listening yet either.
+  dmsPackage = config.programs.dank-material-shell.package;
+  dmsLockAtBoot = pkgs.writeShellScript "dms-lock-at-boot" ''
+    if [ "$(${pkgs.coreutils}/bin/cut -d. -f1 /proc/uptime)" -ge 240 ]; then
+      exit 0
+    fi
+    i=0
+    until ${dmsPackage}/bin/dms ipc call lock lock; do
+      i=$((i + 1))
+      [ "$i" -ge 50 ] && exit 1
+      ${pkgs.coreutils}/bin/sleep 0.2
+    done
+  '';
 in
 {
   # DankGreeter's module is imported unconditionally (option declarations
   # only — programs.dms-greeter); its config is gated behind
-  # cfg.greeter.enable below.
-  imports = [ inputs.dank-greeter.nixosModules.default ];
+  # cfg.greeter.enable below. Same for dux-shell's module
+  # (programs.dank-material-shell), gated behind cfg.dms.enable. The
+  # upstream DMS home-manager module is NOT imported anywhere: it assigns
+  # programs.quickshell, an option no module we import defines — the HM
+  # side (settings seed + theme) lives in home/dms.nix instead.
+  imports = [
+    inputs.dank-greeter.nixosModules.default
+    inputs.dux-shell.nixosModules.dank-material-shell
+  ];
 
   options.features.desktop-hyprland = {
-    enable = lib.mkEnableOption "Hyprland desktop with the Lucid shell and DankGreeter (mutually exclusive with features.desktop-gnome)";
+    enable = lib.mkEnableOption "Hyprland desktop with a quickshell session shell (lucid or DMS — mutually exclusive with features.desktop-gnome)";
 
     withUWSM = lib.mkOption {
       type = lib.types.bool;
@@ -55,6 +78,21 @@ in
           packaging and keeps runtime settings inside its shell directory)
           and provides the user services, PAM/keyring wiring and deps.
           DankGreeter (greeter.enable) stays: it is a standalone binary.
+        '';
+      };
+    };
+
+    dms = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          DMS desktop shell (dux-shell — DankMaterialShell rebranded;
+          quickshell-based, official Nix module, upstream German
+          translations). Enables the upstream module's dms user service +
+          runtime deps, PAM/keyring wiring, and the home-manager side
+          (home/dms.nix: one-shot settings seed + grayscale custom theme).
+          Mutually exclusive with lucid in practice — one session shell.
         '';
       };
     };
@@ -101,8 +139,8 @@ in
             message = "features.desktop-hyprland and features.desktop-gnome are mutually exclusive — switch via the flake attrs (yoga = Hyprland, yoga-gnome = GNOME)";
           }
           {
-            assertion = !cfg.greeter.autoLogin || cfg.lucid.enable;
-            message = "features.desktop-hyprland.greeter.autoLogin requires lucid.enable — the shell lock screen is the authentication gate";
+            assertion = !cfg.greeter.autoLogin || cfg.lucid.enable || cfg.dms.enable;
+            message = "features.desktop-hyprland.greeter.autoLogin requires lucid.enable or dms.enable — the session shell's lock screen is the authentication gate";
           }
         ];
 
@@ -330,6 +368,70 @@ in
             Service = {
               Type = "oneshot";
               ExecStart = "${lucidLockAtBoot}";
+            };
+            Install.WantedBy = [ "graphical-session.target" ];
+          };
+        };
+      })
+
+      (lib.mkIf cfg.dms.enable {
+        # DMS replaces only the user-session shell (dux-shell eval branch —
+        # lucid stays in the tree for the main-branch path). The upstream
+        # module is fully opt-in (enable AND systemd.enable are
+        # mkEnableOptions) — without both, the module is a silent no-op the
+        # dry-build cannot catch. It then wires the dms user service
+        # (graphical-session.target), polkit, accounts-daemon, geoclue2 and
+        # power-profiles-daemon via mkDefault; TLP's explicit
+        # power-profiles-daemon.enable = false (modules/features/power-tlp.nix)
+        # still wins, so TLP keeps owning power management exactly like on
+        # the lucid path. quickshell.package defaults to the overlaid
+        # pkgs.quickshell — patch 201 rides along (verified by probe).
+        programs.dank-material-shell = {
+          enable = true;
+          systemd.enable = true;
+        };
+
+        # Same readers lucid had: battery widget (UPower), lock-screen user
+        # list (accountsservice).
+        services = {
+          upower.enable = true;
+          accounts-daemon.enable = true;
+        };
+
+        # DMS ships its own polkit session agent (upstream DMS_DISABLE_POLKIT
+        # escape hatch); hyprpolkitagent stays installed as manual fallback.
+        security.polkit.enable = true;
+
+        # The DMS lock screen authenticates against PAM service "login"
+        # (upstream default on NixOS) — same gnome-keyring wiring as the
+        # lucid path: with autologin the keyring unlocks at first screen
+        # unlock.
+        security.pam.services.login.enableGnomeKeyring = true;
+
+        # Runtime deps the compositor binds shell out to. The dms package,
+        # quickshell (overlaid pkgs.quickshell — patch 201 rides along) and
+        # matugen land in systemPackages via the upstream module.
+        environment.systemPackages = with pkgs; [
+          brightnessctl # XF86 brightness binds (home/hyprland.nix)
+          playerctl # XF86 media binds
+          pulseaudio # pactl — XF86 volume binds
+        ];
+
+        # Home-manager side: flip home/dms.nix on (settings seed + grayscale
+        # theme) and arm the lock-at-boot unit — same uptime gate and
+        # After=graphical-session.target ordering contract as the lucid one
+        # above (the implicit-ordering boot stall, 2026-09-25).
+        home-manager.users.${mainUser} = {
+          desktop.dms.enable = lib.mkDefault true;
+
+          systemd.user.services.dms-lock-at-boot = {
+            Unit = {
+              Description = "Lock the session after greetd autologin (auth moves to the DMS lock screen)";
+              After = [ "graphical-session.target" ];
+            };
+            Service = {
+              Type = "oneshot";
+              ExecStart = "${dmsLockAtBoot}";
             };
             Install.WantedBy = [ "graphical-session.target" ];
           };

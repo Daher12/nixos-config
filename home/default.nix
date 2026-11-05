@@ -10,6 +10,7 @@
   imports = [
     ./battery-refresh.nix
     ./browsers.nix
+    ./dms.nix
     ./git.nix
     ./hyprland.nix
     ./lucid.nix
