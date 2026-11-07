@@ -15,6 +15,7 @@
     ./hyprland.nix
     ./lucid.nix
     ./niri.nix
+    ./noctalia.nix
     ./opencode.nix
     ./terminal.nix
     ./theme.nix

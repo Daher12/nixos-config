@@ -188,19 +188,27 @@ in
       };
     };
 
-    # HM's gtk module would own ~/.config/gtk-{3.0,4.0}/settings.ini, but
+    # HM's gtk module would own ~/.config/gtk-{3,4}.0/settings.ini, but
     # the session shell rewrites those files (lucid: envtool atomic rename
     # — replaces the HM store symlink with a real file; DMS: its matugen
-    # flow owns the same dirs). The stale .backup HM keeps then aborts the
-    # next boot-time activation entirely (2026-09-24: no lucid.service,
-    # default cursor). The shell owns the ini files on its host (dconf
-    # above covers the gsettings side); hosts without a shell keep the
-    # declarative HM theme.
+    # flow owns the same dirs; noctalia: the gtk3/gtk4 theme templates
+    # write them so apps follow the shell palette). The stale .backup HM
+    # keeps then aborts the next boot-time activation entirely (2026-09-24:
+    # no lucid.service, default cursor). The shell owns the ini files on
+    # its host (dconf above covers the gsettings side); hosts without a
+    # shell keep the declarative HM theme.
     gtk = {
       enable = !config.desktop.lucid.enable && !config.desktop.dms.enable;
+      # Noctalia hosts: the shell's gtk3/gtk4 templates select
+      # adw-gtk3(-dark) via gsettings and paint the palette through
+      # ~/.config/gtk-{3,4}.0/noctalia.css (adw-gtk3 lives in
+      # desktop-niri.nix systemPackages so the template's theme lookup
+      # succeeds). The declarative theme name must MATCH that pair — a
+      # Colloid pin here wins for GTK3 apps reading settings.ini and keeps
+      # them off-palette.
       theme = {
-        name = gtkDark;
-        package = colloid;
+        name = if config.desktop.noctalia.enable then "adw-gtk3-dark" else gtkDark;
+        package = if config.desktop.noctalia.enable then pkgs.adw-gtk3 else colloid;
       };
       gtk4.theme = null;
       iconTheme = {
@@ -215,9 +223,11 @@ in
     };
 
     # darkman day/night GTK switching — disabled on the Hyprland attr, where
-    # Lucid's matugen dynamic theming owns GTK (features.desktop-hyprland).
-    # Running both would fight over ~/.config/gtk-4.0 and GTK_THEME.
-    services.darkman = lib.mkIf (!config.desktop.hyprland.enable) {
+    # Lucid's matugen dynamic theming owns GTK (features.desktop-hyprland),
+    # and on the noctalia attr, whose own theme auto mode + gtk templates
+    # switch GTK by sunrise/sunset. Running both would fight over
+    # ~/.config/gtk-4.0 and GTK_THEME.
+    services.darkman = lib.mkIf (!config.desktop.hyprland.enable && !config.desktop.noctalia.enable) {
       enable = true;
       settings = {
         portal = true;

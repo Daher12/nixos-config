@@ -11,6 +11,7 @@ The safe inputs (nixpkgs, home-manager, sops-nix, ...) update every run; the
 deliberate pins only move when passed here:
   --pin quickshell  --pin dank-greeter  --pin opencode
   --pin lanzaboote  --pin spotx-nix  --pin dux-shell
+  --pin noctalia  --pin noctalia-greeter
 lucid is NOT bumpable this way: it is a flake=false source pin and its
 build-time patch layer may reject — follow LUCID_RUNBOOK.md instead.
 
@@ -23,6 +24,7 @@ manually at your leisure.
 Examples:
   update-safe yoga
   update-safe yoga-gnome switch   # flip yoga back to GNOME
+  update-safe yoga-niri switch    # flip yoga to niri + Noctalia
   update-safe latitude test
   update-safe yoga boot
   update-safe nix-media switch
@@ -72,7 +74,7 @@ host="${positional[0]}"
 action="${positional[1]:-build-only}"
 
 case "$host" in
-  yoga|yoga-gnome|latitude|nix-media) ;;
+  yoga|yoga-gnome|yoga-niri|latitude|nix-media) ;;
   *)
     echo "Invalid host: $host" >&2
     usage

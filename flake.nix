@@ -145,6 +145,21 @@
       url = "github:duxlabs-dev/dux-shell/stable";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Noctalia — the C++ Wayland shell (bar, launcher, notifications, lock
+    # screen, idle, clipboard, wallpaper, polkit agent) the niri-testing
+    # branch runs on yoga-niri in place of DMS (modules/features/
+    # desktop-niri.nix + home/noctalia.nix). Not in nixpkgs → flake. Pinned
+    # to release tags (stable-tags-only), bump deliberately with
+    # `nix flake update noctalia noctalia-greeter`, then smoke-test shell
+    # AND greeter together. Deliberately NO nixpkgs follows on either input:
+    # the upstream docs state a follows disables the binary cache
+    # (noctalia.cachix.org, modules/core/nix.nix) and both are built against
+    # their own pinned nixpkgs — the price is a second nixpkgs eval.
+    noctalia.url = "github:noctalia-dev/noctalia/v5.4.1";
+    # Paired greetd greeter (own bundled wlroots compositor, no session
+    # compositor needed): nixosModules.default imported in desktop-niri.nix.
+    noctalia-greeter.url = "github:noctalia-dev/noctalia-greeter/v1.7.0";
   };
 
   outputs =
@@ -402,9 +417,10 @@
             }
           );
 
-          # Same machine, niri desktop (niri-testing branch trial): DMS as the
-          # session shell (modules/features/desktop-niri.nix), DankGreeter on
-          # the niri compositor. Switch target, nothing else differs.
+          # Same machine, niri desktop (niri-testing branch): Noctalia as the
+          # session shell (home/noctalia.nix, pulled in by
+          # modules/features/desktop-niri.nix) with noctalia-greeter.
+          # Switch target, nothing else differs.
           yoga-niri = mkHost (
             yogaArgs
             // {

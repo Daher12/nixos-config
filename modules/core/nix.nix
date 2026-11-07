@@ -68,11 +68,15 @@ in
         substituters = [
           "https://cache.nixos.org"
           "https://nix-community.cachix.org"
+          # Noctalia shell + greeter (flake inputs noctalia/noctalia-greeter,
+          # yoga-niri): hits only because the inputs carry NO nixpkgs follows.
+          "https://noctalia.cachix.org"
         ];
 
         trusted-public-keys = [
           "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
           "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+          "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
         ];
 
         fallback = lib.mkDefault true;

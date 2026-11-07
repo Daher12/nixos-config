@@ -8,15 +8,18 @@
 let
   cfg = config.desktop.battery-refresh;
 
-  # The panel definition is shared by both sessions: hosts set
-  # desktop.hyprland.monitors even on GNOME-only attrs, so the first entry
-  # with an explicit WxH@Hz mode is the internal panel in either session.
+  # The panel definition is shared by every session: hosts set
+  # desktop.hyprland.monitors even on GNOME- and niri-only attrs, so the
+  # first entry with an explicit WxH@Hz mode is the internal panel in any
+  # session.
   monitors = config.desktop.hyprland.monitors;
   withRate = lib.filter (m: builtins.match ".+@[0-9.]+" m.mode != null) monitors;
 
   panel = builtins.head withRate;
   modeParts = builtins.match "(.+)@([0-9.]+)" panel.mode;
-  batMode = "${lib.head modeParts}@${toString cfg.refreshRate}";
+  # Resolution part of the panel mode ("3072x1920@120" -> "3072x1920").
+  wxh = lib.head modeParts;
+  batMode = "${wxh}@${toString cfg.refreshRate}";
 
   posParts = builtins.match "(-?[0-9]+)x(-?[0-9]+)" panel.position;
   posX = if posParts != null then lib.head posParts else "0";
@@ -48,8 +51,9 @@ let
   # when it can't (compositor socket races at session start, session
   # teardown); applyFn must return non-zero on failure. A failed probe or
   # apply simply retries on the next poll, when the actual rate still
-  # differs.
-  daemonText = probeFn: applyFn: extGuard: ''
+  # differs. acMode/batMode are the mode strings handed to applyFn — each
+  # backend spells them in its own compositor's grammar.
+  daemonText = probeFn: applyFn: extGuard: acMode: batMode: ''
     lid_open() {
       local f
       for f in /proc/acpi/button/lid/*/state; do
@@ -95,7 +99,7 @@ let
       if can_apply; then
         if [ "$pwr" = ac ]; then
           want='${panelHz}'
-          mode='${panel.mode}'
+          mode='${acMode}'
         else
           want='${toString cfg.refreshRate}'
           mode='${batMode}'
@@ -144,6 +148,46 @@ let
           fi
         ''
         false
+        panel.mode
+        batMode
+      }
+    '';
+  };
+
+  # niri session: `niri msg` talks to the compositor over NIRI_SOCKET,
+  # which niri-session imports into the systemd user manager where this
+  # runs as a service (verified via `systemctl --user show-environment`).
+  # The probe reads the output JSON's current_mode — an index into the
+  # modes array — whose refresh_rate is in MILLIHERTZ; `/ 1000 | round`
+  # yields the integer Hz the shared loop compares. Apply uses niri's mode
+  # grammar, which matches strings EXACTLY against the EDID list (three
+  # decimals, so plain "@60" would never match): resolution-only "WxH"
+  # selects the highest rate (AC), the battery mode spells the full
+  # @N.000 form. `niri msg` exits non-zero on failure (no hyprctl-style
+  # lying exit codes), so failed probes/applies retry on the next poll.
+  niriDaemon = pkgs.writeShellApplication {
+    name = "battery-refresh";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.gnugrep
+      pkgs.niri
+      # AC/battery probe shared with modules/hardware/ryzen-tdp.nix
+      pkgs.is-on-ac
+      pkgs.jq
+    ];
+    text = ''
+      set -euo pipefail
+
+      ${daemonText
+        ''
+          niri msg -j outputs | jq -r '.["${panel.output}"].modes[.["${panel.output}"].current_mode].refresh_rate / 1000 | round'
+        ''
+        ''
+          niri msg output "${panel.output}" mode "$1"
+        ''
+        false
+        wxh
+        "${wxh}@${toString cfg.refreshRate}.000"
       }
     '';
   };
@@ -180,13 +224,15 @@ let
         ''
         ''gnome-monitor-config set -L -p -M ${panel.output} -m "$1" -s ${panel.scale} -t normal -x ${posX} -y ${posY}''
         true
+        panel.mode
+        batMode
       }
     '';
   };
 in
 {
   options.desktop.battery-refresh = {
-    enable = lib.mkEnableOption "switching the internal panel to a lower refresh rate on battery (systemd user service in both sessions: Hyprland via hyprctl eval, GNOME via gnome-monitor-config; panel taken from desktop.hyprland.monitors)";
+    enable = lib.mkEnableOption "switching the internal panel to a lower refresh rate on battery (systemd user service; niri via niri msg, Hyprland via hyprctl eval, GNOME via gnome-monitor-config; panel taken from desktop.hyprland.monitors)";
 
     refreshRate = lib.mkOption {
       type = lib.types.ints.positive;
@@ -205,11 +251,11 @@ in
     assertions = [
       {
         assertion = withRate != [ ];
-        message = "desktop.battery-refresh: desktop.hyprland.monitors needs an entry with an explicit WxH@Hz mode (that entry is the panel definition for both sessions)";
+        message = "desktop.battery-refresh: desktop.hyprland.monitors needs an entry with an explicit WxH@Hz mode (that entry is the panel definition for every session)";
       }
     ];
 
-    # One service shape for both sessions, bound to the graphical session.
+    # One service shape for every session, bound to the graphical session.
     # Unlike the old hyprland.start spawn, a user service restarts on a
     # rebuild `switch` (fixes land mid-session, no relogin) and its stderr
     # lands in the journal.
@@ -220,8 +266,15 @@ in
         After = [ "graphical-session.target" ];
       };
       Service = {
+        # Backend precedence: niri > Hyprland > GNOME, kept explicit and
+        # order-stable — during the trial a Hyprland-backend unit once ran
+        # against a live niri session (hyprctl's connection error piped
+        # into jq = parse-error spam every poll), exactly the ambiguity an
+        # explicit precedence removes.
         ExecStart =
-          if config.desktop.hyprland.enable then
+          if config.desktop.niri.enable then
+            "${niriDaemon}/bin/battery-refresh"
+          else if config.desktop.hyprland.enable then
             "${hyprlandDaemon}/bin/battery-refresh"
           else
             "${gnomeDaemon}/bin/battery-refresh";

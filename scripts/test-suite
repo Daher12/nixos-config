@@ -27,7 +27,7 @@ readonly ALL_TESTS=(
   host-units-smoke
 )
 readonly ALL_HOSTS=(yoga yoga-gnome yoga-niri latitude nix-media)
-readonly DEFAULT_FAST_HOSTS=(yoga latitude nix-media) # yoga-gnome is covered by the weekly CI bump
+readonly DEFAULT_FAST_HOSTS=(yoga yoga-niri latitude nix-media) # yoga-gnome is covered by the weekly CI bump; yoga-niri is the deployed daily driver
 
 usage() {
   cat <<EOF

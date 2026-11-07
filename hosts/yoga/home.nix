@@ -147,11 +147,14 @@ in
           # settings page), lucid-specials.lua, lucid-glass.lua. The HM
           # symlinks (hyprland.lua, modules/, scripts/) re-link every boot.
           ".config/hypr"
-          # niri session (home/niri.nix): the HM store-symlinked config.kdl
-          # re-links every boot; the dms/*.kdl fragments the DMS Settings UI
-          # writes (colors/layout/input/binds/…) must survive like the
-          # Hyprland runtime files above.
-          ".config/niri"
+          # Noctalia (yoga-niri, home/noctalia.nix): the GUI settings layer
+          # (~/.local/state/noctalia/settings.toml — wins over the Nix
+          # config.toml, which is a store symlink and needs no entry),
+          # wallpaper/palette caches, installed plugins. The niri config.kdl
+          # itself is an HM store symlink, re-linked every boot.
+          ".local/state/noctalia"
+          ".cache/noctalia"
+          ".local/share/noctalia"
           # matugen GTK template output (colors.css + the gtk.css import
           # lucidSync appends)
           ".config/gtk-3.0"
@@ -313,8 +316,9 @@ in
       brave.extraCommandLineArgs = [ "--enable-features=VaapiVideoDecodeLinuxGL" ];
     };
 
-    # Panel definition for BOTH sessions (also read by the GNOME-side
-    # battery-refresh service on .#yoga-gnome).
+    # Panel definition for EVERY session attr: battery-refresh reads it on
+    # .#yoga (Hyprland), .#yoga-gnome and .#yoga-niri alike, and
+    # home/niri.nix derives its output block from it.
     desktop.hyprland.monitors = [
       {
         output = "eDP-1";

@@ -1,8 +1,9 @@
 ---
 name: lucid-patchset-maintenance-plan-2026-11-01
-description: Lucid patch-layer maintenance evaluation + user-approved strategy
-  (German dict translator, 001 upstream draft, stable-tags-only) — ExitPlanMode
-  DENIED, NOTHING executed
+description: SUPERSEDED (executed same day, see lucid-german-dictionary-2026-11-01)
+  — Lucid patch-layer maintenance evaluation + user-approved strategy (German dict
+  translator, 001 upstream draft, stable-tags-only); evaluation facts + upstream
+  PR verification retained here
 metadata:
   node_type: memory
   type: project

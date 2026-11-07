@@ -3,6 +3,7 @@
   lib,
   pkgs,
   mainUser,
+  inputs,
   ...
 }:
 
@@ -10,37 +11,30 @@ let
   cfg = config.features.desktop-niri;
 in
 {
-  # The dux-greeter (programs.dms-greeter) and dux-shell
-  # (programs.dank-material-shell) modules are imported unconditionally in
-  # desktop-hyprland.nix — which every host evaluates via
-  # modules/features/default.nix — so their options exist here without a
-  # second import (importing the same flake-module attrset twice does NOT
-  # dedupe: each evaluation yields a fresh module identity and the option
-  # declarations collide, breaking every host). Config is gated behind
-  # cfg.enable below. The upstream DMS home-manager module is NOT imported
-  # anywhere (it assigns programs.quickshell, defined nowhere) — the HM
-  # side (settings seed + grayscale theme) lives in home/dms.nix.
+  imports = [
+    # noctalia-greeter's NixOS module
+    # (services.displayManager.noctalia-greeter; the package defaults to
+    # the flake input's own build). Imported ONCE, here — importing the
+    # same flake-module attrset from two repo modules does NOT dedupe (each
+    # evaluation yields a fresh module identity and the option declarations
+    # collide, breaking every host). Config is gated behind cfg.enable
+    # below. The Noctalia shell itself is home-manager side
+    # (home/noctalia.nix, upstream homeModules.default).
+    inputs.noctalia-greeter.nixosModules.default
+  ];
 
   options.features.desktop-niri = {
     enable = lib.mkEnableOption ''
-      niri desktop with the DMS session shell and DankGreeter (mutually
+      niri desktop with the Noctalia shell and noctalia-greeter (mutually
       exclusive with features.desktop-hyprland and features.desktop-gnome —
       switch via the flake attrs: yoga = Hyprland, yoga-gnome = GNOME,
       yoga-niri = niri)
     '';
 
-    greeter = {
-      enable = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "DankGreeter login screen (greetd-backed, running on the niri compositor)";
-      };
-
-      configHome = lib.mkOption {
-        type = lib.types.str;
-        default = "/home/${mainUser}";
-        description = "Home whose DMS settings theme the greeter (configHome must be readable at greeter time)";
-      };
+    greeter.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "noctalia-greeter login screen (greetd-backed; bundles its own wlroots compositor, lists the installed Wayland sessions)";
     };
   };
 
@@ -64,27 +58,17 @@ in
         # runs niri-session, which imports the environment into the user
         # manager and starts niri.service (BindsTo=graphical-session.target)
         # — no uwsm needed (Hyprland needs uwsm precisely because it lacks
-        # this integration).
+        # this integration). The Noctalia shell rides that target as a
+        # home-manager user service (home/noctalia.nix).
         programs.niri.enable = true;
 
-        # DMS session shell: the upstream module wires the dms user service
-        # (PartOf/After/WantedBy graphical-session.target — starts as soon
-        # as the niri session pulls the target up), quickshell (overlaid
-        # pkgs.quickshell — patch 201 rides along) and its runtime deps, and
-        # sets accounts-daemon/power-profiles-daemon/geoclue2/polkit via
-        # mkDefault (TLP's explicit power-profiles-daemon.enable = false
-        # still wins, so TLP keeps owning power management).
-        programs.dank-material-shell = {
-          enable = true;
-          systemd.enable = true;
-        };
-
-        # DMS battery widget (not covered by the upstream module).
+        # Battery widget / power info (not covered by the shell's HM module).
         services.upower.enable = true;
 
         # GNOME-style GTK apps the binds and float rules rely on (mirror of
-        # the desktop-hyprland block; hyprpolkitagent omitted — DMS ships
-        # its own polkit session agent via the dms package).
+        # the desktop-hyprland block). No hyprpolkitagent: Noctalia
+        # registers its own polkit agent (shell.polkit_agent). No cliphist:
+        # Noctalia keeps its own clipboard history.
         services.gvfs.enable = true;
         environment.systemPackages = with pkgs; [
           nautilus
@@ -93,44 +77,71 @@ in
           gnome-text-editor
           gnome-calculator
           wl-clipboard
-          # Clipboard history backend (wl-paste --watch cliphist store is
-          # spawned at niri startup, home/niri.nix).
-          cliphist
+          # X11 apps: niri >= 25.08 spawns xwayland-satellite from PATH on
+          # demand (no KDL config needed) — without the package X11 clients
+          # just fail to open.
+          xwayland-satellite
+          # Noctalia's gtk templates gsettings-select adw-gtk3(-dark) and
+          # overlay the palette via noctalia.css (home/theme.nix pins the
+          # same theme in settings.ini); the template's theme lookup scans
+          # XDG_DATA_DIRS, which current-system/sw/share covers.
+          adw-gtk3
+          # The XF86 binds in home/niri.nix spawn these (volume/brightness/
+          # media keys). On the Hyprland attr they ride the lucid/dms
+          # package blocks, which this attr does not enable — without them
+          # here the FN keys are dead.
+          brightnessctl
+          playerctl
+          pulseaudio
         ];
 
         # gnome-keyring unlocks at the greeter login (PAM service of the
-        # greetd-backed DankGreeter) and at DMS lock-screen unlocks (PAM
-        # service "login", the DMS lock screen's default).
+        # greetd-backed greeter) and at Noctalia lock-screen unlocks (PAM
+        # service "login", hardcoded in the lock screen).
         security.pam.services.greetd.enableGnomeKeyring = true;
         security.pam.services.login.enableGnomeKeyring = true;
 
         # Home-manager side: flip home/niri.nix (compositor config) and
-        # home/dms.nix (shell settings seed + grayscale theme) on.
+        # home/noctalia.nix (shell) on. battery-refresh (enabled in the
+        # shared hosts/yoga/home.nix) picks its niri backend off
+        # desktop.niri.enable — same 120↔60 Hz contract as the other
+        # sessions.
         home-manager.users.${mainUser}.desktop = {
           niri.enable = lib.mkDefault true;
-          dms.enable = lib.mkDefault true;
-
-          # battery-refresh (enabled in the shared hosts/yoga/home.nix) has
-          # Hyprland and GNOME backends only; on niri it would pick the
-          # GNOME daemon and fail against the mutter-less session. Disabled
-          # until a niri backend (niri msg output) is written — the trial
-          # runs at the panel's native refresh rate.
-          battery-refresh.enable = lib.mkForce false;
+          noctalia.enable = lib.mkDefault true;
         };
       }
 
       (lib.mkIf cfg.greeter.enable {
-        # DankGreeter (same standalone Go binary + upstream module as the
-        # Hyprland desktop), here running on the niri compositor — the
-        # upstream module's compositor enum includes niri natively.
-        programs.dms-greeter = {
+        # The upstream module enables greetd (default_session =
+        # noctalia-greeter-session, its bundled wlroots compositor),
+        # AccountsService and polkit, and symlinks greeter.toml into
+        # /var/lib/noctalia-greeter. Appearance (wallpaper, palette, font,
+        # outputs) is synced from the running shell through pkexec; the
+        # polkit rule below lets the main user do that without a password
+        # (constrained appearance-only operation, never session commands).
+        services.displayManager.noctalia-greeter = {
           enable = true;
-          package = pkgs.dms-greeter;
-          compositor.name = "niri";
-          configHome = cfg.greeter.configHome;
+          settings = {
+            # Desktop-entry Name of the niri session (programs.niri).
+            session.default = "Niri";
+            # Fleet keymap (modules/core/locale.nix, home/niri.nix parity).
+            keyboard = {
+              layout = "de";
+              variant = "nodeadkeys";
+            };
+            # Same cursor as the session (home/theme.nix).
+            cursor = {
+              theme = "Posy_Cursor_Black";
+              size = 32;
+              path = pkgs.posy-cursors;
+            };
+          };
+          passwordless-sync-users = [ mainUser ];
         };
-        # DRM access for the greeter's niri while the logind seat handoff
-        # is still in flight (mirrors the desktop-hyprland greeter user).
+        # DRM access for the greeter's compositor while the logind seat
+        # handoff is still in flight (mirrors the desktop-hyprland greeter
+        # user).
         users.users.greeter.extraGroups = [ "video" ];
 
         # The niri session entry ships with programs.niri ("niri" desktop
