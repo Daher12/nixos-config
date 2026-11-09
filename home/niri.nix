@@ -120,12 +120,16 @@ let
         clip-to-geometry true
     }
 
-    // NOTE: no rule-forced blur for kitty — kitty ≥0.46.2 (we run 0.49.1)
-    // requests the effect itself via ext-background-effect (background_blur
-    // in home/terminal.nix), which niri renders correctly in every state.
-    // The forced `xray false` path (non-xray blur, experimental in 26.04
-    // with known limitations) rendered the FOCUSED window fully opaque
-    // while unfocused kitties frosted — 2026-11-07.
+    // Blur lore (2026-11-07, the kitty trial era): the rule-forced
+    // `xray false` path (non-xray blur, experimental in 26.04 with known
+    // limitations) rendered the FOCUSED window fully opaque while
+    // unfocused kitties frosted — never force blur without xray. Kitty's
+    // own client-requested effect (background_blur 1) rendered correctly
+    // at first, but focused and unfocused windows came out DIFFERENT, so
+    // the terminal frost is rule-forced with xray true — see the terminal
+    // window rules below. Kitty itself left this attr on 2026-11-08 (foot
+    // won the trial); the lore stays because foot lives under the same
+    // rule shape.
 
     // Window-open policy: every window opens as a MAXIMIZED COLUMN — the
     // full working area minus struts AND gaps (niri: "maximized columns
@@ -145,12 +149,44 @@ let
     }
 
     // Terminal exception (the wiki's own "all windows maximized, Alacritty
-    // not" shape — later rules override earlier fields): kitty opens at
-    // the layout default-column-width (half width); Mod+Shift+F
-    // (maximize-column) toggles the full width when a terminal needs it.
+    // not" shape — later rules override earlier fields): foot AND
+    // footclient open at the layout default-column-width (half width);
+    // Mod+Shift+F (maximize-column) toggles the full width when a terminal
+    // needs it. APP-ID TRAP (bit us twice): windows from the Mod+T bind
+    // report app-id "footclient" (the footclient binary), only direct
+    // `foot` runs report "foot" — always probe `niri msg -j windows` and
+    // match every variant, or those windows silently miss the rule.
     window-rule {
-        match app-id=r#"^kitty$"#
+        match app-id=r#"^(foot|footclient)$"#
         open-maximized false
+    }
+
+    // Rule-forced terminal frost, foot (xray): kitty used to request the
+    // blur itself via ext-background-effect (background_blur 1), but that
+    // client path renders focused and unfocused windows differently (live
+    // report 2026-11-07 — inactive read more transparent). Forcing the
+    // effect compositor-side sends every matched window through one
+    // identical render path; xray is the efficient cached-wallpaper
+    // variant (the rule-forced NON-xray variant was what rendered the
+    // focused window opaque on 2026-11-07 — never force blur without
+    // xray).
+    //
+    // The opacity ALSO lives here, not in the terminal: pixel-measured
+    // 2026-11-07 (grim screenshots of the same window focused vs
+    // unfocused), ANY client-side window alpha composites measurably
+    // different between focus states in niri 26.04 — focused windows show
+    // more frost, ~5% brighter. With foot fully opaque (no `alpha` in
+    // home/terminal.nix) and the transparency applied by this rule
+    // instead, every window gets the identical compositor transform:
+    // frost + 75% surface. This is the frost-strength dial now (0.75 =
+    // 25% frost showing through, text included).
+    window-rule {
+        match app-id=r#"^(foot|footclient)$"#
+        opacity 0.75
+        background-effect {
+            blur true
+            xray true
+        }
     }
 
     // App float rules (Hyprland parity — app-id instead of class on
@@ -312,8 +348,11 @@ let
 
         // Apps & shell surfaces — Noctalia IPC verb form per
         // docs.noctalia.dev/noctalia/ipc (panel ids: launcher, session,
-        // clipboard, control-center [tab]).
-        Mod+T hotkey-overlay-title="Terminal: kitty" { spawn "kitty"; }
+        // clipboard, control-center [tab]). Terminal = foot (won the
+        // 2026-11-07/08 trial, kitty removed from this attr): footclient
+        // attaches to the foot-server daemon — instant window open, the
+        // same pattern kitty's --single-instance wrap had.
+        Mod+T hotkey-overlay-title="Terminal: foot" { spawn "footclient"; }
         Mod+Shift+E hotkey-overlay-title="Files: nautilus" { spawn "nautilus"; }
         Mod+F1 hotkey-overlay-title="Browser: firefox" { spawn "firefox"; }
         Mod+R hotkey-overlay-title="Launcher" { spawn "noctalia" "msg" "panel-toggle" "launcher"; }
@@ -324,7 +363,7 @@ let
         Mod+O repeat=false hotkey-overlay-title="Overview" { toggle-overview; }
         Mod+V hotkey-overlay-title="Clipboard" { spawn "noctalia" "msg" "panel-toggle" "clipboard"; }
         Mod+N hotkey-overlay-title="Notifications" { spawn "noctalia" "msg" "panel-toggle" "control-center" "notifications"; }
-        Mod+M hotkey-overlay-title="Process info: btop" { spawn "kitty" "-e" "btop"; }
+        Mod+M hotkey-overlay-title="Process info: btop" { spawn "footclient" "btop"; }
         Mod+Comma hotkey-overlay-title="Noctalia settings" { spawn "noctalia" "msg" "settings-toggle"; }
         // Lucid habit moved off tap-SUPER per user request (2026-11-06):
         // SUPER+Z opens the launcher; Mod+R/Space stay as alternates.
@@ -343,7 +382,7 @@ let
         Mod+Print hotkey-overlay-title="Screenshot (screen)" { screenshot-screen; }
         // System monitor workspace habit (CTRL+SHIFT+Escape in
         // keybinds.json).
-        Ctrl+Shift+Escape hotkey-overlay-title="Process info: btop" { spawn "kitty" "-e" "btop"; }
+        Ctrl+Shift+Escape hotkey-overlay-title="Process info: btop" { spawn "footclient" "btop"; }
 
         // Scratchpad + named jump targets (lucid keybinds.json
         // SUPER+S / SUPER+SHIFT+S magic stash, SUPER+SHIFT+M/D/R). The
@@ -486,7 +525,18 @@ let
   zcodeUnmax = pkgs.writeShellScriptBin "zcode-unmax" ''
     set -u
     before=$(niri msg -j windows | jq '[.[].id]')
-    zcode "$@" >/dev/null 2>&1 &
+    # zcode's FHS wrapper execs `bwrap --die-with-parent`: the sandbox gets
+    # SIGKILLed when its parent process dies, so a plain `zcode &` here made
+    # zcode die the moment this script exited (2026-11-07: every Noctalia
+    # launcher launch "crashed" ~15s in, at wrapper exit). setsid --fork
+    # exits the intermediate process at once, so by the time bwrap registers
+    # its parent-death signal the parent is already init — zcode's lifetime
+    # is detached from this script. Keep stderr on disk, not /dev/null, or
+    # launcher-path breakage stays undiagnosable.
+    log=$HOME/.local/state/zcode/launcher.log
+    mkdir -p "$HOME/.local/state/zcode"
+    [ -f "$log" ] && [ "$(stat -c%s "$log")" -gt 1048576 ] && : > "$log"
+    setsid --fork zcode "$@" >>"$log" 2>&1 &
 
     w=$(niri msg -j outputs | jq -r '[.[] | select(.logical).logical.width] | max')
     id=

@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  pkgs,
   inputs,
   ...
 }:
@@ -25,6 +26,64 @@ let
   # eval — vendor the TTF into the repo first if lucid ever goes away.
   googleSansFlex = "${inputs.lucid}/assets/fonts/GoogleSansFlex.ttf";
   googleSansFlexLicense = "${inputs.lucid}/assets/fonts/OFL-GoogleSansFlex.txt";
+
+  # --- Energy management (user spec 2026-11-08) ---------------------------
+  # Noctalia's idle daemon is the only idle authority on this attr (no
+  # swayidle/hypridle; logind keeps IdleAction=ignore and owns just the
+  # lid). Targets: keyboard backlight off after 60 s idle or while locked,
+  # lock at 5 min (5 s passwordless grace), screen off at 5.5 min,
+  # suspend after 25 min on battery / 90 min on AC. The suspend→hibernate
+  # second stage stays in hosts/yoga/yoga-s2h.nix (pure system-sleep hook,
+  # session-independent — fires on this idle suspend like on any other).
+  #
+  # Every binary is an absolute store path: hook/idle shells inherit
+  # noctalia.service's sparse environment (bare `bash` does not resolve in
+  # systemd-spawned shells — 2026-11-07 lore).
+  kbdLed = "platform::kbd_backlight"; # max_brightness 2 on this machine
+
+  kbdOffScript = pkgs.writeShellScript "noctalia-kbd-off" ''
+    export PATH=${pkgs.brightnessctl}/bin:${pkgs.coreutils}/bin
+    # Zero the keyboard backlight, saving the current level first. Only a
+    # non-zero level is saved so a double fire (idle timer + session-locked
+    # hook on lock/suspend paths) never records 0 as the resting level.
+    cur=$(brightnessctl -d ${kbdLed} get)
+    [ "$cur" != "0" ] && printf '%s' "$cur" > "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/noctalia-kbd-bright"
+    brightnessctl -d ${kbdLed} set 0
+  '';
+
+  kbdRestoreScript = pkgs.writeShellScript "noctalia-kbd-restore" ''
+    export PATH=${config.programs.noctalia.package}/bin:${
+      lib.makeBinPath [
+        pkgs.brightnessctl
+        pkgs.coreutils
+        pkgs.gnugrep
+      ]
+    }
+    # Stay dark while locked — the session-unlocked hook re-runs this
+    # after the password, so the light only returns with real presence.
+    if noctalia msg status 2>/dev/null | grep -q '"locked"[[:space:]]*:[[:space:]]*true'; then
+      exit 0
+    fi
+    saved=$(cat "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/noctalia-kbd-bright" 2>/dev/null || echo 1)
+    brightnessctl -d ${kbdLed} set "$saved"
+  '';
+
+  suspendByPowerScript = pkgs.writeShellScript "noctalia-suspend-by-power" ''
+    export PATH=${config.programs.noctalia.package}/bin:${pkgs.coreutils}/bin
+    # Battery/AC idle-suspend split: 25 min on battery, 90 min on AC.
+    # config-set persists exactly this one key into the state layer —
+    # accepted trade-off; hooks.started re-derives it at every shell
+    # start, so a stale value can never outlive a restart.
+    ac=0
+    for supply in /sys/class/power_supply/A*; do
+      [ -r "$supply/online" ] && [ "$(cat "$supply/online")" = "1" ] && ac=1
+    done
+    if [ "$ac" = "1" ]; then
+      noctalia msg config-set idle.behavior.suspend.timeout 5400
+    else
+      noctalia msg config-set idle.behavior.suspend.timeout 1500
+    fi
+  '';
 in
 {
   imports = [
@@ -93,6 +152,8 @@ in
           popup_borders = false;
           niri_overview_type_to_launch_enabled = true;
           panel_anchor_bar = "main";
+          # GUI-tuned (state layer, 2026-11-07) — harvested 2026-11-08:
+          show_close_buttons = false;
 
           # Panel transparency: ONE global mode for every pop-out panel
           # (launcher, control center, clipboard) — three fixed steps,
@@ -104,24 +165,39 @@ in
             # Inlet rows (launcher/clipboard list rows) sit directly on the
             # frosted panel instead of their own near-opaque card fill.
             list_item_background = false;
+            # Control center floats free of the bar edge (GUI harvest).
+            control_center_placement = "floating";
+          };
+
+          # Corner hotspots + Alt-Tab switcher look (GUI harvest
+          # 2026-11-07).
+          screen_corners = {
+            enabled = true;
+            size = 14;
+          };
+          window_switcher = {
+            mru = true;
+            style = "compact";
           };
         };
 
-        # Rosé Pine builtin palette (user pick 2026-11-06), auto light/dark
-        # by sun schedule (location below). The gtk3/gtk4 templates apply it
-        # to GTK apps (settings.ini — owned by the templates here, see the
-        # activation + theme.nix handover; Firefox/ZCode follow GTK), btop
-        # gets a generated theme. Deliberately NOT enabled: "niri" (would
-        # rewrite the Nix-owned config.kdl) and "kitty" (kitty.conf is a
-        # Nix store symlink — terminals keep their static theme).
+        # Rosé Pine palette (user pick 2026-11-06), auto light/dark by sun
+        # schedule (location below); the community "Rose Pine Alt" variant
+        # + faithful wallpaper extraction won the GUI tuning rounds
+        # (harvested 2026-11-08). The template applier stays OFF (GUI
+        # choice, harvested): GTK theming is owned by home/theme.nix
+        # (adw-gtk3) and btop by home/terminal.nix — the ids stay listed
+        # only so a GUI re-enable finds its tuned set.
         theme = {
           mode = "auto";
           source = "builtin";
           builtin = "Rosé Pine";
           pure_black_dark = false;
+          community_palette = "Rose Pine Alt";
+          wallpaper_scheme = "faithful";
 
           templates = {
-            enable_builtin_templates = true;
+            enable_builtin_templates = false;
             builtin_ids = [
               "btop"
               "gtk3"
@@ -135,15 +211,17 @@ in
         # niri's overview backdrop (upstream niri recipe, option 1).
         backdrop.enabled = true;
 
-        # Bar: THREE frosted pills (user proposal 2026-11-06 — the modern
-        # segmented look). Mechanism: ONE top bar surface in capsule mode
-        # with three explicit capsule_group definitions (members list); the
-        # strip itself stays fully transparent (background_opacity 0, no
-        # forced blur) and each pill frosts via its own client blur region —
-        # see the bar layer-rule note in home/niri.nix. Three named bars
-        # can't do this: layer-shell would stack them vertically on the
-        # top edge. Each pill keeps full-radius capsule ends; the clock
-        # pill centers, left/right pills hug their margins.
+        # Bar: ONE top bar surface in capsule mode with three explicit
+        # capsule_group definitions (three named bars can't do this —
+        # layer-shell would stack them vertically on the top edge).
+        # Geometry + frost from the GUI tuning rounds, harvested
+        # 2026-11-08 (supersedes the 2026-11-06 transparent-strip look):
+        # the strip itself now carries the frost (background_opacity 0.59,
+        # client blur regions — see the bar layer-rule note in
+        # home/niri.nix) while the pill fills sit at opacity 0 on top of
+        # it. radius 17 clamps to half the 28px thickness in the renderer
+        # (full-round ends); the clock pill centers, left/right pills hug
+        # their margins.
         bar.main = {
           position = "top";
           start = [
@@ -157,16 +235,21 @@ in
             "volume"
             "battery"
           ];
-          thickness = 34;
-          margin_edge = 10;
-          margin_ends = 24;
+          thickness = 28;
+          margin_edge = 5;
+          margin_ends = 20;
+          padding = 10;
+          scale = 1.05;
+          font_scale = 0.9;
           radius = 17;
           shadow = true;
           contact_shadow = true;
-          background_opacity = 0.0; # transparent strip — the pills carry it
+          background_opacity = 0.59; # the strip carries the frost now
           capsule = true;
-          capsule_opacity = 0.68; # user-tuned
-          capsule_padding = 6;
+          capsule_opacity = 0.0; # pill fills off — strip frost only
+          capsule_padding = 3;
+          capsule_thickness = 1.0;
+          capsule_border_width = 0.0;
           capsule_group = [
             {
               id = "left";
@@ -194,9 +277,36 @@ in
         # Workspaces widget (left): minimal style — slim pills instead of
         # the wide numbered chips that overflowed the pill — and empty
         # workspaces hidden so only occupied/focused ones render.
-        widget.workspaces = {
-          style = "minimal";
-          hide_when_empty = true;
+        # Widget knobs from the GUI rounds (harvested 2026-11-08): slim
+        # workspace pills, label-less network/volume icons, volume scale.
+        widget = {
+          workspaces = {
+            style = "minimal";
+            hide_when_empty = true;
+          };
+          network.show_label = false;
+          volume = {
+            mute_color = "on_hover";
+            scale = 0.9;
+            show_label = false;
+          };
+        };
+
+        # Desktop widget cards (calendar/clock/weather on the wallpaper):
+        # GUI-off since the tuning rounds (harvested 2026-11-08).
+        desktop_widgets.enabled = false;
+
+        # Runtime knobs harvested 2026-11-08: short notification history
+        # (privacy), overlay layer, two at a time; slow disk polling — the
+        # monitor card is glanced at, not watched.
+        notification = {
+          history_retention_hours = 3;
+          layer = "overlay";
+          max_visible = 2;
+        };
+        system.monitor = {
+          disk_poll_seconds = 60;
+          gpu_poll_seconds = 10;
         };
 
         # Bottom-center dock island: lucid geometry from the dux-shell port
@@ -222,7 +332,7 @@ in
           show_running = true;
           show_dots = true;
           pinned = [
-            "kitty"
+            "foot"
             "firefox"
             "org.gnome.Nautilus"
           ];
@@ -254,37 +364,76 @@ in
           longitude = 13.40;
         };
 
-        # Single global timeout set (no battery/AC split): DPMS off / lock /
-        # suspend at 3/5/15 min (user spec 2026-09-22). Inhibitor-aware, so
-        # video playback holds the timers off. The example config ships the
-        # behaviors disabled — `enabled` must be set explicitly.
+        # Energy timeline (user spec 2026-11-08), all inhibitor-aware so
+        # video playback holds the timers off:
+        #   60 s    keyboard backlight off (custom action; restored on
+        #           activity — but stays dark while locked, hooks below)
+        #   5 min   lock (5 s passwordless grace — lockscreen below)
+        #   5.5 min screen off (DPMS)
+        #   25 min  suspend on battery / 90 min on AC (power hooks flip
+        #           the suspend timeout; see suspendByPowerScript)
+        # pre_action_fade_seconds = 0: the 2 s fullscreen "Idle Dim" fires
+        # before EVERY behavior — live-probed 2026-11-08, custom actions
+        # included — which would dim the screen at the 60 s keyboard-off.
+        # Lock/screen-off fire silently instead (their own transitions
+        # remain).
+        # The suspend→hibernate second stage is NOT here:
+        # hosts/yoga/yoga-s2h.nix catches every suspend (idle, lid,
+        # manual) as a pure system-sleep hook and RTC-wakes to hibernate
+        # 2 h later, battery only.
         idle = {
+          pre_action_fade_seconds = 0;
           behavior_order = [
-            "screen-off"
+            "kbd-off"
             "lock"
+            "screen-off"
             "suspend"
           ];
           behavior = {
-            "screen-off" = {
+            "kbd-off" = {
               enabled = true;
-              timeout = 180;
-              action = "screen_off";
+              timeout = 60;
+              action = "custom";
+              command = "${kbdOffScript}";
+              resume_command = "${kbdRestoreScript}";
             };
             "lock" = {
               enabled = true;
               timeout = 300;
               action = "lock";
             };
-            "suspend" = {
-              # Plain suspend; hibernate stays parked on this firmware.
-              # Noctalia also locks through its logind sleep monitor right
-              # before any suspend (lock_before_suspend), so the lock
-              # screen is the wake gate regardless of the idle path.
+            "screen-off" = {
               enabled = true;
-              timeout = 900;
-              action = "suspend";
+              timeout = 330;
+              action = "screen_off";
+            };
+            "suspend" = {
+              # lock_and_suspend (GUI-harvested action): locks right
+              # before suspending. Hibernate stays parked on this
+              # firmware — the s2h hook handles the second stage.
+              enabled = true;
+              # Battery baseline; suspendByPowerScript rewrites this one
+              # key to 5400 on AC via the hooks below.
+              timeout = 1500;
+              action = "lock_and_suspend";
             };
           };
+        };
+
+        # Event hooks (18 kinds exist; TOML keys are snake_case). All
+        # power events call the same probe so the decision is derived,
+        # not trusted from the event: charging/discharging re-set the
+        # suspend timeout live, started re-derives it at every shell
+        # start (also self-heals a stale runtime value after a restart).
+        # Lock/unlock drive the keyboard backlight alongside the idle
+        # timer (suspend paths lock first via lock_before_suspend, so
+        # the light is always dark before the machine sleeps).
+        hooks = {
+          started = [ "${suspendByPowerScript}" ];
+          battery_charging = [ "${suspendByPowerScript}" ];
+          battery_discharging = [ "${suspendByPowerScript}" ];
+          session_locked = [ "${kbdOffScript}" ];
+          session_unlocked = [ "${kbdRestoreScript}" ];
         };
 
         # Lock screen: big digital clock up top, a small frosted password
@@ -329,9 +478,11 @@ in
                 # Label::setShadow) — in light mode it reads as a dark
                 # "border" around the digits. Off for the soft look.
                 shadow = false;
-                # Softer theme-following ink instead of the on_surface
-                # default; follows light/dark automatically.
-                color = "on_surface_variant";
+                # on_surface: the brightest theme-following ink. Round 2's
+                # on_surface_variant read too muted; role tokens carry no
+                # alpha knob (hex would drop theme-following), so this is
+                # the only brightness step between muted and this.
+                color = "on_surface";
                 # EXPLICIT zero: the controller normalizes a MISSING
                 # background_opacity to 0.8 and draws a card plate behind
                 # the clock (2026-09-23 source-proven).
@@ -351,32 +502,40 @@ in
               cy = 640.0;
               # Compact layout clamps to 240..400 but the 400 cap only
               # applies when box_width is 0 — a lingering 810 from the
-              # regular layout stays 810 wide, so pin it. Height 0 =
-              # auto-fit the single password row.
+              # regular layout stays 810 wide, so pin it. Height: the
+              # editor re-saved 70 px (GUI harvest; 0 = auto-fit).
               box_width = 400.0;
-              box_height = 0.0;
+              box_height = 70.0;
               settings = {
-                # compact = password row only; the session buttons do not
-                # exist in this layout (power/reboot live in the session
-                # menu, Mod+P). Enter unlocks, so no login button; the idle
-                # "ready" hint is off but errors and the caps-lock warning
-                # still render (gated separately in the source).
+                # compact = the slim password row; power/reboot live in
+                # the session menu (Mod+P). Enter unlocks, so no login
+                # button; the idle "ready" hint is off but errors and the
+                # caps-lock warning still render (gated separately in the
+                # source).
                 layout = "compact";
-                # Softer glass (round 2): panel opacity 0.45 -> 0.35 also
-                # softens the hard-coded 1px OutlineVariant border — its
-                # alpha comes from the panel opacity in the source.
-                background_opacity = 0.35;
+                # Frosted + muted glass (round 3): base "surface" is the
+                # most neutral role (surface_container read tinted), and
+                # the low opacity lets the wallpaper frost through. The
+                # panel opacity also scales the hard-coded 1px
+                # OutlineVariant border alpha in the source.
+                background_color = "surface";
+                background_opacity = 0.30;
                 background_radius = 18.0;
-                # Pill-shaped input at the schema's max, slightly
-                # translucent fill.
+                # Pill input, translucent fill so the frost shows through
+                # (0.9 read as a solid, colorful pill).
                 input_radius = 20.0;
-                input_opacity = 0.9;
+                input_opacity = 0.55;
                 center_password_text = true;
                 show_login_button = false;
                 show_unlock_hint = false;
                 show_caps_lock = true;
                 show_weather = false;
                 show_media = false;
+                # GUI harvest 2026-11-07 (reveal eye, layout chip,
+                # session buttons):
+                show_password_reveal = true;
+                show_keyboard_layout = true;
+                show_session_buttons = true;
               };
             };
           };
@@ -398,6 +557,11 @@ in
           transition_duration = 300;
           blur_intensity = 0.7;
           tint_intensity = 0.35;
+          # 5 s passwordless grace right after lock (user spec
+          # 2026-11-08: unlockable without typing for 5 s after the lock
+          # lands).
+          grace_period_seconds = 5;
+          fingerprint = false; # GUI harvest; the sensor stays unused
           # Lock before (lid/logind) sleeps. Authenticates through PAM
           # service "login" (gnome-keyring unlock wired in
           # desktop-niri.nix).

@@ -8,7 +8,7 @@ metadata:
   originSessionId: session_136694fc253dd290e00cad77845d4064
 ---
 
-EXECUTED 2026-11-06 + QC green (`test-suite fast` per tip). The VPS+DMS+niri work that sat as ONE 32-file staged bundle on main was split into three stream-pure branches (user decision: VPS gets own branch; keep names dux-shell + niri-testing):
+EXECUTED 2026-11-06 + QC green (`test-suite fast` per tip). **UPDATE 2026-11-07: everything committed + checkpoints squashed — vps f823dae / dux-shell 9bf6fe1+9111dad / niri-testing 2ff4f37+fee3af7, all local-only; full post-commit audit in [[branch-commit-squash-2026-11-07]]. Hashes below are pre-squash history.** The VPS+DMS+niri work that sat as ONE 32-file staged bundle on main was split into three stream-pure branches (user decision: VPS gets own branch; keep names dux-shell + niri-testing):
 
 - `vps` = `d34fbe2` (off main): hosts/vps/**, scripts/vps-*, secrets/hosts/{vps,nix-media-gatus}.yaml, ntfy.nix gatus heartbeat, vpn.nix advertiseExitNode, vps/vps-install flake attrs, test-suite vps entries.
 - `dux-shell` = `9bf6fe1` (off main): home/dms.nix + dms-themes, dux-shell flake input + flake.lock nodes, desktop-hyprland dms wiring (shellIpc, dmsLockAtBoot, dms option), home/theme.nix, profiles/desktop-hyprland dms defaults, update-safe --pin, yoga dms persistence.

@@ -426,6 +426,11 @@
         "/var/lib/gdm"
         "/var/lib/AccountsService"
         "/var/lib/fwupd"
+        # noctalia-greeter: the mutable sync.toml lives here (the shell
+        # syncs wallpaper/palette/font/outputs into /var/lib/noctalia-greeter;
+        # unmanaged by the greeter module). Without this the greeter loses
+        # its synced look on every reboot (impermanence wipe).
+        "/var/lib/noctalia-greeter"
         {
           directory = "/var/lib/swap";
           mode = "0700";

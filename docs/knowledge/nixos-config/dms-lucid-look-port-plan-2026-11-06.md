@@ -10,7 +10,7 @@ metadata:
   originSessionId: session_54be1800b9493559456869aa5e90f6d2
 ---
 
-**EXECUTED 2026-11-06** (second session, plan re-approved via ExitPlanMode, staged NOT committed; fast tier green yoga+latitude+nix-media). Plan below superseded where marked.
+**EXECUTED 2026-11-06** (second session, plan re-approved via ExitPlanMode; fast tier green yoga+latitude+nix-media). **UPDATE 2026-11-07: COMMITTED as 9111dad on dux-shell — the two auto "chore: checkpoint" commits (this port + the foregroundLayer 0.9 follow-up) were squashed+reworded into it, lossless-proven; see [[branch-commit-squash-2026-11-07]].** Plan below superseded where marked.
 
 **Shipped (branch dux-shell, worktree):**
 1. theme.json: warning+info added to BOTH faces as GRAY (#c6c6c6/#5e5e5e — plan's Nord yellow/blue rejected: lucid's error is gray, grayscale consistency wins).

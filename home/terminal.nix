@@ -19,10 +19,11 @@ let
   };
 
   # The niri/Noctalia host (yoga-niri) runs Rosé Pine end to end — the
-  # shell and GTK are Rosé Pine via home/noctalia.nix — so kitty, fzf and
-  # btop follow it there (main/dark variant only: the terminal never
-  # follows light/dark, see the kitty note below). Every other host stays
-  # Nord; the Nord values below are the ones they always had.
+  # shell and GTK are Rosé Pine via home/noctalia.nix — so the terminal
+  # (foot there, kitty on the lucid/GNOME hosts), fzf and btop follow it
+  # there (main/dark variant only: the terminal never follows light/dark).
+  # Every other host stays Nord; the Nord values below are the ones they
+  # always had.
   rosePineTerminal = config.desktop.noctalia.enable;
 
   # fzf option-string roles, per palette. hl+/marker get rose/gold on
@@ -276,9 +277,12 @@ in
       };
     })
 
-    (lib.mkIf cfg.kitty.enable {
-      # The default terminal: SUPER+T
-      # (desktop.hyprland.terminal) and lucid's F9 bind both open kitty.
+    (lib.mkIf (cfg.kitty.enable && !config.desktop.niri.enable) {
+      # The default terminal of the lucid/Hyprland and GNOME hosts: SUPER+T
+      # (desktop.hyprland.terminal) and lucid's F9 bind both open kitty, and
+      # lucid's Glass slider owns its opacity — kitty stays THEIR terminal.
+      # On the niri host foot replaced it entirely (2026-11-08, foot trial
+      # won); this gate keeps kitty out of that attr.
       # Single-instance wrap:
       # --single-instance is CLI-only (no kitty.conf equivalent), and it is the
       # startup-time tweak — the first launch pays the full cost (GL init,
@@ -296,18 +300,17 @@ in
             wrapProgram $out/bin/kitty --add-flags "--single-instance"
           '';
         };
-        # Colors: static Nord from kitty-themes everywhere except the
-        # niri/Noctalia host, which gets Rosé Pine (verbatim from upstream
-        # rose-pine/kitty dist/rose-pine.conf) as plain `settings` keys —
-        # no kitty-themes lookup needed there, so themeFile goes null.
-        # Kitty deliberately does NOT follow light/dark mode on either side
-        # (2026-09-30: a bright terminal feels wrong): the shell flips via
-        # the sun schedule, the terminal stays dark. lucid's
-        # apply-theme.sh / matugen keep rewriting
+        # Colors: static Nord from kitty-themes. Kitty deliberately does
+        # NOT follow light/dark mode (2026-09-30: a bright terminal feels
+        # wrong): the shell flips via the sun schedule, the terminal stays
+        # dark. lucid's apply-theme.sh / matugen keep rewriting
         # ~/.config/kitty/matugen-colors.conf, but nothing includes it.
         # HM writes the themeFile include BEFORE `settings` (order 520 vs
         # 540), so `settings` colors would win over a theme regardless.
-        themeFile = if rosePineTerminal then null else "Nord";
+        # (This block only evaluates on the lucid/GNOME hosts — the niri
+        # host runs foot — so the former Rosé Pine branches for the
+        # noctalia attr were dead and were removed 2026-11-08.)
+        themeFile = "Nord";
         settings = {
           font_family = cfg.kitty.fontFamily;
           font_size = cfg.kitty.fontSize;
@@ -321,54 +324,13 @@ in
           window_padding_width = 12;
         }
         // (lib.optionalAttrs (!config.desktop.lucid.enable) {
-          # Lucid's Glass slider owns terminal opacity on Hyprland hosts (see
-          # extraConfig below) — there the static value would fight the
-          # slider. On the niri host this opacity IS the frost strength:
-          # niri's window blur (home/niri.nix) only shows through kitty's
-          # transparent fraction, so this is what makes the frost visible
-          # (0.93 = 7% blur contribution — invisible). 0.75 after the live
-          # test 2026-11-07 (0.80 read "a tad too solid" focused; user
-          # tune). The GNOME generations (latitude, yoga-gnome) keep 0.93 —
-          # mutter has no blur, deeper transparency there just bleeds
-          # windows through.
-          background_opacity = if config.desktop.noctalia.enable then "0.75" else "0.93";
-        })
-        // (lib.optionalAttrs rosePineTerminal {
-          # Rosé Pine (main) — github.com/rose-pine/kitty. Opacity comes
-          # from the !lucid block above (0.80 = the frost strength).
-          # Native frosted-terminal blur: kitty ≥0.46.2 (nixpkgs has
-          # 0.49.1) requests the effect itself via niri's
-          # ext-background-effect protocol — the same client-driven path
-          # the Noctalia pills use, rendered correctly in every window
-          # state. Rule-forced compositor blur (xray false) was tried
-          # first and rendered the FOCUSED window fully opaque
-          # (2026-11-07); no window-rule needed anymore.
-          background_blur = 1;
-          foreground = "#e0def4";
-          background = "#191724";
-          selection_foreground = "#e0def4";
-          selection_background = "#403d52";
-          cursor = "#524f67";
-          cursor_text_color = "#e0def4";
-          url_color = "#c4a7e7";
-          active_border_color = "#31748f";
-          inactive_border_color = "#403d52";
-          color0 = "#26233a";
-          color1 = "#eb6f92";
-          color2 = "#31748f";
-          color3 = "#f6c177";
-          color4 = "#9ccfd8";
-          color5 = "#c4a7e7";
-          color6 = "#ebbcba";
-          color7 = "#e0def4";
-          color8 = "#6e6a86";
-          color9 = "#eb6f92";
-          color10 = "#31748f";
-          color11 = "#f6c177";
-          color12 = "#9ccfd8";
-          color13 = "#c4a7e7";
-          color14 = "#ebbcba";
-          color15 = "#e0def4";
+          # Lucid's Glass slider owns terminal opacity on Hyprland hosts
+          # (see extraConfig below) — there the static value would fight
+          # the slider. These are the GNOME generations (latitude,
+          # yoga-gnome): 0.93, mutter has no blur. (The former "niri host
+          # draws fully opaque" branch was dead — kitty never evaluates on
+          # the niri attr.)
+          background_opacity = "0.93";
         });
         # Lucid Glass (Settings > General > Glass) writes
         # ~/.config/kitty/lucid-glass.conf and signals kitty (USR1) to reload.
@@ -381,6 +343,97 @@ in
         extraConfig = lib.mkIf config.desktop.lucid.enable ''
           include ${config.home.homeDirectory}/.config/kitty/lucid-glass.conf
         '';
+      };
+    })
+
+    # FOOT — THE terminal of the niri host (foot trial won over kitty
+    # 2026-11-08; kitty is absent from this attr, see the kitty gate above).
+    # Why foot: lightest Wayland terminal class (~15-40MB vs kitty's
+    # ~150-300MB), `--server` daemon = instant window open (Mod+T spawns
+    # footclient, home/niri.nix), best-in-class fractional-scale and damage
+    # handling at 120Hz. Trade-offs: no ligatures, plain foot.ini.
+    # Theming: Rosé Pine main palette (verbatim upstream hexes, same as the
+    # kitty block above uses on the lucid/GNOME hosts), same font; foot
+    # draws FULLY OPAQUE and sits under the compositor rule in
+    # home/niri.nix (opacity 0.75 + xray blur) — user picked full frost
+    # after trialing plain client-side translucency. Known trade-off:
+    # niri's focus-keyed frost sampling (pixel-proven 2026-11-07) applies
+    # to foot identically — visible only when comparing two windows in
+    # different focus states.
+    #
+    # foot 1.27 key facts (validated against `foot --check-config` of the
+    # live binary — never write foot config from memory):
+    # - cursor COLORS = `cursor` in [colors-dark], TWO RRGGBB values
+    #   `<text> <block>` (the man page's example mislabels the order; its
+    #   formal definition is authoritative). No `cursor-text` key; the
+    #   [cursor] section only styles shape/blink/thickness.
+    # - transparency = [colors-dark] `alpha` (0-1 float; `alpha-mode
+    #   default` = only default-bg cells translucent, kitty's per-cell
+    #   model). Colors are strict RRGGBB — hex-alpha suffixes REJECTED.
+    # - palette section is [colors-dark] ([colors] deprecated, warns per
+    #   key).
+    # - `dpi-aware=no` = font size in LOGICAL px (kitty parity); foot's
+    #   default `auto` sizes pt against physical DPI — 2x too tall at this
+    #   panel's scale 2.
+    (lib.mkIf config.desktop.niri.enable {
+      programs.foot = {
+        enable = true;
+
+        # One daemon, instant client windows (`footclient`, wired as the
+        # Mod+Shift+T spawn target).
+        server.enable = true;
+
+        settings = {
+          main = {
+            font = "CaskaydiaCove Nerd Font Mono:size=11";
+            shell = "fish --login --interactive";
+            # Kitty parity: font size in LOGICAL pixels. foot's default
+            # `dpi-aware=auto` resolves pt against physical DPI — at this
+            # panel's scale 2 that renders the font ~2x too tall.
+            dpi-aware = "no";
+            # pts-vs-px note from kitty applies: generous pad so prompt
+            # glyphs clear the rounded corners.
+            pad = "12x12";
+          };
+
+          scrollback.lines = 10000;
+
+          # Rosé Pine main — github.com/rose-pine (same palette as the
+          # kitty block above). Foot draws FULLY OPAQUE: the frost +
+          # transparency are compositor-owned, identical to kitty (the
+          # kitty/foot window rule in home/niri.nix sets `opacity 0.75` +
+          # xray blur) — one render stack for both terminals. User picked
+          # full frost over plain translucency 2026-11-07; the known
+          # trade-off (niri's focus-keyed frost sampling, pixel-proven
+          # rounds 5-8) applies to foot the same as kitty.
+          colors-dark = {
+            foreground = "e0def4";
+            background = "191724";
+            selection-foreground = "e0def4";
+            selection-background = "403d52";
+            urls = "c4a7e7";
+            # Man-page order: <text-foreground> <cursor-block> (formal
+            # definition; the page's own example mislabels it). Kitty
+            # parity: dark 524f67 block, light e0def4 text.
+            cursor = "e0def4 524f67";
+            regular0 = "26233a";
+            regular1 = "eb6f92";
+            regular2 = "31748f";
+            regular3 = "f6c177";
+            regular4 = "9ccfd8";
+            regular5 = "c4a7e7";
+            regular6 = "ebbcba";
+            regular7 = "e0def4";
+            bright0 = "6e6a86";
+            bright1 = "eb6f92";
+            bright2 = "31748f";
+            bright3 = "f6c177";
+            bright4 = "9ccfd8";
+            bright5 = "c4a7e7";
+            bright6 = "ebbcba";
+            bright7 = "e0def4";
+          };
+        };
       };
     })
 

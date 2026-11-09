@@ -1,10 +1,16 @@
 # Memory Index
 
+- [Noctalia export + energy EXECUTED 2026-11-08](noctalia-config-export-energy-2026-11-08.md) — EXECUTED+QC green ×4 attrs STAGED (⚠️ SWITCH PENDING — agent sudo-blocked, user runs `sudo nixos-rebuild switch --flake .#yoga-niri`): state harvested into nix + stripped (backup kept), energy timeline kbd60/lock300+grace5/screen330/suspend1500→5400-AC via hooks, cleanups (greeter persisted, dms entries + kitty dead branches dropped); config-set/fade/getExe lore + live checklist in file
+- [Noctalia export + energy plan 2026-11-08](noctalia-export-energy-plan-2026-11-08.md) — SUPERSEDED (executed: noctalia-config-export-energy-2026-11-08); drift table + schema facts in file
+- [zcode launcher crash = bwrap pdeathsig FIX EXECUTED 2026-11-08](zcode-launcher-crash-bwrap-pdeathsig-2026-11-07.md) — EXECUTED+QC green STAGED (switch+live verify pending): zcode-unmax wrapper exits → `--die-with-parent` kills bwrap sandbox; fixed `setsid --fork` + stderr log (launcher.log 1MB cap); plain setsid/nohup useless, wrapper can't be replaced by window rule (post-map maximize lore in file)
+
+- [Branch promotion plan 2026-11-07](branch-promotion-plan-2026-11-07.md) — PLAN ONLY (ExitPlanMode DENIED): niri-testing→main (lucid flips back on yoga attr), dux-shell local testbed, archive/lucid@3388242; VPS pulls main daily so vps merges in same push; DMS commit stays (eval dep); user decisions locked
+
 - [niri cursor 32px fix EXECUTED 2026-11-07](niri-cursor-size-32-2026-11-07.md) — EXECUTED+QC green STAGED: niri default 24 clobbers XCURSOR_SIZE; nixpkgs niri 26.04 needs xcursor-theme/size keys (theme/size REJECTED, validated live)
 - [Noctalia lockscreen softer round 2 EXECUTED 2026-11-07](noctalia-lockscreen-soft-round2-2026-11-07.md) — EXECUTED+QC green+LIVE STAGED: hard clock shadow off (no-blur lore), on_surface_variant ink, box-fit clock ~90px (setBox lore), capsule cy 640 + pill 20/0.9/0.35/18; state strip done, benign re-normalize lore + systemd-run /usr/bin/bash trap in file
 - [Noctalia lockscreen softer plan 2026-11-07](noctalia-lockscreen-softer-plan-2026-11-07.md) — SUPERSEDED (executed: noctalia-lockscreen-soft-round2-2026-11-07); source facts in file
 
-- [Shell strategy converge 2026-11-07](shell-strategy-converge-niri-noctalia-2026-11-07.md) — DECISION: daily-drive yoga-niri, no 4th shell; finishing + round-5 EXECUTED+QC green STAGED (lang=de, dock off, KillMode=process, zcode-unmax PROVEN live, ring 1/60%, Mod+Ctrl+F, kitty 0.75 frost)
+- [Shell strategy converge 2026-11-07](shell-strategy-converge-niri-noctalia-2026-11-07.md) — DECISION: daily-drive yoga-niri, no 4th shell; rounds 5-12 EXECUTED+QC green STAGED (foot WON the trial → kitty REMOVED from niri attr 11-08: Mod+T footclient, rules ^(foot|footclient)$, kitty stays on lucid/GNOME hosts; footclient≠foot app-id trap + foot 1.27 key lore + niri xray frost pixel-proven upstream in file); loose end: upstream niri issue unfiled
 - [battery-refresh niri backend EXECUTED 2026-11-07](battery-refresh-niri-backend-2026-11-07.md) — EXECUTED+QC green+live-proven 120Hz STAGED: niriDaemon backend + explicit resolution-only mode; selector niri>Hyprland>GNOME; mode-grammar facts in file
 - [Stack comparison research 2026-11-07](stack-comparison-research-2026-11-07.md) — RESEARCH: niri≈Hyprland parity; Noctalia v5.4.1 native C++ ~50MB vs quickshell shells 427MB; xray-blur cheap; 60Hz confound; measurement protocol in file
 - [niri window policy + frost plan 2026-11-07](niri-window-policy-frost-plan-2026-11-07.md) — SUPERSEDED (executed: niri-rice-polish round 4); wiki-verified niri maximize/gap facts in file
@@ -17,7 +23,7 @@
 - [Noctalia niri swap EXECUTED 2026-11-06](noctalia-niri-swap-exec-2026-11-06.md) — EXECUTED+QC green STAGED: DMS→Noctalia v5.4.1 + greeter v1.7.0 (no-follows+cachix); schema traps + state-layer lore in file
 - [Noctalia niri swap plan 2026-11-06](noctalia-niri-swap-plan-2026-11-06.md) — SUPERSEDED (executed same day); decisions + Noctalia v5.4 facts + IPC verbs in file
 - [Build branch without checkout](git-file-ref-branch-testing.md) — `git+file://…?ref=<branch>#attr` builds the branch's COMMITTED tree; build-vm useless (sops unstubbed)
-- [Branch split vps/dms/niri 2026-11-06](branch-split-vps-dms-niri-2026-11-06.md) — EXECUTED+QC green: vps d34fbe2 / dux-shell 9bf6fe1 / niri-testing 2ff4f37 (stacked); stash kept; ⚠️ sops rules missing for vps
+- [Branch split vps/dms/niri 2026-11-06](branch-split-vps-dms-niri-2026-11-06.md) — EXECUTED+QC green; NOW COMMITTED+SQUASHED (see [[branch-commit-squash-2026-11-07]]): vps f823dae / dux-shell 9bf6fe1+9111dad / niri-testing 2ff4f37+fee3af7; NOT a full stack (vps independent off main, niri forked pre-dux-checkpoints); stash kept; ⚠️ sops rules missing for vps
 - [Branch-split plan 2026-11-05](branch-split-plan-2026-11-05.md) — SUPERSEDED (executed 11-06); assembly recipe + lossless-proof in file
 - [niri-testing trial executed 2026-11-05](niri-testing-trial-2026-11-05.md) — COMMITTED 2ff4f37: yoga-niri attr, niri 26.04, no uwsm; ⚠️ flake-module attrset imports don't dedupe
 - [dux-shell (DMS) evaluation 2026-11-04](dux-shell-evaluation-plan-2026-11-04.md) — SUPERSEDED (executed 11-05); IPC map + wiring decisions in file
