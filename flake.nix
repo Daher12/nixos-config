@@ -58,7 +58,9 @@
     # `nix build github:anomalyco/opencode/v2.2.N` clean before touching this
     # tag — keep that gate per bump; v2.2.5 is SKIPPED: its vendored
     # node_modules.nix hash mismatches the lockfile it ships — upstream
-    # packaging bug, caught by this gate 2026-10-31).
+    # packaging bug, caught by this gate 2026-10-31; v2.2.6 AND v2.2.7
+    # SKIPPED the same way 2026-11-12 — same fetchNpmDeps hash mismatch in
+    # their shipped packaging, gate re-tried them first).
     # Deliberately NO `nixpkgs.follows` here: upstream requires its pinned
     # nixpkgs-unstable (packageManager bun@1.4.2; nixos-26.05 only ships
     # bun 1.3.13, whose `bun install` fails extracting the big native
