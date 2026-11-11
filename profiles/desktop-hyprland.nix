@@ -8,13 +8,12 @@
   features.desktop-hyprland = {
     enable = lib.mkDefault true;
     withUWSM = lib.mkDefault true;
-    # Session shell — DUX-SHELL EVAL BRANCH: DMS (DankMaterialShell
-    # rebranded, modules/features/desktop-hyprland.nix + home/dms.nix)
-    # replaces lucid here. lucid stays fully in the tree — flipping these
-    # two lines back (lucid true / dms false) restores the main-branch
-    # shell after `git switch main`.
-    lucid.enable = lib.mkDefault false;
-    dms.enable = lib.mkDefault true;
+    # Session shell — lucid (the main-line Hyprland shell). The DMS
+    # evaluation lives on the dux-shell branch: there this profile flips
+    # these two lines (lucid false / dms true) on top of main, nothing
+    # else differs — so the testbed stays a single commit over main.
+    lucid.enable = lib.mkDefault true;
+    dms.enable = lib.mkDefault false;
     greeter = {
       configHome = lib.mkDefault "/home/${mainUser}";
       # Boot into the session behind the shell lock screen (DMS here) —
