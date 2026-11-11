@@ -64,6 +64,11 @@ let
         }
         touchpad {
             tap
+            // dwt must be explicit: niri 26.04 treats an omitted dwt as false
+            // and pushes it into libinput, killing disable-while-typing
+            // (2026-11-11 palm-rejection regression; Hyprland had DWT on by
+            // default).
+            dwt
             natural-scroll
         }
     }
