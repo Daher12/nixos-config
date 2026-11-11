@@ -15,6 +15,8 @@ Plan-mode session 2026-11-04 (plan delivered via ExitPlanMode → permission den
 - Keep-guard additions beyond memo: `com.amazon.zico` (child-profile framework per r/kindlefire), `kindle.rdmdeviceadmin` (remote parental mgmt), `kindle.personal_video` (only local video player w/o Play), TTS/accessibility (svox.pico, ivona, logan — kids read-aloud), cloud9.contentservice/systembrowserprovider (Silk = only browser).
 - Optional tier (`--aggressive` only): identity.auth/imp, device.sync family, tcomm family, kindle.cms, dreams.basic.
 
+**Phase 0 — device prep order (locked 2026-11-09 after user asked how to proceed):** per tablet, BEFORE any debloat: (1) OOBE Wi-Fi + main-account login; (2) update to final firmware FIRST while stock (OTA restores removed apps → debloat once, not twice); (3) parental controls + PIN + child profile + kids app/content grants while stock (baseline then includes child user; kids-verification step needs a profile to test); (4) USB to yoga → Phase B. Note: enabling ADB in Developer Options prompts for the parental PIN while controls are on — normal, not a blocker.
+
 **Planned deliverable:** `fire-debloat.sh` (subcommands discover/apply/undo/launcher/status, `--device hd8|hd10`, guard-list hard-abort, all cmds pinned `--user 0`) + packages/{keep-guard,remove-common,remove-hd8,remove-hd10,remove-optional}.txt + RUNBOOK.md + state/ logs. Phase A author repo (no devices), Phase B run per device (yoga host, adb via nix-shell -p android-tools, udev+adbusers already configured).
 
 **Why:** user asked to plan full debloat of both tablets incl. kids profile protection + parent-profile launcher swap.
