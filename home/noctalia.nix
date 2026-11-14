@@ -19,13 +19,13 @@ let
   # with `noctalia config export merged`.
   wallpaperDir = "${config.home.homeDirectory}/Bilder/wallpapers";
 
-  # Google Sans Flex — lucid's UI font, borrowed from the lucid flake input
-  # (flake = false source tree; same file the dux-shell branch ships DMS).
-  # The family string is fc-scan-verified against that exact file.
-  # Coupling note: removing the lucid input while noctalia is enabled breaks
-  # eval — vendor the TTF into the repo first if lucid ever goes away.
-  googleSansFlex = "${inputs.lucid}/assets/fonts/GoogleSansFlex.ttf";
-  googleSansFlexLicense = "${inputs.lucid}/assets/fonts/OFL-GoogleSansFlex.txt";
+  # Google Sans Flex — the shell's UI font, vendored into the repo (copied
+  # from the lucid source tree at rev 2945eab, 2026-11-14; OFL license
+  # alongside). The family string is fc-scan-verified against that exact
+  # file. Vendored so the lucid input could be retired with the Hyprland
+  # stack — the font itself is session-independent.
+  googleSansFlex = ./assets/fonts/GoogleSansFlex.ttf;
+  googleSansFlexLicense = ./assets/fonts/OFL-GoogleSansFlex.txt;
 
   # --- Energy management (user spec 2026-11-08) ---------------------------
   # Noctalia's idle daemon is the only idle authority on this attr (no
