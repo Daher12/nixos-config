@@ -49,7 +49,7 @@ Design principles, visible throughout the repo:
 
 | Host | Hardware | Role | Highlights |
 |------|----------|------|------------|
-| **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | Hyprland + Lucid (`.#yoga`) or GNOME 50 (`.#yoga-gnome`) · Secure Boot (Lanzaboote) · LUKS + Btrfs impermanence · Windows 11 VMs · ZRAM |
+| **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | niri + Noctalia (`.#yoga`) or GNOME 50 (`.#yoga-gnome`) · Secure Boot (Lanzaboote) · LUKS + Btrfs impermanence · Windows 11 VM · ZRAM |
 | **latitude** | Dell Latitude E7450 (Intel) | Legacy laptop | GNOME · TLP · preload-ng · Disko (LUKS + ext4) · opencode |
 | **nix-media** | Intel N100 Mini PC | Headless media server | Jellyfin · Audiobookshelf · Prometheus/Grafana · Caddy · NFS · Docker |
 
@@ -63,18 +63,19 @@ Daily driver: encrypted, impermanence-wiped, secure-booted work machine.
   `@nix` and `@persist` survive). systemd-boot replaced by **Lanzaboote
   Secure Boot**; Plymouth on simpledrm (amdgpu deliberately kept out of the
   initrd — see REPO_OVERVIEW § Known Gotchas).
-- **Desktop:** two exclusive builds — Hyprland + the Lucid shell +
-  DankGreeter (`.#yoga`) or GNOME 50 with auto-login (`.#yoga-gnome`);
-  switching desktops = rebuilding the other attr, no config edits.
-  Colloid-Nord GTK theme, Fluent icons and Posy cursors are shared by both.
+- **Desktop:** two exclusive builds — niri + the Noctalia shell +
+  noctalia-greeter (`.#yoga`) or GNOME 50 (`.#yoga-gnome`); switching
+  desktops = rebuilding the other attr, no config edits. Colloid-Nord GTK
+  theme, Fluent icons and Posy cursors are shared by both; Noctalia owns
+  the idle/lock/energy timeline (kbd backlight, lock, screen, suspend).
 - **Power:** custom suspend-then-hibernate sleep hook (`yoga-s2h`) working
   around systemd 260 firmware bugs; TLP; ryzenadj TDP profiles; automatic
   120→60 Hz panel switch on battery (both sessions). Hibernation works
   end-to-end (re-armed 2026-10-18 after the abort-detector fix; post-mortem
   in REPO_OVERVIEW).
 - **Virtualization:** libvirt/QEMU with virt-manager, SPICE USB redirection,
-  per-guest launchers with DHCP-reserved IPs (`features.virtualization.guests`
-  — currently two Windows 11 guests).
+  a per-guest launcher with DHCP-reserved IP (`features.virtualization.guests`
+  — currently one Windows 11 guest).
 - **Agent tooling:** opencode + ZCode coding agents, MikroTik MCP server
   (optional), LiteLLM gateway module available.
 
@@ -130,12 +131,11 @@ nixos-config/
 │   │                    #   litellm, mnamer, sops, secureboot, tlp, zram…
 │   ├── hardware/        # device-specific: AMD/Intel GPU, KVM, ryzen TDP
 │   └── roles/           # server roles (media: NFS export)
-├── profiles/            # role bundles: laptop, desktop-gnome, desktop-hyprland
+├── profiles/            # role bundles: laptop, desktop-gnome, desktop-niri
 ├── hosts/               # per-machine config + home-manager glue
 ├── home/                # shared home-manager: browsers, terminal, theme, git
 ├── pkgs/                # custom packages: colloid-gtk, fluent-icons,
 │   │                    #   zcode (AppImage), mikromcp, is-on-ac
-├── quickshell-patches/  # build-time patches for the quickshell ENGINE
 ├── secrets/             # sops-encrypted per-host secrets
 ├── tests/               # NixOS VM tests (7: litellm gateway, SSH firewall,
 │   │                    #   virbr0 firewall, zram heal, yoga s2h logic,
@@ -145,10 +145,9 @@ nixos-config/
 └── .github/workflows/   # weekly input bump + lint CI, opencode PR bot
 ```
 
-The `home/` directory also carries the whole desktop-shell layer:
-`hyprland.nix` (compositor Lua config), `lucid.nix` (Lucid shell deployment),
-`lucid-patches/` (the build-time QML patch layer) and `lucid-themes/`
-(repo-managed theme pair) — see `LUCID_RUNBOOK.md` before touching any of it.
+The `home/` directory also carries the desktop-shell layer: `niri.nix`
+(scrollable-tiling compositor config) and `noctalia.nix` (the C++ shell with
+its declarative TOML config + energy timeline).
 
 Every host is one `mkHost` call in `flake.nix`:
 
@@ -158,7 +157,7 @@ yoga = mkHost {
   mainUser = "dk";
   withHardware = true;                 # enables modules/hardware + firmware
   lix = true;                          # Lix (default) vs CppNix
-  profiles = [ "laptop" "desktop-hyprland" ];  # yoga-gnome attr = desktop-gnome
+  profiles = [ "laptop" "desktop-niri" ];  # yoga-gnome attr = desktop-gnome
   extraModules = [ ./hosts/yoga/default.nix ];
   hmModules   = [ ./hosts/yoga/home.nix ];
 };
@@ -206,8 +205,8 @@ Full architecture, re-encryption and rotation procedures: **`SOPS_RUNBOOK.md`**.
   (statix, deadnix, nixfmt) + dry-build of every host, so hand edits are
   verified before they reach the fleet. `bump.yml` weekly (Saturdays 02:00
   UTC) — update the safe flake inputs → same verification → format →
-  auto-commit. The locked inputs (lanzaboote, opencode, quickshell,
-  dank-greeter, lucid, spotx-nix) only move deliberately — procedures in
+  auto-commit. The locked inputs (lanzaboote, opencode, spotx-nix,
+  noctalia, noctalia-greeter) only move deliberately — procedures in
   REPO_OVERVIEW § Manual Pins & Manual Packages; `update-safe --pin <input>`
   is the interactive path for them.
 - `nix develop` provides a secrets/ops toolshell (sops, age, ssh-to-age, yq, jq).
@@ -259,7 +258,6 @@ verification checks the bootloader and the sops identity chain.
 | Document | Contents |
 |----------|----------|
 | [`REPO_OVERVIEW.md`](REPO_OVERVIEW.md) | Per-file map of the whole repo, **Manual Pins & Manual Packages** (every held-back input + its bump procedure), impermanence boot sequence, and **Known Gotchas** (Plymouth/AMD initrd, the suspend-then-hibernate post-mortem, NixOS 26.05 migration notes) |
-| [`LUCID_RUNBOOK.md`](LUCID_RUNBOOK.md) | Executor procedure for lucid / quickshell / dank-greeter pin bumps and lucid-patches triage — read before touching the desktop shell |
 | [`SOPS_RUNBOOK.md`](SOPS_RUNBOOK.md) | Secrets architecture, re-encryption/rotation procedures, troubleshooting |
 | [`AGENTS.md`](AGENTS.md) | Rules for AI coding agents working in this repo (conventions, verification workflow, house rules) |
 | [`AGENTS-global.md`](AGENTS-global.md) | Machine-wide rules for opencode sessions on this user's machines |

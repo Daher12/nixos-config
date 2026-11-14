@@ -170,12 +170,11 @@ in
       };
     };
 
-    # HM owns ~/.config/gtk-{3,4}.0/settings.ini — except where the session
-    # shell owns them (noctalia: the gtk3/gtk4 theme templates write them
-    # so apps follow the shell palette). HM's gtk module must not fight
-    # that: the stale .backup it keeps would abort the next boot-time
-    # activation entirely. The dconf settings above cover the gsettings
-    # side either way.
+    # HM owns ~/.config/gtk-{3,4}.0/settings.ini on every attr. The
+    # noctalia shell paints through its own noctalia.css + gsettings and
+    # does NOT atomically rewrite the HM-owned ini files (unlike the
+    # retired lucid envtool, whose rewrites + stale .backup aborted whole
+    # activations — 2026-09-24).
     gtk = {
       # Noctalia hosts: the shell's gtk3/gtk4 templates select
       # adw-gtk3(-dark) via gsettings and paint the palette through

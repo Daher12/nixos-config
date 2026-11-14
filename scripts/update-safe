@@ -9,11 +9,8 @@ Usage:
 --pin appends a manually-pinned flake input to the update list (repeatable).
 The safe inputs (nixpkgs, home-manager, sops-nix, ...) update every run; the
 deliberate pins only move when passed here:
-  --pin quickshell  --pin dank-greeter  --pin opencode
-  --pin lanzaboote  --pin spotx-nix  --pin dux-shell
+  --pin opencode  --pin lanzaboote  --pin spotx-nix
   --pin noctalia  --pin noctalia-greeter
-lucid is NOT bumpable this way: it is a flake=false source pin and its
-build-time patch layer may reject — follow LUCID_RUNBOOK.md instead.
 
 After a successful build the updated flake.lock is committed automatically
 (pathspec-limited to flake.lock — nothing else staged in the tree is swept
@@ -24,11 +21,10 @@ manually at your leisure.
 Examples:
   update-safe yoga
   update-safe yoga-gnome switch   # flip yoga back to GNOME
-  update-safe yoga-niri switch    # flip yoga to niri + Noctalia
   update-safe latitude test
   update-safe yoga boot
   update-safe nix-media switch
-  update-safe yoga boot --pin quickshell --pin dank-greeter
+  update-safe yoga boot --pin noctalia --pin noctalia-greeter
   update-safe yoga boot --push
 EOF
 }
@@ -43,12 +39,6 @@ while [[ $# -gt 0 ]]; do
       if [[ $# -lt 2 ]]; then
         echo "--pin requires an input name" >&2
         usage
-        exit 1
-      fi
-      # Enforce what the usage text says: lucid must never move through here.
-      if [[ "$2" == "lucid" ]]; then
-        echo "refusing to pin lucid — it is a flake=false source pin whose" >&2
-        echo "build-time patch layer may reject; follow LUCID_RUNBOOK.md instead." >&2
         exit 1
       fi
       pins+=("$2")
@@ -74,7 +64,7 @@ host="${positional[0]}"
 action="${positional[1]:-build-only}"
 
 case "$host" in
-  yoga|yoga-gnome|yoga-niri|latitude|nix-media) ;;
+  yoga|yoga-gnome|latitude|nix-media) ;;
   *)
     echo "Invalid host: $host" >&2
     usage

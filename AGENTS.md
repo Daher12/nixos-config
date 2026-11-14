@@ -4,21 +4,21 @@ Instructions for AI coding agents (opencode and others) working in this reposito
 
 ## Repository purpose
 
-Personal NixOS flake configuration for three hosts: **yoga** (primary laptop),
+Personal NixOS flake configuration for three hosts: **yoga** (primary laptop,
+niri + Noctalia; GNOME backup via the `yoga-gnome` attr),
 **latitude** (legacy laptop), **nix-media** (media server). Read
 `README.md` for the feature overview and `REPO_OVERVIEW.md` for a detailed,
-per-file map of the repo (including known pitfalls). When the lucid /
-quickshell / dank-greeter pins move or the lucid build-time patches reject,
-follow `LUCID_RUNBOOK.md`.
+per-file map of the repo (including known pitfalls). The retired
+hyprland/lucid/quickshell/DMS stack lives on the `archive/hyprland-lucid`
+branch (and `dux-shell` for the DMS testbed) — don't resurrect it on main.
 
 ## Layout
 
 - `hosts/<name>/` — per-host NixOS modules (`default.nix`, hardware/disks, home-manager user config in `home.nix`)
-- `home/` — shared home-manager modules (browsers, git, opencode, terminal, theme, hyprland, lucid + its patch layer), imported via `../../home`
+- `home/` — shared home-manager modules (browsers, git, opencode, terminal, theme, niri, noctalia), imported via `../../home`
 - `modules/` — shared NixOS option modules (`modules/core`, `modules/features`, `modules/hardware`, `modules/roles`)
 - `profiles/` — hardware/system profiles
 - `pkgs/` — custom nix packages (e.g. `mikromcp.nix`)
-- `quickshell-patches/` — build-time patches for the quickshell engine input
 - `tests/` — NixOS VM tests (7 of them; run via `scripts/test-suite vm`, not part of `checks`)
 - `secrets/` — sops-nix encrypted secrets (hosts/yoga.yaml, hosts/latitude.yaml, hosts/nix-media.yaml, hosts/nix-media-litellm.yaml)
 - `scripts/` — helper scripts (`update-safe` is the safe rebuild path, exposed as the `nus` fish function; `test-suite` is the shared verification suite; `install.sh` for fresh installs)
