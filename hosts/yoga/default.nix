@@ -36,11 +36,7 @@
     # (one services attrset per file keeps statix happy).
     groups.adbusers = { };
     users.${mainUser} = {
-      # Pinned: on the impermanence host every /persist file is owned by
-      # numeric id, so first-boot allocation order must never shift it
-      # (live value confirmed 1000, 2026-10-16). latitude pins 1000,
-      # nix-media 1001 (NFS anon mapping).
-      uid = 1000;
+      # uid pinned in profiles/laptop.nix (impermanence rationale there).
       extraGroups = [ "adbusers" ];
     };
   };

@@ -27,22 +27,6 @@ in
       description = "Primary filesystem type (informational — only Btrfs receives active tuning via this module)";
     };
 
-    mountOptions = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.listOf lib.types.str);
-      default = { };
-      example = {
-        "/" = [
-          "noatime"
-          "compress=zstd:3"
-        ];
-        "/home" = [
-          "noatime"
-          "compress=zstd:1"
-        ];
-      };
-      description = "Mount options per filesystem";
-    };
-
     enableFstrim = lib.mkOption {
       type = lib.types.nullOr lib.types.bool;
       default = null;
@@ -83,12 +67,6 @@ in
         btrfs.autoBalance = lib.mkDefault true;
       };
     })
-
-    {
-      fileSystems = lib.mapAttrs (_: opts: {
-        options = lib.mkAfter opts;
-      }) cfg.mountOptions;
-    }
 
     # Fstrim auto-detection. Btrfs-specific computations deferred into branches
     # to avoid unconditional evaluation of config.fileSystems on non-btrfs hosts.

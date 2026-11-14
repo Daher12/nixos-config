@@ -23,10 +23,9 @@ in
 
   # --- Core Configuration ---
   core = {
-    boot.tmpfs = {
-      enable = true;
-      size = "4G";
-    };
+    # tmpfs enable comes from modules/core/boot.nix's default; only the
+    # size is host-specific.
+    boot.tmpfs.size = "4G";
 
     nix.gc = {
       automatic = true;
@@ -125,9 +124,9 @@ in
     enableGuc = true;
   };
 
-  # ncurses 6.6 doesn't ship xterm-kitty, so an ssh session from kitty (or a
-  # stale ghostty) hits "can't find terminal definition for xterm-kitty" via
-  # /etc/set-environment. This pulls the kitty/ghostty/tmux terminfo outputs.
+  # ncurses 6.6 doesn't ship xterm-kitty, so an ssh session from kitty hits
+  # "can't find terminal definition for xterm-kitty" via /etc/set-environment.
+  # This pulls the kitty/tmux terminfo outputs.
   environment.enableAllTerminfo = true;
 
   environment.systemPackages = [
@@ -246,8 +245,8 @@ in
 
     # thermald comes from hardware.intel-gpu (mkDefault)
     # Server host — no audio stack needed. Overrides mkDefault in modules/core/audio.nix.
+    # (pulseaudio.enable = false is the upstream default once pipewire is off.)
     pipewire.enable = false;
-    pulseaudio.enable = false;
   };
 
   security.rtkit.enable = false;

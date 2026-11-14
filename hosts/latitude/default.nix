@@ -1,7 +1,6 @@
 {
   pkgs,
   lib,
-  mainUser,
   ...
 }:
 
@@ -36,7 +35,7 @@ in
   ];
 
   system.stateVersion = "25.05";
-  users.users.${mainUser}.uid = 1000;
+  # uid pinned in profiles/laptop.nix.
 
   # SecureBoot note: it is on via profiles/laptop.nix's mkDefault, and the
   # machine was ADOPTED (not installed from this flake) — confirm once on

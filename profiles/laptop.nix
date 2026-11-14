@@ -1,4 +1,9 @@
-{ lib, pkgs, ... }:
+{
+  lib,
+  pkgs,
+  mainUser,
+  ...
+}:
 
 {
   features = {
@@ -33,6 +38,12 @@
     # (modules/features/spotify.nix, spotx-nix flake input).
     spotify.enable = lib.mkDefault true;
   };
+
+  # Pinned uid on both laptops: on the impermanence host (yoga) every
+  # /persist file is owned by numeric id, so first-boot allocation order
+  # must never shift it (live value confirmed 1000, 2026-10-16). nix-media
+  # pins 1001 separately (NFS anon mapping).
+  users.users.${mainUser}.uid = lib.mkDefault 1000;
 
   # --- Fleet laptop baseline ---
   core = {

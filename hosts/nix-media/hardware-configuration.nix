@@ -18,7 +18,6 @@
       ];
       kernelModules = [ ];
     };
-    kernelModules = [ "kvm-intel" ];
     extraModulePackages = [ ];
   };
 

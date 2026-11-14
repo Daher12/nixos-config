@@ -8,7 +8,7 @@
 let
   cfg = config.programs.terminal;
 
-  # Nord subset — only the 5 values actually consumed by ghostty + fzf.
+  # Nord subset — only the 5 values actually consumed by fzf.
   # No palette module, no hexToRgb, no validation machinery.
   nord = {
     nord0 = "#2E3440";
@@ -188,28 +188,6 @@ let
 in
 {
   options.programs.terminal = {
-    ghostty = {
-      enable = lib.mkOption {
-        type = lib.types.bool;
-        # 2026-09-27: kitty won the default slot. Flip to true per host to
-        # bring ghostty back.
-        default = false;
-        description = "Enable Ghostty terminal";
-      };
-
-      fontSize = lib.mkOption {
-        type = lib.types.int;
-        default = 11;
-        description = "Font size";
-      };
-
-      fontFamily = lib.mkOption {
-        type = lib.types.str;
-        default = "CaskaydiaCove Nerd Font";
-        description = "Font family";
-      };
-    };
-
     kitty = {
       enable = lib.mkOption {
         type = lib.types.bool;
@@ -254,27 +232,6 @@ in
   };
 
   config = lib.mkMerge [
-    (lib.mkIf cfg.ghostty.enable {
-      programs.ghostty = {
-        enable = true;
-        package = pkgs.ghostty;
-
-        # Static Nord everywhere — no matugen branch: the shell's dynamic
-        # theming (Lucid) doesn't touch terminals. The 0.93 translucency only
-        # makes sense under the Wayland compositor.
-        settings = {
-          font-family = cfg.ghostty.fontFamily;
-          font-size = cfg.ghostty.fontSize;
-          window-decoration = "auto";
-          command = "fish --login --interactive";
-          theme = "Nord";
-          background = nord.nord0;
-          foreground = nord.nord4;
-          background-opacity = 0.93;
-        };
-      };
-    })
-
     (lib.mkIf (cfg.kitty.enable && !config.desktop.niri.enable) {
       # The default terminal of the GNOME hosts (yoga-gnome, latitude).
       # On the niri host foot replaced it entirely (2026-11-08, foot trial
