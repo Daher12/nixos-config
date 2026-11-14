@@ -16,7 +16,11 @@ let
   # hosts/yoga/home.nix). Build-time validation runs `noctalia config
   # validate` (checkConfig default): an unknown key fails the dry-build —
   # fix the key, never disable checkConfig. Harvest live tuning back here
-  # with `noctalia config export merged`.
+  # with `noctalia config export merged`. Layer-of-record harvests so far:
+  # 2026-11-08 (full state strip, backup settings.toml.bak-2026-11-08) and
+  # 2026-11-15 (second drift incl. the wallpaper-M3 theme, backup
+  # settings.toml.bak-2026-11-15). The suspend timeout is the one key that
+  # legitimately re-materializes in state (the power hooks config-set it).
   wallpaperDir = "${config.home.homeDirectory}/Bilder/wallpapers";
 
   # Google Sans Flex — the shell's UI font, vendored into the repo (copied
@@ -127,9 +131,9 @@ in
           lang = "de";
           # Anonymous startup ping — off.
           telemetry_enabled = false;
-          # User-tuned 2026-11-06 (was 0.8 from the pacing round — 1.15
-          # reads right next to niri's springs on this panel).
-          animation.speed = 1.15;
+          # GUI-harvested 2026-11-15 (back to 0.8 — the 1.15 from the
+          # 2026-11-06 round was re-tuned in the GUI).
+          animation.speed = 0.8;
           # Noctalia's own polkit authentication agent — the niri attr
           # installs no hyprpolkitagent (modules/features/desktop-niri.nix).
           polkit_agent = true;
@@ -145,15 +149,28 @@ in
           # magnification); the window is focused as soon as it maps
           # (tryFulfillPendingLaunchFocus).
           launch_apps_as_systemd_services = false;
-          # Flat cards/popup borders off, type-to-launch in the niri
-          # overview, panels anchored to the main bar (user-tuned in
-          # Settings 2026-11-06, harvested).
+          # Flat cards/popup borders off, panels anchored to the main bar
+          # (user-tuned in Settings 2026-11-06, harvested). Type-to-launch
+          # OFF + translucent settings window: GUI harvest 2026-11-15.
           card_borders = false;
           popup_borders = false;
-          niri_overview_type_to_launch_enabled = true;
+          niri_overview_type_to_launch_enabled = false;
+          settings_window_translucent = true;
           panel_anchor_bar = "main";
           # GUI-tuned (state layer, 2026-11-07) — harvested 2026-11-08:
           show_close_buttons = false;
+
+          # Launcher (GUI harvest 2026-11-15): grid view, search field on
+          # top, no nav labels, no session/settings buttons inside the
+          # launcher, exchange-rate fetch off.
+          launcher = {
+            app_grid = true;
+            fetch_exchange_rates = false;
+            search_position = "top";
+            show_navigation_labels = false;
+            show_session_button = false;
+            show_settings_button = false;
+          };
 
           # Panel transparency: ONE global mode for every pop-out panel
           # (launcher, control center, clipboard) — three fixed steps,
@@ -167,6 +184,10 @@ in
             list_item_background = false;
             # Control center floats free of the bar edge (GUI harvest).
             control_center_placement = "floating";
+            # GUI harvest 2026-11-15: launcher opens bottom-center under
+            # the cursor-side control-center click.
+            launcher_position = "bottom_center";
+            open_near_click_control_center = true;
           };
 
           # Corner hotspots + Alt-Tab switcher look (GUI harvest
@@ -181,20 +202,25 @@ in
           };
         };
 
-        # Rosé Pine palette (user pick 2026-11-06), auto light/dark by sun
-        # schedule (location below); the community "Rose Pine Alt" variant
-        # + faithful wallpaper extraction won the GUI tuning rounds
-        # (harvested 2026-11-08). The template applier stays OFF (GUI
-        # choice, harvested): GTK theming is owned by home/theme.nix
-        # (adw-gtk3) and btop by home/terminal.nix — the ids stay listed
-        # only so a GUI re-enable finds its tuned set.
+        # Palette follows the wallpaper (user pick 2026-11-15, harvested
+        # same day): source "wallpaper" + the M3 "content" quantization
+        # scheme — Material-3 tonal extraction from the CURRENT wallpaper,
+        # so changing the wallpaper re-themes the shell. Inert fallbacks
+        # while the wallpaper source is on: community palette "Tomorrow"
+        # (what the GUI would apply if wallpaper sourcing went off) and
+        # builtin "Nord" beneath it. Fixed dark — the sun-schedule auto
+        # light/dark mode is gone (Rosé Pine/faithful era, 2026-11-06/08);
+        # a light face would be a manual GUI flip. The template applier
+        # stays OFF (GUI choice, harvested 2026-11-08): GTK theming is
+        # owned by home/theme.nix (adw-gtk3) and btop by home/terminal.nix
+        # — the ids stay listed only so a GUI re-enable finds its tuned set.
         theme = {
-          mode = "auto";
-          source = "builtin";
-          builtin = "Rosé Pine";
+          mode = "dark";
+          source = "wallpaper";
+          builtin = "Nord";
           pure_black_dark = false;
-          community_palette = "Rose Pine Alt";
-          wallpaper_scheme = "faithful";
+          community_palette = "Tomorrow";
+          wallpaper_scheme = "m3-content";
 
           templates = {
             enable_builtin_templates = false;
@@ -229,17 +255,23 @@ in
             "tray"
           ];
           center = [ "clock" ];
+          # GUI harvest 2026-11-15: bluetooth + control-center joined the
+          # end widgets. (The right capsule_group below still lists the
+          # original four — that is exactly what the live layer carried.)
           end = [
             "notifications"
+            "bluetooth"
             "network"
             "volume"
             "battery"
+            "control-center"
           ];
           thickness = 28;
           margin_edge = 5;
           margin_ends = 20;
           padding = 10;
-          scale = 1.05;
+          # GUI harvest 2026-11-15 (was 1.05 from the 11-08 harvest).
+          scale = 1.1;
           font_scale = 0.9;
           radius = 17;
           shadow = true;
@@ -290,6 +322,10 @@ in
             scale = 0.9;
             show_label = false;
           };
+          # GUI harvest 2026-11-15: bluetooth widget hides with the adapter
+          # off; control-center uses the "assembly" glyph.
+          bluetooth.hide_when_adapter_off = true;
+          control-center.glyph = "assembly";
         };
 
         # Desktop widget cards (calendar/clock/weather on the wallpaper):
@@ -307,6 +343,32 @@ in
         system.monitor = {
           disk_poll_seconds = 60;
           gpu_poll_seconds = 10;
+        };
+
+        # GUI harvest 2026-11-15 (state-layer keys that had no declarative
+        # counterpart — recorded so the state layer can stay empty):
+        audio.enable_sounds = false;
+        battery.warning_threshold = 15;
+        bluetooth.connection_notifications = true;
+        weather.refresh_minutes = 40;
+
+        # Control center (GUI harvest 2026-11-15): no avatar chrome, audio
+        # tab hidden, no sidebar, week numbers in the calendar, and the
+        # five-button shortcut grid.
+        control_center = {
+          circular_avatar = false;
+          hidden_tabs = [ "audio" ];
+          show_avatar_border = false;
+          show_session_button = false;
+          sidebar = "none";
+          calendar.show_week_numbers = true;
+          shortcuts = [
+            { type = "wifi"; }
+            { type = "bluetooth"; }
+            { type = "caffeine"; }
+            { type = "nightlight"; }
+            { type = "notification"; }
+          ];
         };
 
         # Bottom-center dock island: lucid geometry from the dux-shell port
@@ -357,11 +419,12 @@ in
         };
 
         location = {
-          # Sun-based night light + theme auto schedule. Fixed coordinates
-          # (darkman parity, home/theme.nix) instead of IP auto-locate —
-          # deterministic, no third-party lookup.
+          # Sun-based night light schedule. Fixed coordinates (darkman
+          # parity, home/theme.nix) instead of IP auto-locate —
+          # deterministic, no third-party lookup. Longitude = the user's
+          # real meridian (GUI harvest 2026-11-15; latitude unchanged).
           latitude = 52.52;
-          longitude = 13.40;
+          longitude = 8.524;
         };
 
         # Energy timeline (user spec 2026-11-08), all inhibitor-aware so
@@ -452,6 +515,16 @@ in
         # `systemctl --user stop noctalia`.
         lockscreen_widgets = {
           enabled = true;
+          # Schema 2 of the widget editor (GUI harvest 2026-11-15): the
+          # editor carries its own canvas grid + per-widget placement
+          # metadata (canvas = 1536x960 logical panel, rotation unused).
+          # Recorded verbatim so the editor finds its state after a strip.
+          schema_version = 2;
+          grid = {
+            cell_size = 16;
+            major_interval = 4;
+            visible = true;
+          };
           widget_order = [
             "lockscreen-widget-0000000000000001"
             "lockscreen-login-box@eDP-1"
@@ -462,6 +535,9 @@ in
               output = "eDP-1";
               cx = 768.0;
               cy = 300.0;
+              placement_height = 960.0;
+              placement_width = 1536.0;
+              rotation = 0.0;
               # Explicit box => the host setBox()es the widget and layout
               # scales the content aspect-preserved to fill it (height is
               # the binding constraint): natural 4x-body digits (~56px)
@@ -500,6 +576,9 @@ in
               # Two-thirds down the panel: big clock above, capsule
               # anchored lower-center (round 2 2026-11-07, was 778).
               cy = 640.0;
+              placement_height = 960.0;
+              placement_width = 1536.0;
+              rotation = 0.0;
               # Compact layout clamps to 240..400 but the 400 cap only
               # applies when box_width is 0 — a lingering 810 from the
               # regular layout stays 810 wide, so pin it. Height: the

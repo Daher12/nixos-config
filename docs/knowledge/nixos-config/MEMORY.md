@@ -10,7 +10,8 @@
 - [Branch promotion plan 2026-11-07](branch-promotion-plan-2026-11-07.md) — SUPERSEDED (executed 11-11); vps-separate + plan-mode sandbox lore in file
 - [Win11 VM double cursor plan 2026-11-11](win11-vm-double-cursor-plan-2026-11-11.md) — PLAN ONLY (denied): viogpudo client-mouse hide bug; fix = libvirt `<mouse mode='server'/>`; user does Windows steps
 - [VM USB SSD slow plan 2026-11-11](vm-usb-ssd-slow-plan-2026-11-11.md) — PLAN ONLY (denied): USB3 SSD <5MB/s into VM; TLP USB_AUTOSUSPEND suspect; A/B plan in file
-- [Everforest palette plan 2026-11-10](everforest-palette-plan-2026-11-10.md) — PLAN ONLY (denied): yoga Rosé Pine→Everforest; wiring facts in file
+- [Noctalia theme = M3 from wallpaper 2026-11-15](noctalia-theme-m3-content-wallpaper-2026-11-15.md) — THEME STATE: palette = M3-content from CURRENT wallpaper (dynamic), fallback community palette "Tomorrow"; Everforest DEAD (plan deleted); declarative still Rose Pine Alt + faithful (state wins)
+
 - ["Reboot reverted my changes" forensics 2026-11-09](staged-revert-forensics-2026-11-09.md) — NO reboot; reversion = Nov 8 noctalia state-strip after gen 202; ONE rebuild switch restores all
 - [Noctalia export + energy EXECUTED 2026-11-08](noctalia-config-export-energy-2026-11-08.md) — EXECUTED: state harvested into nix + stripped (backup kept), energy kbd60/lock300/screen330/suspend1500→5400-AC; lore in file
 - [Noctalia export + energy plan 2026-11-08](noctalia-export-energy-plan-2026-11-08.md) — SUPERSEDED (executed same day); drift table + schema facts in file
