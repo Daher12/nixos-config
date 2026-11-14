@@ -9,6 +9,30 @@
 
 let
   cfg = config.features.desktop-niri;
+
+  # The session's Noctalia binary (same package the HM shell service runs —
+  # its IPC socket is what we talk to).
+  noctaliaPackage = config.home-manager.users.${mainUser}.programs.noctalia.package;
+
+  # Locks the session once the Noctalia shell is up after greetd autologin.
+  # Uptime-gated so only the autologin boot locks: a session starting later
+  # (logout -> greeter login, rebuild-test session bounces) already had an
+  # authentication and must not be asked for the password twice. Same
+  # contract as lucid-lock-at-boot (desktop-hyprland.nix): the noctalia user
+  # service being started does not guarantee its IPC socket is listening
+  # yet, so retry briefly. `noctalia msg session lock` is the same IPC the
+  # Mod+L bind uses (home/niri.nix).
+  noctaliaLockAtBoot = pkgs.writeShellScript "noctalia-lock-at-boot" ''
+    if [ "$(${pkgs.coreutils}/bin/cut -d. -f1 /proc/uptime)" -ge 240 ]; then
+      exit 0
+    fi
+    i=0
+    until ${noctaliaPackage}/bin/noctalia msg session lock; do
+      i=$((i + 1))
+      [ "$i" -ge 50 ] && exit 1
+      ${pkgs.coreutils}/bin/sleep 0.2
+    done
+  '';
 in
 {
   imports = [
@@ -31,10 +55,22 @@ in
       yoga-niri = niri)
     '';
 
-    greeter.enable = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "noctalia-greeter login screen (greetd-backed; bundles its own wlroots compositor, lists the installed Wayland sessions)";
+    greeter = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "noctalia-greeter login screen (greetd-backed; bundles its own wlroots compositor, lists the installed Wayland sessions)";
+      };
+
+      autoLogin = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Boot straight into the niri session (greetd initial_session)
+          instead of showing the greeter first, gated by the Noctalia lock
+          screen.
+        '';
+      };
     };
   };
 
@@ -147,6 +183,41 @@ in
         # The niri session entry ships with programs.niri ("niri" desktop
         # file, niri-session based — see the systemd note above).
         services.displayManager.defaultSession = "niri";
+      })
+
+      (lib.mkIf (cfg.greeter.enable && cfg.greeter.autoLogin) {
+        # greetd runs the niri session as initial_session at boot. The
+        # upstream greeter module only sets default_session — it does NOT
+        # translate services.displayManager.autoLogin (unlike the dms-greeter
+        # module), so this is wired directly. niri-session is the same entry
+        # the "niri" desktop file runs: it imports the environment into the
+        # user manager and starts niri.service, and the Noctalia shell rides
+        # graphical-session.target behind it. initial_session only fires at
+        # boot — after logout greetd falls back to default_session (the
+        # greeter above).
+        services.greetd.settings.initial_session = {
+          command = "${config.programs.niri.package}/bin/niri-session";
+          user = mainUser;
+        };
+
+        # Autologin boots into a running session; authentication (and
+        # gnome-keyring unlock) moves to the Noctalia lock screen — unlock
+        # goes through PAM service "login", already keyring-wired above.
+        # The After= below is load-bearing, same as lucid-lock-at-boot: a
+        # unit wanted by a target with no ordering of its own would get an
+        # implicit After= FROM the target and stall the boot (~10 s per
+        # autologin boot, 2026-09-25).
+        home-manager.users.${mainUser}.systemd.user.services.noctalia-lock-at-boot = {
+          Unit = {
+            Description = "Lock the session after greetd autologin (auth moves to the Noctalia lock screen)";
+            After = [ "graphical-session.target" ];
+          };
+          Service = {
+            Type = "oneshot";
+            ExecStart = "${noctaliaLockAtBoot}";
+          };
+          Install.WantedBy = [ "graphical-session.target" ];
+        };
       })
     ]
   );

@@ -1,8 +1,14 @@
 { lib, ... }:
 
 {
-  # noctalia-greeter stays on for the login screen; no autoLogin on the
-  # trial attr — the greeter shows first so the session choice is explicit.
-  features.desktop-niri.enable = lib.mkDefault true;
-  features.fonts.enable = lib.mkDefault true;
+  # Daily-drive attr: boot lands straight in the niri session behind the
+  # Noctalia lock screen (greeter.autoLogin); noctalia-greeter stays on for
+  # the post-logout login screen.
+  features = {
+    desktop-niri = {
+      enable = lib.mkDefault true;
+      greeter.autoLogin = lib.mkDefault true;
+    };
+    fonts.enable = lib.mkDefault true;
+  };
 }
