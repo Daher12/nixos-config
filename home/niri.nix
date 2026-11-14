@@ -8,12 +8,12 @@
 let
   cfg = config.desktop.niri;
 
-  # Panel definition — the same shared list the Hyprland session and
-  # battery-refresh read (hosts/yoga/home.nix, "panel definition for BOTH
-  # sessions"). Scale and resolution are carried into the niri config; niri
-  # picks the refresh rate itself from the resolution-only mode (highest
-  # available). battery-refresh manages the actual rate per power state.
-  monitors = config.desktop.hyprland.monitors;
+  # Panel definition — the same shared list battery-refresh reads
+  # (hosts/yoga/home.nix, "panel definition for EVERY session attr"). Scale
+  # and resolution are carried into the niri config; niri picks the refresh
+  # rate itself from the resolution-only mode (highest available).
+  # battery-refresh manages the actual rate per power state.
+  monitors = config.desktop.monitors;
   panel = if monitors == [ ] then null else builtins.head monitors;
   outputKdl =
     if panel == null then

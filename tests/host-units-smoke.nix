@@ -42,7 +42,7 @@
   host-units-smoke = testers.runNixOSTest {
     name = "host-units-smoke";
 
-    # specialArgs, NOT _module.args: desktop-hyprland.nix consumes `inputs`
+    # specialArgs, NOT _module.args: desktop-niri.nix consumes `inputs`
     # inside its `imports` list, and resolving a module argument from
     # _module.args during import loading is the classic config-in-imports
     # infinite recursion (mkHost passes these as real specialArgs too).

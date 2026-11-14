@@ -3,7 +3,6 @@
     ./bluetooth.nix
     ./brave.nix
     ./desktop-gnome.nix
-    ./desktop-hyprland.nix
     ./desktop-niri.nix
     ./filesystem.nix
     ./fonts.nix

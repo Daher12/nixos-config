@@ -10,10 +10,7 @@
   imports = [
     ./battery-refresh.nix
     ./browsers.nix
-    ./dms.nix
     ./git.nix
-    ./hyprland.nix
-    ./lucid.nix
     ./niri.nix
     ./noctalia.nix
     ./opencode.nix
@@ -36,9 +33,8 @@
   };
 
   # GNOME-shell extension pins only make sense on GNOME sessions; on the
-  # lucid/Hyprland host no GNOME Shell runs, so writing them is dead state.
-  # Same for the niri host (desktop-niri feature).
-  dconf.settings = lib.mkIf (!config.desktop.hyprland.enable && !config.desktop.niri.enable) {
+  # niri host no GNOME Shell runs, so writing them is dead state.
+  dconf.settings = lib.mkIf (!config.desktop.niri.enable) {
     "org/gnome/shell" = {
       disable-user-extensions = false;
       enabled-extensions = [

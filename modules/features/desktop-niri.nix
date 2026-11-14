@@ -17,11 +17,10 @@ let
   # Locks the session once the Noctalia shell is up after greetd autologin.
   # Uptime-gated so only the autologin boot locks: a session starting later
   # (logout -> greeter login, rebuild-test session bounces) already had an
-  # authentication and must not be asked for the password twice. Same
-  # contract as lucid-lock-at-boot (desktop-hyprland.nix): the noctalia user
-  # service being started does not guarantee its IPC socket is listening
-  # yet, so retry briefly. `noctalia msg session lock` is the same IPC the
-  # Mod+L bind uses (home/niri.nix).
+  # authentication and must not be asked for the password twice. The
+  # noctalia user service being started does not guarantee its IPC socket
+  # is listening yet, so retry briefly. `noctalia msg session lock` is the
+  # same IPC the Mod+L bind uses (home/niri.nix).
   noctaliaLockAtBoot = pkgs.writeShellScript "noctalia-lock-at-boot" ''
     if [ "$(${pkgs.coreutils}/bin/cut -d. -f1 /proc/uptime)" -ge 240 ]; then
       exit 0
@@ -50,9 +49,8 @@ in
   options.features.desktop-niri = {
     enable = lib.mkEnableOption ''
       niri desktop with the Noctalia shell and noctalia-greeter (mutually
-      exclusive with features.desktop-hyprland and features.desktop-gnome —
-      switch via the flake attrs: yoga = Hyprland, yoga-gnome = GNOME,
-      yoga-niri = niri)
+      exclusive with features.desktop-gnome — switch via the flake attrs:
+      yoga = niri, yoga-gnome = GNOME)
     '';
 
     greeter = {
@@ -79,12 +77,8 @@ in
       {
         assertions = [
           {
-            assertion = !config.features.desktop-hyprland.enable;
-            message = "features.desktop-niri and features.desktop-hyprland are mutually exclusive — switch via the flake attrs (yoga = Hyprland, yoga-gnome = GNOME, yoga-niri = niri)";
-          }
-          {
             assertion = !config.features.desktop-gnome.enable;
-            message = "features.desktop-niri and features.desktop-gnome are mutually exclusive — switch via the flake attrs (yoga = Hyprland, yoga-gnome = GNOME, yoga-niri = niri)";
+            message = "features.desktop-niri and features.desktop-gnome are mutually exclusive — switch via the flake attrs (yoga = niri, yoga-gnome = GNOME)";
           }
         ];
 
@@ -101,8 +95,8 @@ in
         # Battery widget / power info (not covered by the shell's HM module).
         services.upower.enable = true;
 
-        # GNOME-style GTK apps the binds and float rules rely on (mirror of
-        # the desktop-hyprland block). No hyprpolkitagent: Noctalia
+        # GNOME-style GTK apps the binds and float rules rely on (same
+        # block as the GNOME attr). No hyprpolkitagent: Noctalia
         # registers its own polkit agent (shell.polkit_agent). No cliphist:
         # Noctalia keeps its own clipboard history.
         services.gvfs.enable = true;
@@ -123,9 +117,7 @@ in
           # XDG_DATA_DIRS, which current-system/sw/share covers.
           adw-gtk3
           # The XF86 binds in home/niri.nix spawn these (volume/brightness/
-          # media keys). On the Hyprland attr they ride the lucid/dms
-          # package blocks, which this attr does not enable — without them
-          # here the FN keys are dead.
+          # media keys) — without them here the FN keys are dead.
           brightnessctl
           playerctl
           pulseaudio
@@ -176,8 +168,7 @@ in
           passwordless-sync-users = [ mainUser ];
         };
         # DRM access for the greeter's compositor while the logind seat
-        # handoff is still in flight (mirrors the desktop-hyprland greeter
-        # user).
+        # handoff is still in flight.
         users.users.greeter.extraGroups = [ "video" ];
 
         # The niri session entry ships with programs.niri ("niri" desktop
@@ -188,8 +179,8 @@ in
       (lib.mkIf (cfg.greeter.enable && cfg.greeter.autoLogin) {
         # greetd runs the niri session as initial_session at boot. The
         # upstream greeter module only sets default_session — it does NOT
-        # translate services.displayManager.autoLogin (unlike the dms-greeter
-        # module), so this is wired directly. niri-session is the same entry
+        # translate services.displayManager.autoLogin, so this is wired
+        # directly. niri-session is the same entry
         # the "niri" desktop file runs: it imports the environment into the
         # user manager and starts niri.service, and the Noctalia shell rides
         # graphical-session.target behind it. initial_session only fires at
@@ -203,10 +194,9 @@ in
         # Autologin boots into a running session; authentication (and
         # gnome-keyring unlock) moves to the Noctalia lock screen — unlock
         # goes through PAM service "login", already keyring-wired above.
-        # The After= below is load-bearing, same as lucid-lock-at-boot: a
-        # unit wanted by a target with no ordering of its own would get an
-        # implicit After= FROM the target and stall the boot (~10 s per
-        # autologin boot, 2026-09-25).
+        # The After= below is load-bearing: a unit wanted by a target with
+        # no ordering of its own would get an implicit After= FROM the
+        # target and stall the boot (~10 s per autologin boot, 2026-09-25).
         home-manager.users.${mainUser}.systemd.user.services.noctalia-lock-at-boot = {
           Unit = {
             Description = "Lock the session after greetd autologin (auth moves to the Noctalia lock screen)";

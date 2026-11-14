@@ -62,35 +62,19 @@ let
 
       dbus-update-activation-environment --systemd GTK_THEME 2>/dev/null || true
 
-      ${
-        if config.desktop.lucid.enable || config.desktop.dms.enable then
-          ''
-            # Shell host (lucid: envtool + lucidSync; DMS: its matugen writes
-            # gtk-{3,4}.0/colors.css): ~/.config/gtk-4.0 is owned by the
-            # session shell. The colloid symlink farm of the shell-less
-            # branch would point gtk.css into the read-only store; the
-            # shell's next write through it would abort (EACCES — the
-            # 2026-09-24 failure class). The gsettings swaps above still
-            # apply.
-            echo "switch-theme: the session shell owns ~/.config/gtk-4.0 — css/assets symlinks skipped" >&2
-          ''
-        else
-          ''
-            # Runtime owns ~/.config/gtk-4.0/*
-            XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
-            GTK4_DIR="$XDG_CONFIG_HOME/gtk-4.0"
-            THEME_BASE="${colloid}/share/themes"
+      # Runtime owns ~/.config/gtk-4.0/*
+      XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
+      GTK4_DIR="$XDG_CONFIG_HOME/gtk-4.0"
+      THEME_BASE="${colloid}/share/themes"
 
-            mkdir -p "$GTK4_DIR"
-            for item in gtk.css gtk-dark.css assets; do
-              src="$THEME_BASE/$theme/gtk-4.0/$item"
-              dst="$GTK4_DIR/$item"
-              [ -e "$src" ] || continue
-              [ ! -L "$dst" ] && [ -d "$dst" ] && mv "$dst" "$dst.rm" && rm -rf "$dst.rm"
-              ln -sfn "$src" "$dst"
-            done
-          ''
-      }
+      mkdir -p "$GTK4_DIR"
+      for item in gtk.css gtk-dark.css assets; do
+        src="$THEME_BASE/$theme/gtk-4.0/$item"
+        dst="$GTK4_DIR/$item"
+        [ -e "$src" ] || continue
+        [ ! -L "$dst" ] && [ -d "$dst" ] && mv "$dst" "$dst.rm" && rm -rf "$dst.rm"
+        ln -sfn "$src" "$dst"
+      done
     '';
   };
 
@@ -107,8 +91,7 @@ let
   };
 in
 {
-  # Single source for the light/dark GTK + icon theme names (home/lucid.nix's
-  # auto light/dark wrapper reads these instead of mirroring let-bindings).
+  # Single source for the light/dark GTK + icon theme names.
   # NOTE (2026-10-13, accepted limitation): these names style GTK3 and
   # plain-GTK4 apps only. libadwaita apps ignore gtk-theme-name BY DESIGN —
   # they follow gsettings color-scheme plus the ~/.config/gtk-{3,4}.0
@@ -133,10 +116,9 @@ in
     };
     iconLight = lib.mkOption {
       type = lib.types.str;
-      # The installed light variant name: lucid's Env.qml variantOf() rewrites
-      # the icon theme to an installed "-light" counterpart on every light
-      # flip, so the bare "Fluent" default drifted from the value gsettings/
-      # prefs actually carried (live-verified 2026-10-13: Fluent-light).
+      # The installed light variant name: the bare "Fluent" default drifted
+      # from the value gsettings/prefs actually carried (live-verified
+      # 2026-10-13: Fluent-light).
       default = "Fluent-light";
       description = "Icon theme name for light mode";
     };
@@ -163,8 +145,8 @@ in
       XCURSOR_SIZE = toString cursorSize;
     };
 
-    # HM must not claim these: on non-lucid hosts the switch-theme script
-    # (below) rewrites them; on lucid hosts Lucid's own theming does.
+    # HM must not claim these: the switch-theme script (below) rewrites
+    # them at runtime (dconf above covers the gsettings side).
     xdg.configFile = {
       "gtk-4.0/gtk.css".enable = lib.mkForce false;
       "gtk-4.0/gtk-dark.css".enable = lib.mkForce false;
@@ -188,17 +170,13 @@ in
       };
     };
 
-    # HM's gtk module would own ~/.config/gtk-{3,4}.0/settings.ini, but
-    # the session shell rewrites those files (lucid: envtool atomic rename
-    # — replaces the HM store symlink with a real file; DMS: its matugen
-    # flow owns the same dirs; noctalia: the gtk3/gtk4 theme templates
-    # write them so apps follow the shell palette). The stale .backup HM
-    # keeps then aborts the next boot-time activation entirely (2026-09-24:
-    # no lucid.service, default cursor). The shell owns the ini files on
-    # its host (dconf above covers the gsettings side); hosts without a
-    # shell keep the declarative HM theme.
+    # HM owns ~/.config/gtk-{3,4}.0/settings.ini — except where the session
+    # shell owns them (noctalia: the gtk3/gtk4 theme templates write them
+    # so apps follow the shell palette). HM's gtk module must not fight
+    # that: the stale .backup it keeps would abort the next boot-time
+    # activation entirely. The dconf settings above cover the gsettings
+    # side either way.
     gtk = {
-      enable = !config.desktop.lucid.enable && !config.desktop.dms.enable;
       # Noctalia hosts: the shell's gtk3/gtk4 templates select
       # adw-gtk3(-dark) via gsettings and paint the palette through
       # ~/.config/gtk-{3,4}.0/noctalia.css (adw-gtk3 lives in
@@ -206,6 +184,7 @@ in
       # succeeds). The declarative theme name must MATCH that pair — a
       # Colloid pin here wins for GTK3 apps reading settings.ini and keeps
       # them off-palette.
+      enable = true;
       theme = {
         name = if config.desktop.noctalia.enable then "adw-gtk3-dark" else gtkDark;
         package = if config.desktop.noctalia.enable then pkgs.adw-gtk3 else colloid;
@@ -222,12 +201,11 @@ in
       };
     };
 
-    # darkman day/night GTK switching — disabled on the Hyprland attr, where
-    # Lucid's matugen dynamic theming owns GTK (features.desktop-hyprland),
-    # and on the noctalia attr, whose own theme auto mode + gtk templates
-    # switch GTK by sunrise/sunset. Running both would fight over
-    # ~/.config/gtk-4.0 and GTK_THEME.
-    services.darkman = lib.mkIf (!config.desktop.hyprland.enable && !config.desktop.noctalia.enable) {
+    # darkman day/night GTK switching — disabled on the noctalia attr,
+    # whose own theme auto mode + gtk templates switch GTK by
+    # sunrise/sunset. Running both would fight over ~/.config/gtk-4.0 and
+    # GTK_THEME. (On the GNOME hosts darkman is the day/night switcher.)
+    services.darkman = lib.mkIf (!config.desktop.noctalia.enable) {
       enable = true;
       settings = {
         portal = true;

@@ -121,28 +121,7 @@ in
           ".local/share/keyrings"
           ".config/mozilla/firefox"
           ".config/BraveSoftware/Brave-Browser"
-          # DankMaterialShell settings: DankGreeter themes itself from
-          # configHome at boot (programs.dms-greeter.configHome). Only the
-          # config dir has a live reader since the DMS shell was removed
-          # (2026-09-27) — the shell-owned state/state-cache dirs are gone.
-          ".config/DankMaterialShell"
-          # Lucid shell (home/lucid.nix): settings live INSIDE the synced
-          # shell tree (~/.config/quickshell/lucidprefs/prefs.json etc.) —
-          # the sync excludes exactly these from --delete. Support scripts,
-          # keybinds.json and theme state under ~/.config/lucid.
-          ".config/quickshell"
-          ".config/lucid"
-          ".cache/quickshell"
-          # awww wallpaper daemon image cache — its restore-on-start source.
-          # Unpersisted, every reboot came up black under a static theme
-          # (2026-09-30); lucid-auto-mode repairs the image at login too,
-          # this also covers mid-session daemon restarts.
-          ".cache/awww"
-          # Lucid's runtime-written Hyprland data: hypridle.conf (Idle
-          # settings page), lucid-specials.lua, lucid-glass.lua. The HM
-          # symlinks (hyprland.lua, modules/, scripts/) re-link every boot.
-          ".config/hypr"
-          # Noctalia (yoga-niri, home/noctalia.nix): the GUI settings layer
+          # Noctalia (niri attr, home/noctalia.nix): the GUI settings layer
           # (~/.local/state/noctalia/settings.toml — wins over the Nix
           # config.toml, which is a store symlink and needs no entry),
           # wallpaper/palette caches, installed plugins. The niri config.kdl
@@ -150,12 +129,11 @@ in
           ".local/state/noctalia"
           ".cache/noctalia"
           ".local/share/noctalia"
-          # matugen GTK template output (colors.css + the gtk.css import
-          # lucidSync appends)
+          # Noctalia's GTK template output: the shell gsettings-selects
+          # adw-gtk3(-dark) and writes the gtk.css overlay into the GTK
+          # config dirs (home/theme.nix pins the same theme in settings.ini).
           ".config/gtk-3.0"
           ".config/gtk-4.0"
-          # Clipboard history (wl-paste --watch cliphist store, home/hyprland.nix)
-          ".cache/cliphist"
           # ZCode (Electron AppImage): auth/session + workspace state.
           ".config/ZCode"
           # ZCode auth/history lives here, not in ~/.config/ZCode
@@ -171,7 +149,7 @@ in
           # persisted config blob.
           ".config/spotify"
           ".cache/spotify"
-          # Nautilus (the Hyprland file manager): view/sort preferences in
+          # Nautilus (the file manager on the niri + GNOME attrs): view/sort preferences in
           # .config, starred files + metadata in .local/share — unpersisted,
           # both reset on every boot of the impermanence host.
           ".config/nautilus"
@@ -187,17 +165,6 @@ in
           ".oxrc"
           ".config/user-dirs.locale"
           ".config/monitors.xml"
-          # set-wallpaper.sh state: active wallpaper/mode + theme name. Must
-          # be FILES, not directories: lucid's shell scripts and QML FileViews
-          # read/write a file at exactly these paths — as directories they get
-          # bind-mounted over and every read fails "Not a file".
-          ".cache/current_theme"
-          ".cache/current_wallpaper"
-          ".cache/current_mode"
-          # Lucid Glass slider state: lucid writes kitty's include file at
-          # runtime (home/terminal.nix includes it when lucid is enabled);
-          # without this entry the slider position reset every boot.
-          ".config/kitty/lucid-glass.conf"
         ];
       };
     };
@@ -312,9 +279,9 @@ in
     };
 
     # Panel definition for EVERY session attr: battery-refresh reads it on
-    # .#yoga (Hyprland), .#yoga-gnome and .#yoga-niri alike, and
-    # home/niri.nix derives its output block from it.
-    desktop.hyprland.monitors = [
+    # .#yoga and .#yoga-gnome alike, and home/niri.nix derives its output
+    # block from it. Option lives in home/battery-refresh.nix.
+    desktop.monitors = [
       {
         output = "eDP-1";
         mode = "3072x1920@120";

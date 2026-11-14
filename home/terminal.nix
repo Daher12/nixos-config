@@ -18,9 +18,9 @@ let
     nord9 = "#81A1C1";
   };
 
-  # The niri/Noctalia host (yoga-niri) runs Rosé Pine end to end — the
+  # The niri/Noctalia attr runs Rosé Pine end to end — the
   # shell and GTK are Rosé Pine via home/noctalia.nix — so the terminal
-  # (foot there, kitty on the lucid/GNOME hosts), fzf and btop follow it
+  # (foot there, kitty on the GNOME hosts), fzf and btop follow it
   # there (main/dark variant only: the terminal never follows light/dark).
   # Every other host stays Nord; the Nord values below are the ones they
   # always had.
@@ -191,8 +191,8 @@ in
     ghostty = {
       enable = lib.mkOption {
         type = lib.types.bool;
-        # 2026-09-27: kitty won the default slot (SUPER+T and lucid's F9).
-        # Flip to true per host to bring ghostty back.
+        # 2026-09-27: kitty won the default slot. Flip to true per host to
+        # bring ghostty back.
         default = false;
         description = "Enable Ghostty terminal";
       };
@@ -270,17 +270,13 @@ in
           theme = "Nord";
           background = nord.nord0;
           foreground = nord.nord4;
-        }
-        // (lib.optionalAttrs config.desktop.hyprland.enable {
           background-opacity = 0.93;
-        });
+        };
       };
     })
 
     (lib.mkIf (cfg.kitty.enable && !config.desktop.niri.enable) {
-      # The default terminal of the lucid/Hyprland and GNOME hosts: SUPER+T
-      # (desktop.hyprland.terminal) and lucid's F9 bind both open kitty, and
-      # lucid's Glass slider owns its opacity — kitty stays THEIR terminal.
+      # The default terminal of the GNOME hosts (yoga-gnome, latitude).
       # On the niri host foot replaced it entirely (2026-11-08, foot trial
       # won); this gate keeps kitty out of that attr.
       # Single-instance wrap:
@@ -303,11 +299,9 @@ in
         # Colors: static Nord from kitty-themes. Kitty deliberately does
         # NOT follow light/dark mode (2026-09-30: a bright terminal feels
         # wrong): the shell flips via the sun schedule, the terminal stays
-        # dark. lucid's apply-theme.sh / matugen keep rewriting
-        # ~/.config/kitty/matugen-colors.conf, but nothing includes it.
-        # HM writes the themeFile include BEFORE `settings` (order 520 vs
+        # dark. HM writes the themeFile include BEFORE `settings` (order 520 vs
         # 540), so `settings` colors would win over a theme regardless.
-        # (This block only evaluates on the lucid/GNOME hosts — the niri
+        # (This block only evaluates on the GNOME hosts — the niri
         # host runs foot — so the former Rosé Pine branches for the
         # noctalia attr were dead and were removed 2026-11-08.)
         themeFile = "Nord";
@@ -318,31 +312,14 @@ in
           shell = "fish --login --interactive";
           scrollback_lines = 10000;
           update_check_interval = 0;
-          # pts, not px: 12pt ≈ 16px at this DPI, matching Hyprland's
-          # decoration rounding = 16 (home/hyprland.nix). Without padding the
+          # pts, not px: 12pt ≈ 16px at this DPI. Without padding the
           # prompt glyphs sit under the rounded corners and get clipped.
           window_padding_width = 12;
-        }
-        // (lib.optionalAttrs (!config.desktop.lucid.enable) {
-          # Lucid's Glass slider owns terminal opacity on Hyprland hosts
-          # (see extraConfig below) — there the static value would fight
-          # the slider. These are the GNOME generations (latitude,
-          # yoga-gnome): 0.93, mutter has no blur. (The former "niri host
-          # draws fully opaque" branch was dead — kitty never evaluates on
-          # the niri attr.)
+          # GNOME generations (latitude, yoga-gnome): 0.93, mutter has no
+          # blur. (The former "niri host draws fully opaque" branch was
+          # dead — kitty never evaluates on the niri attr.)
           background_opacity = "0.93";
-        });
-        # Lucid Glass (Settings > General > Glass) writes
-        # ~/.config/kitty/lucid-glass.conf and signals kitty (USR1) to reload.
-        # The include must live here because HM owns kitty.conf as a read-only
-        # store symlink — lucid's own auto-append into kitty.conf fails
-        # silently (EACCES) and its .pre-lucid-glass backup marks the attempt
-        # as done, so it never retries. Absolute path because kitty.conf
-        # itself is a store symlink; included directives land last, so the
-        # Glass slider wins over `settings` (and 1.00 = fully opaque at Off).
-        extraConfig = lib.mkIf config.desktop.lucid.enable ''
-          include ${config.home.homeDirectory}/.config/kitty/lucid-glass.conf
-        '';
+        };
       };
     })
 
@@ -353,7 +330,7 @@ in
     # footclient, home/niri.nix), best-in-class fractional-scale and damage
     # handling at 120Hz. Trade-offs: no ligatures, plain foot.ini.
     # Theming: Rosé Pine main palette (verbatim upstream hexes, same as the
-    # kitty block above uses on the lucid/GNOME hosts), same font; foot
+    # kitty block above uses on the GNOME hosts), same font; foot
     # draws FULLY OPAQUE and sits under the compositor rule in
     # home/niri.nix (opacity 0.75 + xray blur) — user picked full frost
     # after trialing plain client-side translucency. Known trade-off:

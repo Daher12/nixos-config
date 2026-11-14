@@ -72,38 +72,10 @@
       url = "github:anomalyco/opencode/v2.2.4";
     };
 
-    # Quickshell engine — upstream flake (docs: the GitHub mirror is
-    # equivalent to git.outfoxxed.me). follows is upstream-mandated
-    # ("mismatched system dependencies will lead to crashes") and keeps the
-    # desktop stack on the single main nixpkgs eval. Manual pin like
-    # lucid/dank-greeter: bump deliberately with `nix flake update
-    # quickshell`, then smoke-test shell AND greeter (lucid v1.20.1 +
-    # dux-greeter v2.0.0 — the pairing floor `minQuickshell = "0.3.2"` is
-    # enforced in home/lucid.nix). No binary cache upstream: first build
-    # per pin bump compiles locally.
-    quickshell = {
-      url = "github:quickshell-mirror/quickshell";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    # dux-greeter NixOS module (programs.dms-greeter) from upstream — newer
-    # standalone greeter (v2.0.0 rebrand, 2026-10-20). Both module and
-    # package come from this flake now, built against the main nixpkgs
-    # (follows; pure Go build).
-    # Repo was renamed AvengeMedia/dank-greeter → duxlabs-dev/dux-greeter
-    # (URL updated 2026-10-24 while the GitHub redirect still works —
-    # redirects can expire). Since 2026-09-30 the nixpkgs-unstable input is
-    # GONE — quickshell and dms-greeter no longer ride it, so the desktop
-    # stack has one nixpkgs eval (opencode's pinned input is the only
-    # second one) and no binary cache.
-    dank-greeter = {
-      url = "github:duxlabs-dev/dux-greeter";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # Spotify desktop client patched with SpotX (ad blocking) at build
     # time. Overlay-only upstream flake (no NixOS/HM module), consumed by
-    # modules/features/spotify.nix. Manual pin like lucid/quickshell: the
+    # modules/features/spotify.nix. Manual pin (update-safe never touches
+    # it): the
     # upstream bot re-aligns SpotX-Bash with nixpkgs' spotify every ~6 h,
     # and we follow OUR nixpkgs — if a nixpkgs bump outpaces their pin,
     # the spotify-spotx build fails loudly ("Nixpkgs Spotify X is newer
@@ -114,44 +86,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Lucid desktop shell (github:Sn3akyy1/lucid): Material 3 Expressive
-    # Quickshell shell (bar, dock, launcher, lock screen, notifications,
-    # settings GUI). Upstream ships no Nix packaging — the only install path
-    # is an Arch install.sh — so the input is consumed as plain source
-    # (flake = false): home/lucid.nix applies the downstream patches at BUILD
-    # time (lucidPatched derivation over ./home/lucid-patches/, drift fails
-    # the rebuild loudly) and syncs the result into the writable
-    # ~/.config/quickshell (Lucid keeps runtime settings inside its own shell
-    # directory, so a read-only store path cannot work). Deliberately NOT in
-    # the update-safe/CI bump lists (moves fast, manual pin) — update with
-    # `nix flake update lucid`, then regenerate the patches.
-    lucid = {
-      url = "github:Sn3akyy1/lucid";
-      flake = false;
-    };
-
-    # DMS / dux-shell — DankMaterialShell rebranded (duxlabs-dev), the
-    # quickshell shell the dux-shell branch evaluates as lucid's
-    # replacement: official Nix packaging (stable branch = tagged releases;
-    # nixpkgs' own dms-shell 1.4.x is stale by a major version, hence the
-    # flake). The NixOS module (nixosModules.dank-material-shell) is
-    # imported in modules/features/desktop-hyprland.nix; the package and
-    # quickshell default to this input built against our nixpkgs (follows —
-    # quickshell resolves through the overlaid pkgs.quickshell, patch 201
-    # included). Manual pin like lucid/quickshell/dank-greeter: bump
-    # deliberately with `nix flake update dux-shell`, then smoke-test shell
-    # AND greeter. The upstream home-manager module is deliberately NOT
-    # used (it assigns programs.quickshell, defined nowhere) — settings
-    # seeding lives in home/dms.nix.
-    dux-shell = {
-      url = "github:duxlabs-dev/dux-shell/stable";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # Noctalia — the C++ Wayland shell (bar, launcher, notifications, lock
-    # screen, idle, clipboard, wallpaper, polkit agent) the niri-testing
-    # branch runs on yoga-niri in place of DMS (modules/features/
-    # desktop-niri.nix + home/noctalia.nix). Not in nixpkgs → flake. Pinned
+    # screen, idle, clipboard, wallpaper, polkit agent) the niri session
+    # runs on yoga in place of the retired Hyprland/lucid stack (modules/
+    # features/desktop-niri.nix + home/noctalia.nix). Not in nixpkgs →
+    # flake. Pinned
     # to release tags (stable-tags-only), bump deliberately with
     # `nix flake update noctalia noctalia-greeter`, then smoke-test shell
     # AND greeter together. Deliberately NO nixpkgs follows on either input:
@@ -178,104 +117,6 @@
           zcode = final.callPackage ./pkgs/zcode.nix { };
           mikromcp = final.callPackage ./pkgs/mikromcp.nix { };
           is-on-ac = final.callPackage ./pkgs/is-on-ac.nix { };
-        })
-        # Desktop stack from upstream flakes, built against the main nixpkgs
-        # (quickshell's docs mark the follows "THIS IS IMPORTANT" — mismatched
-        # system deps crash). nixpkgs-unstable is GONE: the desktop stack
-        # rides the main nixpkgs eval (opencode's pinned input is the only
-        # second one), and there is no binary cache — the first build per pin
-        # bump compiles quickshell locally. Greeter (duxlabs-dev 1.6.2) runs
-        # at every boot; Lucid (home/lucid.nix) runs on quickshell; both exec
-        # the SYSTEM quickshell — any bump of quickshell/lucid/greeter is a
-        # three-way pairing, see the floor gate in home/lucid.nix.
-        (final: _prev: {
-          dms-greeter = inputs.dank-greeter.packages.${final.stdenv.hostPlatform.system}.dms-greeter;
-          # withModules appends Qt modules to the wrapper derivation, whose
-          # wrapQtAppsHook folds their qml dirs into the baked
-          # NIXPKGS_QT6_QML_IMPORT_PATH (bin/qs is a makeQtWrapper C wrapper,
-          # not a shell script — runtime env overrides cannot extend that
-          # list safely). lucid v1.20 imports Qt5Compat.GraphicalEffects
-          # (lucidbar/Workspaces.qml, lucidui/ShapedImage.qml; upstream docs
-          # list qt6-5compat as a hard requirement, Arch installs it
-          # system-wide) — without it the shell crash-looped on
-          # "module Qt5Compat.GraphicalEffects is not installed" after the
-          # 2026-10-10 switch. Same-ABI module: quickshell follows this
-          # flake's nixpkgs.
-          # ⚠️ Upstream default.nix's passthru.withModules closes over the
-          # ORIGINAL wrapper let-binding: (pkg.overrideAttrs f).withModules m
-          # and (pkg.override g).withModules m silently DISCARD the override
-          # (verified 2026-10-10 — eval returned the stock drv, patches=[]).
-          # The wrapper is also a separate derivation (cp -r ${unwrapped}),
-          # so package-level patches cannot reach the binary anyway. Hence:
-          # patch passthru.unwrapped, then replicate the upstream wrapper
-          # verbatim against the patched build (qt5compat folded into
-          # buildInputs exactly as withModules would).
-          quickshell =
-            let
-              qs = inputs.quickshell.packages.${final.stdenv.hostPlatform.system}.quickshell;
-              qsUnwrapped = qs.unwrapped.overrideAttrs (old: {
-                # IconImageProvider::requestPixmap calls the GUI-thread-only
-                # Qt icon machinery (QIcon::fromTheme/QIcon::pixmap) from BOTH
-                # the main thread (sync IconImage loads, e.g. lucid dock
-                # items) and the QQuickPixmapReader thread (async loads) —
-                # crash-looped lucid restarts 2026-10-10 (SIGSEGV in
-                # QSvgIconEngine + __cxa_pure_virtual in
-                # QPlatformPixmap::fromFile, ~/.cache/quickshell/crashes).
-                # The patch marshals off-thread requests onto the GUI thread
-                # (BlockingQueuedConnection, inline on the GUI thread itself).
-                # A plain mutex was tried first and reverted same day: it
-                # turned the race into a deadlock — the reader thread wedged
-                # inside a request and every icon silently fell back to
-                # generics. Drop when upstream fixes
-                # #1007/#1028/#1056/#1079 — also restore upstream
-                # withModules for qt5compat below.
-                patches = (old.patches or [ ]) ++ [ ./quickshell-patches/201-iconprovider-thread-safety.patch ];
-              });
-            in
-            qsUnwrapped.stdenv.mkDerivation {
-              inherit (qsUnwrapped) version meta;
-              pname = "${qsUnwrapped.pname}-wrapped";
-
-              nativeBuildInputs = qsUnwrapped.nativeBuildInputs ++ [ final.qt6.wrapQtAppsHook ];
-              # qt5compat: lucid v1.20 imports Qt5Compat.GraphicalEffects
-              # (lucidbar/Workspaces.qml, lucidui/ShapedImage.qml; upstream
-              # docs list qt6-5compat as a hard requirement, Arch installs it
-              # system-wide) — without it the shell crash-looped on
-              # "module Qt5Compat.GraphicalEffects is not installed" after
-              # the 2026-10-10 switch.
-              # qtwebengine + qtimageformats: lucid 1.20.5.5 (2026-10-31
-              # bump) gained Lumen, the in-shell file manager — upstream
-              # install.sh lists qt6-webengine as REQUIRED because Lumen's
-              # preview pane imports it ("a window with an import it can't
-              # resolve doesn't load at all", i.e. SUPER+E and every
-              # launcher files entry would die). qtimageformats carries the
-              # webp/tiff/tga/icns codecs Lens, the photo widget and the
-              # what's-new sheet draw.
-              # qtmultimedia: also in upstream install.sh's PKG_REQUIRED —
-              # lucidlumen/PreviewPane.qml imports QtMultimedia at the top
-              # level, and skipping it (2026-10-31 bump wired webengine but
-              # not multimedia) killed the whole Lumen window on launch
-              # (module "QtMultimedia" is not installed). Also lazily
-              # imported by lucidlens/Movie.qml, luciddesktop/QuickLookMedia.qml,
-              # lucidlock/LockLive.qml and lucidlive/LiveShell.qml.
-              buildInputs = qsUnwrapped.buildInputs ++ [
-                final.qt6.qt5compat
-                final.qt6.qtmultimedia
-                final.qt6.qtwebengine
-                final.qt6.qtimageformats
-              ];
-
-              dontUnpack = true;
-              dontConfigure = true;
-              dontBuild = true;
-
-              installPhase = ''
-                mkdir -p $out
-                cp -r ${qsUnwrapped}/* $out
-              '';
-
-              passthru.unwrapped = qsUnwrapped;
-            };
         })
         # python3.13-fastmcp (transitive dep of mcp-nixos, home/opencode.nix):
         # its pytest suite breaks on the 2026-10-31 nixpkgs bump (6f06d204) —
@@ -394,7 +235,7 @@
             withHardware = true; # Enables /modules/hardware evaluation
             profiles = [
               "laptop"
-              "desktop-hyprland"
+              "desktop-niri"
             ];
             extraModules = [
               inputs.nixos-hardware.nixosModules.lenovo-yoga-7-slim-gen8
@@ -404,31 +245,18 @@
           };
         in
         {
-          # Physical Laptop: Yoga (AMD) — Hyprland + Lucid + DankGreeter.
+          # Physical Laptop: Yoga (AMD) — niri + Noctalia + noctalia-greeter.
           # Desktop switch (no config edits): rebuild from .#yoga-gnome for GNOME.
           yoga = mkHost yogaArgs;
 
-          # Same machine, GNOME desktop (GDM). Switch targets, nothing else differs.
+          # Same machine, GNOME desktop (GDM) — the backup DE for when niri
+          # does not fit. Switch targets, nothing else differs.
           yoga-gnome = mkHost (
             yogaArgs
             // {
               profiles = [
                 "laptop"
                 "desktop-gnome"
-              ];
-            }
-          );
-
-          # Same machine, niri desktop (niri-testing branch): Noctalia as the
-          # session shell (home/noctalia.nix, pulled in by
-          # modules/features/desktop-niri.nix) with noctalia-greeter.
-          # Switch target, nothing else differs.
-          yoga-niri = mkHost (
-            yogaArgs
-            // {
-              profiles = [
-                "laptop"
-                "desktop-niri"
               ];
             }
           );
