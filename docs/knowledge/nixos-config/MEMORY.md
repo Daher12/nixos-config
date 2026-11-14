@@ -2,6 +2,7 @@
 
 > 2026-11-15: hyprland/lucid/DMS RETIRED from main (6 commits pushed, tip 647a6c9); yoga = niri+Noctalia, yoga-niri attr GONE, GNOME backup = yoga-gnome; full stack on archive/hyprland-lucid. ⚠️ LIVE SWITCH `nus yoga switch` still pending user-side (machine on gen 202 since Nov 8 — everything since lands with it).
 
+- [Silo trial plan 2026-11-15](silo-trial-plan-2026-11-15.md) — PLAN ONLY (denied): Silo omnibus container alongside jellyfin on nix-media; subpath-unsupported + port-collision + sops side-file facts in file
 - [Hyprland/lucid retirement EXECUTED 2026-11-14](hyprland-lucid-retirement-niri-promotion-2026-11-14.md) — EXECUTED+PUSHED 6 commits: niri promoted to .#yoga, font vendored, monitors option moved, lean batch; niri+noctalia configs byte-identical vs old attr; VM battery skipped by user
 - [niri greetd autologin EXECUTED 2026-11-14](niri-greetd-autologin-2026-11-14.md) — EXECUTED+QC green, landed in retirement commit 1: greeter.autoLogin + noctalia-lock-at-boot; manual initial_session lore in file
 - [Update sweep 2026-11-12](update-sweep-2026-11-12.md) — EXECUTED+pushed: nixpkgs ac588ef, zcode 3.17.2; opencode v2.2.6+2.2.7 BOTH gate-broken → holds v2.2.4
