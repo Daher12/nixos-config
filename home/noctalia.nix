@@ -17,10 +17,12 @@ let
   # validate` (checkConfig default): an unknown key fails the dry-build —
   # fix the key, never disable checkConfig. Harvest live tuning back here
   # with `noctalia config export merged`. Layer-of-record harvests so far:
-  # 2026-11-08 (full state strip, backup settings.toml.bak-2026-11-08) and
-  # 2026-11-15 (second drift incl. the wallpaper-M3 theme, backup
-  # settings.toml.bak-2026-11-15). The suspend timeout is the one key that
-  # legitimately re-materializes in state (the power hooks config-set it).
+  # 2026-11-08 (full state strip) and 2026-11-15 (second drift incl. the
+  # wallpaper-M3 theme). Backups of the stripped state live in the
+  # PERSISTED state dir (~/.local/state/noctalia/settings.toml.bak-*) —
+  # the earlier /tmp copies died with tmpfs. The suspend timeout is the
+  # one key that legitimately re-materializes in state (the power hooks
+  # config-set it).
   wallpaperDir = "${config.home.homeDirectory}/Bilder/wallpapers";
 
   # Google Sans Flex — the shell's UI font, vendored into the repo (copied
@@ -156,6 +158,9 @@ in
           popup_borders = false;
           niri_overview_type_to_launch_enabled = false;
           settings_window_translucent = true;
+          # Round avatar in the bar/control center — moved here from
+          # [control_center] in v5.5.0 (GUI harvest 2026-11-15).
+          circular_avatar = false;
           panel_anchor_bar = "main";
           # GUI-tuned (state layer, 2026-11-07) — harvested 2026-11-08:
           show_close_buttons = false;
@@ -346,17 +351,17 @@ in
         };
 
         # GUI harvest 2026-11-15 (state-layer keys that had no declarative
-        # counterpart — recorded so the state layer can stay empty):
+        # counterpart — recorded so the state layer can stay empty;
+        # weather.refresh_minutes moved into the weather block below):
         audio.enable_sounds = false;
         battery.warning_threshold = 15;
         bluetooth.connection_notifications = true;
-        weather.refresh_minutes = 40;
 
         # Control center (GUI harvest 2026-11-15): no avatar chrome, audio
         # tab hidden, no sidebar, week numbers in the calendar, and the
-        # five-button shortcut grid.
+        # five-button shortcut grid. circular_avatar lives in [shell] as
+        # of v5.5.0 (upstream migration; kept in the shell block above).
         control_center = {
-          circular_avatar = false;
           hidden_tabs = [ "audio" ];
           show_avatar_border = false;
           show_session_button = false;
@@ -425,6 +430,19 @@ in
           # real meridian (GUI harvest 2026-11-15; latitude unchanged).
           latitude = 52.52;
           longitude = 8.524;
+        };
+
+        # Weather (Open-Meteo, no API key): feeds the lockscreen weather
+        # line below + a control-center weather tab; the bar stays
+        # untouched. Coordinates come from [location] above. refresh 40 =
+        # the GUI value (harvested 2026-11-15). effects = the animated
+        # precipitation shader in the control-center tab only — the
+        # lockscreen widget ignores it.
+        weather = {
+          enabled = true;
+          unit = "celsius";
+          refresh_minutes = 40;
+          effects = true;
         };
 
         # Energy timeline (user spec 2026-11-08), all inhibitor-aware so
@@ -499,11 +517,13 @@ in
           session_unlocked = [ "${kbdRestoreScript}" ];
         };
 
-        # Lock screen: big digital clock up top, a small frosted password
-        # capsule below-center (sleek round 2026-11-06; round 2 on
-        # 2026-11-07 softened it: hard clock shadow off, on_surface_variant
-        # ink, box-fit clock ~90px, capsule lifted to cy 640 with pill
-        # input). No per-widget scale or text widget exists for lockscreen
+        # Lock screen: big digital clock up top, a weather line beneath it
+        # and a small frosted password capsule below-center (sleek round
+        # 2026-11-06; round 2 on 2026-11-07 softened it: hard clock shadow
+        # off, on_surface ink, box-fit clock, capsule lifted to cy 640
+        # with pill input; round 4 on 2026-11-15 grew the clock to ~110px
+        # and added the weather line). No per-widget scale or text widget
+        # exists for lockscreen
         # widgets in v5.4.1 (validator warns `scale: unknown setting`;
         # clock font stays hard-fixed at 4x body, so a small date line is
         # not expressible — size only via the entry's box-fit) — geometry
@@ -527,6 +547,7 @@ in
           };
           widget_order = [
             "lockscreen-widget-0000000000000001"
+            "lockscreen-widget-0000000000000002"
             "lockscreen-login-box@eDP-1"
           ];
           widget = {
@@ -541,10 +562,11 @@ in
               # Explicit box => the host setBox()es the widget and layout
               # scales the content aspect-preserved to fill it (height is
               # the binding constraint): natural 4x-body digits (~56px)
-              # render at ~90px. The font size itself is hard-fixed — this
-              # box-fit is the only size control.
-              box_width = 360.0;
-              box_height = 120.0;
+              # render at ~110px (round 4 2026-11-15: 360x120 → 440x146).
+              # The font size itself is hard-fixed — this box-fit is the
+              # only size control.
+              box_width = 440.0;
+              box_height = 146.0;
               settings = {
                 clock_style = "digital";
                 format = "{:%H:%M}";
@@ -565,7 +587,36 @@ in
                 background_opacity = 0.0;
                 # The invisible plate still insets the box-fit content
                 # area by its padding (default 10px each side) — zero it
-                # so the full 360x120 box reaches the digits.
+                # so the full 440x146 box reaches the digits.
+                background_padding = 0.0;
+              };
+            };
+            # Weather line (round 4 2026-11-15): current conditions
+            # between clock and capsule, fed by the [weather] service.
+            # Same plate-less treatment as the clock (explicit 0.0
+            # opacity — a missing key normalizes to the 0.8 card plate;
+            # padding 0 so the plate can't inset the box fit) and shadow
+            # off (the label shadow is a hard offset — the same
+            # light-mode "border" the clock shed in round 2). Ink follows
+            # the theme via the default on_surface color. Current
+            # conditions only — the 6-day forecast lives in the
+            # control-center weather tab.
+            "lockscreen-widget-0000000000000002" = {
+              type = "weather";
+              output = "eDP-1";
+              cx = 768.0;
+              # Vertical ladder: clock 227-373, weather 405-465, capsule
+              # 605-675.
+              cy = 435.0;
+              placement_height = 960.0;
+              placement_width = 1536.0;
+              rotation = 0.0;
+              box_width = 360.0;
+              box_height = 60.0;
+              settings = {
+                shadow = false;
+                show_forecast = false;
+                background_opacity = 0.0;
                 background_padding = 0.0;
               };
             };
@@ -620,20 +671,34 @@ in
           };
         };
 
-        # Clean quick crossfade on lock/unlock — the schema default picks
-        # from a fancy transition list (wipe/disc/stripes/honeycomb/vortex/
-        # pixel/…) at 1500ms, which reads gimmicky next to the minimal
-        # frosted look. Wallpaper changes get the same treatment below.
+        # Soft zoom reveal on lock/unlock (round 4 2026-11-15, user pick
+        # over fade/disc): the whole screen scales gently into the frosted
+        # wallpaper. One transition covers BOTH directions (separate
+        # lock/unlock effects are an open upstream PR) — the pool syntax
+        # means a random pick per event, hence exactly one entry. 800ms
+        # instead of the 1500ms default: present, not a show. The schema
+        # default list (wipe/disc/stripes/honeycomb/vortex/pixel/…) reads
+        # gimmicky next to the minimal frosted look; the wallpaper gets
+        # the same restraint below (fade@800).
+        #
+        # dnd (new in v5.5.0): silence notifications while locked. They
+        # never RENDER on the lock surface (ext-session-lock keeps
+        # everything below it) but their sounds played invisibly — with
+        # dnd they go straight to history and greet you in the control
+        # center after unlock. Restored automatically on unlock.
         #
         # The lock is an ext-session-lock surface: niri layer-rules cannot
         # match it and it publishes no blur regions, so this client-side
         # frost (self-rendered wallpaper blur radius = intensity * 40px,
         # 3 passes, over a theme Surface tint) is the ONLY frost control.
         # Deeper than the 0.5/0.3 defaults so the clock and login capsule
-        # pop (sleek round 2026-11-06).
+        # pop (sleek round 2026-11-06). edge_smoothness feathers the zoom
+        # edge (0.3 default → 0.6 soft).
         lockscreen = {
-          transition = [ "fade" ];
-          transition_duration = 300;
+          transition = [ "zoom" ];
+          transition_duration = 800;
+          edge_smoothness = 0.6;
+          dnd = true;
           blur_intensity = 0.7;
           tint_intensity = 0.35;
           # 5 s passwordless grace right after lock (user spec

@@ -201,15 +201,18 @@ in
     };
 
     # darkman day/night GTK switching — disabled on the noctalia attr,
-    # whose own theme auto mode + gtk templates switch GTK by
-    # sunrise/sunset. Running both would fight over ~/.config/gtk-4.0 and
-    # GTK_THEME. (On the GNOME hosts darkman is the day/night switcher.)
+    # whose shell theme now sits fixed dark (wallpaper-M3 palette,
+    # harvested 2026-11-15; the old sun-schedule auto mode is gone) and
+    # its gtk templates are off. Running both would fight over
+    # ~/.config/gtk-4.0 and GTK_THEME. (On the GNOME hosts darkman is the
+    # day/night switcher.) Coordinates = darkman parity with Noctalia's
+    # [location] (home/noctalia.nix).
     services.darkman = lib.mkIf (!config.desktop.noctalia.enable) {
       enable = true;
       settings = {
         portal = true;
         lat = 52.52;
-        lng = 13.40;
+        lng = 8.524;
         usegeoclue = false;
       };
       darkModeScripts.gtk-theme = "${switchDark}/bin/switch-theme-dark";

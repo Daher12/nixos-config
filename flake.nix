@@ -97,7 +97,7 @@
     # the upstream docs state a follows disables the binary cache
     # (noctalia.cachix.org, modules/core/nix.nix) and both are built against
     # their own pinned nixpkgs — the price is a second nixpkgs eval.
-    noctalia.url = "github:noctalia-dev/noctalia/v5.4.1";
+    noctalia.url = "github:noctalia-dev/noctalia/v5.5.0";
     # Paired greetd greeter (own bundled wlroots compositor, no session
     # compositor needed): nixosModules.default imported in desktop-niri.nix.
     noctalia-greeter.url = "github:noctalia-dev/noctalia-greeter/v1.7.0";
