@@ -18,7 +18,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 |------|----------|------|------------------|
 | **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | Impermanence (root wiped), SecureBoot, LUKS, Btrfs, dual desktop (niri+Noctalia / GNOME attrs), virt-manager (Windows VM) |
 | **latitude** | Dell E7450 (Intel) | Legacy laptop | Lix package mode, nvidia-disable, TLP power, Disko (LUKS + ext4), opencode |
-| **nix-media** | Intel N100 Mini PC | Media server | Docker (Jellyfin, Audiobookshelf), Prometheus+Grafana, Caddy, NFS, systemd-networkd |
+| **nix-media** | Intel N100 Mini PC | Media server | Docker (Jellyfin, Silo trial, Audiobookshelf), Prometheus+Grafana, Caddy, NFS, systemd-networkd |
 
 ---
 

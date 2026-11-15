@@ -37,7 +37,9 @@ creation_rules:
       - age:
           - *admin_david
           - *host_yoga
-  - path_regex: secrets/hosts/nix-media(-litellm)?\.yaml$
+  # (-[a-z0-9-]+)? covers side files for hosts whose main yaml is still on
+  # the retired admin key (nix-media-litellm, nix-media-silo, …)
+  - path_regex: secrets/hosts/nix-media(-[a-z0-9-]+)?\.yaml$
     key_groups:
       - age:
           - *admin_david

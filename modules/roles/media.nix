@@ -25,6 +25,11 @@ in
         dockerMetrics = 9323;
         grafana = 3001;
         jellyfin = 8096;
+        # Silo A/B trial against Jellyfin (hosts/nix-media/docker.nix):
+        # silo = web 8090→container 8080; siloHttps = caddy's second HTTPS
+        # listener reusing the shared tailscale certificate.
+        silo = 8090;
+        siloHttps = 8443;
       };
       description = ''
         Fleet media-stack service ports: single source for the host's docker

@@ -51,7 +51,7 @@ Design principles, visible throughout the repo:
 |------|----------|------|------------|
 | **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | niri + Noctalia (`.#yoga`) or GNOME 50 (`.#yoga-gnome`) · Secure Boot (Lanzaboote) · LUKS + Btrfs impermanence · Windows 11 VM · ZRAM |
 | **latitude** | Dell Latitude E7450 (Intel) | Legacy laptop | GNOME · TLP · preload-ng · Disko (LUKS + ext4) · opencode |
-| **nix-media** | Intel N100 Mini PC | Headless media server | Jellyfin · Audiobookshelf · Prometheus/Grafana · Caddy · NFS · Docker |
+| **nix-media** | Intel N100 Mini PC | Headless media server | Jellyfin · Silo (trial) · Audiobookshelf · Prometheus/Grafana · Caddy · NFS · Docker |
 
 <details>
 <summary><strong>📍 yoga — primary laptop (click to expand)</strong></summary>

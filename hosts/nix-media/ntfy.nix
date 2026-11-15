@@ -17,6 +17,7 @@ let
   criticalServices = [
     "docker-jellyfin"
     "docker-audiobookshelf"
+    "docker-silo"
     "docker-cadvisor"
     "docker-network-jellyfin"
     "docker-image-refresh"

@@ -67,7 +67,7 @@ let
             # Catches what the OnFailure→ntfy bridge can miss: units in
             # Restart=on-failure limbo and crash loops that never settle.
             alert = "DockerUnitFailed";
-            expr = ''node_systemd_unit_state{name=~"docker-(jellyfin|audiobookshelf|cadvisor|network-jellyfin|image-refresh)\.service",state="failed"} == 1'';
+            expr = ''node_systemd_unit_state{name=~"docker-(jellyfin|audiobookshelf|silo|cadvisor|network-jellyfin|image-refresh)\.service",state="failed"} == 1'';
             for = "5m";
             labels.severity = "critical";
             annotations.summary = "Docker systemd unit failed for 5m";

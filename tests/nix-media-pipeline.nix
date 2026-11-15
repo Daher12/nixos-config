@@ -63,6 +63,14 @@ in
         roles.media.enable = true;
         time.timeZone = "UTC";
 
+        # docker.nix reads the silo SECRET_KEY env file via
+        # config.sops.secrets."silo_secret_key".path — the entry needs a
+        # definition or the attrset lookup fails (attrsOf only contains
+        # defined names). The stub turns this into the shape-only
+        # /run/secrets/silo_secret_key; the container never starts here, so
+        # the file is never read.
+        sops.secrets."silo_secret_key" = { };
+
         users.users.dk = {
           isNormalUser = true;
           extraGroups = [ "docker" ];
@@ -78,6 +86,7 @@ in
             [
               "jellyfin"
               "audiobookshelf"
+              "silo"
               "cadvisor"
             ]
             (_: {
@@ -139,7 +148,12 @@ in
           " | grep -oP 'path=\\K[^ ;]+' | head -1"
       ).strip()
       refresh = server.succeed(f"cat {refresh_script}")
-      for image in ["lscr.io/linuxserver/jellyfin", "ghcr.io/advplyr/audiobookshelf", "gcr.io/cadvisor/cadvisor"]:
+      for image in [
+          "lscr.io/linuxserver/jellyfin",
+          "ghcr.io/advplyr/audiobookshelf",
+          "gcr.io/cadvisor/cadvisor",
+          "ghcr.io/silo-server/silo-server",
+      ]:
           assert image in refresh, f"{image} missing from refresh unit"
 
       # OnCalendar/Persistent are unit-file settings, not bus properties —

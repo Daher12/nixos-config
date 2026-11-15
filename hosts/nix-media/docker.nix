@@ -35,6 +35,11 @@ let
     jellyfin = "lscr.io/linuxserver/jellyfin:latest";
     audiobookshelf = "ghcr.io/advplyr/audiobookshelf:latest";
     cadvisor = "gcr.io/cadvisor/cadvisor:latest";
+    # Silo A/B trial (2026-11). :latest rides the weekly refresh like the
+    # others; upstream also tags per-build "build-N" if a release ever
+    # needs pinning. The DB lives inside the image's /config — pin + dump
+    # before any major PostgreSQL jump (see upstream docker docs).
+    silo = "ghcr.io/silo-server/silo-server:latest";
   };
 
   dockerNetwork = {
@@ -52,6 +57,10 @@ let
   storagePath = "/mnt/storage";
   dockerPath = "/home/${mainUser}/docker";
   jellyfinCachePath = "/var/cache/jellyfin";
+  # Silo trial: RAM-backed transcode/download scratch mirroring jellyfin's
+  # tmpfs, at 4G — both servers draw on the same RAM budget (spill is swap).
+  # Drop to a disk-backed dir under dockerPath if memory pressure shows up.
+  siloCachePath = "/var/cache/silo";
 in
 {
   virtualisation = {
@@ -161,6 +170,60 @@ in
           ];
         };
 
+        # Silo — A/B trial against Jellyfin. Omnibus image (Silo + bundled
+        # PostgreSQL + Redis under one s6 supervisor). The Jellyfin-compat
+        # (8096) and Audiobookshelf-compat (13378) ports stay unpublished:
+        # they collide with the real services, and Silo's own apps talk to
+        # the web port. The image carries its own HEALTHCHECK (20-min
+        # start-period absorbs DB migrations) — adding --health-cmd here
+        # would silently replace it, so none is set.
+        silo = {
+          autoStart = true;
+          image = images.silo;
+          environment = {
+            PGID = gid;
+            PUID = uid;
+            TZ = tz;
+            # Image default is off (transcode nodes don't want it); the
+            # omnibus server compose pins it on — Watch Party needs Redis.
+            ENABLE_REDIS = "true";
+          };
+          # SECRET_KEY (at-rest credential encryption for the bundled DB)
+          # via sops env file, never inlined. Losing it forces an
+          # empty-database restart; the key is backed up in the password
+          # manager as well.
+          environmentFiles = [ config.sops.secrets."silo_secret_key".path ];
+          volumes = [
+            "${dockerPath}/silo/config:/config"
+            "${siloCachePath}/transcode:/tmp/silo-transcode"
+            "${siloCachePath}/download-artifacts:/tmp/silo-download-artifacts"
+            "${dockerPath}/silo/catalog-seeds:/catalog-seeds:ro"
+            "${storagePath}/movies:/mnt/media/movies:ro"
+            "${storagePath}/shows:/mnt/media/shows:ro"
+            "${storagePath}/kinder:/mnt/media/kinder:ro"
+          ];
+          # 0.0.0.0 deliberate, same rationale as Jellyfin: Silo's apps
+          # switch to http://<LAN-IP>:8090 at home, and Docker's DNAT never
+          # traverses the nftables INPUT chain. The HTTPS path is caddy's
+          # :8443 listener (caddy.nix) — Silo does not support sub-path
+          # proxying, so it cannot join the /<name>/ scheme.
+          ports = [ "${toString portCfg.silo}:8080" ];
+          extraOptions = [
+            "--device=/dev/dri:/dev/dri"
+            "--group-add=${renderGid}"
+            "--group-add=${videoGid}"
+            "--cpus=2.0"
+            "--shm-size=2g"
+            "--pids-limit=1500"
+            # No --stop-timeout needed: the oci-containers unit has no
+            # ExecStop — systemd SIGTERMs the attached docker run client,
+            # sig-proxy forwards to s6, and the module's hardcoded
+            # TimeoutStopSec=120 matches upstream stop_grace_period (2m).
+            # On stop Silo fails readiness, finishes in-flight requests,
+            # and PostgreSQL shuts down last.
+          ];
+        };
+
         cadvisor = {
           autoStart = true;
           image = images.cadvisor;
@@ -197,10 +260,27 @@ in
     ];
   };
 
+  fileSystems."${siloCachePath}" = {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [
+      "size=4G" # trial budget — see the siloCachePath note above
+      "mode=0755"
+      "uid=${uid}"
+      "gid=${gid}"
+      "noatime"
+      "nosuid"
+      "nodev"
+    ];
+  };
+
   systemd.tmpfiles.rules = [
     "d ${jellyfinCachePath} 0755 ${uid} ${gid} - -"
     "d ${jellyfinCachePath}/cache 0755 ${uid} ${gid} - -"
     "d ${jellyfinCachePath}/transcode 0755 ${uid} ${gid} - -"
+    "d ${siloCachePath} 0755 ${uid} ${gid} - -"
+    "d ${siloCachePath}/transcode 0755 ${uid} ${gid} - -"
+    "d ${siloCachePath}/download-artifacts 0755 ${uid} ${gid} - -"
   ];
 
   systemd = {
@@ -244,8 +324,17 @@ in
       # FS and the containers boot with empty libraries.
       "docker-jellyfin".unitConfig.RequiresMountsFor = [ "/mnt/storage" ];
       "docker-audiobookshelf".unitConfig.RequiresMountsFor = [ "/mnt/storage" ];
+      "docker-silo".unitConfig.RequiresMountsFor = [ "/mnt/storage" ];
 
       "docker-audiobookshelf".serviceConfig = {
+        IOWeight = 100;
+        CPUWeight = 100;
+        OOMScoreAdjust = 500;
+        StartLimitBurst = 10;
+        StartLimitIntervalSec = "5min";
+      };
+
+      "docker-silo".serviceConfig = {
         IOWeight = 100;
         CPUWeight = 100;
         OOMScoreAdjust = 500;
@@ -277,8 +366,8 @@ in
         script = ''
           set -eu
           # Digest-compare: restart a container only when its image actually
-          # changed (the weekly pull otherwise bounced all three every Sunday
-          # 03:00 even with no new digest). A jellyfin restart is further
+          # changed (the weekly pull otherwise bounced every container every
+          # Sunday 03:00 even with no new digest). A jellyfin restart is further
           # skipped while ffmpeg is mid-transcode — the weekly timer retries
           # next Sunday.
           refresh() {
@@ -300,6 +389,7 @@ in
           }
           refresh ${images.jellyfin} docker-jellyfin.service
           refresh ${images.audiobookshelf} docker-audiobookshelf.service
+          refresh ${images.silo} docker-silo.service
           refresh ${images.cadvisor} docker-cadvisor.service
           docker image prune -f
         '';

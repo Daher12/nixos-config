@@ -73,6 +73,15 @@ in
     restartUnits = [ "litellm.service" ];
   };
 
+  # Silo trial (docker.nix): SECRET_KEY env file for the omnibus container
+  # — encrypts the bundled PostgreSQL; losing it means a forced
+  # empty-database restart. Same side-file rationale as above; root:root
+  # 0400 by sops default (docker units run as root).
+  sops.secrets."silo_secret_key" = {
+    sopsFile = ../../secrets/hosts/nix-media-silo.yaml;
+    restartUnits = [ "docker-silo.service" ];
+  };
+
   # Features enabled via standardized options
   features = {
     sops.enable = true;
@@ -167,6 +176,10 @@ in
       interfaces."tailscale0".allowedTCPPorts = [
         nfsPort
         config.features.litellm.port
+        # Silo's HTTPS listener (caddy.nix :8443) — documents intent and
+        # survives trustInterface=false like the entries above. LAN devices
+        # use the container's HTTP port 8090 directly (docker DNAT) instead.
+        config.roles.media.ports.siloHttps
       ];
     };
   };
