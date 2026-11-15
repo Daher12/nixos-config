@@ -71,6 +71,11 @@ let
             dwt
             natural-scroll
         }
+        // Hovering a window makes it the active one (off by default —
+        // bare flag node). Focus changes never move the cursor; that
+        // would be warp-mouse-to-focus. No max-scroll-amount cap: view
+        // scrolling on hover-over-edge is wanted here.
+        focus-follows-mouse
     }
 
     // Session cursor (home/theme.nix parity: Posy black, 32px). Without
