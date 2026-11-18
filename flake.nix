@@ -60,7 +60,12 @@
     # node_modules.nix hash mismatches the lockfile it ships — upstream
     # packaging bug, caught by this gate 2026-10-31; v2.2.6 AND v2.2.7
     # SKIPPED the same way 2026-11-12 — same fetchNpmDeps hash mismatch in
-    # their shipped packaging, gate re-tried them first).
+    # their shipped packaging, gate re-tried them first. v2.3.0, v2.3.1 AND
+    # v2.3.2 SKIPPED the same way 2026-11-18 — all three gate-fail with the
+    # same stale node_modules hash (specified sha256-UOVs48Z4… matches none
+    # of the three shipped lockfiles; got zOej…/At90…/At90… respectively) —
+    # upstream's vendored hash hasn't been regenerated since 2.2.4. Six
+    # consecutive broken releases; pin held at v2.2.4.
     # Deliberately NO `nixpkgs.follows` here: upstream requires its pinned
     # nixpkgs-unstable (packageManager bun@1.4.2; nixos-26.05 only ships
     # bun 1.3.13, whose `bun install` fails extracting the big native
@@ -117,21 +122,6 @@
           zcode = final.callPackage ./pkgs/zcode.nix { };
           mikromcp = final.callPackage ./pkgs/mikromcp.nix { };
           is-on-ac = final.callPackage ./pkgs/is-on-ac.nix { };
-        })
-        # python3.13-fastmcp (transitive dep of mcp-nixos, home/opencode.nix):
-        # its pytest suite breaks on the 2026-10-31 nixpkgs bump (6f06d204) —
-        # 3 of 4712 tests die with "Attempted to exit a cancel scope that
-        # isn't the current task" (fastmcp 3.2.3's concurrency tests vs the
-        # new pytest-asyncio/anyio pairing). The library code mcp-nixos
-        # imports is unaffected; skip the suite so the package builds.
-        (_final: _prev: {
-          python313 = _prev.python313.override {
-            packageOverrides = _pyFinal: pyPrev: {
-              fastmcp = pyPrev.fastmcp.overridePythonAttrs (_old: {
-                doCheck = false;
-              });
-            };
-          };
         })
       ];
 
