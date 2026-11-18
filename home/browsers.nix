@@ -104,7 +104,7 @@ in
 
         extensions = map (id: { inherit id; }) cfg.brave.extensions;
 
-        # --password-store=basic is deliberate: under Hyprland autologin
+        # --password-store=basic is deliberate: under greetd autologin
         # gnome-keyring isn't reliably unlocked before Brave starts, which
         # blocks saved-logins autofill behind a keyring prompt. "basic"
         # keeps passwords inside the (persisted) Brave profile dir instead.

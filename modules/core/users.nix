@@ -14,7 +14,10 @@ in
   options.core.users = {
     sudoTimeout = lib.mkOption {
       type = lib.types.int;
-      default = 30;
+      # Halved from 30 in the 2026-11-15 audit: per-tty tickets +
+      # wheelNeedsPassword remain the mitigations, and 15 min still covers
+      # chained admin commands in one terminal.
+      default = 15;
       description = "Sudo password timeout in minutes";
     };
     description = lib.mkOption {

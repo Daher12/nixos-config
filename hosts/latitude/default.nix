@@ -1,6 +1,7 @@
 {
   pkgs,
   lib,
+  fleetKeys,
   ...
 }:
 
@@ -48,9 +49,7 @@ in
   # before 2026-10-19 — the repo managed no authorized_keys at all).
   # Additive to any imperative ~/.ssh/authorized_keys (see the option's
   # description in modules/core/users.nix).
-  core.users.authorizedKeys = [
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE900h7UUGyAcICSsxmX2xqEDcF1PTkonC/r9l3xroES dk@yoga"
-  ];
+  core.users.authorizedKeys = [ fleetKeys.dk-yoga ];
 
   # --- Core Configuration ---
   # User description + SSH mgmt-LAN scoping (core.users.description,
@@ -132,15 +131,10 @@ in
   };
 
   # --- Swap ---
-  # Disk overflow for zram (priority below zramSwap's 10, same pattern as
-  # yoga): the fleet already learned on yoga that zram-only swap with oomd's
-  # ManagedOOMSwap=kill ends in killed sessions, not slowness — and this is
-  # the smaller-RAM host. Plain file on the ext4 root; no hibernation here,
-  # so no offset bookkeeping.
-  swapDevices = [
-    {
-      device = "/var/lib/swap/swapfile";
-      size = 8 * 1024; # MiB
-    }
-  ];
+  # Disk overflow for zram via features.swapfile — module defaults (8G at
+  # /var/lib/swap/swapfile, priority below zram's 10) fit this smaller-RAM
+  # host (the yoga lesson: zram-only + oomd ManagedOOMSwap=kill ends in
+  # killed sessions, not slowness). Plain file on the ext4 root; no
+  # hibernation here, so no offset bookkeeping.
+  features.swapfile.enable = true;
 }

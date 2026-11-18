@@ -202,8 +202,9 @@ Full architecture, re-encryption and rotation procedures: **`SOPS_RUNBOOK.md`**.
   the confirmation gate in AGENTS.md § Verification workflow (QC) before
   launching the battery.
 - **CI** (`.github/workflows/`): `ci.yml` on every push/PR — flake check
-  (statix, deadnix, nixfmt) + dry-build of every host, so hand edits are
-  verified before they reach the fleet. `bump.yml` weekly (Saturdays 02:00
+  (statix, deadnix, nixfmt) + dry-build of every host except `yoga-gnome`
+  (same machine as yoga; dry-built weekly by `bump.yml` instead), so hand
+  edits are verified before they reach the fleet. `bump.yml` weekly (Saturdays 02:00
   UTC) — update the safe flake inputs → same verification → format →
   auto-commit. The locked inputs (lanzaboote, opencode, spotx-nix,
   noctalia, noctalia-greeter) only move deliberately — procedures in

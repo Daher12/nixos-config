@@ -38,6 +38,9 @@ let
       flakeRoot
       mainUser
       ;
+    # Fleet SSH public keys (lib/keys.nix) — single source for the
+    # authorizedKeys literals hosts declare.
+    fleetKeys = import (flakeRoot + "/lib/keys.nix");
     # Rationale: Utilize flake evaluation caching to avoid O(N) nixpkgs re-imports.
     # allowUnfree is enabled unconditionally for every host in the modules block below.
     homeDirectory = "/home/${mainUser}";

@@ -20,7 +20,7 @@ branch (and `dux-shell` for the DMS testbed) — don't resurrect it on main.
 - `profiles/` — hardware/system profiles
 - `pkgs/` — custom nix packages (e.g. `mikromcp.nix`)
 - `tests/` — NixOS VM tests (7 of them; run via `scripts/test-suite vm`, not part of `checks`)
-- `secrets/` — sops-nix encrypted secrets (hosts/yoga.yaml, hosts/latitude.yaml, hosts/nix-media.yaml, hosts/nix-media-litellm.yaml)
+- `secrets/` — sops-nix encrypted secrets (hosts/yoga.yaml, hosts/latitude.yaml, hosts/nix-media.yaml, hosts/nix-media-litellm.yaml, hosts/nix-media-silo.yaml)
 - `scripts/` — helper scripts (`update-safe` is the safe rebuild path, exposed as the `nus` fish function; `test-suite` is the shared verification suite; `install.sh` for fresh installs)
 - `lib/` — flake library functions
 
@@ -77,7 +77,7 @@ Targeted probes (still valid alongside the suite):
 ## Lessons learned (don't repeat)
 
 - **Cross-references must be verified, not assumed.** AGENTS.md once pointed at a `REPO_OVERVIEW.md` § section that didn't exist — check the actual section heading (it is `## Known Gotchas`) before referencing it.
-- **Keep REPO_OVERVIEW.md in sync when moving code.** It is a per-file map; if a fix/config moves modules (e.g. opencode wrap from `home/terminal.nix` to `hosts/yoga/opencode.nix`), update its file references in the same change, or it rots.
+- **Keep REPO_OVERVIEW.md in sync when moving code.** It is a per-file map; if a fix/config moves modules (e.g. opencode wrap from `home/terminal.nix` to `home/opencode.nix`), update its file references in the same change, or it rots.
 - **Staging is idempotent but not sticky for later edits.** `git add` a new file, then editing it again still leaves the flake reading the *staged* content — re-run `git add` after every subsequent edit of a new file before validating.
 
 For deeper troubleshooting context, see `REPO_OVERVIEW.md` § Known Gotchas (e.g. opencode `libstdc++.so.6` fix, TLP wifi powersave roaming notes).

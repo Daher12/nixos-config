@@ -258,16 +258,14 @@
   };
 
   # --- Swap ---
-  # Disk-backed overflow swap: only touched once zram (priority 10) is full.
-  # NixOS creates it via `btrfs filesystem mkswapfile` (NOCOW-safe on this
-  # compress-force=zstd root); lives on /persist so it survives root reset.
-  # priority left null -> kernel assigns a negative one, below zram's 10.
-  swapDevices = [
-    {
-      device = "/var/lib/swap/swapfile";
-      size = 16 * 1024; # MiB
-    }
-  ];
+  # Disk-backed overflow via features.swapfile (pattern + rationale in the
+  # module). /var/lib/swap is on /persist so the file survives root reset;
+  # btrfs mkswapfile keeps it NOCOW-safe under compress-force=zstd. 16G for
+  # hibernation-image headroom.
+  features.swapfile = {
+    enable = true;
+    sizeMiB = 16 * 1024;
+  };
 
   # --- Services & Systemd ---
   systemd = {
@@ -383,7 +381,7 @@
     # instead (hosts/yoga/yoga-s2h.nix — full design rationale and the
     # s2h failure analysis in its header and REPO_OVERVIEW Known Gotchas).
 
-    journald.extraConfig = "SystemMaxUse=200M";
+    # journald 200M cap: core fleet default (modules/core/systemd.nix).
     # sshd hardening via core.openssh (PasswordAuthentication=no,
     # PermitRootLogin=no, UseDns=no).
 

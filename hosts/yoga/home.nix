@@ -113,6 +113,12 @@ in
             directory = ".config/onlyoffice";
             mode = "0700";
           }
+          # OnlyOffice data dir (recent-files/templates cache) next to the
+          # config above — unpersisted, recents reset on root reset.
+          {
+            directory = ".local/share/onlyoffice";
+            mode = "0700";
+          }
           {
             directory = ".local/share/papers-signing";
             mode = "0700";
@@ -138,6 +144,9 @@ in
           ".config/ZCode"
           # ZCode auth/history lives here, not in ~/.config/ZCode
           ".zcode"
+          # ZCode launcher log (home/niri.nix writes launcher.log here with
+          # in-script rotation at 1 MiB) — post-mortem survives root reset.
+          ".local/state/zcode"
           # Obsidian (Electron): vault registry + window state. The vault
           # itself lives in ~/Dokumente/Notes, persisted via the system-level
           # Dokumente entry in hosts/yoga/default.nix.

@@ -48,6 +48,9 @@
     # infinite recursion (mkHost passes these as real specialArgs too).
     node.specialArgs = {
       mainUser = "dk";
+      # Mirrors mkHost's commonArgs (lib/mkHost.nix): latitude's default.nix
+      # consumes fleetKeys for core.users.authorizedKeys.
+      fleetKeys = import (flakeRoot + "/lib/keys.nix");
       inherit
         flakeRoot
         inputs

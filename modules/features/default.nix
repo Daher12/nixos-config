@@ -18,6 +18,7 @@
     ./secureboot.nix
     ./sops.nix
     ./spotify.nix
+    ./swapfile.nix
     ./virtualization.nix
     ./vpn.nix
     ./zram.nix

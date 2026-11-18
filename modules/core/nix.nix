@@ -12,6 +12,15 @@ let
 in
 {
   options.core.nix = {
+    trustedUsers = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [
+        "root"
+        mainUser
+      ];
+      description = "Users with root-equivalent nix access (trust settings, substituters). Headless hosts may narrow to root only.";
+    };
+
     gc = {
       automatic = lib.mkEnableOption "automatic garbage collection";
 
@@ -54,10 +63,7 @@ in
         max-jobs = lib.mkDefault "auto";
         cores = lib.mkDefault 0;
 
-        trusted-users = [
-          "root"
-          mainUser
-        ];
+        trusted-users = cfg.trustedUsers;
 
         sandbox = lib.mkDefault true;
         sandbox-fallback = false;
