@@ -1,7 +1,7 @@
 unrarall() {
     emulate -L zsh
     setopt local_options null_glob extended_glob
-    local file target rarpass base partnum needs_password
+    local file target rarpass base partnum
     local -A seen_multi
     local -a files files_to_fix unrar_args skipped_padded
     # Normalize names like:
@@ -65,32 +65,35 @@ unrarall() {
         print -u2 "No matching archives found."
         return 1
     fi
-    # Password probe (2026-11-17 orchestrator delta): test each root with no
-    # password; only prompt when at least one archive actually needs one, so
-    # plain batches run zero-keypress. -p- disables password querying and
-    # </dev/null backstops it, so the probe itself can never hang; a probe
-    # that misfires (e.g. CRC-broken unencrypted set) merely falls back to
-    # the old always-prompt behavior — never worse. Prompt goes to stderr so
-    # media-import's stdout tee can't buffer-delay it.
+    # Password handling (2026-11-18 revision — extraction IS the probe):
+    # the first attempt extracts with an empty password (-p-), which
+    # unencrypted archives ignore entirely, so the common case stays a
+    # single full pass. (The 2026-11-17 `unrar t` pre-probe CRC-tested
+    # every set first — double I/O, and it delayed the prompt by the full
+    # test time of every unencrypted root before the first encrypted one.)
+    # Only an archive that FAILS the empty-password attempt (encryption —
+    # or a corrupt set, which the retry then reports properly) triggers
+    # the one-time password prompt and a single retry. </dev/null keeps
+    # any unrar-side query from ever hanging the pipeline; the prompt goes
+    # to stderr, stdin stays the tty.
     rarpass=""
-    needs_password=0
-    for file in "${files[@]}"; do
-        if ! command unrar t -p- -y -- "$file" </dev/null >/dev/null 2>&1; then
-            needs_password=1
-            break
-        fi
-    done
-    if (( needs_password )); then
-        print -u2 -n "Enter password (leave empty if none): "
-        read -rs rarpass
-        print -u2
-    fi
-    unrar_args=( x -o+ )
-    [[ -n $rarpass ]] && unrar_args+=( "-p$rarpass" )
+    prompted=0
     for file in "${files[@]}"; do
         print "-----------------------------------"
         print "Extracting: $file"
-        unrar "${unrar_args[@]}" -- "$file" || print -u2 "Failed: $file"
+        if ! unrar x -o+ -p- -- "$file" </dev/null; then
+            (( prompted )) || {
+                print -u2 -n "Enter password (leave empty if none): "
+                read -rs rarpass
+                print -u2
+                prompted=1
+            }
+            if [[ -n $rarpass ]]; then
+                unrar x -o+ "-p$rarpass" -- "$file" </dev/null || print -u2 "Failed: $file"
+            else
+                print -u2 "Failed: $file"
+            fi
+        fi
     done
 }
 
