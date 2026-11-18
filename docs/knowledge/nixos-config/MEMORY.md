@@ -2,6 +2,7 @@
 
 > 2026-11-17: yoga is on gen 207 since Nov 15 00:39 (niri+Noctalia v5.5.0; state strip done 22:24) — the old "gen 202 pending switch" note was STALE; lockscreen r4 + M3 theme + focus-follows-mouse are LIVE.
 
+- [GTK4 auto light/dark EXECUTED 2026-11-18](noctalia-gtk-templates-plan-2026-11-18.md) — EXECUTED+fast green STAGED (switch pending): templates gtk3/gtk4 ON, btop dropped, adw-gtk3 fallback pin, live strip DONE; post-switch checks + apply.sh flip-test lore in file
 - [Silo profiles+kids-split plan 2026-11-18](silo-profiles-kids-split-plan-2026-11-18.md) — SUPERSEDED (EXECUTED 11-18: silo-trial record family-setup section — libs 4/5, profiles Sandra+Kinder, scoped collection+row pos 1, mnamer kinder verbs; query_definition.library_ids=INT lore)
 - [nix-media stuck mouse modes fix 2026-11-17](nix-media-stuck-mouse-modes-2026-11-17.md) — EXECUTED+VALIDATED (built /etc/zshrc run end-to-end; hook survives omz init) STAGED: precmd SGR-mouse reset in zsh-functions.zsh; 35;x;yM = modes 1003+1006; nix eval --raw 211-char quirk lore in file
 - [Auto light/dark restore EXECUTED 2026-11-17](noctalia-auto-mode-restore-2026-11-17.md) — EXECUTED+fast green STAGED (switch pending): mode="auto" + shell_mode=follow + sync_color_scheme=true (wallpaper-M3 palette kept); v5.5.0 semantics + GUI theme-mode-toggle state-layer trap in file

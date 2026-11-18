@@ -218,12 +218,21 @@ in
         # the GUI would apply if wallpaper sourcing went off) and builtin
         # "Nord" beneath it. shell_mode "follow" + sync_color_scheme are
         # the v5.5.0 defaults, spelled out because they carry the app
-        # following: browsers/Electron/Qt/libadwaita read the freedesktop
-        # color-scheme Noctalia writes — no templates involved. The
-        # template applier stays OFF (GUI choice, harvested 2026-11-08):
-        # GTK3 theming is owned by home/theme.nix (adw-gtk3, pinned dark)
-        # and btop by home/terminal.nix — the ids stay listed only so a
-        # GUI re-enable finds its tuned set.
+        # following: browsers/Electron/Qt read the freedesktop color-scheme
+        # Noctalia writes. The GTK side is covered by the template applier
+        # (ON since 2026-11-18, supersedes the 2026-11-08 GUI choice of
+        # leaving it off — that stranded GTK4 apps dark behind an orphaned
+        # Colloid gtk.css): every mode flip regenerates noctalia.css from
+        # the wallpaper-M3 palette, injects @import url("noctalia.css")
+        # into ~/.config/gtk-{3,4}.0/gtk.css and swaps gsettings gtk-theme
+        # between adw-gtk3/-dark (apply.sh; the user-priority named colors
+        # recolor libadwaita apps too). GTK4 apps restyle live; GTK3 apps
+        # need a restart. btop stays OFF (home/terminal.nix owns it) and
+        # the niri/kitty ids stay off regardless — they would rewrite
+        # Nix-owned files. Caution: GUI toggles (theme mode, template
+        # switches) write theme.* keys into
+        # ~/.local/state/noctalia/settings.toml, which WINS per-key over
+        # this baseline.
         theme = {
           mode = "auto";
           shell_mode = "follow";
@@ -235,9 +244,8 @@ in
           wallpaper_scheme = "m3-content";
 
           templates = {
-            enable_builtin_templates = false;
+            enable_builtin_templates = true;
             builtin_ids = [
-              "btop"
               "gtk3"
               "gtk4"
             ];

@@ -92,12 +92,14 @@ let
 in
 {
   # Single source for the light/dark GTK + icon theme names.
-  # NOTE (2026-10-13, accepted limitation): these names style GTK3 and
-  # plain-GTK4 apps only. libadwaita apps ignore gtk-theme-name BY DESIGN —
-  # they follow gsettings color-scheme plus the ~/.config/gtk-{3,4}.0
-  # colors.css tones (stock Adwaita with grayscale recolor). Forcing a theme
-  # onto libadwaita would need the unsupported session-wide GTK_THEME hack;
-  # deliberately not done.
+  # NOTE (updated 2026-11-18): on the noctalia attr these names are inert
+  # fallbacks — day/night theming is Noctalia's job (home/noctalia.nix):
+  # its gtk3/gtk4 templates regenerate ~/.config/gtk-{3,4}.0/noctalia.css
+  # from the wallpaper-M3 palette at every mode flip and inject an @import
+  # into gtk.css; user-priority named colors recolor libadwaita apps too
+  # (which otherwise ignore gtk-theme-name BY DESIGN and only follow
+  # gsettings color-scheme). On non-noctalia hosts the switch-theme script
+  # below swaps these names via gsettings + the gtk-4.0 symlink farm.
   options.desktop.theme = {
     gtkDark = lib.mkOption {
       type = lib.types.str;
@@ -176,16 +178,18 @@ in
     # retired lucid envtool, whose rewrites + stale .backup aborted whole
     # activations — 2026-09-24).
     gtk = {
-      # Noctalia hosts: the shell's gtk3/gtk4 templates select
-      # adw-gtk3(-dark) via gsettings and paint the palette through
+      # Noctalia hosts: the shell's gtk3/gtk4 templates swap gsettings
+      # gtk-theme between adw-gtk3 (light) and adw-gtk3-dark on every mode
+      # flip and paint the palette through
       # ~/.config/gtk-{3,4}.0/noctalia.css (adw-gtk3 lives in
       # desktop-niri.nix systemPackages so the template's theme lookup
-      # succeeds). The declarative theme name must MATCH that pair — a
-      # Colloid pin here wins for GTK3 apps reading settings.ini and keeps
+      # succeeds). settings.ini is only the pre-first-apply fallback — pin
+      # the light face so a fallback boot still matches daytime; a Colloid
+      # pin here would win for GTK3 apps reading settings.ini and keep
       # them off-palette.
       enable = true;
       theme = {
-        name = if config.desktop.noctalia.enable then "adw-gtk3-dark" else gtkDark;
+        name = if config.desktop.noctalia.enable then "adw-gtk3" else gtkDark;
         package = if config.desktop.noctalia.enable then pkgs.adw-gtk3 else colloid;
       };
       gtk4.theme = null;
@@ -200,13 +204,12 @@ in
       };
     };
 
-    # darkman day/night GTK switching — disabled on the noctalia attr,
-    # whose shell theme now sits fixed dark (wallpaper-M3 palette,
-    # harvested 2026-11-15; the old sun-schedule auto mode is gone) and
-    # its gtk templates are off. Running both would fight over
-    # ~/.config/gtk-4.0 and GTK_THEME. (On the GNOME hosts darkman is the
-    # day/night switcher.) Coordinates = darkman parity with Noctalia's
-    # [location] (home/noctalia.nix).
+    # darkman day/night GTK switching — disabled on the noctalia attr:
+    # day/night is Noctalia's job there (theme.mode = "auto" +
+    # templates gtk3/gtk4, home/noctalia.nix), and running both would
+    # fight over ~/.config/gtk-4.0 and GTK_THEME. (On the GNOME hosts
+    # darkman is the day/night switcher.) Coordinates = darkman parity
+    # with Noctalia's [location] (home/noctalia.nix).
     services.darkman = lib.mkIf (!config.desktop.noctalia.enable) {
       enable = true;
       settings = {

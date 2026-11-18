@@ -136,8 +136,9 @@ in
           ".cache/noctalia"
           ".local/share/noctalia"
           # Noctalia's GTK template output: the shell gsettings-selects
-          # adw-gtk3(-dark) and writes the gtk.css overlay into the GTK
-          # config dirs (home/theme.nix pins the same theme in settings.ini).
+          # adw-gtk3(-dark) per mode flip and writes noctalia.css + the
+          # @import carrier gtk.css into the GTK config dirs
+          # (home/theme.nix pins adw-gtk3 as the settings.ini fallback).
           ".config/gtk-3.0"
           ".config/gtk-4.0"
           # ZCode (Electron AppImage): auth/session + workspace state.
