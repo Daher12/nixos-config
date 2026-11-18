@@ -17,7 +17,16 @@ metadata:
 - **No sub-path proxying** (docs: "use a dedicated hostname at its root") → cannot reuse the /jellyfin/* caddy handle pattern. Plan: second caddy vhost `nix-media.tail6db26.ts.net:8443` reusing `get_certificate tailscale` (same hostname = shared cert, no Tailscale admin changes). HTTPS is REQUIRED for Silo mobile/TV apps (sign-in always via HTTPS address); apps auto-switch to LAN address at home.
 - SECRET_KEY env (openssl rand -base64 48) encrypts db; lost = forced empty-db restart → new sops side file `secrets/hosts/nix-media-silo.yaml` (nix-media.yaml still on retired admin key — side-file rule), value format `SECRET_KEY=<key>` because it's consumed via oci-containers `environmentFiles`.
 - PUID/PGID must read media, may NOT be 999/998/997 → use 1001/982 (nfsAnon ids, same as jellyfin). Volumes: /config, transcode, download-artifacts, catalog-seeds:ro (upstream compose mounts it), media :ro at /mnt/media/*. Optional /dev/dri for QSV. Omitted deliberately: NET_ADMIN cap (BBR only, droppable), /proc host mounts (LXC-only), Meilisearch.
-- Built-in watch-history import from Jellyfin/Plex/Emby; readiness probe `GET /api/v1/ready`.
+- Built-in watch-history import from Jellyfin/Plex/Emby; readiness probe `GET /api/v1/ready`; health probe `GET /api/v1/health`.
+
+## Verification pass 2026-11-15 (user: "verify integration plan", then ExitPlanMode denied ×2)
+All assumptions re-checked against the RAW upstream `docker-compose.yml` + `Dockerfile` (fetched verbatim, not doc summaries):
+- **Image ships curl + built-in HEALTHCHECK** (`curl -f http://localhost:8080/api/v1/health`, 15s interval, **20m start-period** covering SILO_MIGRATE_TIMEOUT so a big DB migration is never marked unhealthy) → the container block must NOT pass any `--health-cmd` (overriding would lose the migration grace). Docker `docker run` inherits image HEALTHCHECK untouched.
+- **GPU story confirmed**: runtime stage bundles jellyfin-ffmpeg 8.1.3-1 + Intel media/QSV runtime (INTEL_QSV_RUNTIME=auto, legacy Gen8-11 runtime included) + OpenCL NEO both generations → on the N100, `/dev/dri` passthrough (+ `--group-add` render/video as belt-and-braces) is the complete story; no host-side userspace needed (matches the existing intel-gpu-host policy).
+- First start needs internet: fetches TMDB/TVDB plugins AND builds upstream jellyfin-web via bundled Node/npm (NODE_OPTIONS=--use-openssl-ca).
+- compose comments confirm NET_ADMIN removable ("To undo, remove this line") and /proc host mounts are no-ops on bare metal; stop_grace_period 2m → `--stop-timeout=120` correct.
+- `virtualisation.oci-containers.containers.<name>.environmentFiles` (list of absolute path) CONFIRMED in nixpkgs option index — the literal path without `<name>` 404s, query the submodule form.
+- Ports 8090/8443 freedom is repo-derived ONLY — live ssh probe to nix-media is blocked in plan mode; re-check with `ss -tlnp` at deploy (first-run step 0).
 
 ## Planned wiring (files, all additive)
 roles/media.nix ports += silo=8090, siloHttps=8443 · docker.nix silo container (mirrors jellyfin: /dev/dri + group-add render/video, --cpus=2.0, --shm-size=2g, --stop-timeout=120, tmpfs 4G /var/cache/silo for transcode parity) + refresh-script line + tmpfiles · default.nix sops secret + tailscale0 port · caddy.nix split proxiedServices vs rootServices (landing card only) + :8443 vhost · ntfy criticalServices · monitoring DockerUnitFailed regex · tests/nix-media-pipeline.nix stub list + image assertion · .sops.yaml rule widened `nix-media(-[a-z0-9-]+)?\.yaml$` · REPO_OVERVIEW/README.

@@ -2,6 +2,7 @@
   pkgs,
   config,
   mainUser,
+  fleetKeys,
   ...
 }:
 
@@ -9,6 +10,33 @@ let
   lanIf = "enp1s0";
   sshPort = 26;
   nfsPort = 2049;
+
+  # Staging lane for the media pipeline: the ONLY directory media-import /
+  # unrarall / (retargeted) mnamer-tools operate on. The downloads top
+  # level stays a manual parking zone — stray files and old archives there
+  # are never touched. Referenced by ./media-import.zsh and the aria
+  # function in ./zsh-functions.zsh; change all three together.
+  mediaLane = "/mnt/storage/downloads/incoming";
+
+  zshFunctions = pkgs.writeText "zsh-functions" (builtins.readFile ./zsh-functions.zsh);
+  mediaImportZsh = pkgs.writeText "media-import" (builtins.readFile ./media-import.zsh);
+
+  # The bash wrapper exists so writeShellApplication does the packaging
+  # (shellcheck, PATH); the real logic is the zsh file, escaping-free.
+  # mnamer-tools and ntfy-send resolve via ambient PATH (both are
+  # systemPackages on this host); findutils/coreutils come from
+  # runtimeInputs below.
+  mediaImport = pkgs.writeShellApplication {
+    name = "media-import";
+    runtimeInputs = with pkgs; [
+      zsh
+      unrar
+      aria2
+      findutils
+      coreutils
+    ];
+    text = ''exec env ZSH_FUNCTIONS=${zshFunctions} ${pkgs.zsh}/bin/zsh ${mediaImportZsh} "$@"'';
+  };
 in
 {
   imports = [
@@ -35,6 +63,13 @@ in
       flags = "--delete-older-than 30d";
     };
 
+    # One root-equivalent nix path is enough on this host: dk is already in
+    # the docker group (root-equivalent #2), and autoUpgrade builds as root.
+    # dk's interactive nix over SSH keeps working, just untrusted
+    # (per-flake nixConfig substituters ignored — accept-flake-config is
+    # false fleet-wide anyway).
+    nix.trustedUsers = [ "root" ];
+
     users.defaultShell = "zsh";
     sysctl.optimizeForServer = true;
 
@@ -42,9 +77,7 @@ in
     # real sshd (port 26, sshPort below — scripted fleet access; Tailscale
     # SSH's browser re-auth no longer blocks automation). Additive to any
     # imperative ~/.ssh/authorized_keys (see the option's description).
-    users.authorizedKeys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE900h7UUGyAcICSsxmX2xqEDcF1PTkonC/r9l3xroES dk@yoga"
-    ];
+    users.authorizedKeys = [ fleetKeys.dk-yoga ];
   };
 
   roles.media = {
@@ -107,9 +140,12 @@ in
     mnamer = {
       enable = true;
 
-      # paths and formats keep the module defaults (/mnt/storage/{downloads,
-      # movies, shows} and the "{name} ({year})" naming scheme); ignore
-      # patterns likewise come from the module — this adds only the delta.
+      # Source dir retargeted to the staging lane (2026-11-17): the media
+      # pipeline (media-import orchestrator, aria, unrarall) works one level
+      # below the downloads top level, so stray files and old archives there
+      # never reach mnamer. Movies/shows formats keep the module defaults.
+      paths.downloads = mediaLane;
+
       extraIgnore = [ ".*\\bnfo\\b.*" ];
 
       extraSettings = {
@@ -119,6 +155,15 @@ in
       extraCliArgs = [ "--no-style" ];
     };
   };
+
+  # Media workflow shell helpers (aria, unrarall), harvested verbatim
+  # 2026-11-17 from the former imperative ~/.zshrc — pipeline: aria →
+  # unrarall → mnamer-tools import, all run from /mnt/storage/downloads.
+  # readFile keeps the zsh extended globs (e.g. *.part0##<->.rar) free of
+  # Nix ''${-escaping. The file also carries a precmd mouse-mode reset
+  # guarding against TUIs dying hard over SSH and leaving the pane stuck
+  # in SGR mouse reporting.
+  programs.zsh.interactiveShellInit = builtins.readFile ./zsh-functions.zsh;
 
   # Tone mapping (HDR→SDR) runs INSIDE the Jellyfin container, which gets
   # /dev/dri passed through and carries its own userspace (LSIO bundles the
@@ -139,6 +184,7 @@ in
   environment.enableAllTerminfo = true;
 
   environment.systemPackages = [
+    mediaImport
     pkgs.mergerfs
     pkgs.xfsprogs
     pkgs.nvme-cli

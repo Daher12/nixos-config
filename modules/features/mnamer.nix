@@ -27,6 +27,8 @@ let
     downloads
     movies
     shows
+    kinderMovies
+    kinderShows
     ;
 
   inherit (cfg.formats)
@@ -45,8 +47,14 @@ let
 
   json = pkgs.formats.json { };
 
-  settingsFile = json.generate "mnamer-v2.json" (
-    {
+  # One generator, two configs: the only difference between the main and
+  # the kinder config is the destination pair. The kinder config feeds the
+  # kids libraries — media-import sorts kids releases into the
+  # `<downloads>/kinder` sub-lane before importing (kids-ness is a human
+  # call, the tooling just honors it).
+  mkSettings =
+    movieDirectory: episodeDirectory:
+    json.generate "mnamer.json" {
       inherit
         batch
         recurse
@@ -63,8 +71,8 @@ let
       no_overwrite = cfg.noOverwrite;
       no_guess = cfg.noGuess;
 
-      movie_directory = movies;
-      episode_directory = shows;
+      movie_directory = movieDirectory;
+      episode_directory = episodeDirectory;
 
       movie_format = movie;
       episode_format = episode;
@@ -72,12 +80,21 @@ let
       replace_before = replaceBefore;
       replace_after = replaceAfter;
     }
-    // extraSettings
-  );
+    // extraSettings;
+
+  settingsFile = mkSettings movies shows;
+
+  kinderSettingsFile = mkSettings kinderMovies kinderShows;
 
   commonArgs = [
     "--config-path"
     settingsFile
+  ]
+  ++ extraCliArgs;
+
+  kinderArgs = [
+    "--config-path"
+    kinderSettingsFile
   ]
   ++ extraCliArgs;
 
@@ -94,6 +111,10 @@ let
 
             run() {
               exec ${lib.getExe resolvedPackage} ${lib.escapeShellArgs commonArgs} "$@"
+            }
+
+            runKinder() {
+              exec ${lib.getExe resolvedPackage} ${lib.escapeShellArgs kinderArgs} "$@"
             }
 
             case "''${1-}" in
@@ -115,6 +136,25 @@ let
               import)
                 shift
                 run "$downloads" "$@"
+                ;;
+
+              kinder-import-test)
+                shift
+                runKinder --test "$downloads/kinder" "$@"
+                ;;
+
+              kinder-import)
+                shift
+                runKinder "$downloads/kinder" "$@"
+                ;;
+
+              kinder-import-safe)
+                shift
+                runKinder --no-guess "$downloads/kinder" "$@"
+                ;;
+
+              kinder-source)
+                printf '%s\n' "$downloads/kinder"
                 ;;
 
               import-safe)
@@ -159,6 +199,10 @@ let
         mnamer-tools import-safe
         mnamer-tools movies-safe
         mnamer-tools shows-safe
+        mnamer-tools kinder-import-test
+        mnamer-tools kinder-import
+        mnamer-tools kinder-import-safe
+        mnamer-tools kinder-source
         mnamer-tools raw ...
         mnamer-tools source
         mnamer-tools path
@@ -247,6 +291,18 @@ in
         default = "/mnt/storage/shows";
         description = "Destination show library path.";
       };
+
+      kinderMovies = lib.mkOption {
+        type = lib.types.str;
+        default = "/mnt/storage/kinder/filme";
+        description = "Destination kids movie library path (kinder sub-lane).";
+      };
+
+      kinderShows = lib.mkOption {
+        type = lib.types.str;
+        default = "/mnt/storage/kinder/serien";
+        description = "Destination kids show library path (kinder sub-lane).";
+      };
     };
 
     formats = {
@@ -307,7 +363,11 @@ in
     replaceAfter = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
       default = {
-        "&" = "and";
+        # "&" = "and" removed 2026-11-17: canonical titles keep the "&"
+        # (mnamer language=de writes the TMDB title verbatim, and silo's
+        # matcher doesn't normalize and→& — scene-style "and" names were
+        # exactly the batch that failed auto-matching). "&" is
+        # filesystem/NFS-safe.
         "@" = "at";
         ";" = ",";
       };
@@ -344,6 +404,10 @@ in
       {
         assertion = movies != shows;
         message = "features.mnamer: movie and show destination paths must differ.";
+      }
+      {
+        assertion = downloads != kinderMovies && downloads != kinderShows && kinderMovies != kinderShows;
+        message = "features.mnamer: downloads and the kinder destinations must all differ.";
       }
     ];
 

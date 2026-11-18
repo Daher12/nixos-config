@@ -195,6 +195,12 @@ in
           environmentFiles = [ config.sops.secrets."silo_secret_key".path ];
           volumes = [
             "${dockerPath}/silo/config:/config"
+            # Artwork cache OUTSIDE the writable layer: the unit recreates
+            # the container on every image refresh/rebuild, which would
+            # wipe a layer-resident cache and re-fetch GBs from TMDB.
+            # Stays on the NVMe (small random reads) — the HDD pool is for
+            # media, not the artwork cache.
+            "${dockerPath}/silo/artwork:/var/lib/silo/artwork"
             "${siloCachePath}/transcode:/tmp/silo-transcode"
             "${siloCachePath}/download-artifacts:/tmp/silo-download-artifacts"
             "${dockerPath}/silo/catalog-seeds:/catalog-seeds:ro"
@@ -281,6 +287,10 @@ in
     "d ${siloCachePath} 0755 ${uid} ${gid} - -"
     "d ${siloCachePath}/transcode 0755 ${uid} ${gid} - -"
     "d ${siloCachePath}/download-artifacts 0755 ${uid} ${gid} - -"
+    # Self-healing ownership for the migrated artwork dir: if it's ever
+    # lost, recreating it root-owned would leave silo (uid ${uid}) unable
+    # to write its cache.
+    "d ${dockerPath}/silo/artwork 0755 ${uid} ${gid} - -"
   ];
 
   systemd = {
@@ -310,13 +320,17 @@ in
         '';
       };
 
-      # Resource limits only - cleanup handled by oci-containers
-      "docker-jellyfin".serviceConfig = {
-        IOWeight = 8000;
-        CPUWeight = 1000;
-        OOMScoreAdjust = -500;
-        StartLimitBurst = 10;
-        StartLimitIntervalSec = "5min";
+      # Resource limits only - cleanup handled by oci-containers.
+      # startLimit* go TOP-LEVEL, not inside serviceConfig: they are [Unit]
+      # keys, and systemd ignores them in [Service] ("Unknown lvalue").
+      "docker-jellyfin" = {
+        startLimitBurst = 10;
+        startLimitIntervalSec = 300;
+        serviceConfig = {
+          IOWeight = 8000;
+          CPUWeight = 1000;
+          OOMScoreAdjust = -500;
+        };
       };
 
       # Both data disks are nofail: without this gate a failed/late mount
@@ -326,27 +340,33 @@ in
       "docker-audiobookshelf".unitConfig.RequiresMountsFor = [ "/mnt/storage" ];
       "docker-silo".unitConfig.RequiresMountsFor = [ "/mnt/storage" ];
 
-      "docker-audiobookshelf".serviceConfig = {
-        IOWeight = 100;
-        CPUWeight = 100;
-        OOMScoreAdjust = 500;
-        StartLimitBurst = 10;
-        StartLimitIntervalSec = "5min";
+      "docker-audiobookshelf" = {
+        startLimitBurst = 10;
+        startLimitIntervalSec = 300;
+        serviceConfig = {
+          IOWeight = 100;
+          CPUWeight = 100;
+          OOMScoreAdjust = 500;
+        };
       };
 
-      "docker-silo".serviceConfig = {
-        IOWeight = 100;
-        CPUWeight = 100;
-        OOMScoreAdjust = 500;
-        StartLimitBurst = 10;
-        StartLimitIntervalSec = "5min";
+      "docker-silo" = {
+        startLimitBurst = 10;
+        startLimitIntervalSec = 300;
+        serviceConfig = {
+          IOWeight = 100;
+          CPUWeight = 100;
+          OOMScoreAdjust = 500;
+        };
       };
 
-      "docker-cadvisor".serviceConfig = {
-        CPUWeight = 50;
-        OOMScoreAdjust = 700;
-        StartLimitBurst = 10;
-        StartLimitIntervalSec = "5min";
+      "docker-cadvisor" = {
+        startLimitBurst = 10;
+        startLimitIntervalSec = 300;
+        serviceConfig = {
+          CPUWeight = 50;
+          OOMScoreAdjust = 700;
+        };
       };
 
       "docker-image-refresh" = {
