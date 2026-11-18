@@ -228,7 +228,9 @@ in
             repeat_interval = "4h";
             routes = [
               {
-                match.severity = "critical";
+                # matchers, not the deprecated `match` key (Alertmanager
+                # >= 0.22 accepts it but logs deprecation warnings).
+                matchers = [ ''severity="critical"'' ];
                 receiver = "ntfy";
                 repeat_interval = "1h";
               }
@@ -330,6 +332,12 @@ in
             RestartSec = "5s";
             DynamicUser = true;
             MemoryMax = "64M";
+            # Same sandbox set as the ntfy units / docker-network-jellyfin —
+            # was the only custom unit with zero hardening (audit 2026-11-18).
+            NoNewPrivileges = true;
+            PrivateTmp = true;
+            ProtectSystem = "strict";
+            ProtectHome = "read-only";
             LoadCredential = [ "ntfy_url:${config.sops.secrets.ntfy_url.path}" ];
             ExecStart = "${bridgeScript}";
           };

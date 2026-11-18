@@ -1,5 +1,6 @@
 {
   pkgs,
+  lib,
   config,
   mainUser,
   fleetKeys,
@@ -14,12 +15,16 @@ let
   # Staging lane for the media pipeline: the ONLY directory media-import /
   # unrarall / (retargeted) mnamer-tools operate on. The downloads top
   # level stays a manual parking zone — stray files and old archives there
-  # are never touched. Referenced by ./media-import.zsh and the aria
-  # function in ./zsh-functions.zsh; change all three together.
+  # are never touched. Single source: the two zsh files carry @mediaLane@
+  # placeholders substituted below (was a three-site literal kept in sync
+  # by comment only — audit 2026-11-18).
   mediaLane = "/mnt/storage/downloads/incoming";
 
-  zshFunctions = pkgs.writeText "zsh-functions" (builtins.readFile ./zsh-functions.zsh);
-  mediaImportZsh = pkgs.writeText "media-import" (builtins.readFile ./media-import.zsh);
+  zshFunctionsRaw = builtins.readFile ./zsh-functions.zsh;
+  mediaImportRaw = builtins.readFile ./media-import.zsh;
+  substLane = lib.replaceStrings [ "@mediaLane@" ] [ mediaLane ];
+  zshFunctions = pkgs.writeText "zsh-functions" (substLane zshFunctionsRaw);
+  mediaImportZsh = pkgs.writeText "media-import" (substLane mediaImportRaw);
 
   # The bash wrapper exists so writeShellApplication does the packaging
   # (shellcheck, PATH); the real logic is the zsh file, escaping-free.
@@ -163,7 +168,7 @@ in
   # Nix ''${-escaping. The file also carries a precmd mouse-mode reset
   # guarding against TUIs dying hard over SSH and leaving the pane stuck
   # in SGR mouse reporting.
-  programs.zsh.interactiveShellInit = builtins.readFile ./zsh-functions.zsh;
+  programs.zsh.interactiveShellInit = substLane zshFunctionsRaw;
 
   # Tone mapping (HDR→SDR) runs INSIDE the Jellyfin container, which gets
   # /dev/dri passed through and carries its own userspace (LSIO bundles the

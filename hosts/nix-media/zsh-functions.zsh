@@ -4,6 +4,12 @@ unrarall() {
     local file target rarpass base partnum
     local -A seen_multi
     local -a files files_to_fix unrar_args skipped_padded
+    # Global failure ledger (deliberately NOT local): media-import's prune
+    # guard reads which archives failed extraction so it never deletes the
+    # only surviving copy. Cleared on every call (before any early return);
+    # entries are absolute paths so callers can map them to dirs after
+    # cd-ing around.
+    UNRARALL_FAILED=( )
     # Normalize names like:
     #   foo.part01.rar  -> foo.part1.rar
     #   foo.part001.rar -> foo.part1.rar
@@ -65,6 +71,12 @@ unrarall() {
         print -u2 "No matching archives found."
         return 1
     fi
+    # Guard: an embedded empty "${^arr}" expansion yields one bogus
+    # "$PWD/" word (not zero) — that entry would mark the whole extraction
+    # dir as failed in media-import's prune guard.
+    if (( ${#skipped_padded} )); then
+        UNRARALL_FAILED+=( "$PWD/${^skipped_padded}" )
+    fi
     # Password handling (2026-11-18 revision — extraction IS the probe):
     # the first attempt extracts with an empty password (-p-), which
     # unencrypted archives ignore entirely, so the common case stays a
@@ -89,8 +101,12 @@ unrarall() {
                 prompted=1
             }
             if [[ -n $rarpass ]]; then
-                unrar x -o+ "-p$rarpass" -- "$file" </dev/null || print -u2 "Failed: $file"
+                if ! unrar x -o+ "-p$rarpass" -- "$file" </dev/null; then
+                    UNRARALL_FAILED+=( "$PWD/$file" )
+                    print -u2 "Failed: $file"
+                fi
             else
+                UNRARALL_FAILED+=( "$PWD/$file" )
                 print -u2 "Failed: $file"
             fi
         fi
@@ -105,15 +121,16 @@ aria() {
     return 1
   }
 
-  # Staging lane (2026-11-17 orchestrator delta): downloads land in
-  # incoming/ — the only directory the media-import pipeline touches — so
-  # the downloads top level stays a manual parking zone. The -d also kills
-  # the old CWD trap.
-  mkdir -p "/mnt/storage/downloads/incoming"
+  # Staging lane (2026-11-17 orchestrator delta): downloads land in the
+  # @mediaLane@ directory — the only directory the media-import pipeline
+  # touches — so the downloads top level stays a manual parking zone. The
+  # -d also kills the old CWD trap. (Placeholder substituted by
+  # hosts/nix-media/default.nix — the lane literal lives only there.)
+  mkdir -p "@mediaLane@"
 
   command aria2c \
     -i "$links_file" \
-    -d "/mnt/storage/downloads/incoming" \
+    -d "@mediaLane@" \
     -j 2 \
     -x 8 \
     -s 8 \

@@ -17,8 +17,10 @@
 #      the normal import (no exclude in mnamer — kids titles would land in
 #      the main libraries).
 #      --test stops after the dry run; a declined confirm skips the import.
-#   4. prune    — confirm-gated: delete extracted *.rar sets and now-empty
-#      dirs inside the lane. Never runs without a preceding import.
+#   4. prune    — confirm-gated: delete extracted *.rar/*.r00-style sets
+#      and now-empty dirs inside the lane. Archives whose extraction
+#      FAILED are never deleted (stage-2 failure ledger). Never runs
+#      without a preceding import.
 #   5. notify   — best-effort ntfy push with the summary.
 #
 # Usage: media-import [--no-download] [--test] [--help]
@@ -34,7 +36,9 @@ setopt local_options no_unset pipefail
 }
 source "$ZSH_FUNCTIONS"
 
-LANE="/mnt/storage/downloads/incoming"
+# The staging lane arrives substituted: @mediaLane@ → hosts/nix-media/
+# default.nix's mediaLane (single source; was a comment-synced literal).
+LANE="@mediaLane@"
 LEGACY_LINKS="/mnt/storage/downloads/links.txt"
 LINKS="$LANE/links.txt"
 
@@ -44,6 +48,13 @@ DID_IMPORT=0
 IMPORTED=0
 LEFT=0
 rc=0
+# Absolute paths of archives whose extraction FAILED (stage 2 ledger, fed
+# from unrarall's global UNRARALL_FAILED). unrarall swallows failures by
+# contract (one-time password prompt, "Failed:" note, exit stays 0), so the
+# pipeline tracks them itself — the lane copy of a failed set is the only
+# copy, and stage 4 must never bulk-delete it.
+typeset -Ua EXTRACT_FAILED
+EXTRACT_FAILED=( )
 
 usage() {
   print "Usage: media-import [--no-download] [--test] [--help]"
@@ -132,6 +143,10 @@ stage_extract() {
   # contract) — demote that to a note, not a stage failure, so a rar-less
   # lane (bare media downloads) stays green.
   unrarall || print "lane top: no archives to extract"
+  if (( ${#UNRARALL_FAILED} )); then
+    print -u2 "extraction FAILED at lane top: ${(F)UNRARALL_FAILED}"
+    EXTRACT_FAILED+=( "${UNRARALL_FAILED[@]}" )
+  fi
   local -a subdirs rars_in
   subdirs=( "$LANE"/*(/N) )
   local sub
@@ -141,6 +156,10 @@ stage_extract() {
       print "extracting in subdir: $sub"
       cd "$sub"
       unrarall || print "$sub: no extractable root archives"
+      if (( ${#UNRARALL_FAILED} )); then
+        print -u2 "extraction FAILED in $sub: ${(F)UNRARALL_FAILED}"
+        EXTRACT_FAILED+=( "${UNRARALL_FAILED[@]}" )
+      fi
       cd "$LANE"
     fi
   done
@@ -229,27 +248,62 @@ stage_prune() {
     return 0
   fi
   print "stage 4: prune"
-  local rars
-  rars=$(find "$LANE" -type f -name '*.rar')
-  if [[ -z $rars ]]; then
-    print "no leftover archives in lane"
+  # Failed-set guard: archives whose extraction failed in stage 2 are
+  # NEVER deleted — the lane copy is the only copy, and a swallowed
+  # password/corruption failure used to end up under a bulk "delete these
+  # archives" confirm. Their whole dirs stay out of the delete list, and
+  # old-style multipart siblings (*.r00/*.r01) are covered too so a set
+  # never orphans half its parts.
+  local -a candidates doomed
+  local -A failed_dirs
+  local c f
+  for f in "${EXTRACT_FAILED[@]}"; do
+    failed_dirs[${f:h}]=1
+  done
+  if (( ${#failed_dirs} )); then
+    print -u2 "extraction FAILED for ${#EXTRACT_FAILED} archive(s) — these dirs are NOT pruned:"
+    print -u2 ${(F)EXTRACT_FAILED}
+  fi
+  # Prune scope == stage-2 extract scope: lane top + first-level subdirs.
+  # Deeper archives were never extracted by this pipeline, so they are
+  # never candidates — deleting them would destroy the only copy (the old
+  # recursive find did exactly that).
+  candidates=(
+    "$LANE"/*.rar(N) "$LANE"/*.r[0-9][0-9](N)
+    "$LANE"/*/*.rar(N) "$LANE"/*/*.r[0-9][0-9](N)
+  )
+  for c in "${candidates[@]}"; do
+    # "-:" default matters: no_unset (script level) makes a missing key a
+    # hard error, not an empty result.
+    [[ -z ${failed_dirs[${c:h}]-} ]] && doomed+=( "$c" )
+  done
+  if (( ! ${#doomed} )); then
+    print "no deletable archives in lane"
     return 0
   fi
-  print "$rars"
+  print ${(F)doomed}
   if ! confirm "delete these archives and now-empty dirs"; then
     print "prune declined"
     return 0
   fi
-  find "$LANE" -type f -name '*.rar' -delete
+  for c in "${doomed[@]}"; do
+    rm -f -- "$c"
+  done
   # Depth-first so parents empty out; -mindepth 1 protects the lane itself.
+  # Failed dirs keep their archives, so they never empty out here.
   find "$LANE" -mindepth 1 -depth -type d -empty -delete
   print "pruned"
 }
 
 stage_notify() {
   print "stage 5: notify"
-  notify "media-import done on nix-media
+  local summary="media-import done on nix-media
 imported: $IMPORTED — unmatched left in lane: $LEFT"
+  if (( ${#EXTRACT_FAILED} )); then
+    summary+="
+extraction FAILED (kept in lane): ${#EXTRACT_FAILED} archive(s)"
+  fi
+  notify "$summary"
 }
 
 # --- argument parsing ------------------------------------------------------

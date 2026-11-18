@@ -1,5 +1,6 @@
 {
   pkgs,
+  lib,
   config,
   mainUser,
   ...
@@ -246,6 +247,15 @@ in
             "--memory=256m"
             "--cpus=0.25"
             "--pids-limit=75"
+            # Healthcheck gap closed (audit 2026-11-18): cadvisor is the
+            # lynchpin of the ContainerDown alert (monitoring.nix) but was
+            # the only container without a healthcheck. The image ships
+            # busybox wget (live-proven: no curl, no /healthz FILE — the
+            # HTTP endpoint is what returns "ok"), so probe that.
+            "--health-cmd=wget -q -O- http://localhost:8080/healthz || exit 1"
+            "--health-interval=60s"
+            "--health-retries=3"
+            "--health-timeout=10s"
           ];
         };
       };
@@ -327,6 +337,10 @@ in
         startLimitBurst = 10;
         startLimitIntervalSec = 300;
         serviceConfig = {
+          # mkForce: the oci-containers module plain-sets on-failure, under
+          # which a container that exits 0 stays down until the Sunday
+          # refresh restarts it — wrong for long-running media servers.
+          Restart = lib.mkForce "always";
           IOWeight = 8000;
           CPUWeight = 1000;
           OOMScoreAdjust = -500;
@@ -344,6 +358,8 @@ in
         startLimitBurst = 10;
         startLimitIntervalSec = 300;
         serviceConfig = {
+          # mkForce: see the docker-jellyfin note (module plain-sets on-failure).
+          Restart = lib.mkForce "always";
           IOWeight = 100;
           CPUWeight = 100;
           OOMScoreAdjust = 500;
@@ -354,6 +370,8 @@ in
         startLimitBurst = 10;
         startLimitIntervalSec = 300;
         serviceConfig = {
+          # mkForce: see the docker-jellyfin note (module plain-sets on-failure).
+          Restart = lib.mkForce "always";
           IOWeight = 100;
           CPUWeight = 100;
           OOMScoreAdjust = 500;
@@ -364,6 +382,8 @@ in
         startLimitBurst = 10;
         startLimitIntervalSec = 300;
         serviceConfig = {
+          # mkForce: see the docker-jellyfin note (module plain-sets on-failure).
+          Restart = lib.mkForce "always";
           CPUWeight = 50;
           OOMScoreAdjust = 700;
         };
@@ -385,19 +405,25 @@ in
         ];
         script = ''
           set -eu
-          # Digest-compare: restart a container only when its image actually
-          # changed (the weekly pull otherwise bounced every container every
-          # Sunday 03:00 even with no new digest). A jellyfin restart is further
-          # skipped while ffmpeg is mid-transcode — the weekly timer retries
-          # next Sunday.
+          # Running-container compare: restart a container only when the image
+          # it RUNS differs from the freshly pulled store image (the weekly
+          # pull otherwise bounced every container every Sunday 03:00 even
+          # with no new digest). Comparing store-vs-store was a trap: when a
+          # jellyfin restart is skipped mid-transcode, the pull has already
+          # updated the store, so every later run saw store==store ("no
+          # change") and jellyfin stayed stranded on the old image until
+          # upstream pushed ANOTHER digest — the "retried next run" promise
+          # could never fire (fixed 2026-11-18). A jellyfin restart is still
+          # skipped while ffmpeg is mid-transcode; the next run re-detects
+          # running!=store and restarts it.
           refresh() {
-            local image="$1" unit="$2"
-            local old new
-            old=$(docker image inspect -f '{{.Id}}' "$image" 2>/dev/null || echo none)
+            local image="$1" unit="$2" container="$3"
+            local running new
+            running=$(docker inspect -f '{{.Image}}' "$container" 2>/dev/null || echo none)
             docker pull "$image"
             new=$(docker image inspect -f '{{.Id}}' "$image")
-            if [ "$old" = "$new" ]; then
-              echo "no change: $unit"
+            if [ "$running" = "$new" ]; then
+              echo "up to date: $unit"
               return 0
             fi
             if [ "$unit" = "docker-jellyfin.service" ] && docker top jellyfin 2>/dev/null | grep -q ffmpeg; then
@@ -407,11 +433,12 @@ in
             systemctl restart "$unit"
             echo "restarted: $unit"
           }
-          refresh ${images.jellyfin} docker-jellyfin.service
-          refresh ${images.audiobookshelf} docker-audiobookshelf.service
-          refresh ${images.silo} docker-silo.service
-          refresh ${images.cadvisor} docker-cadvisor.service
-          docker image prune -f
+          refresh ${images.jellyfin} docker-jellyfin.service jellyfin
+          refresh ${images.audiobookshelf} docker-audiobookshelf.service audiobookshelf
+          refresh ${images.silo} docker-silo.service silo
+          refresh ${images.cadvisor} docker-cadvisor.service cadvisor
+          # Dangling-image cleanup lives in the docker-prune timer
+          # (autoPrune --all --force) — no prune here, it was double work.
         '';
       };
     };
