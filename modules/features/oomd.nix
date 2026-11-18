@@ -35,7 +35,8 @@ in
 
     # Hardening against future module additions: earlyoom and systemd-oomd
     # must never run together (two OOM killers racing). Nothing enables
-    # earlyoom today; mkForce keeps it that way even if one appears.
-    services.earlyoom.enable = lib.mkForce false;
+    # earlyoom today; a PLAIN false makes any future enabler a loud eval
+    # conflict instead of being silently beaten by a force (audit 2026-11-18).
+    services.earlyoom.enable = false;
   };
 }

@@ -38,11 +38,6 @@
       inputs.home-manager.follows = "home-manager";
     };
 
-    preload-ng = {
-      url = "github:miguel-b-p/preload-ng";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # Pinned to the v2 line: Obsidian Copilot >= 4.0.12 requires opencode
     # 2.0.3+, while the default branch still tracks 1.x. Flakes cannot
     # express "latest v2.*", so bump by editing the tag below, then
@@ -69,8 +64,9 @@
     # Deliberately NO `nixpkgs.follows` here: upstream requires its pinned
     # nixpkgs-unstable (packageManager bun@1.4.2; nixos-26.05 only ships
     # bun 1.3.13, whose `bun install` fails extracting the big native
-    # tarballs and hangs the build). Cost: the flake's only second nixpkgs
-    # eval (input nixpkgs_2) — everything else shares the main one.
+    # tarballs and hangs the build). Cost: its own nixpkgs eval (nixpkgs_4
+    # in the lock) — the lock carries four in total (base, noctalia's,
+    # the greeter's, this one), each documented at its input.
     # The libstdc++ LD_LIBRARY_PATH wrap in home/opencode.nix covers the
     # resulting stdenv mismatch.
     opencode = {
@@ -101,7 +97,8 @@
     # AND greeter together. Deliberately NO nixpkgs follows on either input:
     # the upstream docs state a follows disables the binary cache
     # (noctalia.cachix.org, modules/core/nix.nix) and both are built against
-    # their own pinned nixpkgs — the price is a second nixpkgs eval.
+    # their own pinned nixpkgs — the price is one extra nixpkgs eval per
+    # input (nixpkgs_2 + nixpkgs_3; four evals total with base + opencode's).
     noctalia.url = "github:noctalia-dev/noctalia/v5.5.0";
     # Paired greetd greeter (own bundled wlroots compositor, no session
     # compositor needed): nixosModules.default imported in desktop-niri.nix.
@@ -194,7 +191,6 @@
           rolesModule = ./modules/roles;
           hardwareModule = ./modules/hardware;
           diskoModule = inputs.disko.nixosModules.disko;
-          preloadNgModule = inputs.preload-ng.nixosModules.default;
           homeManagerModule = inputs.home-manager.nixosModules.home-manager;
           latitudeModule = ./hosts/latitude/default.nix;
           sopsStubModule = import ./tests/sops-stub.nix;
@@ -261,7 +257,6 @@
               "desktop-gnome"
             ];
             extraModules = [
-              inputs.preload-ng.nixosModules.default
               ./hosts/latitude/default.nix
             ];
             hmModules = [ ./hosts/latitude/home.nix ];

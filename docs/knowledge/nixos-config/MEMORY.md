@@ -1,43 +1,45 @@
 # Memory Index
 
-> 2026-11-17: yoga is on gen 207 since Nov 15 00:39 (niri+Noctalia v5.5.0; state strip done 22:24) — the old "gen 202 pending switch" note was STALE; lockscreen r4 + M3 theme + focus-follows-mouse are LIVE.
+> 2026-11-17: yoga on gen 207 since Nov 15 (niri+Noctalia v5.5.0, state strip done) — "gen 202 pending" notes STALE; lockscreen r4 + M3 theme + focus-follows-mouse LIVE.
 
-- [Update sweep EXECUTED 2026-11-18](update-sweep-2026-11-18.md) — EXECUTED+PUSHED (03f5a7c+d0ec6c7): nixpkgs f684076 (zen 7.2.15→7.3.4!), zcode 3.18.1, fastmcp override REMOVED (dead code, nixpkgs ships doCheck=false); opencode v2.3.x ALL gate-fail (same stale node_modules hash), pin holds v2.2.4
-- [Silo deleted-movie resurrection FIXED 2026-11-18](silo-deleted-movie-resurrection-2026-11-18.md) — EXECUTED: movies-safe re-import was the cause; quarantine mv + catalog verified; pagination + ctime lore in file
-- [GTK4 auto light/dark EXECUTED 2026-11-18](noctalia-gtk-templates-plan-2026-11-18.md) — EXECUTED+fast green STAGED (switch pending): templates gtk3/gtk4 ON, btop dropped, adw-gtk3 fallback pin, live strip DONE; post-switch checks + apply.sh flip-test lore in file
-- [Silo profiles+kids-split plan 2026-11-18](silo-profiles-kids-split-plan-2026-11-18.md) — SUPERSEDED (EXECUTED 11-18: silo-trial record family-setup section — libs 4/5, profiles Sandra+Kinder, scoped collection+row pos 1, mnamer kinder verbs; query_definition.library_ids=INT lore)
-- [nix-media stuck mouse modes fix 2026-11-17](nix-media-stuck-mouse-modes-2026-11-17.md) — EXECUTED+VALIDATED (built /etc/zshrc run end-to-end; hook survives omz init) STAGED: precmd SGR-mouse reset in zsh-functions.zsh; 35;x;yM = modes 1003+1006; nix eval --raw 211-char quirk lore in file
-- [Auto light/dark restore EXECUTED 2026-11-17](noctalia-auto-mode-restore-2026-11-17.md) — EXECUTED+fast green STAGED (switch pending): mode="auto" + shell_mode=follow + sync_color_scheme=true (wallpaper-M3 palette kept); v5.5.0 semantics + GUI theme-mode-toggle state-layer trap in file
-- [Auto light/dark restore plan 2026-11-17](noctalia-auto-theme-restore-2026-11-17.md) — SUPERSEDED (executed by parallel session, same plan: noctalia-auto-mode-restore-2026-11-17); semantics + trap lore in file
+- [niri multi-monitor EXECUTED 2026-11-19](niri-multi-monitor-plan-2026-11-18.md) — EXECUTED (staged, switch pending): monitor keybinds + DP-2 4K above panel centered (-192x-1080 @scale2); plan text predates execution; desktop.monitors head-only + per-monitor workspace lore in file
+- [Audit fixes EXECUTED 2026-11-18](audit-fixes-2026-11-18.md) — EXECUTED+fast green, COMMITTED 2026-11-19: 4 P1s (refresh skip, prune data-loss, install.sh .git; sops rekey = user-run), preload-ng gone, container restart+health+sandbox, hygiene; lore in file
+- [Audit fix round PLAN 2026-11-18](audit-fix-round-plan-2026-11-18.md) — SUPERSEDED (executed: audit-fixes-2026-11-18); full findings + user decisions in file
+- [Update sweep EXECUTED 2026-11-18](update-sweep-2026-11-18.md) — EXECUTED+PUSHED: nixpkgs f684076 (zen 7.3.4), zcode 3.18.1; opencode v2.3.x ALL gate-fail, pin holds v2.2.4
+- [Silo deleted-movie resurrection FIXED 2026-11-18](silo-deleted-movie-resurrection-2026-11-18.md) — EXECUTED: movies-safe re-import was the cause; quarantine + catalog verified; lore in file
+- [GTK4 auto light/dark EXECUTED 2026-11-18](noctalia-gtk-templates-plan-2026-11-18.md) — EXECUTED+fast STAGED (switch pending): gtk3/gtk4 templates ON, adw-gtk3 pin, live strip DONE; lore in file
+- [Silo profiles+kids-split plan 2026-11-18](silo-profiles-kids-split-plan-2026-11-18.md) — SUPERSEDED (executed: silo-trial family-setup); library_ids=INT lore
+- [nix-media stuck mouse modes fix 2026-11-17](nix-media-stuck-mouse-modes-2026-11-17.md) — EXECUTED+VALIDATED STAGED: precmd SGR-mouse reset in zsh-functions.zsh; decode lore in file
+- [Auto light/dark restore EXECUTED 2026-11-17](noctalia-auto-mode-restore-2026-11-17.md) — EXECUTED+fast STAGED (switch pending): mode=auto + follow + sync_color_scheme; trap lore in file
 
-- [Audit fixes EXECUTED 2026-11-15](audit-fixes-2026-11-15.md) — EXECUTED+fast+host-units-smoke green, UNCOMMITTED: swapfile module, fleetKeys, journald default, trustedUsers narrowing, sudo 15, doc rot, persistence gaps; specialArgs-in-headers + swapDevices-eval lore; Grafana key SKIPPED
+- [Audit fixes EXECUTED 2026-11-15](audit-fixes-2026-11-15.md) — EXECUTED+fast green, UNCOMMITTED: swapfile module, fleetKeys, journald, trustedUsers, sudo 15; specialArgs lore; Grafana key SKIPPED
 - [Repo audit + followup plan 2026-11-15](repo-audit-followup-plan-2026-11-15.md) — SUPERSEDED (executed: audit-fixes-2026-11-15); fleet verdict HEALTHY; audit facts in file
-- [niri focus-follows-mouse EXECUTED 2026-11-15](niri-focus-follows-mouse-2026-11-15.md) — EXECUTED+fast green STAGED (pending gen-202 switch): bare flag in home/niri.nix input block; flag-node schema fact in file
-- [Silo trial nix-media EXECUTED 2026-11-15](silo-trial-nix-media-2026-11-15.md) — LIVE ~11-16; admin API (Bearer, If-Match); ✅ AI RECS LIVE 11-17 (bge-m3 locked); ✅ FAMILY SETUP 11-18 (libs 4/5 + Sandra/Kinder profiles + scoped Kinder row pos 1 + mnamer kinder verbs, staged); OPEN: Winnie Puuh GUI re-match, actor-bios diagnostic; 11-18 deleted-movie-still-plays incident (media mounts :ro on BOTH silo+jellyfin → web-UI deletes inert; surviving-copy hunt plan denied ×2, unexecuted)
-- [Media workflow harvest EXECUTED 2026-11-17](media-workflow-harvest-2026-11-17.md) — EXECUTED+staged (switch pending): aria+unrarall into hosts/nix-media/zsh-functions.zsh → readFile→programs.zsh.interactiveShellInit; orchestrator deltas (lane -d, password probe) in media-import-orchestrator record; user strips ~/.zshrc AFTER nix-media switch
-- [media-import orchestrator EXECUTED 2026-11-17](media-import-orchestrator-2026-11-17.md) — EXECUTED+fast green, STAGED (switch pending): one-command pipeline (download→extract→confirm import→prune→ntfy) over staging lane /mnt/storage/downloads/incoming; mnamer downloads retargeted to lane; no timer (user choice); zsh err_return tested-context lore
-- [nix-media media import workflow](nix-media-media-import-workflow.md) — manual pipeline into /mnt/storage: aria → unrarall → mnamer-tools; HARVEST+ORCHESTRATOR EXECUTED 11-17 (see media-import-orchestrator-2026-11-17); no-apiKeys lore in file
-- [nix-media mouse-mode flood plan 2026-11-17](nix-media-mouse-mode-flood-plan-2026-11-17.md) — PLAN (ExitPlanMode denied ×2, VALIDATED vs intermittency: fresh panes clean, ox-in-same-session = likely trigger): stuck SGR mouse mode 1003+1006 floods SSH zsh; precmd printf-reset guard designed; unstick one-liner + decode lore in file
-- [media-import orchestrator plan 2026-11-17](media-import-orchestrator-plan-2026-11-17.md) — SUPERSEDED (executed: media-import-orchestrator-2026-11-17; lane/probe design carried over as planned)
-- [Live mutation needs confirm](live-mutation-needs-confirm.md) — plan-approved edits ≠ live-API writes; ask before mutating running services (silo 11-17 pushback); read-only scans stay free
+- [niri focus-follows-mouse EXECUTED 2026-11-15](niri-focus-follows-mouse-2026-11-15.md) — EXECUTED+fast STAGED: bare flag in home/niri.nix input block; flag-node schema fact in file
+- [Silo trial nix-media EXECUTED 2026-11-15](silo-trial-nix-media-2026-11-15.md) — LIVE; admin API Bearer+If-Match; AI RECS + FAMILY SETUP 11-18; OPEN: Winnie Puuh, actor-bios; :ro mounts → web-UI deletes inert
+- [Media workflow harvest EXECUTED 2026-11-17](media-workflow-harvest-2026-11-17.md) — EXECUTED+staged: aria+unrarall → interactiveShellInit; user strips dotfile AFTER nix-media switch
+- [media-import orchestrator EXECUTED 2026-11-17](media-import-orchestrator-2026-11-17.md) — EXECUTED+fast STAGED: download→extract→import→prune→ntfy over lane; no timer (user choice); err_return lore
+- [nix-media media import workflow](nix-media-media-import-workflow.md) — manual pipeline into /mnt/storage: aria → unrarall → mnamer-tools; orchestrator EXECUTED 11-17; no-apiKeys lore in file
+- [nix-media mouse-mode flood plan 2026-11-17](nix-media-mouse-mode-flood-plan-2026-11-17.md) — PLAN (denied ×2, VALIDATED ox-in-same-session): SGR 1003+1006 flood; unstick one-liner in file
+- [media-import orchestrator plan 2026-11-17](media-import-orchestrator-plan-2026-11-17.md) — SUPERSEDED (executed: media-import-orchestrator-2026-11-17; lane/probe design carried over)
+- [Live mutation needs confirm](live-mutation-needs-confirm.md) — plan-approved edits ≠ live-API writes; ask before mutating running services (silo 11-17 pushback); read-only scans free
 
-- [Lockscreen round 4 EXECUTED 2026-11-15](noctalia-lockscreen-round4-weather-v550-2026-11-15.md) — EXECUTED+QC green STAGED (switch+strip pending): noctalia v5.5.0, zoom@800+dnd, clock 440×146, weather widget+service; v5.5.0 source-verified schema; parallel session did 11-15 drift harvest; strip script prepared
-- [Lockscreen round 4 plan 2026-11-15](noctalia-lockscreen-round4-plan-2026-11-15.md) — SUPERSEDED (executed: noctalia-lockscreen-round4-weather-v550-2026-11-15); notifications-on-lock IMPOSSIBLE upstream (dnd = the answer)
-- [Silo trial plan 2026-11-15](silo-trial-plan-2026-11-15.md) — PLAN ONLY (denied ×2), VERIFIED against raw upstream compose/Dockerfile: Silo omnibus container alongside jellyfin on nix-media; do NOT override image HEALTHCHECK (20m migration grace); QSV userspace bundled in image; port-freedom still needs live `ss` check
-- [Hyprland/lucid retirement EXECUTED 2026-11-14](hyprland-lucid-retirement-niri-promotion-2026-11-14.md) — EXECUTED+PUSHED 6 commits: niri promoted to .#yoga, font vendored, monitors option moved, lean batch; niri+noctalia configs byte-identical vs old attr; VM battery skipped by user
-- [niri greetd autologin EXECUTED 2026-11-14](niri-greetd-autologin-2026-11-14.md) — EXECUTED+QC green, landed in retirement commit 1: greeter.autoLogin + noctalia-lock-at-boot; manual initial_session lore in file
-- [Update sweep 2026-11-12](update-sweep-2026-11-12.md) — EXECUTED+pushed: nixpkgs ac588ef, zcode 3.17.2; opencode v2.2.6+2.2.7 BOTH gate-broken → holds v2.2.4
+- [Lockscreen round 4 EXECUTED 2026-11-15](noctalia-lockscreen-round4-weather-v550-2026-11-15.md) — EXECUTED+QC green STAGED: noctalia v5.5.0, zoom+dnd, weather widget; strip script prepared
+- [Lockscreen round 4 plan 2026-11-15](noctalia-lockscreen-round4-plan-2026-11-15.md) — SUPERSEDED (executed r4); notifications-on-lock IMPOSSIBLE upstream (dnd = the answer)
+- [Silo trial plan 2026-11-15](silo-trial-plan-2026-11-15.md) — PLAN ONLY (denied ×2), VERIFIED vs upstream compose: do NOT override image HEALTHCHECK (20m migration grace); QSV bundled
+- [Hyprland/lucid retirement EXECUTED 2026-11-14](hyprland-lucid-retirement-niri-promotion-2026-11-14.md) — EXECUTED+PUSHED 6 commits: niri promoted to .#yoga; configs byte-identical; VMs skipped
+- [niri greetd autologin EXECUTED 2026-11-14](niri-greetd-autologin-2026-11-14.md) — EXECUTED+QC green (retirement commit 1): greeter.autoLogin + lock-at-boot; initial_session lore in file
+- [Update sweep 2026-11-12](update-sweep-2026-11-12.md) — EXECUTED+pushed: nixpkgs ac588ef, zcode 3.17.2; opencode v2.2.6+2.2.7 gate-broken → holds v2.2.4
 - [niri dwt palm rejection fix EXECUTED 2026-11-11](niri-dwt-palm-rejection-2026-11-11.md) — EXECUTED (switch pending): omitted dwt forced OFF into libinput; bare dwt added; lore in file
-- [Branch promotion EXECUTED 2026-11-11](branch-promotion-exec-2026-11-11.md) — EXECUTED+PUSHED: main=680a22a, archive/lucid@3388242 pushed (STALE — 11-01 snapshot; superseded by archive/hyprland-lucid), dux-shell=main+1, vps separate WIP
+- [Branch promotion EXECUTED 2026-11-11](branch-promotion-exec-2026-11-11.md) — EXECUTED+PUSHED: main=680a22a, archive branches pushed, dux-shell=main+1, vps separate WIP
 - [Branch promotion plan 2026-11-07](branch-promotion-plan-2026-11-07.md) — SUPERSEDED (executed 11-11); vps-separate + plan-mode sandbox lore in file
-- [Win11 VM double cursor plan 2026-11-11](win11-vm-double-cursor-plan-2026-11-11.md) — PLAN ONLY (denied): viogpudo client-mouse hide bug; fix = libvirt `<mouse mode='server'/>`; user does Windows steps
+- [Win11 VM double cursor plan 2026-11-11](win11-vm-double-cursor-plan-2026-11-11.md) — PLAN ONLY (denied): viogpudo client-mouse hide bug; fix = libvirt server-mouse; user does Windows steps
 - [VM USB SSD slow plan 2026-11-11](vm-usb-ssd-slow-plan-2026-11-11.md) — PLAN ONLY (denied): USB3 SSD <5MB/s into VM; TLP USB_AUTOSUSPEND suspect; A/B plan in file
-- [Noctalia theme = M3 from wallpaper 2026-11-15](noctalia-theme-m3-content-wallpaper-2026-11-15.md) — HARVEST EXECUTED (7ffd2ac pushed): palette = M3-content from CURRENT wallpaper, fallback "Tomorrow"; state strip DONE (settings.toml 59 bytes); "fixed dark" claim superseded by 11-17 auto restore; ⚠️ deleting settings.toml while noctalia runs = file-watch live-reload to deployed baseline (observed)
+- [Noctalia theme = M3 from wallpaper 2026-11-15](noctalia-theme-m3-content-wallpaper-2026-11-15.md) — HARVEST EXECUTED: palette = M3 from CURRENT wallpaper; ⚠️ deleting settings.toml while running = live-reload to baseline
 
 - ["Reboot reverted my changes" forensics 2026-11-09](staged-revert-forensics-2026-11-09.md) — NO reboot; reversion = Nov 8 noctalia state-strip after gen 202; ONE rebuild switch restores all
-- [Noctalia export + energy EXECUTED 2026-11-08](noctalia-config-export-energy-2026-11-08.md) — EXECUTED: state harvested into nix + stripped (backup kept), energy kbd60/lock300/screen330/suspend1500→5400-AC; lore in file
+- [Noctalia export + energy EXECUTED 2026-11-08](noctalia-config-export-energy-2026-11-08.md) — EXECUTED: state harvested into nix + stripped (backup kept); energy values in file
 - [Noctalia export + energy plan 2026-11-08](noctalia-export-energy-plan-2026-11-08.md) — SUPERSEDED (executed same day); drift table + schema facts in file
-- [zcode launcher crash = bwrap pdeathsig FIX EXECUTED 2026-11-08](zcode-launcher-crash-bwrap-pdeathsig-2026-11-07.md) — EXECUTED: `setsid --fork` fix; wrapper can't be replaced by window rule
+- [zcode launcher crash = bwrap pdeathsig FIX EXECUTED 2026-11-08](zcode-launcher-crash-bwrap-pdeathsig-2026-11-07.md) — EXECUTED: setsid --fork fix; wrapper can't be replaced by window rule
 - [Fire tablet debloat plan 2026-11-04](fire-tablet-debloat-plan-2026-11-04.md) — PLAN ONLY (denied ×2): keep parental controls/Kids; firmware FIRST; Fire-Tools stock list UNSAFE
 - [niri cursor 32px fix EXECUTED 2026-11-07](niri-cursor-size-32-2026-11-07.md) — EXECUTED: niri default 24 clobbers XCURSOR_SIZE; needs xcursor-theme/size keys
 - [Noctalia lockscreen softer round 2 EXECUTED 2026-11-07](noctalia-lockscreen-soft-round2-2026-11-07.md) — EXECUTED+LIVE: geometry numbers + setBox lore in file
@@ -54,59 +56,40 @@
 - [DMS lucid-look port EXECUTED 2026-11-06](dms-lucid-look-port-plan-2026-11-06.md) — EXECUTED on dux-shell branch; traps in file
 - [Noctalia niri swap EXECUTED 2026-11-06](noctalia-niri-swap-exec-2026-11-06.md) — EXECUTED: DMS→Noctalia v5.4.1 + greeter v1.7.0; schema traps + state-layer lore in file
 - [Noctalia niri swap plan 2026-11-06](noctalia-niri-swap-plan-2026-11-06.md) — SUPERSEDED (executed same day); IPC verbs in file
-- [Build branch without checkout](git-file-ref-branch-testing.md) — `git+file://…?ref=<branch>#attr` builds the branch's COMMITTED tree
+- [Build branch without checkout](git-file-ref-branch-testing.md) — git+file with ?ref=<branch> builds the branch's COMMITTED tree
 - [Branch split vps/dms/niri 2026-11-06](branch-split-vps-dms-niri-2026-11-06.md) — EXECUTED+SQUASHED; ⚠️ sops rules still missing for vps
 - [Branch-split plan 2026-11-05](branch-split-plan-2026-11-05.md) — SUPERSEDED (executed 11-06); assembly recipe in file
 - [niri-testing trial executed 2026-11-05](niri-testing-trial-2026-11-05.md) — COMMITTED (now on main); ⚠️ flake-module attrset imports don't dedupe
 - [dux-shell (DMS) evaluation 2026-11-04](dux-shell-evaluation-plan-2026-11-04.md) — SUPERSEDED (executed 11-05); IPC map in file
-- [niri+DMS yoga-niri attr plan 2026-11-05](niri-dms-yoga-plan-2026-11-05.md) — SUPERSEDED (executed: niri-testing-trial)
 - [Compositor evaluation → mango 2026-11-04](compositor-evaluation-mango-2026-11-04.md) — ABANDONED (pivoted to niri); lucid-units-under-foreign-session trap in file
 - [Lucid German dictionary switch 2026-11-01](lucid-german-dictionary-2026-11-01.md) — EXECUTED: en-de.json + translate.py postPatch (stack since retired to archive branch)
 - [VPS watchdog + exit node 2026-11-01](vps-watchdog-exitnode-plan-2026-11-01.md) — COMMITTED on vps branch; infect froze VPS storage TWICE — nothing builds on the box
-- [Brightness keys 10% linear fix 2026-11-01](brightness-keys-e4-2026-11-01.md) — EXECUTED LIVE: `brightnessctl -n2 set 10%±`; durable
+- [Brightness keys 10% linear fix 2026-11-01](brightness-keys-e4-2026-11-01.md) — EXECUTED LIVE: brightnessctl -n2 set 10%±; durable
 - [Lucid patchset maintenance plan 2026-11-01](lucid-patchset-maintenance-plan-2026-11-01.md) — PLAN ONLY (denied); decisions LOCKED; PR1049 ABANDONED
 - [Lucid brightness steps plan 2026-11-01](lucid-brightness-steps-plan-2026-11-01.md) — SUPERSEDED (executed: brightness-keys-e4); -e4 quartic diagnosis in file
 - [Lumen revert + qtmultimedia fix 2026-11-01](lumen-revert-qtmultimedia-2026-11-01.md) — EXECUTED+LIVE; qs-log lore in file
 - [Spotify cache persistence 2026-11-01](spotify-cache-persistence-2026-11-01.md) — EXECUTED: logout = unpersisted ~/.cache/spotify
-- [Lumen broken diagnosis 2026-11-01](lumen-broken-diagnosis-2026-11-01.md) — SUPERSEDED (executed: lumen revert)
 - [zcode→opencode parity EXECUTED 2026-11-01](zcode-opencode-parity-exec-2026-11-01.md) — EXECUTED: knowledge mirror, export script, doc skills, bash rules; recipe in docs/opencode-migration.md
-- [zcode→opencode parity plan 2026-11-01](zcode-opencode-parity-plan-2026-11-01.md) — SUPERSEDED (executed same day); audit facts in file
 - [Test-suite shared runner 2026-11-01](test-suite-shared-runner-2026-11-01.md) — EXECUTED+ALL GREEN: scripts/test-suite fast/vm/full/suggest
-- [Test-suite audit plan 2026-11-01](test-suite-audit-plan-2026-11-01.md) — SUPERSEDED (executed: test-suite-shared-runner)
 - [Audit fix round 2026-10-31](audit-fix-round-2026-10-31.md) — EXECUTED+QC green; ⚠️ json-file log-opts crash dockerd; 2 open defects in file
-- [Repo audit fix plan 2026-10-31](repo-audit-fix-plan-2026-10-31.md) — SUPERSEDED (executed: audit-fix-round)
 - [Update sweep 2026-10-31](update-sweep-2026-10-31.md) — EXECUTED+QC green: nixpkgs 6f06d204, lucid 2945eab, opencode v2.2.4
-- [Update sweep plan 2026-10-31](update-sweep-plan-2026-10-31.md) — SUPERSEDED (executed same day)
 - [Log sweep fixes 2026-10-28](log-sweep-fixes-2026-10-28.md) — EXECUTED+QC green (QC caught heal grep substring bug)
-- [Log sweep triage 2026-10-28](log-sweep-triage-2026-10-28.md) — SUPERSEDED (executed: log-sweep-fixes)
 - [Update sweep 2026-10-28](update-sweep-2026-10-28.md) — EXECUTED+QC green: lucid 4b8fc9a, opencode v2.2.0
-- [Update sweep plan 2026-10-27](update-sweep-plan-2026-10-27.md) — SUPERSEDED (executed: update-sweep-2026-10-28)
 - [yoga slow boot = GC catch-up 2026-10-27](yoga-slowboot-gc-catchup-2026-10-27.md) — nix-gc timer at boot after weekend off; no "Startup finished" in journal
-- [lucid-auto-mode gsettings fix plan 2026-10-27](lucid-auto-mode-gsettings-fix-plan-2026-10-27.md) — SUPERSEDED (executed 10-28)
 - [Lucid wifi patch 129 2026-10-24](lucid-wifi-129-2026-10-24.md) — EXECUTED: wedge = EC rfkill post-resume, heal = wifi toggle
 - [Lucid fingerprint-off patch 128 2026-10-24](lucid-fingerprint-off-128-2026-10-24.md) — EXECUTED: 2nd PamContext gated off
-- [yoga wifi "no password saved" incident 2026-10-24](yoga-wifi-nopassword-incident-2026-10-24.md) — SUPERSEDED (executed: lucid-wifi-129)
-- [Lucid fingerprint PAM diagnosis 2026-10-24](lucid-fingerprint-pam-diagnosis-2026-10-24.md) — SUPERSEDED (executed: fingerprint-off-128)
 - [Cleanup round 2026-10-24](cleanup-round-2026-10-24.md) — EXECUTED: weekly-reboot Result guard, update-safe auto-commit/--push; ⚠️ testScript ''-trap
-- [battery-refresh resume heal 2026-10-24](battery-refresh-resume-heal-2026-10-24.md) — EXECUTED: probe actual Hz each poll; `''${var}` escape lore
+- [battery-refresh resume heal 2026-10-24](battery-refresh-resume-heal-2026-10-24.md) — EXECUTED: probe actual Hz each poll; ''${var} escape lore
 - [Update sweep 2026-10-24](update-sweep-2026-10-24.md) — EXECUTED+QC green: pins except lucid; opencode v2.1.4
 - [Workflow simulation suite 2026-10-19](workflow-simulation-suite-2026-10-19.md) — EXECUTED ALL GREEN: 4 permanent VM tests + ntfy Result-probe fix
 - [Audit fixes round 2 2026-10-17](audit-fixes-round2-2026-10-17.md) — EXECUTED+QC green: keymap de, KbdInteractiveAuthentication=false, yoga uid pin, microcode both-vendor
 - [Update sweep 2026-10-16](update-sweep-2026-10-16.md) — EXECUTED+QC green: nixpkgs/HM/sops-nix, opencode v2.0.27, lucid v1.20.1
 - [Fleet automation review executed 2026-10-19](fleet-automation-review-exec-2026-10-19.md) — EXECUTED: autoUpgrade pull fix, ci.yml gate, update-safe --pin; sops rekey open
-- [Repo review 2026-10-19](repo-review-2026-10-19.md) — SUPERSEDED by fleet-automation-review-exec
-- [yoga open-lid two-window hibernate plan 2026-10-19](yoga-openlid-two-window-plan-2026-10-19.md) — SUPERSEDED: EXECUTED same day, see yoga-hibernate-status
 - [yoga switch unit failures 2026-10-18](yoga-switch-unit-failures-2026-10-18.md) — REAL bug: zen zramctl --reset REMOVES device → hot_add heal EXECUTED
 - [Docs+comment hygiene pass 2026-10-18](docs-comment-hygiene-pass-2026-10-18.md) — EXECUTED (33 files): runbook withModules trap, install.sh uid fix
-- [Repo docs/comments audit plan 2026-10-18](repo-docs-comments-audit-plan-2026-10-18.md) — SUPERSEDED (executed: docs-comment-hygiene-pass)
 - [Spotify SpotX integration 2026-10-18](spotify-spotx-integration-2026-10-18.md) — EXECUTED: features/spotify.nix; ⚠️ nixpkgs bump can outpace SpotX-Bash pin
-- [Spotify + SpotX-Nix plan 2026-10-18](spotify-spotx-plan-2026-10-18.md) — SUPERSEDED (executed same day)
 - [Lucid idle round 2: 126/127 2026-10-24](lucid-idle-round2-126-127-2026-10-24.md) — EXECUTED: 122-125 LIVE (58→45 ms/s); PR1049 ≥128
-- [Idle CPU round 2026-10-24](idle-cpu-round-2026-10-24.md) — SUPERSEDED same day by lucid-idle-round2
 - [Lucid perf round 122-125 2026-10-17](lucid-perf-round-122-125-2026-10-17.md) — LIVE since 10-24: ambientMotion gates ×7, cava suppression; lore in file
-- [Quickshell PR1049 disk-cache plan 2026-10-17](quickshell-pr1049-diskcache-plan-2026-10-17.md) — PLAN ready, NEVER executed; facts stale (see lucid-perf-round)
-- [Repo review 2026-10-16](repo-review-2026-10-16.md) — NOTHING executed (superseded by audit-fixes rounds)
-- [Update sweep plan 2026-10-16](update-sweep-plan-2026-10-16.md) — SUPERSEDED by update-sweep-2026-10-16
 - [Desktop switch architecture 2026-10-13](desktop-switch-architecture-2026-10-13.md) — HISTORICAL: attr-pair switching; yoga is now niri-only + gnome backup since 2026-11-14
 - [Hyprland lock-no-outputs SEGV 2026-10-13](hyprland-lock-nooutputs-segv-2026-10-13.md) — EXECUTED (stack now archived): zero-output lock SEGVs 0.55.4
 - [Lucid shell-dark + apps-auto EXECUTED 2026-10-13](lucid-shell-dark-apps-auto-2026-10-13.md) — EXECUTED: --apps-only split + login pin
@@ -135,8 +118,8 @@
 - [Audit fixes 2026-10-04](audit-fixes-2026-10-04.md) — P1/P2 fixes QC green; P3 backlog in file
 - [MCP scoping remediation 2026-10-04](mcp-scoping-remediation-2026-10-04.md) — dup nix MCP killed, mikrotik scoped, windows-mcp → repo
 - [Brave Origin + Firefox default EXECUTED 2026-10-04](browser-default-brave-origin-2026-10-04.md) — origin.json policies + firefox mimeApps pin
-- [Obsidian + litellm integration 2026-10-04](obsidian-litellm-integration-2026-10-04.md) — gateway VERIFIED 10-04, 4 models incl. glm-5.3-flash-coding (z.ai coding endpoint — coding keys 401 on general endpoint; bracket IDs break litellm); 11-15 verify+use battery PLANNED (ExitPlanMode denied), Copilot pick open
-- [nix-media SSH via Tailscale](nix-media-tailscale-ssh-access.md) — `ssh nix-media` = Tailscale SSH; foreground ssh stalls SILENTLY — background it
+- [Obsidian + litellm integration 2026-10-04](obsidian-litellm-integration-2026-10-04.md) — gateway VERIFIED 10-04, 4 models; coding keys 401 on general endpoint; bracket IDs break litellm; Copilot pick open
+- [nix-media SSH via Tailscale](nix-media-tailscale-ssh-access.md) — ssh nix-media = Tailscale SSH; foreground ssh stalls SILENTLY — background it
 - [Audit fixes 2026-10-03](audit-fixes-2026-10-03.md) — virbr0 scoped DHCP/DNS + VM test, ADB group+udev, sudo per-tty
 - [windows11-2 VM creation 2026-10-02](windows11-2-vm-creation-2026-10-02.md) — 26H2 VM swapped into windows11 identity; OPEN: SSH/mcp bootstrap
 - [Lucid PATH broke spice USB redirect 2026-10-01](lucid-path-wrappers-spice-usb-2026-10-01.md) — iPhone EPERM: lucidPath lacked /run/wrappers/bin

@@ -15,12 +15,10 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    assertions = [
-      {
-        assertion = !config.services.power-profiles-daemon.enable;
-        message = "TLP and power-profiles-daemon are mutually exclusive. Disable one.";
-      }
-    ];
+    # Plain false: any host-level `true` conflicts loudly at eval time.
+    # (The old mutual-exclusion assertion was dead — it read the fixed
+    # point AFTER this assignment, so it could never fire — removed
+    # 2026-11-18 audit.)
     services.power-profiles-daemon.enable = false;
 
     services.tlp = {

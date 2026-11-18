@@ -1,11 +1,12 @@
 ---
 name: update-sweep-2026-11-18
-description: Pkg bump sweep EXECUTED+pushed (03f5a7c lock + d0ec6c7) — zcode
+description: Pkg bump sweep EXECUTED+pushed+QC-green (03f5a7c+d0ec6c7) — zcode
   3.18.1, fastmcp override REMOVED (dead code), opencode v2.3.x all gate-fail;
-  zen kernel 7.2.15→7.3.4 rides the nixpkgs bump
+  zen 7.3.4 rider; TRAP: pkgs.opencode=1.15.10 is nixpkgs' own pkg, NOT ours
 metadata:
   node_type: memory
   type: project
+  originSessionId: sess_4ffceeb3-f571-403a-8ea4-257cccb1e7f5
 ---
 
 Update sweep executed 2026-11-18 (plan approved via AskUserQuestion: full sweep, opencode gate-with-fallback, update-safe --push, fast gate only / VMs skipped). Two commits, both PUSHED: **03f5a7c** (flake.lock inputs, update-safe pathspec commit) + **d0ec6c7** (zcode, flake.nix comment + fastmcp removal, REPO_OVERVIEW). QC: `test-suite fast` green (yoga latitude nix-media) + update-safe's real yoga toplevel build (1057 derivations).
@@ -21,3 +22,7 @@ Update sweep executed 2026-11-18 (plan approved via AskUserQuestion: full sweep,
 **Held per policy (verified still-newest via tags pages/API):** noctalia v5.5.0 (Nov 12), noctalia-greeter v1.7.0, lanzaboote v1.2.0 (CI-dispatch only), spotx-nix (reactive only). Update-safe refused nothing; tree clean at start.
 
 User steps: `nus yoga` / `sudo nixos-rebuild switch --flake ~/nixos-config#yoga` when ready (also activates the still-staged noctalia/GTK/auto-light-dark work from 11-15…11-18); kernel 7.3.4 needs the next reboot to take effect.
+
+**Post-sweep QC (same evening, user-requested light pass — no test suite/VMs):** ALL GREEN. (1) Lock diff audit vs 52fb729: exactly the 4 expected inputs moved, all 6 held pins byte-identical (noctalia c2573248, greeter af0bf4b, opencode 45898d0, lanzaboote c1c5edd, spotx-nix e1b2c3c, spotx-bash db0583a). (2) Deployed-version evals: zcode 3.18.1, mikromcp 1.16.1, mcp-nixos 2.4.3, fastmcp stock. (3) Store: yoga toplevel f684076 built; closure contains opencode-2.2.4+45898d0, zcode-3.18.1, mcp-nixos-2.4.3.
+
+**⚠️ QC TRAP — `pkgs.opencode` is NOT our opencode:** `nix eval .#nixosConfigurations.yoga.pkgs.opencode.version` returns **1.15.10** — that's nixpkgs' OWN unrelated opencode package (shadowing the name in the top-level set), never consumed by the config. The real deployment is `inputs.opencode.packages.${system}.default` + libstdc++ wrap at home/opencode.nix:75, evals via `config.home-manager.users.dk.programs.opencode.package.version` as **2.2.4+45898d0**. Future sweeps: check the HM package attr, NOT pkgs.opencode — don't "fix" a pin that isn't broken. (Also: drv hash ≠ output hash — guessing a store out-path from a .drv name fails `nix path-info`; grep the toplevel closure instead.) Store toplevel snapshot predates the fastmcp-overlay removal (update-safe ran first) — expected; committed tree is the verified one.

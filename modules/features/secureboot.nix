@@ -25,7 +25,10 @@ in
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [ pkgs.sbctl ];
 
-    boot.loader.systemd-boot.enable = lib.mkForce false;
+    # Plain false, no mkForce: core/boot.nix already mkDefaults this off
+    # whenever secure boot is active — a force would silently swallow a
+    # genuine future conflict (audit 2026-11-18).
+    boot.loader.systemd-boot.enable = false;
 
     boot.lanzaboote = {
       enable = true;

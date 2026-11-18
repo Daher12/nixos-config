@@ -51,12 +51,9 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    assertions = [
-      {
-        assertion = hostname != "";
-        message = "features.sops enabled but networking.hostName is empty; cannot resolve per-host secrets file path.";
-      }
-    ];
+    # (The old `hostname != ""` assertion was dead: mkHost always sets
+    # networking.hostName from its mandatory hostname arg, so no eval path
+    # can produce empty — removed 2026-11-18 audit.)
 
     sops = {
       defaultSopsFormat = "yaml";

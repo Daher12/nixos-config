@@ -356,12 +356,17 @@ if [[ "$USE_BACKUP" -eq 1 ]]; then
   [[ -d "$BACKUP_PATH/gnupg"   ]] && cp -a "$BACKUP_PATH/gnupg/."    "$USER_HOME/.gnupg/"
 fi
 
-info "Cloning clean repo into user home (pinned to install commit)..."
+info "Cloning repo into user home (pinned to install commit)..."
 timeout 120 git clone "$REPO_URL" "$USER_HOME/nixos-config" \
-  || die "Clean repo clone into user home failed"
-git -C "$USER_HOME/nixos-config" checkout --detach "$PINNED_COMMIT" \
-  || die "Could not checkout pinned commit in user home clone"
-rm -rf "$USER_HOME/nixos-config/.git"
+  || die "Repo clone into user home failed"
+# main is pinned to the install commit. .git MUST stay: nixos-upgrade
+# (maintenance.nix) runs `git pull --ff-only` hourly and update-safe
+# commits its flake.lock updates against it — rm -rf .git here wedged
+# autoUpgrade into hourly pull failures on fresh installs (fixed
+# 2026-11-18; pulls fast-forward until the pin falls off main's history,
+# which only a repo rewrite causes).
+git -C "$USER_HOME/nixos-config" checkout -B main "$PINNED_COMMIT" \
+  || die "Could not pin main to the install commit"
 
 info "Fixing user permissions..."
 # "uid:" with an empty group (unpinned gid) sets the uid and leaves the

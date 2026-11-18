@@ -67,24 +67,6 @@
         "type": "github"
       }
     },
-    "flake-utils": {
-      "inputs": {
-        "systems": "systems"
-      },
-      "locked": {
-        "lastModified": 1794427683,
-        "narHash": "sha256-o7ey9gEilsxaifqJWnBDlYSKbNWYQYtKwDyXeZU2kaU=",
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "rev": "cd489559845d81f673a12885576016c65cbe9363",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "type": "github"
-      }
-    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -311,27 +293,6 @@
         "type": "github"
       }
     },
-    "preload-ng": {
-      "inputs": {
-        "flake-utils": "flake-utils",
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1768356181,
-        "narHash": "sha256-lYx273nqNC1EslejL/yvf+ZJK+yApeUckibbpTyzxoM=",
-        "owner": "miguel-b-p",
-        "repo": "preload-ng",
-        "rev": "b2274bfa70f86c649ba4bddd5fd21c82ffccebe3",
-        "type": "github"
-      },
-      "original": {
-        "owner": "miguel-b-p",
-        "repo": "preload-ng",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "disko": "disko",
@@ -343,7 +304,6 @@
         "noctalia": "noctalia",
         "noctalia-greeter": "noctalia-greeter",
         "opencode": "opencode",
-        "preload-ng": "preload-ng",
         "sops-nix": "sops-nix",
         "spotx-nix": "spotx-nix"
       }
@@ -424,21 +384,6 @@
       "original": {
         "owner": "SpotX-Official",
         "repo": "SpotX-Nix",
-        "type": "github"
-      }
-    },
-    "systems": {
-      "locked": {
-        "lastModified": 1791244623,
-        "narHash": "sha256-uuanbkFk8a313Zfrxdcz8Us/yQtaxNnKJtX8v0ZPpd8=",
-        "owner": "nix-systems",
-        "repo": "default",
-        "rev": "d36eeed142f88b5a636f2e3856a53c61654cf29b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-systems",
-        "repo": "default",
         "type": "github"
       }
     }

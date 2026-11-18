@@ -116,17 +116,6 @@ in
   services = {
     # thermald comes from hardware.intel-gpu (mkDefault)
 
-    preload-ng = {
-      enable = true;
-      settings = {
-        sortStrategy = 0;
-        memTotal = -10;
-        memFree = 50;
-        minSize = 2000000;
-        cycle = 30;
-      };
-    };
-
     journald.extraConfig = "SystemMaxUse=100M";
   };
 

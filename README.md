@@ -50,7 +50,7 @@ Design principles, visible throughout the repo:
 | Host | Hardware | Role | Highlights |
 |------|----------|------|------------|
 | **yoga** | Lenovo Yoga 7 Slim Gen 8 (AMD Ryzen) | Primary laptop | niri + Noctalia (`.#yoga`) or GNOME 50 (`.#yoga-gnome`) · Secure Boot (Lanzaboote) · LUKS + Btrfs impermanence · Windows 11 VM · ZRAM |
-| **latitude** | Dell Latitude E7450 (Intel) | Legacy laptop | GNOME · TLP · preload-ng · Disko (LUKS + ext4) · opencode |
+| **latitude** | Dell Latitude E7450 (Intel) | Legacy laptop | GNOME · TLP · Disko (LUKS + ext4) · opencode |
 | **nix-media** | Intel N100 Mini PC | Headless media server | Jellyfin · Silo (trial) · Audiobookshelf · Prometheus/Grafana · Caddy · NFS · Docker |
 
 <details>
@@ -86,8 +86,10 @@ Daily driver: encrypted, impermanence-wiped, secure-booted work machine.
 
 Kept-simple second laptop: GNOME desktop, same home-manager setup as yoga,
 Disko-declared ext4 + LUKS without impermanence. Intel-specific tuning (i915
-fastboot/FBC), NVIDIA discretely disabled in firmware-level udev rules,
-USB-wakeup suppressor service, and `preload-ng` file prefetching.
+fastboot/FBC), NVIDIA discretely disabled in firmware-level udev rules, and a
+USB-wakeup suppressor service. (preload-ng file prefetching was removed
+2026-11-18: upstream dormant since 2026-01, adaptive readahead is obsolete on
+the SATA SSD.)
 
 </details>
 

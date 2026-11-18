@@ -16,7 +16,7 @@ let
   spotifySpotx = pkgs.spotify-spotx.override { inherit (cfg) spotxArgs; };
 
   # Spotify is a CEF client: without this it starts under XWayland at 1x —
-  # tiny UI on the scale-2 Hyprland output, with the compositor-compensated
+  # tiny UI on the scale-2 Wayland output, with the compositor-compensated
   # cursor looming over it. QT_* vars are no-ops here, and a hardcoded
   # --force-device-scale-factor would double-scale under GNOME (mutter
   # already scales XWayland) and on external 1x monitors. Running native
@@ -24,8 +24,8 @@ let
   # every session. home/default.nix also exports NIXOS_OZONE_WL=1, but
   # home.sessionVariables only reaches processes launched through a shell
   # (hm-session-vars.sh); this wrapper additionally pins it for non-shell
-  # launch paths (GNOME activities, lucid's launcher), where that variable
-  # may be absent.
+  # launch paths (GNOME activities, Noctalia's launcher), where that
+  # variable may be absent.
   spotifyWayland =
     pkgs.runCommand "spotify-spotx-wayland"
       {

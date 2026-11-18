@@ -42,11 +42,13 @@ in
       default = 64;
       description = ''
         XCURSOR_SIZE onlyoffice-desktopeditors is launched with, injected in
-        its own .desktop wrapper. Deliberately NOT exported globally: uwsm's
-        env preloader sources /etc/profile last, so a
-        environment.sessionVariables export beat home/theme.nix's smaller
-        XCURSOR_SIZE for the whole session and made the cursor oversized on
-        the boot lock screen (live-verified 2026-10-18).
+        its own .desktop wrapper. Deliberately NOT exported globally:
+        environment.sessionVariables (/etc/profile) sources after the
+        home.sessionVariables home/theme.nix picks, so a global export
+        would beat its smaller XCURSOR_SIZE for the whole session and made
+        the cursor oversized on the boot lock screen (live-verified
+        2026-10-18 under the retired uwsm stack; the profile-after-
+        session-vars ordering itself persists — audit 2026-11-18).
       '';
     };
   };

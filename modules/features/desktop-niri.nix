@@ -87,9 +87,8 @@ in
         # niri 26.04 integrates with systemd natively: the session entry
         # runs niri-session, which imports the environment into the user
         # manager and starts niri.service (BindsTo=graphical-session.target)
-        # — no uwsm needed (Hyprland needs uwsm precisely because it lacks
-        # this integration). The Noctalia shell rides that target as a
-        # home-manager user service (home/noctalia.nix).
+        # — no external session wrapper needed. The Noctalia shell rides
+        # that target as a home-manager user service (home/noctalia.nix).
         programs.niri.enable = true;
 
         # Battery widget / power info (not covered by the shell's HM module).

@@ -117,7 +117,7 @@ in
             # and only the /run/wrappers/bin copy carries cap_fowner (needed
             # to ACL the usb node for the user). Pin it via the upstream env
             # override so USB redirection survives launchers that hand us a
-            # minimal PATH (lucid dock, 2026-10-01).
+            # minimal PATH (the retired lucid dock did — 2026-10-01 EPERM fix).
             export SPICE_USB_ACL_BINARY="/run/wrappers/bin/spice-client-glib-usb-acl-helper"
 
             if ! $virsh dominfo "${guest.name}" >/dev/null 2>&1; then

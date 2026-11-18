@@ -105,7 +105,6 @@ fi
 nix flake update \
   nixpkgs nixos-hardware \
   home-manager sops-nix disko impermanence \
-  preload-ng \
   ${pins[@]+"${pins[@]}"}
 
 echo "==> Run flake checks"

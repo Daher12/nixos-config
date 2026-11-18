@@ -29,7 +29,6 @@
   rolesModule,
   hardwareModule,
   diskoModule,
-  preloadNgModule,
   homeManagerModule,
   latitudeModule,
   sopsStubModule,
@@ -69,7 +68,6 @@
           rolesModule
           hardwareModule
           diskoModule
-          preloadNgModule
           latitudeModule
         ];
 

@@ -26,10 +26,11 @@ in
     };
 
     # BlueZ refuses every NEW pairing unless an agent answers the SSP
-    # confirmation/passkey request. 2026-10-06 journal: 13 failed pair
-    # attempts via the lucid BT panel — bluetoothd "No agent available for
-    # request type 2" and quickshell "Failed to pair: Authentication
-    # Failed" line up to the second. quickshell exposes no
+    # confirmation/passkey request. 2026-10-06 journal (retired lucid/
+    # quickshell stack): 13 failed pair attempts via the then-lucid BT
+    # panel — bluetoothd "No agent available for request type 2" and
+    # quickshell "Failed to pair: Authentication Failed" line up to the
+    # second. quickshell exposes no
     # AgentManager/RegisterAgent API and nothing else registers an
     # agent; already-paired devices keep working off cached link keys.
     # bt-agent with NoInputNoOutput makes BlueZ use JustWorks

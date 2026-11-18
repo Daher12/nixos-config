@@ -128,10 +128,11 @@ in
 
   config = {
     # Cursor and session environment — set once at login, not per mode-switch.
-    # NOTE: uwsm's env preloader sources /etc/profile last, so any
-    # environment.sessionVariables entry for these vars would beat the
-    # values chosen here at boot (that is why ONLYOFFICE's bigger cursor is
-    # scoped to its own .desktop wrap, modules/features/onlyoffice.nix).
+    # NOTE: /etc/profile (environment.sessionVariables) sources after
+    # home.sessionVariables, so any entry there for these vars would beat
+    # the values chosen here at boot (that is why ONLYOFFICE's bigger
+    # cursor is scoped to its own .desktop wrap,
+    # modules/features/onlyoffice.nix).
     dconf.settings."org/gnome/desktop/interface" = {
       cursor-theme = cursorName;
       cursor-size = cursorSize;
@@ -147,19 +148,19 @@ in
       XCURSOR_SIZE = toString cursorSize;
     };
 
-    # HM must not claim these: the switch-theme script (below) rewrites
-    # them at runtime (dconf above covers the gsettings side).
-    xdg.configFile = {
-      "gtk-4.0/gtk.css".enable = lib.mkForce false;
-      "gtk-4.0/gtk-dark.css".enable = lib.mkForce false;
-      "gtk-4.0/assets".enable = lib.mkForce false;
-    };
+    # (The old xdg.configFile mkForce-false entries for gtk-4.0/gtk.css,
+    # gtk-dark.css and assets were dead weight: gtk4.theme = null below
+    # already prevents HM from generating those files, and a disabled
+    # xdg.configFile entry contributes nothing either way. Removed
+    # 2026-11-18 audit — the home-files diff proof guards the removal.)
 
     home = {
       packages = [
         colloid
         iconPkg
-        cursorPkg
+        # cursorPkg deliberately NOT listed here: gtk.cursorTheme.package
+        # (below) already installs it into the profile — the extra entry
+        # was a double install (audit 2026-11-18).
         switchTheme
         switchDark
         switchLight

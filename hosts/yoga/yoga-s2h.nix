@@ -317,7 +317,8 @@
         elif lid_open; then
           # Idle-suspend deadline with the lid open (2026-10-19): the
           # old behavior ("staying awake") left the machine up until
-          # hypridle's 2h idle timer fired — screen lit ~10min of it,
+          # the retired Hyprland stack's 2h idle timer (hypridle)
+          # fired — screen lit ~10min of it,
           # ~0.5%/h on battery. Now: window 1 re-suspends 15s out via
           # the recheck transient unit, window MAX_OPENLID hibernates
           # through the same deferred unit as the lid-closed path. The

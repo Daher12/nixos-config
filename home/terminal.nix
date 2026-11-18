@@ -448,8 +448,20 @@ in
     }
 
     {
+      programs.fzf = {
+        enable = true;
+        # All shell integrations off on purpose: the fish side is handled by
+        # the fzf-fish plugin + the hand-rolled FZF_DEFAULT_OPTS above
+        # (leaving the module default true would inject a SECOND fish init
+        # snippet); zsh stays integration-free. The module just owns the
+        # binary declaratively (audit 2026-11-18 — was a bare
+        # home.packages entry).
+        enableBashIntegration = false;
+        enableZshIntegration = false;
+        enableFishIntegration = false;
+      };
+
       home.packages = [
-        pkgs.fzf
         pkgs.dust
         pkgs.duf
         pkgs.procs
