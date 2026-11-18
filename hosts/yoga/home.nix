@@ -317,13 +317,12 @@ in
       {
         # Beihai M27-4K-144-C above the panel, centered (connector name
         # from niri msg outputs — a cable swap to another port renames
-        # it). Panel midpoint x=768 minus the monitor's half width
-        # 1920/2 = -192; y=-1080 sits its 2160@2 = 1080 logical rows
-        # directly above.
+        # it). Scale 1.5 -> 2560x1440 logical; panel midpoint x=768 minus
+        # the half width 2560/2 = -512; y=-1440 sits it directly above.
         output = "DP-2";
         mode = "3840x2160@144";
-        position = "-192x-1080";
-        scale = "2";
+        position = "-512x-1440";
+        scale = "1.5";
       }
     ];
 

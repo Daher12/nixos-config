@@ -212,7 +212,7 @@ in
           position = lib.mkOption {
             type = lib.types.str;
             default = "auto";
-            description = "Position in logical pixels, e.g. auto / 0x0 / -192x-1080 (niri emits it into the output block, home/niri.nix; the GNOME battery-refresh backend places the panel with it)";
+            description = "Position in logical pixels, e.g. auto / 0x0 / -512x-1440 (niri emits it into the output block, home/niri.nix; the GNOME battery-refresh backend places the panel with it)";
           };
           scale = lib.mkOption {
             type = lib.types.str;
