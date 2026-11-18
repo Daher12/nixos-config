@@ -210,17 +210,24 @@ in
         # Palette follows the wallpaper (user pick 2026-11-15, harvested
         # same day): source "wallpaper" + the M3 "content" quantization
         # scheme — Material-3 tonal extraction from the CURRENT wallpaper,
-        # so changing the wallpaper re-themes the shell. Inert fallbacks
-        # while the wallpaper source is on: community palette "Tomorrow"
-        # (what the GUI would apply if wallpaper sourcing went off) and
-        # builtin "Nord" beneath it. Fixed dark — the sun-schedule auto
-        # light/dark mode is gone (Rosé Pine/faithful era, 2026-11-06/08);
-        # a light face would be a manual GUI flip. The template applier
-        # stays OFF (GUI choice, harvested 2026-11-08): GTK theming is
-        # owned by home/theme.nix (adw-gtk3) and btop by home/terminal.nix
-        # — the ids stay listed only so a GUI re-enable finds its tuned set.
+        # so changing the wallpaper re-themes the shell. mode "auto" flips
+        # dark/light on the [location] sunrise/sunset schedule (same
+        # machinery as night light; restored 2026-11-17 after the Nov 15
+        # harvest accidentally baked in fixed dark). Inert fallbacks while
+        # the wallpaper source is on: community palette "Tomorrow" (what
+        # the GUI would apply if wallpaper sourcing went off) and builtin
+        # "Nord" beneath it. shell_mode "follow" + sync_color_scheme are
+        # the v5.5.0 defaults, spelled out because they carry the app
+        # following: browsers/Electron/Qt/libadwaita read the freedesktop
+        # color-scheme Noctalia writes — no templates involved. The
+        # template applier stays OFF (GUI choice, harvested 2026-11-08):
+        # GTK3 theming is owned by home/theme.nix (adw-gtk3, pinned dark)
+        # and btop by home/terminal.nix — the ids stay listed only so a
+        # GUI re-enable finds its tuned set.
         theme = {
-          mode = "dark";
+          mode = "auto";
+          shell_mode = "follow";
+          sync_color_scheme = true;
           source = "wallpaper";
           builtin = "Nord";
           pure_black_dark = false;

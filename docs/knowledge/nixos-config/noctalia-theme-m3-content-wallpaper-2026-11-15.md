@@ -12,6 +12,8 @@ metadata:
 
 Theme state (user pick, harvested into nix 2026-11-15, commit `7ffd2ac` pushed): `source = "wallpaper"` + `wallpaper_scheme = "m3-content"` (Material-3 tonal extraction from the CURRENT wallpaper — re-themes on wallpaper change), `mode = "dark"` (sun-schedule auto GONE), fallbacks `community_palette = "Tomorrow"` (a palette NAME) / `builtin = "Nord"`. Supersedes Rosé Pine/faithful/auto (2026-11-06/08). **Everforest DEAD** — never re-propose.
 
+UPDATE 2026-11-17: switch + state strip both DONE (gen 207, Nov 15 00:39 / strip 22:24 — settings.toml now 59 bytes, no theme keys). The `mode = "dark"` half was unintentional loss of auto light/dark; **auto RESTORED** (mode="auto" + shell_mode/sync_color_scheme, fast green, STAGED, pending user switch) — see [[noctalia-auto-mode-restore-2026-11-17]].
+
 Harvest scope (all verified per-key against `noctalia config export merged`): theme ×5 keys, bar.main end+bluetooth+control-center & scale 1.1, shell.animation.speed 0.8 (re-tuned from 1.15), niri type-to-launch OFF, settings_window_translucent, launcher block, panel launcher_position/open_near_click, location.longitude = real meridian 8.524 (was Berlin 13.4), plus previously-undeclared keys: audio.enable_sounds, battery.warning_threshold 15, bluetooth.connection_notifications, weather.refresh_minutes 40, control_center block (avatar/tabs/sidebar/calendar/5 shortcuts), widget.bluetooth hide_when_adapter_off, widget.control-center.glyph "assembly", lockscreen_widgets schema-2 scaffolding (grid + placement/rotation).
 
 **⚠️ STATE STRIP IS PENDING THE USER'S SWITCH — and it MUST stay that way:**

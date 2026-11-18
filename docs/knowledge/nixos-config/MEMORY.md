@@ -1,8 +1,26 @@
 # Memory Index
 
-> 2026-11-15: hyprland/lucid/DMS RETIRED from main (6 commits pushed, tip 647a6c9); yoga = niri+Noctalia, yoga-niri attr GONE, GNOME backup = yoga-gnome; full stack on archive/hyprland-lucid. ⚠️ LIVE SWITCH `nus yoga switch` still pending user-side (machine on gen 202 since Nov 8 — everything since lands with it).
+> 2026-11-17: yoga is on gen 207 since Nov 15 00:39 (niri+Noctalia v5.5.0; state strip done 22:24) — the old "gen 202 pending switch" note was STALE; lockscreen r4 + M3 theme + focus-follows-mouse are LIVE.
 
-- [Silo trial plan 2026-11-15](silo-trial-plan-2026-11-15.md) — PLAN ONLY (denied): Silo omnibus container alongside jellyfin on nix-media; subpath-unsupported + port-collision + sops side-file facts in file
+- [Silo profiles+kids-split plan 2026-11-18](silo-profiles-kids-split-plan-2026-11-18.md) — SUPERSEDED (EXECUTED 11-18: silo-trial record family-setup section — libs 4/5, profiles Sandra+Kinder, scoped collection+row pos 1, mnamer kinder verbs; query_definition.library_ids=INT lore)
+- [nix-media stuck mouse modes fix 2026-11-17](nix-media-stuck-mouse-modes-2026-11-17.md) — EXECUTED+VALIDATED (built /etc/zshrc run end-to-end; hook survives omz init) STAGED: precmd SGR-mouse reset in zsh-functions.zsh; 35;x;yM = modes 1003+1006; nix eval --raw 211-char quirk lore in file
+- [Auto light/dark restore EXECUTED 2026-11-17](noctalia-auto-mode-restore-2026-11-17.md) — EXECUTED+fast green STAGED (switch pending): mode="auto" + shell_mode=follow + sync_color_scheme=true (wallpaper-M3 palette kept); v5.5.0 semantics + GUI theme-mode-toggle state-layer trap in file
+- [Auto light/dark restore plan 2026-11-17](noctalia-auto-theme-restore-2026-11-17.md) — SUPERSEDED (executed by parallel session, same plan: noctalia-auto-mode-restore-2026-11-17); semantics + trap lore in file
+
+- [Audit fixes EXECUTED 2026-11-15](audit-fixes-2026-11-15.md) — EXECUTED+fast+host-units-smoke green, UNCOMMITTED: swapfile module, fleetKeys, journald default, trustedUsers narrowing, sudo 15, doc rot, persistence gaps; specialArgs-in-headers + swapDevices-eval lore; Grafana key SKIPPED
+- [Repo audit + followup plan 2026-11-15](repo-audit-followup-plan-2026-11-15.md) — SUPERSEDED (executed: audit-fixes-2026-11-15); fleet verdict HEALTHY; audit facts in file
+- [niri focus-follows-mouse EXECUTED 2026-11-15](niri-focus-follows-mouse-2026-11-15.md) — EXECUTED+fast green STAGED (pending gen-202 switch): bare flag in home/niri.nix input block; flag-node schema fact in file
+- [Silo trial nix-media EXECUTED 2026-11-15](silo-trial-nix-media-2026-11-15.md) — LIVE ~11-16; admin API (Bearer, If-Match); ✅ AI RECS LIVE 11-17 (bge-m3 locked); ✅ FAMILY SETUP 11-18 (libs 4/5 + Sandra/Kinder profiles + scoped Kinder row pos 1 + mnamer kinder verbs, staged); OPEN: Winnie Puuh GUI re-match, actor-bios diagnostic
+- [Media workflow harvest EXECUTED 2026-11-17](media-workflow-harvest-2026-11-17.md) — EXECUTED+staged (switch pending): aria+unrarall into hosts/nix-media/zsh-functions.zsh → readFile→programs.zsh.interactiveShellInit; orchestrator deltas (lane -d, password probe) in media-import-orchestrator record; user strips ~/.zshrc AFTER nix-media switch
+- [media-import orchestrator EXECUTED 2026-11-17](media-import-orchestrator-2026-11-17.md) — EXECUTED+fast green, STAGED (switch pending): one-command pipeline (download→extract→confirm import→prune→ntfy) over staging lane /mnt/storage/downloads/incoming; mnamer downloads retargeted to lane; no timer (user choice); zsh err_return tested-context lore
+- [nix-media media import workflow](nix-media-media-import-workflow.md) — manual pipeline into /mnt/storage: aria → unrarall → mnamer-tools; HARVEST+ORCHESTRATOR EXECUTED 11-17 (see media-import-orchestrator-2026-11-17); no-apiKeys lore in file
+- [nix-media mouse-mode flood plan 2026-11-17](nix-media-mouse-mode-flood-plan-2026-11-17.md) — PLAN (ExitPlanMode denied ×2, VALIDATED vs intermittency: fresh panes clean, ox-in-same-session = likely trigger): stuck SGR mouse mode 1003+1006 floods SSH zsh; precmd printf-reset guard designed; unstick one-liner + decode lore in file
+- [media-import orchestrator plan 2026-11-17](media-import-orchestrator-plan-2026-11-17.md) — SUPERSEDED (executed: media-import-orchestrator-2026-11-17; lane/probe design carried over as planned)
+- [Live mutation needs confirm](live-mutation-needs-confirm.md) — plan-approved edits ≠ live-API writes; ask before mutating running services (silo 11-17 pushback); read-only scans stay free
+
+- [Lockscreen round 4 EXECUTED 2026-11-15](noctalia-lockscreen-round4-weather-v550-2026-11-15.md) — EXECUTED+QC green STAGED (switch+strip pending): noctalia v5.5.0, zoom@800+dnd, clock 440×146, weather widget+service; v5.5.0 source-verified schema; parallel session did 11-15 drift harvest; strip script prepared
+- [Lockscreen round 4 plan 2026-11-15](noctalia-lockscreen-round4-plan-2026-11-15.md) — SUPERSEDED (executed: noctalia-lockscreen-round4-weather-v550-2026-11-15); notifications-on-lock IMPOSSIBLE upstream (dnd = the answer)
+- [Silo trial plan 2026-11-15](silo-trial-plan-2026-11-15.md) — PLAN ONLY (denied ×2), VERIFIED against raw upstream compose/Dockerfile: Silo omnibus container alongside jellyfin on nix-media; do NOT override image HEALTHCHECK (20m migration grace); QSV userspace bundled in image; port-freedom still needs live `ss` check
 - [Hyprland/lucid retirement EXECUTED 2026-11-14](hyprland-lucid-retirement-niri-promotion-2026-11-14.md) — EXECUTED+PUSHED 6 commits: niri promoted to .#yoga, font vendored, monitors option moved, lean batch; niri+noctalia configs byte-identical vs old attr; VM battery skipped by user
 - [niri greetd autologin EXECUTED 2026-11-14](niri-greetd-autologin-2026-11-14.md) — EXECUTED+QC green, landed in retirement commit 1: greeter.autoLogin + noctalia-lock-at-boot; manual initial_session lore in file
 - [Update sweep 2026-11-12](update-sweep-2026-11-12.md) — EXECUTED+pushed: nixpkgs ac588ef, zcode 3.17.2; opencode v2.2.6+2.2.7 BOTH gate-broken → holds v2.2.4
@@ -11,7 +29,7 @@
 - [Branch promotion plan 2026-11-07](branch-promotion-plan-2026-11-07.md) — SUPERSEDED (executed 11-11); vps-separate + plan-mode sandbox lore in file
 - [Win11 VM double cursor plan 2026-11-11](win11-vm-double-cursor-plan-2026-11-11.md) — PLAN ONLY (denied): viogpudo client-mouse hide bug; fix = libvirt `<mouse mode='server'/>`; user does Windows steps
 - [VM USB SSD slow plan 2026-11-11](vm-usb-ssd-slow-plan-2026-11-11.md) — PLAN ONLY (denied): USB3 SSD <5MB/s into VM; TLP USB_AUTOSUSPEND suspect; A/B plan in file
-- [Noctalia theme = M3 from wallpaper 2026-11-15](noctalia-theme-m3-content-wallpaper-2026-11-15.md) — THEME STATE: palette = M3-content from CURRENT wallpaper (dynamic), fallback community palette "Tomorrow"; Everforest DEAD (plan deleted); declarative still Rose Pine Alt + faithful (state wins)
+- [Noctalia theme = M3 from wallpaper 2026-11-15](noctalia-theme-m3-content-wallpaper-2026-11-15.md) — HARVEST EXECUTED (7ffd2ac pushed): palette = M3-content from CURRENT wallpaper, fallback "Tomorrow"; state strip DONE (settings.toml 59 bytes); "fixed dark" claim superseded by 11-17 auto restore; ⚠️ deleting settings.toml while noctalia runs = file-watch live-reload to deployed baseline (observed)
 
 - ["Reboot reverted my changes" forensics 2026-11-09](staged-revert-forensics-2026-11-09.md) — NO reboot; reversion = Nov 8 noctalia state-strip after gen 202; ONE rebuild switch restores all
 - [Noctalia export + energy EXECUTED 2026-11-08](noctalia-config-export-energy-2026-11-08.md) — EXECUTED: state harvested into nix + stripped (backup kept), energy kbd60/lock300/screen330/suspend1500→5400-AC; lore in file
@@ -114,7 +132,7 @@
 - [Audit fixes 2026-10-04](audit-fixes-2026-10-04.md) — P1/P2 fixes QC green; P3 backlog in file
 - [MCP scoping remediation 2026-10-04](mcp-scoping-remediation-2026-10-04.md) — dup nix MCP killed, mikrotik scoped, windows-mcp → repo
 - [Brave Origin + Firefox default EXECUTED 2026-10-04](browser-default-brave-origin-2026-10-04.md) — origin.json policies + firefox mimeApps pin
-- [Obsidian + litellm integration 2026-10-04](obsidian-litellm-integration-2026-10-04.md) — gateway VERIFIED; open: Copilot pick
+- [Obsidian + litellm integration 2026-10-04](obsidian-litellm-integration-2026-10-04.md) — gateway VERIFIED 10-04, 4 models incl. glm-5.3-flash-coding (z.ai coding endpoint — coding keys 401 on general endpoint; bracket IDs break litellm); 11-15 verify+use battery PLANNED (ExitPlanMode denied), Copilot pick open
 - [nix-media SSH via Tailscale](nix-media-tailscale-ssh-access.md) — `ssh nix-media` = Tailscale SSH; foreground ssh stalls SILENTLY — background it
 - [Audit fixes 2026-10-03](audit-fixes-2026-10-03.md) — virbr0 scoped DHCP/DNS + VM test, ADB group+udev, sudo per-tty
 - [windows11-2 VM creation 2026-10-02](windows11-2-vm-creation-2026-10-02.md) — 26H2 VM swapped into windows11 identity; OPEN: SSH/mcp bootstrap
