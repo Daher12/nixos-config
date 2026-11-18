@@ -175,6 +175,12 @@ in
           ".oxrc"
           ".config/user-dirs.locale"
           ".config/monitors.xml"
+          # GTK recent-files (nautilus + every GTK app writes it): the last
+          # impermanence gap — recents reset on every boot without this
+          # (audit 2026-11-18; caught misfiled under directories by the
+          # verification pass — a file path there gets a directory
+          # bind-mounted over it).
+          ".local/share/recently-used.xbel"
         ];
       };
     };
@@ -190,7 +196,14 @@ in
         type = "Application";
         name = "ZCode";
         genericName = "ZCode Desktop App";
-        exec = "zcode --no-sandbox %U";
+        # Single owner of this entry (shared by both yoga attrs): home/
+        # niri.nix used to mkForce the exec on niri attrs, silently killing
+        # any edit here (audit 2026-11-18). niri attrs route through the
+        # un-maximize wrapper (zcode-unmax only exists where desktop.niri is
+        # on); GNOME keeps the plain exec. %u — the only type is the
+        # x-scheme-handler URL, spec form is lowercase.
+        exec =
+          if config.desktop.niri.enable then "zcode-unmax --no-sandbox %u" else "zcode --no-sandbox %u";
         terminal = false;
         icon = "zcode";
         settings.StartupWMClass = "ZCode";
@@ -288,14 +301,28 @@ in
       brave.extraCommandLineArgs = [ "--enable-features=VaapiVideoDecodeLinuxGL" ];
     };
 
-    # Panel definition for EVERY session attr: battery-refresh reads it on
-    # .#yoga and .#yoga-gnome alike, and home/niri.nix derives its output
-    # block from it. Option lives in home/battery-refresh.nix.
+    # Monitor definitions for EVERY session attr: battery-refresh reads the
+    # panel (head) on .#yoga and .#yoga-gnome alike, and home/niri.nix
+    # renders one output block per entry. Option lives in
+    # home/battery-refresh.nix. List ORDER matters: the head is the panel,
+    # later entries are external outputs. Positions are LOGICAL pixels —
+    # scale 2 halves them (panel: 3072x1920@2 = 1536x960 at 0,0).
     desktop.monitors = [
       {
         output = "eDP-1";
         mode = "3072x1920@120";
         position = "0x0";
+        scale = "2";
+      }
+      {
+        # Beihai M27-4K-144-C above the panel, centered (connector name
+        # from niri msg outputs — a cable swap to another port renames
+        # it). Panel midpoint x=768 minus the monitor's half width
+        # 1920/2 = -192; y=-1080 sits its 2160@2 = 1080 logical rows
+        # directly above.
+        output = "DP-2";
+        mode = "3840x2160@144";
+        position = "-192x-1080";
         scale = "2";
       }
     ];
@@ -304,7 +331,8 @@ in
     # a native 60 Hz timing for this mode). Enforces actual-vs-desired every
     # poll, so AC transitions AND compositor-side resets (hibernate resume,
     # reload) self-heal; never while the lid is closed or (GNOME) a monitor
-    # is docked.
+    # is docked. VRR (enabled on the panel in home/niri.nix) adapts within
+    # the selected mode on top.
     desktop.battery-refresh.enable = true;
 
     home.packages = [

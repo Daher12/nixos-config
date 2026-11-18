@@ -190,11 +190,12 @@ let
   };
 in
 {
-  # Session-independent panel definition, shared by every session attr
-  # (hosts/yoga/home.nix): home/niri.nix derives its KDL output block from
-  # it, battery-refresh derives its AC/battery modes from it. The former
-  # owner (desktop.hyprland.monitors) died with the Hyprland stack — the
-  # option lives here, next to the assertion that enforces its contract.
+  # Session-independent monitor definitions, shared by every session attr
+  # (hosts/yoga/home.nix): home/niri.nix renders one KDL output block per
+  # entry (head = panel), battery-refresh derives its AC/battery modes from
+  # the panel entry. The former owner (desktop.hyprland.monitors) died with
+  # the Hyprland stack — the option lives here, next to the assertion that
+  # enforces its contract.
   options.desktop.monitors = lib.mkOption {
     type = lib.types.listOf (
       lib.types.submodule {
@@ -211,7 +212,7 @@ in
           position = lib.mkOption {
             type = lib.types.str;
             default = "auto";
-            description = "Position, e.g. auto / 0x0 (GNOME backend only)";
+            description = "Position in logical pixels, e.g. auto / 0x0 / -192x-1080 (niri emits it into the output block, home/niri.nix; the GNOME battery-refresh backend places the panel with it)";
           };
           scale = lib.mkOption {
             type = lib.types.str;
