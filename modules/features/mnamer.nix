@@ -47,44 +47,74 @@ let
 
   json = pkgs.formats.json { };
 
-  # One generator, two configs: the only difference between the main and
-  # the kinder config is the destination pair. The kinder config feeds the
-  # kids libraries — media-import sorts kids releases into the
-  # `<downloads>/kinder` sub-lane before importing (kids-ness is a human
-  # call, the tooling just honors it).
+  # One generator, two configs. Per-lane differences: the destination pair,
+  # the episode metadata provider (kids lane = TVDb, which honors
+  # language=de — TvMaze, the main lane's provider, sends no language and
+  # is not localized), and a lane-specific ignore entry: the MAIN config
+  # excludes the kinder subtree (mnamer matches ignore regexes against the
+  # full absolute path), so a main-lane import can never pull kids titles
+  # into movies/shows even when the kinder import is declined or only
+  # partially matched. The kinder config must not carry the exclusion.
   mkSettings =
-    movieDirectory: episodeDirectory:
-    json.generate "mnamer.json" {
-      inherit
-        batch
-        recurse
-        lower
-        scene
-        verbose
-        language
-        mask
-        ;
+    {
+      movieDirectory,
+      episodeDirectory,
+      episodeApi,
+      laneIgnore,
+    }:
+    json.generate "mnamer.json" (
+      {
+        inherit
+          batch
+          recurse
+          lower
+          scene
+          verbose
+          language
+          mask
+          ;
 
-      # RHS `ignore` is the let-bound option value (attrset is not rec).
-      ignore = ignore ++ cfg.extraIgnore;
+        # RHS `ignore` is the let-bound option value (attrset is not rec).
+        ignore = ignore ++ cfg.extraIgnore ++ laneIgnore;
 
-      no_overwrite = cfg.noOverwrite;
-      no_guess = cfg.noGuess;
+        no_overwrite = cfg.noOverwrite;
+        no_guess = cfg.noGuess;
 
-      movie_directory = movieDirectory;
-      episode_directory = episodeDirectory;
+        episode_api = episodeApi;
 
-      movie_format = movie;
-      episode_format = episode;
+        movie_directory = movieDirectory;
+        episode_directory = episodeDirectory;
 
-      replace_before = replaceBefore;
-      replace_after = replaceAfter;
-    }
-    // extraSettings;
+        movie_format = movie;
+        episode_format = episode;
 
-  settingsFile = mkSettings movies shows;
+        replace_before = replaceBefore;
+        replace_after = replaceAfter;
+      }
+      # Merge INSIDE json.generate: onto the settings attrset, not onto the
+      # returned derivation. The old `generate … { … } // extraSettings`
+      # parsed as `(generate … { … }) // extraSettings` — it still coerced
+      # to the same store path, so it eval'd fine while extraSettings
+      # silently never reached the file content.
+      // extraSettings
+    );
 
-  kinderSettingsFile = mkSettings kinderMovies kinderShows;
+  settingsFile = mkSettings {
+    movieDirectory = movies;
+    episodeDirectory = shows;
+    inherit (cfg) episodeApi;
+    laneIgnore = [
+      # Kinder sub-lane exclusion for the main config (see mkSettings).
+      ".*/kinder/.*"
+    ];
+  };
+
+  kinderSettingsFile = mkSettings {
+    movieDirectory = kinderMovies;
+    episodeDirectory = kinderShows;
+    episodeApi = cfg.kinderEpisodeApi;
+    laneIgnore = [ ];
+  };
 
   commonArgs = [
     "--config-path"
@@ -157,6 +187,14 @@ let
                 printf '%s\n' "$downloads/kinder"
                 ;;
 
+              kinder-path)
+                printf '%s\n' ${lib.escapeShellArg kinderSettingsFile}
+                ;;
+
+              kinder-dump)
+                exec cat ${lib.escapeShellArg kinderSettingsFile}
+                ;;
+
               import-safe)
                 shift
                 run --no-guess "$downloads" "$@"
@@ -192,6 +230,13 @@ let
               *)
                 cat <<'EOF'
       Usage:
+        mnamer-tools <verb> [extra mnamer args...]
+
+        Import verbs are safe by default (no_guess=true in both generated
+        configs): files without a metadata hit are skipped in place, never
+        renamed from parsed filenames. The *-safe verbs remain as explicit
+        aliases.
+
         mnamer-tools import-test
         mnamer-tools movies-test
         mnamer-tools shows-test
@@ -207,6 +252,8 @@ let
         mnamer-tools source
         mnamer-tools path
         mnamer-tools dump
+        mnamer-tools kinder-path
+        mnamer-tools kinder-dump
       EOF
                 exit 1
                 ;;
@@ -260,10 +307,40 @@ in
       description = "Do not overwrite existing destination files.";
     };
 
+    # Safe by default (2026-11-21): mnamer's batch mode FALLS BACK to
+    # filename-parsed metadata when a lookup returns zero hits — with
+    # no_guess=false that moved unmatched files into the libraries under
+    # guessed names (the junk-folder incident). true skips them in place
+    # instead; media-import reports them as leftovers for hand-sorting.
     noGuess = lib.mkOption {
       type = lib.types.bool;
-      default = false;
-      description = "Default no-guess setting for the generated config.";
+      default = true;
+      description = "Skip files without metadata hits instead of renaming them from parsed filenames.";
+    };
+
+    # Episode providers: TvMaze (mnamer's default) sends no language
+    # parameter and is not localized — its catalog is English-primary, so
+    # German-named kids releases ("Feuerwehrmann.Sam…") find zero hits.
+    # TVDb honors language=de in search and mnamer ships a bundled key, so
+    # the kinder lane localizes for free. The main lane stays on TvMaze so
+    # future episodes keep matching the existing (English-named) series
+    # directories — flipping it would fork the on-disk library names.
+    episodeApi = lib.mkOption {
+      type = lib.types.enum [
+        "tvdb"
+        "tvmaze"
+      ];
+      default = "tvmaze";
+      description = "Episode metadata provider for the main lane (config key episode_api).";
+    };
+
+    kinderEpisodeApi = lib.mkOption {
+      type = lib.types.enum [
+        "tvdb"
+        "tvmaze"
+      ];
+      default = "tvdb";
+      description = "Episode metadata provider for the kinder lane — TVDb honors language=de; TvMaze cannot match German kids releases.";
     };
 
     language = lib.mkOption {
@@ -323,11 +400,16 @@ in
       type = lib.types.listOf lib.types.str;
       default = [
         ".*sample.*"
-        "^RARBG.*"
+        # mnamer re.searches these against the FULL absolute path
+        # (re.IGNORECASE). The former "^RARBG.*" could never match (paths
+        # start with "/"); segment-anchor instead of plain substring so
+        # scene releases merely SUFFIXED with -RARBG still import —
+        # only RARBG-prefixed junk (RARBG.txt & co) is skipped.
+        "(^|/)RARBG.*"
         ".*\\.part[0-9]+.*"
         ".*\\btrailer\\b.*"
       ];
-      description = "Regex patterns to ignore.";
+      description = "Regex patterns to ignore (matched against full paths).";
     };
 
     extraIgnore = lib.mkOption {

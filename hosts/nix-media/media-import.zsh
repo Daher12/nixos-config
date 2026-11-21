@@ -7,15 +7,19 @@
 #
 #   1. download — foreground aria2c on the lane's links.txt (falls back to
 #      the legacy top-level links.txt); --no-download skips.
-#   2. extract  — unrarall at the lane top, then in each first-level subdir
-#      that still holds .rar sets (folder-shaped releases).
+#   2. extract  — unrarall at the lane top, then in first- and second-level
+#      subdirs that still hold .rar sets (folder-shaped releases, e.g.
+#      kinder/<Release>/*.rar live one level deeper).
 #   3. import   — mnamer-tools import-test → confirm → import; the wrapper's
 #      source dir is retargeted to the lane (features.mnamer.paths.downloads).
 #      A $LANE/kinder sub-lane imports FIRST via mnamer-tools kinder-*
 #      (second config → Kinder-Filme/Kinder-Serien): sort kids releases
-#      into that subdir before confirming. A declined kinder import skips
-#      the normal import (no exclude in mnamer — kids titles would land in
-#      the main libraries).
+#      into that subdir before confirming. The main config ignores the
+#      kinder subtree (module-generated /kinder/ ignore), so a declined or
+#      partially-matched kinder import can't leak kids titles into the
+#      main libraries — the normal import always runs afterwards. Both
+#      configs are safe by default (no_guess): files without a metadata
+#      hit stay in place and are reported as leftovers.
 #      --test stops after the dry run; a declined confirm skips the import.
 #   4. prune    — confirm-gated: delete extracted *.rar/*.r00-style sets
 #      and now-empty dirs inside the lane. Archives whose extraction
@@ -46,7 +50,9 @@ DO_DOWNLOAD=1
 TEST_ONLY=0
 DID_IMPORT=0
 IMPORTED=0
+KINDER_IMPORTED=0
 LEFT=0
+KINDER_LEFT=0
 rc=0
 # Absolute paths of archives whose extraction FAILED (stage 2 ledger, fed
 # from unrarall's global UNRARALL_FAILED). unrarall swallows failures by
@@ -64,16 +70,32 @@ usage() {
 }
 
 confirm() {
+  # Line-based on purpose (2026-11-21 QC): read -q returns on the y
+  # KEYPRESS and leaves the user's Enter in the tty buffer — the next
+  # read -q then read that newline as "n" and silently auto-declined
+  # (empirically proven: confirm kinder → import confirm died). A full
+  # line read consumes its newline, so sequential confirms work; y+Enter
+  # is one keypress more, empty line = default No.
   local reply
-  read -q "reply?$1 [y/N] "
+  read -r "reply?$1 [y/N] "
   print -u2
-  [[ $reply = y ]]
+  [[ $reply == [yY] ]]
 }
 
 count_media() {
   # Same extension mask as features.mnamer's `mask` option.
   find "$1" -type f -regextype posix-extended \
     -regex '.*\.(mkv|mp4|m4v|avi|ts|wmv|srt|ass|ssa|sub|idx)$' 2>/dev/null | wc -l
+}
+
+count_lane_media() {
+  # Main-lane count EXCLUDING the kinder sub-lane: kinder files are
+  # tallied separately (and the main import ignores them), so the
+  # before/after delta must not double-count them.
+  find "$LANE" -path "$LANE/kinder" -prune -o \
+    -type f -regextype posix-extended \
+    -regex '.*\.(mkv|mp4|m4v|avi|ts|wmv|srt|ass|ssa|sub|idx)$' \
+    -print 2>/dev/null | wc -l
 }
 
 notify() {
@@ -147,9 +169,9 @@ stage_extract() {
     print -u2 "extraction FAILED at lane top: ${(F)UNRARALL_FAILED}"
     EXTRACT_FAILED+=( "${UNRARALL_FAILED[@]}" )
   fi
-  local -a subdirs rars_in
+  local -a subdirs rars_in subdirs2
   subdirs=( "$LANE"/*(/N) )
-  local sub
+  local sub sub2
   for sub in "${subdirs[@]}"; do
     rars_in=( "$sub"/*.rar(N) )
     if (( ${#rars_in} )); then
@@ -162,6 +184,24 @@ stage_extract() {
       fi
       cd "$LANE"
     fi
+    # Depth-2 (folder-shaped releases, e.g. kinder/<Release>/*.rar — the
+    # 2026-11-21 kids-import fix): same unrarall contract, drained into
+    # EXTRACT_FAILED right after each call (unrarall resets its ledger
+    # per call). Keeps extract scope == prune scope.
+    subdirs2=( "$sub"/*(/N) )
+    for sub2 in "${subdirs2[@]}"; do
+      rars_in=( "$sub2"/*.rar(N) )
+      if (( ${#rars_in} )); then
+        print "extracting in subdir: $sub2"
+        cd "$sub2"
+        unrarall || print "$sub2: no extractable root archives"
+        if (( ${#UNRARALL_FAILED} )); then
+          print -u2 "extraction FAILED in $sub2: ${(F)UNRARALL_FAILED}"
+          EXTRACT_FAILED+=( "${UNRARALL_FAILED[@]}" )
+        fi
+        cd "$LANE"
+      fi
+    done
   done
 }
 
@@ -175,50 +215,53 @@ stage_import() {
   # Kinder sub-lane first: releases moved into $LANE/kinder go to the kids
   # libraries (mnamer-tools kinder-*, second generated config). Kids-ness is
   # a human sort — the pipeline just honors whatever sits in that subdir.
-  # A declined kinder import skips the normal import too: the normal config
-  # has no exclude, so a recursive run would pull the kids titles into the
-  # main movies/shows libraries. Rerun after sorting or confirming.
+  # A declined or partially-matched kinder import no longer blocks the
+  # normal import: the main config ignores the kinder subtree (module
+  # fix 2026-11-21), so kids titles can't leak into movies/shows. The
+  # kinder tally is a before/after delta — mnamer skips unmatched files
+  # (no_guess) and still exits 0, so a flat count would over-report.
   local kinder_lane="$LANE/kinder"
-  local kinder_before kinder_imported=0
+  local kinder_before
   if [[ -d $kinder_lane ]]; then
     kinder_before=$(count_media "$kinder_lane")
     if (( kinder_before > 0 )); then
       print "kinder sub-lane: $kinder_before media files (→ Kinder-Filme/Kinder-Serien)"
       mnamer-tools kinder-import-test
       if (( TEST_ONLY )); then
-        print "--test: import skipped"
-        return 0
-      fi
-      if confirm "import the kinder titles"; then
+        # `print --`: the message starts with "--test", which print would
+        # otherwise parse as options ("bad option: -t").
+        print -- "--test: kinder import skipped"
+      elif confirm "import the kinder titles"; then
         if ! mnamer-tools kinder-import; then
           print -u2 "kinder import reported failures — prune stays locked this run"
           return 1
         fi
-        kinder_imported=$kinder_before
+        KINDER_IMPORTED=$(( kinder_before - $(count_media "$kinder_lane") ))
+        # A successful kinder import also unlocks prune (confirm-gated):
+        # its extracted rar sets sit in the sub-lane and are covered by
+        # the same failed-set ledger as the main lane.
+        DID_IMPORT=1
       else
-        print "kinder import declined — normal import skipped (kids files would land in movies/shows)"
-        LEFT=$(count_media "$LANE")
-        return 0
+        print "kinder import declined — sub-lane stays as is"
       fi
     fi
   fi
+  KINDER_LEFT=$(count_media "$kinder_lane")
 
   local before after imported
-  before=$(count_media "$LANE")
+  before=$(count_lane_media)
   if (( before == 0 )); then
-    if (( kinder_imported > 0 )); then
-      IMPORTED=$kinder_imported
-      LEFT=0
-      print "kinder imported: $kinder_imported — lane is now empty"
+    if (( KINDER_IMPORTED > 0 )); then
+      print "kinder imported: $KINDER_IMPORTED — main lane empty"
     else
       print "no media files in lane — nothing to import"
     fi
     return 0
   fi
-  print "media files in lane: $before"
+  print "media files in main lane: $before"
   mnamer-tools import-test
   if (( TEST_ONLY )); then
-    print "--test: import skipped"
+    print -- "--test: main import skipped (both previews above were dry runs)"
     return 0
   fi
   if ! confirm "proceed with import"; then
@@ -226,15 +269,18 @@ stage_import() {
     return 0
   fi
   if ! mnamer-tools import; then
-    print -u2 "import reported failures — prune stays locked this run"
+    # No prune-lock claim here: a successful kinder import earlier in this
+    # stage already unlocked prune (correctly — its media moved out), and
+    # prune only ever deletes archives whose extraction succeeded.
+    print -u2 "main import reported failures — unimported files stay in the lane"
     return 1
   fi
   DID_IMPORT=1
-  after=$(count_media "$LANE")
+  after=$(count_lane_media)
   imported=$(( before - after ))
-  IMPORTED=$(( kinder_imported + imported ))
+  IMPORTED=$imported
   LEFT=$after
-  print "imported: $imported — unmatched left in lane: $after"
+  print "main imported: $imported — unmatched left in main lane: $after"
 }
 
 stage_prune() {
@@ -264,13 +310,14 @@ stage_prune() {
     print -u2 "extraction FAILED for ${#EXTRACT_FAILED} archive(s) — these dirs are NOT pruned:"
     print -u2 ${(F)EXTRACT_FAILED}
   fi
-  # Prune scope == stage-2 extract scope: lane top + first-level subdirs.
-  # Deeper archives were never extracted by this pipeline, so they are
-  # never candidates — deleting them would destroy the only copy (the old
-  # recursive find did exactly that).
+  # Prune scope == stage-2 extract scope: lane top + first- AND second-level
+  # subdirs. Deeper archives were never extracted by this pipeline, so they
+  # are never candidates — deleting them would destroy the only copy (the
+  # old recursive find did exactly that).
   candidates=(
     "$LANE"/*.rar(N) "$LANE"/*.r[0-9][0-9](N)
     "$LANE"/*/*.rar(N) "$LANE"/*/*.r[0-9][0-9](N)
+    "$LANE"/*/*/*.rar(N) "$LANE"/*/*/*.r[0-9][0-9](N)
   )
   for c in "${candidates[@]}"; do
     # "-:" default matters: no_unset (script level) makes a missing key a
@@ -297,8 +344,12 @@ stage_prune() {
 
 stage_notify() {
   print "stage 5: notify"
+  # Kinder and main tallies reported separately: the two configs skip
+  # unmatched files independently, so a single lumped number hid where
+  # leftovers actually sit (the 2026-11-21 kids-import fix).
   local summary="media-import done on nix-media
-imported: $IMPORTED — unmatched left in lane: $LEFT"
+imported: kinder $KINDER_IMPORTED — main $IMPORTED
+unmatched left: main $LEFT — kinder $KINDER_LEFT"
   if (( ${#EXTRACT_FAILED} )); then
     summary+="
 extraction FAILED (kept in lane): ${#EXTRACT_FAILED} archive(s)"
