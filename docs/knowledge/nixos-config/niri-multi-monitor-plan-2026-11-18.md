@@ -1,15 +1,15 @@
 ---
 name: niri-multi-monitor-plan-2026-11-18
-description: EXECUTED 2026-11-19 (staged, switch pending) — niri monitor
-  keybinds + declarative DP-2 external above panel; plan text below predates
-  execution; desktop.monitors head-only trap lore
+description: PLAN ready (ExitPlanMode DENIED, NOTHING executed) — niri monitor
+  keybinds + declarative DP-2 external above panel; desktop.monitors head-only
+  trap lore
 metadata:
   node_type: memory
   type: project
   originSessionId: sess_810e57f3-980e-4fbf-b2a2-c85ea356b658
 ---
 
-User asked "how to manage multiple monitors in niri? no setting in Noctalia" 2026-11-18. Answer: Noctalia is just the shell; output management is niri's KDL config + `niri msg output` — no GUI exists. Full plan was finalized (user answered AskUserQuestion: keybinds + declarative external "above the laptop panel centered", connector DP-2), then ExitPlanMode DENIED. **UPDATE 2026-11-19: executed after all (staged, switch pending)** — `home/niri.nix` now renders one output block per `desktop.monitors` entry (mode/scale/position, panel-only `variable-refresh-rate on-demand=false`) and carries the `Mod+Shift+<arrow>` / `Mod+Shift+Ctrl+<arrow>` monitor binds; `hosts/yoga/home.nix` adds the DP-2 entry; `home/battery-refresh.nix` option docs updated. The plan text below is kept as written. Key values:
+User asked "how to manage multiple monitors in niri? no setting in Noctalia" 2026-11-18. Answer: Noctalia is just the shell; output management is niri's KDL config + `niri msg output` — no GUI exists. Full plan was finalized (user answered AskUserQuestion: keybinds + declarative external "above the laptop panel centered", connector DP-2), then ExitPlanMode DENIED — nothing executed. Plan is self-contained in chat, key values:
 
 - **Hardware**: panel eDP-1 3072×1920@scale2 → logical 1536×960 @ (0,0). External DP-2 (Beihai "M27-4K-144-C") 3840×2160@144. Chosen: scale 2 → logical 1920×1080 → position `x=-192 y=-1080` (centered above; midpoint 768). Alt scale 1.5 → `-512x-1440`.
 - **Keybinds to add** in home/niri.nix binds block (both combos verified collision-free): `Mod+Shift+<arrows>` = focus-monitor-*, `Mod+Shift+Ctrl+<arrows>` = move-column-to-monitor-*; commented move-window/move-workspace-to-monitor variants.

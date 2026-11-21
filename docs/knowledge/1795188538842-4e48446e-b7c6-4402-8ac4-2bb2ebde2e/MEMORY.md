@@ -1,0 +1,2 @@
+- [User language & family film prefs](user-language-and-family-film-prefs.md) — German speaker; seeks Disney movies FSK 0–6 (young kids)
+- [Family film checklist file](family-film-checklist-file.md) — disney-filmliste.md created 2026-11-20; user prefers markdown checklists with year + checkboxes

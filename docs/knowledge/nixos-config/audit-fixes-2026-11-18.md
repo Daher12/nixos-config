@@ -2,14 +2,14 @@
 name: audit-fixes-2026-11-18
 description: Audit round 2026-11-18 EXECUTED — 4 P1 fixes (image-refresh
   stranded-skip, prune data-loss guard, install.sh .git wedge, sops rekey still
-  user-run) + preload-ng removed + hygiene; fast green, COMMITTED 2026-11-19
+  user-run) + preload-ng removed + hygiene; fast green, UNCOMMITTED
 metadata:
   node_type: memory
   type: project
   originSessionId: sess_62d216a2-b12e-422e-99ab-51bc34928d0c
 ---
 
-Audit 2026-11-18 (main @ 1c5cb78; 52fb729 was stale — a parallel knowledge-sync commit landed mid-audit). 3 parallel Explore agents + hand-verified P1s. Verdict: fleet healthy, debt accretional. Executed per user-approved plan; committed 2026-11-19 (30 files). test-suite fast green; VM battery SKIPPED by user decision (changed code is unit-script content VMs never execute).
+Audit 2026-11-18 (main @ 1c5cb78; 52fb729 was stale — a parallel knowledge-sync commit landed mid-audit). 3 parallel Explore agents + hand-verified P1s. Verdict: fleet healthy, debt accretional. Executed per user-approved plan; ALL UNCOMMITTED in working tree (30 files). test-suite fast green; VM battery SKIPPED by user decision (changed code is unit-script content VMs never execute).
 
 **Why:** second full audit round; [[audit-fixes-2026-11-15]] left 9 P3 backlog items + new media-import stack introduced fresh P1s.
 
