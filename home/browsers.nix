@@ -108,7 +108,10 @@ in
         # gnome-keyring isn't reliably unlocked before Brave starts, which
         # blocks saved-logins autofill behind a keyring prompt. "basic"
         # keeps passwords inside the (persisted) Brave profile dir instead.
-        # Revisit only if keyring-before-browser ordering is ever solved.
+        # The keyring-before-browser ordering question was settled
+        # 2026-11-19 the other way (empty default-keyring password, see
+        # modules/features/desktop-niri.nix); Brave stays on basic —
+        # profile-local passwords are the wanted behavior regardless.
         #
         # --no-default-browser-check: Brave otherwise prompts (and sometimes
         # succeeds silently) at startup. Backed up by the Firefox mimeApps

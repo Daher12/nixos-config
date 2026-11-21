@@ -91,6 +91,28 @@ in
         # that target as a home-manager user service (home/noctalia.nix).
         programs.niri.enable = true;
 
+        # niri-session 26.04 imports the login environment with a bare
+        # `systemctl --user import-environment` — deprecated since systemd
+        # 260, printing a one-line warning to stderr. Under autologin,
+        # greetd runs niri-session on the bare VT1, so that warning IS the
+        # one-line TTY flash before niri's first frame (2026-11-19; greeter
+        # boots never showed it — the screen was already in graphics mode
+        # through the greeter handoff). Mirror the upstream-main fix until
+        # nixpkgs' niri carries it: dbus-update-activation-environment
+        # --systemd --all updates the DBus activation env AND the user
+        # manager (same net effect, no warning). The bare import stays only
+        # as the no-dbus-tools fallback — neutered to a no-op here, the
+        # tool ships in the system path on every NixOS. --replace-fail
+        # trips the build the moment the upstream script changes.
+        programs.niri.package = pkgs.niri.overrideAttrs (old: {
+          postPatch = (old.postPatch or "") + ''
+            substituteInPlace resources/niri-session \
+              --replace-fail "systemctl --user import-environment" ":" \
+              --replace-fail "dbus-update-activation-environment --all" \
+              "dbus-update-activation-environment --systemd --all"
+          '';
+        });
+
         # Battery widget / power info (not covered by the shell's HM module).
         services.upower.enable = true;
 
@@ -122,9 +144,23 @@ in
           pulseaudio
         ];
 
-        # gnome-keyring unlocks at the greeter login (PAM service of the
-        # greetd-backed greeter) and at Noctalia lock-screen unlocks (PAM
-        # service "login", hardcoded in the lock screen).
+        # gnome-keyring: PAM auto_start wires the daemon into both session
+        # stacks — the greeter login (greetd service) and Noctalia
+        # lock-screen unlocks (PAM "login", hardcoded in the lock screen).
+        # Two limits, learned 2026-11-19 (the FIRST autologin boot ever —
+        # not the nixpkgs bump it coincided with; every earlier boot went
+        # through the greeter, whose password silently unlocked everything,
+        # journal-proven): (1) greetd's initial_session carries no PAM
+        # authtok, so an autologin boot starts with everything locked;
+        # (2) pam_gnome_keyring only ever unlocks the LOGIN keyring anyway.
+        # Noctalia's network secret agent reads the DEFAULT collection
+        # (Default_keyring, the WiFi secrets) right at shell start, which
+        # then pops a GCR "Schlüsselbund entsperren" dialog ahead of the
+        # boot lock screen. Resolution: Default_keyring is deliberately
+        # password-less (user-run seahorse change, 2026-11-19) —
+        # gnome-keyring auto-unlocks empty-password collections when the
+        # Secret service starts, so the shell reads silently and the lock
+        # screen stays the only prompt. login.keyring keeps its password.
         security.pam.services.greetd.enableGnomeKeyring = true;
         security.pam.services.login.enableGnomeKeyring = true;
 

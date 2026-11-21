@@ -83,9 +83,16 @@ in
         "x-systemd.idle-timeout=600"
         "x-systemd.requires=tailscale-online.service"
         "x-systemd.after=tailscale-online.service"
+        # Fail fast when the server is unreachable: on 2026-11-19 a
+        # nixos-rebuild switch on nix-media left nfs-server stopped and the
+        # default 90s mount timeout plus 60s/retrans timeo turned every
+        # access (Nautilus bookmark, ls) into a multi-minute hang.
+        # timeo=150 (15s) x retrans=2 errors out after ~30s;
+        # mount-timeout caps the mount(8) itself at the same horizon.
+        "x-systemd.mount-timeout=30s"
         "nfsvers=4.2"
         "soft"
-        "timeo=600"
+        "timeo=150"
         "retrans=2"
         "_netdev"
       ];
