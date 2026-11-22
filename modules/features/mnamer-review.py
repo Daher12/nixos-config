@@ -1,0 +1,680 @@
+#!/usr/bin/env python3
+# mnamer-review — lane overview table + rename suggestions + picked execution.
+#
+# Complements the mnamer-tools verbs: parses mnamer's OWN --test output (so
+# the preview is by construction what a real import would do), splits it
+# into a MATCHED / UNMATCHED table per lane, researches rename suggestions
+# for the unmatched residue via direct TMDb/TvMaze/TVDb queries
+# (language=de, ae/ue/oe<->ä/ü/ö query variants — the known scene-name
+# failure class), and executes PICKED renames through mnamer's --id-*
+# directives. This script NEVER moves a file itself: every accepted pick
+# is applied by mnamer, which enforces all formatting, destination and
+# no-overwrite rules. Already-matched files are NOT imported here — they
+# belong to media-import / mnamer-tools import.
+#
+# Output-format coupling: the parser targets mnamer 2.6.0's test-mode
+# output (Processing "<file>" ... / moving to <dest> / skipping (...)).
+# Re-verify on nixpkgs mnamer bumps (lore 2026-11-22).
+
+import argparse
+import difflib
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.parse
+import urllib.request
+
+# mnamer 2.6.0's bundled public API keys (providers.py — they ship with
+# every mnamer install). Read-only search use only; NOT user secrets.
+# House rule: never place real user keys in repo files.
+TMDB_KEY = "db972a607f2760bb19ff8bb34074b4c7"
+TVDB_KEY = "E69C7A2CEF2F3152"
+
+# Extension mask, same as features.mnamer's `mask` option (keep in sync).
+MASK = {"mkv", "mp4", "m4v", "avi", "ts", "wmv", "srt", "ass", "ssa", "sub", "idx"}
+
+# Scene-tag tokens dropped from filenames before building search queries.
+_TAG = re.compile(
+    r"^(1080p|720p|2160p|4320p|480p|x264|x265|h264|h265|hevc|avc|xvid|"
+    r"bluray|bdrip|dvdrip|web|webrip|webdl|hdtv|microhd|remux|"
+    r"dts|ac3|ac3d|ddp|dd|aac|aac2|flac|truehd|atmos|dl|"
+    r"german|deutsch|engl|english|complete|pal|repack|proper|internal|"
+    r"extended|uncut|subbed|subs|dubbed|hq|ps3|untouched)$",
+    re.I,
+)
+_HASHY = re.compile(r"^[A-Za-z0-9_-]{6,}__")  # "KjMjr5A__" upload prefixes
+_YEAR = re.compile(r"(19\d{2}|20\d{2})")
+# Episode/season markers and short bare numbers pollute series queries
+# ("Feuerwehrmann Sam S01E01" finds nothing on TMDb-tv). 4-digit numbers
+# survive (years — and titles like "1917" keep their year fallback).
+_EP_MARK = re.compile(
+    r"^(s\d{1,3}(e\d{1,3})?|e\d{1,3}|\d{1,3}x\d{1,3}|"
+    r"staffel|season|folge|episode|ep|teil)$",
+    re.I,
+)
+_UMLAUTS = [("ä", "ae"), ("ö", "oe"), ("ü", "ue")]  # ß deliberately excluded
+
+
+def eprint(*a):
+    print(*a, file=sys.stderr)
+
+
+def http_json(url, params=None, headers=None, data=None, timeout=10):
+    if params:
+        url = url + "?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers=headers or {}, data=data)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8", "replace"))
+
+
+# ---------------------------------------------------------------- parsing
+
+
+def crawl_media(dirp):
+    """basename -> [absolute paths], the same mask mnamer crawls with."""
+    found = {}
+    for root, _dirs, files in os.walk(dirp):
+        for f in files:
+            if f.rsplit(".", 1)[-1].lower() in MASK:
+                found.setdefault(f, []).append(os.path.join(root, f))
+    return found
+
+
+def parse_mnamer_output(text):
+    """Parse `--test --batch --verbose --no-style` output into records.
+
+    Per-file sequence (mnamer 2.6.0 frontends.py): heading
+    `Processing <type> "<file>" (<size>)`, then (verbose) the absolute
+    source path, then the verdict: `moving to <dest>` |
+    `skipping (--no-guess|--no-overwrite|user request)` |
+    `no matches found` | `network error`.
+    """
+    records = []
+    cur = None
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        m = re.match(r'^Processing .*?"(.+)" \(', line)
+        if m:
+            cur = {
+                "basename": m.group(1),
+                "source": None,
+                "media": line.split('"')[0].replace("Processing", "").strip(),
+                "status": None,
+                "destination": None,
+                "reason": None,
+            }
+            records.append(cur)
+            continue
+        if cur is None:
+            continue
+        # verbose debug line: the absolute source path (exists on disk)
+        if cur["source"] is None and line.startswith("/") and os.path.exists(line):
+            cur["source"] = line
+            continue
+        m = re.match(r"^moving to (.+)$", line)
+        if m:
+            cur["status"], cur["destination"] = "matched", m.group(1)
+            continue
+        m = re.match(r"^skipping \((.+)\)$", line)
+        if m:
+            cur["reason"] = m.group(1)
+            if "no-guess" in m.group(1):
+                cur["status"] = "unmatched"
+            elif "no-overwrite" in m.group(1):
+                cur["status"] = "collision"
+            else:
+                cur["status"] = "skipped"
+            continue
+        if line in ("no matches found", "network error"):
+            cur["status"], cur["reason"] = "unmatched", line
+            continue
+    totals = re.search(r"(\d+) out of (\d+) files processed", text)
+    return records, (int(totals.group(2)) if totals else None)
+
+
+def fill_sources(records, lane_dir):
+    """Backfill sources for records where verbose printed no path."""
+    pool = crawl_media(lane_dir)
+    for rec in records:
+        if rec["source"] is None:
+            cands = pool.get(rec["basename"], [])
+            if cands:
+                rec["source"] = cands.pop(0)
+            else:
+                rec["source"] = os.path.join(lane_dir, rec["basename"])
+
+
+def run_mnamer_test(mnamer, config, target, verbose=True):
+    argv = [mnamer, "--config-path", config, "--test", "--batch"]
+    if verbose:
+        argv.append("--verbose")
+    argv += ["--no-style", target]
+    proc = subprocess.run(argv, capture_output=True, text=True, timeout=900)
+    if proc.returncode != 0 and not proc.stdout.strip():
+        eprint(f"  mnamer exited {proc.returncode}: {proc.stderr.strip()[:300]}")
+    return proc.stdout
+
+
+# ------------------------------------------------------------ suggestions
+
+
+def query_variants(name):
+    """Return (title, year, [query variants]) with scene normalization.
+
+    The year is stripped from the title (TMDb's search is literal —
+    "Dornröschen 1959" returns nothing while "Dornröschen" + year=1959
+    hits) and travels separately. Titles that ARE a year ("1917") fall
+    back to the unstripped name.
+    """
+    name = os.path.splitext(name)[0]
+    name = _HASHY.sub("", name)
+    # Scene names put the release year last (1917.2019, Blade.Runner.2049.…2017)
+    # — the trailing year-like token is the year, earlier ones are title.
+    years = _YEAR.findall(name)
+    year = years[-1] if years else None
+    tokens = [t for t in re.split(r"[.\s_\-\[\]()]+", name) if t]
+    # Scene group suffix: a final token right after a tag token
+    # ("…BluRay.x265-FuN" -> FuN) is the release group, not the title.
+    if len(tokens) >= 2 and _TAG.match(tokens[-2]) and not _TAG.match(tokens[-1]):
+        tokens = tokens[:-1]
+    # Episode markers and bare 1-3 digit numbers (season/part numbers).
+    ep_free = [t for t in tokens if not _EP_MARK.match(t)]
+    if ep_free:
+        tokens = ep_free
+    tokens = [t for t in tokens if not re.match(r"^\d{1,3}$", t)] or tokens
+    keep = [t for t in tokens if not _TAG.match(t)]
+    if year and year in keep:
+        keep = [t for t in keep if t != year] or keep  # "1917" keeps its title
+    title = " ".join(keep).strip() or name
+    variants = [title]
+    ascii_from_umlaut = title
+    for um, asc in _UMLAUTS:
+        ascii_from_umlaut = ascii_from_umlaut.replace(um, asc)
+    variants.append(ascii_from_umlaut)  # Dornröschen -> Dornroeschen
+    umlaut_from_ascii = ascii_from_umlaut
+    for um, asc in _UMLAUTS:
+        umlaut_from_ascii = umlaut_from_ascii.replace(asc, um)
+    variants.append(umlaut_from_ascii)  # Dornroeschen -> Dornröschen
+    for v in list(variants):
+        if " und " in v:
+            variants.append(v.replace(" und ", " and "))
+        if " and " in v:
+            variants.append(v.replace(" and ", " und "))
+    seen, out = set(), []
+    for v in variants:
+        v = v.strip()
+        if v and v.lower() not in seen:
+            seen.add(v.lower())
+            out.append(v)
+    return title, year, out[:4]  # cap: <=4 provider queries per file
+
+
+def score(query_title, query_year, cand):
+    r = difflib.SequenceMatcher(
+        None, query_title.lower(), (cand["title"] or "").lower()
+    ).ratio()
+    if query_year and cand["year"] and query_year == cand["year"]:
+        r = min(1.0, r + 0.15)
+    return r
+
+
+def _tmdb_tv(q):
+    """Series search via TMDb TV (language=de — German titles, alive).
+
+    TVDb's v3 /search/series is gone (404, probed 2026-11-22) and v4
+    rejects mnamer's bundled key — TMDb-tv is the only German series
+    search left. Candidates carry the TMDb tv id; the exec step resolves
+    it to the lane provider's id (resolve_series_ids)."""
+    r = http_json(
+        "https://api.themoviedb.org/3/search/tv",
+        params={"api_key": TMDB_KEY, "query": q, "language": "de"},
+    )
+    return [
+        {
+            "provider": "tmdb-tv",
+            "id": i["id"],
+            "title": i.get("name") or i.get("original_name"),
+            "year": (i.get("first_air_date") or "")[:4],
+        }
+        for i in r.get("results", [])[:5]
+    ]
+
+
+def resolve_series_ids(cand, episode_api):
+    """TMDb tv id -> (directive flag, provider id) for mnamer's --id-*.
+
+    TMDb external_ids yields the TVDb id; tvmaze lanes need one further
+    lookup (tvmaze's tvdb-keyed lookup). Raises on any missing link.
+    """
+    ext = http_json(
+        "https://api.themoviedb.org/3/tv/" + str(cand["id"]) + "/external_ids",
+        params={"api_key": TMDB_KEY},
+    )
+    tvdb_id = ext.get("tvdb_id")
+    if not tvdb_id:
+        raise RuntimeError(f"no tvdb id for tmdb tv {cand['id']}")
+    if episode_api == "tvdb":
+        return "--id-tvdb", tvdb_id
+    show = http_json(
+        "https://api.tvmaze.com/lookup/shows",
+        params={"thetvdb": tvdb_id},
+    )
+    if isinstance(show, list):
+        show = show[0] if show else None
+    if not show or not show.get("id"):
+        raise RuntimeError(f"tvmaze has no show for tvdb {tvdb_id}")
+    return "--id-tvmaze", show["id"]
+
+
+def _tmdb(q, year):
+    params = {"api_key": TMDB_KEY, "query": q, "language": "de"}
+    if year:
+        params["year"] = year
+    r = http_json("https://api.themoviedb.org/3/search/movie", params=params)
+    return [
+        {
+            "provider": "tmdb",
+            "id": i["id"],
+            "title": i.get("title") or i.get("original_title"),
+            "year": (i.get("release_date") or "")[:4],
+        }
+        for i in r.get("results", [])[:5]
+    ]
+
+
+def search_candidates(query, kind, episode_api):
+    """Candidate dicts best-effort; ([...], provider_failed)."""
+    out, failed = [], False
+    for q in query[2]:
+        try:
+            if kind == "movie":
+                # Year-filtered first; a year-less retry tier follows when
+                # the filename's year filtered everything away.
+                out += _tmdb(q, query[1])
+            else:  # series — TMDb-tv, German + alive (see _tmdb_tv)
+                out += _tmdb_tv(q)
+        except Exception:
+            failed = True
+    if kind == "movie" and query[1] and not out:
+        for q in query[2]:
+            try:
+                out += _tmdb(q, None)
+            except Exception:
+                failed = True
+    if kind == "movie" and not out and query[2]:
+        # Heavy pollution fallback: progressively shorter prefixes (the
+        # year param keeps precision) — "Ponyo Das große …" style titles
+        # survive even when tag-stripping can't clean the query.
+        words = query[2][0].split()
+        for n in (2, 1):
+            if len(words) > n:
+                try:
+                    out += _tmdb(" ".join(words[:n]), query[1])
+                except Exception:
+                    failed = True
+                if out:
+                    break
+    best = {}
+    for c in out:
+        c["score"] = score(query[0], query[1], c)
+        key = (c["provider"], c["id"])
+        if key not in best or c["score"] > best[key]["score"]:
+            best[key] = c
+    top = sorted(best.values(), key=lambda c: -c["score"])[:3]
+    return top, failed
+
+
+def fmt_cand(i, c):
+    return (
+        f"    {i}) {c['title']} ({c['year'] or '?'})  "
+        f"[{c['provider']} {c['id']}]  {c['score']:.0%}"
+    )
+
+
+# ------------------------------------------------------------------ lanes
+
+
+def rel(base, path):
+    try:
+        return os.path.relpath(path, base)
+    except ValueError:
+        return path
+
+
+def count_mask(dirp):
+    """Media-mask file count (same mask mnamer crawls with)."""
+    n = 0
+    for _root, _dirs, files in os.walk(dirp):
+        n += sum(1 for f in files if f.rsplit(".", 1)[-1].lower() in MASK)
+    return n
+
+
+# ------------------------------------------------------- import overview
+
+
+def import_flow(lane, mnamer, guess):
+    """Overview table + proceed question + ONE real mnamer run.
+
+    No-guess mode: safe-config table (CONFIRMED / skipped), y imports the
+    confirmed files. --guess: adds a GUESSED section (moves that happen
+    only under the guess config — set-difference by basename), and the
+    prompt accepts y = confirmed + guessed (exactly what the table shows,
+    executed with the guess config) or c = confirmed only (safe config —
+    guesses can't move under no_guess). no-overwrite guards collisions in
+    every case.
+    """
+    d = lane["dir"]
+    print(f"\n== {lane['name']} lane: {d}")
+    if not os.path.isdir(d):
+        print("   (directory does not exist — nothing to import)")
+        return 0
+    before = count_mask(d)
+    if before == 0:
+        print("   no media files in lane")
+        return 0
+    safe_recs, _ = parse_mnamer_output(run_mnamer_test(mnamer, lane["config"], d))
+    fill_sources(safe_recs, d)
+    confirmed = [r for r in safe_recs if r["status"] == "matched"]
+    collision = [r for r in safe_recs if r["status"] == "collision"]
+    unmatched = [r for r in safe_recs if r["status"] == "unmatched"]
+    skipped = [r for r in safe_recs if r["status"] == "skipped"]
+
+    guessed = []
+    if guess:
+        grecs, _ = parse_mnamer_output(
+            run_mnamer_test(mnamer, lane["guess_config"], d)
+        )
+        fill_sources(grecs, d)
+        safe_matched = {r["basename"] for r in confirmed}
+        for r in grecs:
+            if r["status"] == "matched" and r["basename"] not in safe_matched:
+                guessed.append(r)
+
+    def row(r):
+        head = f"     {rel(d, r['source'])}"
+        if r["destination"]:
+            head += f"\n       -> {r['destination']}"
+        return head
+
+    print(f"   lane holds {before} media file(s)")
+    if confirmed:
+        print(f"   CONFIRMED ({len(confirmed)} — provider match):")
+        for r in confirmed:
+            print(row(r))
+    if guessed:
+        print(
+            f"   GUESSED ({len(guessed)} — filename fallback, no provider"
+            " confirmation):"
+        )
+        for r in guessed:
+            print(row(r))
+    if collision:
+        print(
+            f"   COLLISION ({len(collision)} — destination exists,"
+            " no-overwrite keeps the existing copy):"
+        )
+        for r in collision:
+            print(f"     {rel(d, r['source'])} -> {r['destination']}")
+    if unmatched or skipped:
+        print(
+            f"   SKIPPED ({len(unmatched) + len(skipped)} — stay in the lane):"
+        )
+        for r in unmatched + skipped:
+            print(f"     {rel(d, r['source'])}  ({r['reason'] or 'no hit'})")
+    if not (confirmed or guessed):
+        print("   nothing would move — nothing to proceed on")
+        return 0
+
+    n_c, n_g = len(confirmed), len(guessed)
+    if guess and n_g:
+        prompt = (
+            f"   import {n_c} confirmed + {n_g} guessed files?"
+            " [y = all shown / c = confirmed only / N = abort] "
+        )
+    else:
+        prompt = f"   import {n_c} confirmed files? [y/N] "
+    try:
+        ans = input(prompt).strip().lower()
+    except EOFError:
+        ans = ""
+    if ans == "c" and guess and n_g:
+        cfg, label = lane["config"], "confirmed only"
+    elif ans == "y":
+        if guess and n_g:
+            cfg, label = lane["guess_config"], "confirmed + guessed"
+        else:
+            cfg, label = lane["config"], "confirmed"
+    else:
+        print("declined — nothing was changed")
+        return 0
+
+    proc = subprocess.run(
+        [mnamer, "--config-path", cfg, "--no-style", d],
+        capture_output=True,
+        text=True,
+        timeout=1800,
+    )
+    if proc.returncode != 0:
+        eprint(f"   mnamer exited {proc.returncode}: {proc.stderr.strip()[:300]}")
+    after = count_mask(d)
+    print(f"   imported ({label}): {before - after} — left in lane: {after}")
+    if after:
+        print("   leftovers: review them with the review verb")
+    return 0 if proc.returncode == 0 else 1
+
+
+def review_lane(lane, mnamer, do_suggest):
+    d = lane["dir"]
+    print(f"\n== {lane['name']} lane: {d}")
+    if not os.path.isdir(d):
+        print("   (directory does not exist — nothing to review)")
+        return []
+    records, total = parse_mnamer_output(run_mnamer_test(mnamer, lane["config"], d))
+    fill_sources(records, d)
+    if total is not None and total != len(records):
+        eprint(
+            f"   note: mnamer reported {total} files, parser saw {len(records)}"
+            " (format drift? see header comment)"
+        )
+    matched = [r for r in records if r["status"] == "matched"]
+    unmatched = [r for r in records if r["status"] == "unmatched"]
+    collision = [r for r in records if r["status"] == "collision"]
+    skipped = [r for r in records if r["status"] == "skipped"]
+
+    if matched:
+        print(f"   MATCHED ({len(matched)} — a real import would move these):")
+        for r in matched:
+            print(f"     {rel(d, r['source'])}\n       -> {r['destination']}")
+    if collision:
+        print(f"   COLLISION ({len(collision)} — destination exists, no-overwrite):")
+        for r in collision:
+            print(f"     {rel(d, r['source'])} -> {r['destination']}")
+    if skipped:
+        print(f"   SKIPPED ({len(skipped)}):")
+        for r in skipped:
+            print(f"     {rel(d, r['source'])}  ({r['reason']})")
+    if unmatched:
+        print(f"   UNMATCHED ({len(unmatched)} — stay in the lane):")
+        for r in unmatched:
+            print(f"     {rel(d, r['source'])}  ({r['reason'] or 'no hit'})")
+    if not records:
+        print("   no media files found")
+    if not (do_suggest and unmatched):
+        return []
+
+    # Guess previews for exactly the unmatched basenames (guess config =
+    # no_guess=false; test-only here — there is no moving guess variant).
+    guess_dest = {}
+    try:
+        grecs, _ = parse_mnamer_output(
+            run_mnamer_test(mnamer, lane["guess_config"], d, verbose=False)
+        )
+        for g in grecs:
+            if g["destination"]:
+                guess_dest[g["basename"]] = g["destination"]
+    except Exception as exc:
+        eprint(f"   guess preview failed: {exc}")
+
+    picks = []
+    provider_note = False
+    for r in unmatched:
+        kind = "movie" if "movie" in (r["media"] or "").lower() else "series"
+        q = query_variants(r["basename"])
+        cands, failed = search_candidates(q, kind, lane["episode_api"])
+        provider_note = provider_note or failed
+        print(f"\n   UNMATCHED: {rel(d, r['source'])}")
+        if cands:
+            for i, c in enumerate(cands, 1):
+                print(fmt_cand(i, c))
+        else:
+            print("    (no research hits)")
+        if r["basename"] in guess_dest:
+            print(f"    g) guess: {guess_dest[r['basename']]}  [unverified]")
+        try:
+            ans = input("   pick [1-3/g/s]: ").strip().lower()
+        except EOFError:
+            print("   (input ended — remaining files skipped)")
+            break
+        if ans == "g" and r["basename"] in guess_dest:
+            picks.append({"rec": r, "guess": True, "label": "filename guess"})
+        elif ans in {"1", "2", "3"} and cands and int(ans) <= len(cands):
+            c = cands[int(ans) - 1]
+            picks.append(
+                {
+                    "rec": r,
+                    "guess": False,
+                    "cand": c,
+                    "label": f"{c['title']} ({c['year'] or '?'}) [{c['provider']}]",
+                }
+            )
+        else:
+            print("    skipped")
+    if provider_note:
+        eprint(
+            "   note: a provider search failed (network?) —"
+            " candidates may be incomplete"
+        )
+    return picks
+
+
+def execute_picks(lane, mnamer, picks):
+    if not picks:
+        return 0
+    print(f"\n== {lane['name']}: {len(picks)} rename(s) planned")
+    for p in picks:
+        print(f"   {rel(lane['dir'], p['rec']['source'])}  <-  {p['label']}")
+    try:
+        ans = input("execute these renames via mnamer? [y/N] ").strip().lower()
+    except EOFError:
+        ans = ""
+    if ans != "y":
+        print("declined — nothing was changed")
+        return 1
+    ok = 0
+    for p in picks:
+        if p["guess"]:
+            argv = [
+                mnamer,
+                "--config-path",
+                lane["guess_config"],
+                "--no-style",
+                "--",
+                p["rec"]["source"],
+            ]
+        else:
+            c = p["cand"]
+            if c["provider"] == "tmdb":
+                flag, prov_id = "--id-tmdb", c["id"]
+            else:  # tmdb-tv series pick — resolve to the lane's provider
+                try:
+                    flag, prov_id = resolve_series_ids(c, lane["episode_api"])
+                except Exception as exc:
+                    print(f"   [FAILED id-resolve] {p['rec']['basename']}: {exc}")
+                    continue
+            argv = [
+                mnamer,
+                "--config-path",
+                lane["config"],
+                "--no-style",
+                flag,
+                str(prov_id),
+                "--",
+                p["rec"]["source"],
+            ]
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=900)
+        status = "ok" if proc.returncode == 0 else f"FAILED rc={proc.returncode}"
+        ok += proc.returncode == 0
+        print(f"   [{status}] {p['rec']['basename']} <- {p['label']}")
+    print(
+        f"done: {ok}/{len(picks)} applied — leftovers stay in the lane;"
+        " re-run media-import (or import-test) for the rest"
+    )
+    return 0 if ok == len(picks) else 1
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        prog="mnamer-tools review",
+        description="Overview table (matched/unmatched) per lane, researched"
+        " rename suggestions for unmatched files, picked renames executed"
+        " through mnamer --id-* directives (never moves files itself).",
+    )
+    ap.add_argument("--mnamer", required=True, help="mnamer executable path")
+    ap.add_argument(
+        "--mode",
+        choices=("review", "import"),
+        default="review",
+        help="review = unmatched-residue fixer (suggestions + picks);"
+        " import = overview table + proceed question + bulk import",
+    )
+    ap.add_argument(
+        "--guess",
+        action="store_true",
+        help="import mode only: preview/import filename-guess moves too"
+        " (confirm accepts y = all shown, c = confirmed only)",
+    )
+    ap.add_argument(
+        "--lane",
+        action="append",
+        default=[],
+        metavar="NAME:DIR:CONFIG:EPISODE_API:GUESS_CONFIG",
+        help="lane to review (repeatable)",
+    )
+    ap.add_argument(
+        "--no-suggest",
+        action="store_true",
+        help="table only — no provider searches, no prompts",
+    )
+    args = ap.parse_args()
+
+    lanes = []
+    for raw in args.lane:
+        parts = raw.split(":", 4)
+        if len(parts) != 5 or not all(parts):
+            eprint(f"bad --lane (need NAME:DIR:CONFIG:EPISODE_API:GUESS_CONFIG): {raw}")
+            return 2
+        names = ("name", "dir", "config", "episode_api", "guess_config")
+        lanes.append(dict(zip(names, parts)))
+
+    rc = 0
+    try:
+        for lane in lanes:
+            if args.mode == "import":
+                rc |= import_flow(lane, args.mnamer, args.guess)
+            else:
+                if args.guess:
+                    ap.error("--guess is only valid with --mode import")
+                picks = review_lane(lane, args.mnamer, not args.no_suggest)
+                rc |= execute_picks(lane, args.mnamer, picks)
+    except KeyboardInterrupt:
+        print("\ninterrupted — nothing else was changed")
+        return 130
+    if args.mode == "review" and args.no_suggest:
+        print("\n(--no-suggest: table only)")
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main())

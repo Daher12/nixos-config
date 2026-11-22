@@ -5,6 +5,10 @@ documentation/
 result
 result-*
 
+# Python bytecode
+__pycache__/
+*.pyc
+
 # Home Manager backups
 *.backup
 

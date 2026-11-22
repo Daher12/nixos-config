@@ -61,6 +61,7 @@ let
       episodeDirectory,
       episodeApi,
       laneIgnore,
+      noGuess ? cfg.noGuess,
     }:
     json.generate "mnamer.json" (
       {
@@ -78,7 +79,7 @@ let
         ignore = ignore ++ cfg.extraIgnore ++ laneIgnore;
 
         no_overwrite = cfg.noOverwrite;
-        no_guess = cfg.noGuess;
+        no_guess = noGuess;
 
         episode_api = episodeApi;
 
@@ -116,6 +117,35 @@ let
     laneIgnore = [ ];
   };
 
+  # Guess-preview configs: identical to the lane configs except
+  # no_guess=false, so mnamer's batch fallback (filename-parsed metadata
+  # when a lookup returns zero hits) is active. The wrapper exposes these
+  # ONLY behind --test verbs — guessing moves are what created the junk
+  # library entries, so they stay preview-only: see what the guess would
+  # name a file, never let it move one.
+  guessSettingsFile = mkSettings {
+    movieDirectory = movies;
+    episodeDirectory = shows;
+    inherit (cfg) episodeApi;
+    laneIgnore = [
+      ".*/kinder/.*"
+    ];
+    noGuess = false;
+  };
+
+  kinderGuessSettingsFile = mkSettings {
+    movieDirectory = kinderMovies;
+    episodeDirectory = kinderShows;
+    episodeApi = cfg.kinderEpisodeApi;
+    laneIgnore = [ ];
+    noGuess = false;
+  };
+
+  # Review tool: readFile keeps the Python free of Nix-escaping (same
+  # pattern as hosts/nix-media's zsh files). Parsed contract targets
+  # mnamer 2.6.0 — see the script's header comment.
+  reviewScript = pkgs.writeText "mnamer-review.py" (builtins.readFile ./mnamer-review.py);
+
   commonArgs = [
     "--config-path"
     settingsFile
@@ -128,11 +158,24 @@ let
   ]
   ++ extraCliArgs;
 
+  guessArgs = [
+    "--config-path"
+    guessSettingsFile
+  ]
+  ++ extraCliArgs;
+
+  kinderGuessArgs = [
+    "--config-path"
+    kinderGuessSettingsFile
+  ]
+  ++ extraCliArgs;
+
   mnamerTools = pkgs.writeShellApplication {
     name = "mnamer-tools";
     runtimeInputs = [
       resolvedPackage
       pkgs.coreutils
+      pkgs.python3
     ];
     text = ''
             set -euo pipefail
@@ -147,20 +190,55 @@ let
               exec ${lib.getExe resolvedPackage} ${lib.escapeShellArgs kinderArgs} "$@"
             }
 
+            # Preview-only (always --test): guess configs, see mkSettings.
+            runGuess() {
+              exec ${lib.getExe resolvedPackage} ${lib.escapeShellArgs guessArgs} "$@"
+            }
+
+            runKinderGuess() {
+              exec ${lib.getExe resolvedPackage} ${lib.escapeShellArgs kinderGuessArgs} "$@"
+            }
+
             case "''${1-}" in
               import-test)
                 shift
                 run --test "$downloads" "$@"
                 ;;
 
+              import-overview)
+                shift
+                exec python3 ${reviewScript} --mode import \
+                  --mnamer ${lib.getExe resolvedPackage} \
+                  --lane "main:${downloads}:${settingsFile}:${cfg.episodeApi}:${guessSettingsFile}" \
+                  "$@"
+                ;;
+
+              kinder-import-overview)
+                shift
+                exec python3 ${reviewScript} --mode import \
+                  --mnamer ${lib.getExe resolvedPackage} \
+                  --lane "kinder:${downloads}/kinder:${kinderSettingsFile}:${cfg.kinderEpisodeApi}:${kinderGuessSettingsFile}" \
+                  "$@"
+                ;;
+
+              import-guess-test)
+                shift
+                runGuess --test "$downloads" "$@"
+                ;;
+
+              kinder-import-guess-test)
+                shift
+                runKinderGuess --test "$downloads/kinder" "$@"
+                ;;
+
               movies-test)
                 shift
-                run --test --no-guess --media movie "$downloads" "$@"
+                run --test --media movie "$downloads" "$@"
                 ;;
 
               shows-test)
                 shift
-                run --test --no-guess --media episode "$downloads" "$@"
+                run --test --media episode "$downloads" "$@"
                 ;;
 
               import)
@@ -178,11 +256,6 @@ let
                 runKinder "$downloads/kinder" "$@"
                 ;;
 
-              kinder-import-safe)
-                shift
-                runKinder --no-guess "$downloads/kinder" "$@"
-                ;;
-
               kinder-source)
                 printf '%s\n' "$downloads/kinder"
                 ;;
@@ -195,19 +268,13 @@ let
                 exec cat ${lib.escapeShellArg kinderSettingsFile}
                 ;;
 
-              import-safe)
+              review)
                 shift
-                run --no-guess "$downloads" "$@"
-                ;;
-
-              movies-safe)
-                shift
-                run --no-guess --media movie "$downloads" "$@"
-                ;;
-
-              shows-safe)
-                shift
-                run --no-guess --media episode "$downloads" "$@"
+                exec python3 ${reviewScript} \
+                  --mnamer ${lib.getExe resolvedPackage} \
+                  --lane "main:${downloads}:${settingsFile}:${cfg.episodeApi}:${guessSettingsFile}" \
+                  --lane "kinder:${downloads}/kinder:${kinderSettingsFile}:${cfg.kinderEpisodeApi}:${kinderGuessSettingsFile}" \
+                  "$@"
                 ;;
 
               raw)
@@ -234,19 +301,25 @@ let
 
         Import verbs are safe by default (no_guess=true in both generated
         configs): files without a metadata hit are skipped in place, never
-        renamed from parsed filenames. The *-safe verbs remain as explicit
-        aliases.
+        renamed from parsed filenames. The old *-safe verbs were removed —
+        safety is no longer a variant.
+
+        The *-guess-test verbs are DRY-ONLY previews with guessing enabled
+        (no_guess=false config): they show what mnamer's filename-guess
+        fallback would name unmatched files. There is deliberately no
+        moving variant.
 
         mnamer-tools import-test
+        mnamer-tools import-overview [--guess]  # table + proceed question
+        mnamer-tools kinder-import-overview [--guess]
+        mnamer-tools import-guess-test
+        mnamer-tools kinder-import-guess-test
+        mnamer-tools review [--no-suggest]   # table + suggestions + picks
         mnamer-tools movies-test
         mnamer-tools shows-test
         mnamer-tools import
-        mnamer-tools import-safe
-        mnamer-tools movies-safe
-        mnamer-tools shows-safe
         mnamer-tools kinder-import-test
         mnamer-tools kinder-import
-        mnamer-tools kinder-import-safe
         mnamer-tools kinder-source
         mnamer-tools raw ...
         mnamer-tools source
@@ -320,11 +393,15 @@ in
 
     # Episode providers: TvMaze (mnamer's default) sends no language
     # parameter and is not localized — its catalog is English-primary, so
-    # German-named kids releases ("Feuerwehrmann.Sam…") find zero hits.
-    # TVDb honors language=de in search and mnamer ships a bundled key, so
-    # the kinder lane localizes for free. The main lane stays on TvMaze so
-    # future episodes keep matching the existing (English-named) series
-    # directories — flipping it would fork the on-disk library names.
+    # German-named kids releases ("Feuerwehrmann.Sam…") find zero hits…
+    # except via TvMaze's alias search, which catches some titles
+    # ("Bob der Baumeister" → "Bob the Builder"). TVDb WAS the German
+    # option (language=de search) but its v3 /search/series went 404
+    # (~2026-11, probed live; v4 rejects mnamer's bundled key) — TvDb
+    # search is dead in mnamer 2.6, so both lanes ride TvMaze for
+    # auto-match and the German series residue flows to `mnamer-tools
+    # review`, whose suggestions search TMDb-tv (language=de, alive) and
+    # resolve ids for either provider.
     episodeApi = lib.mkOption {
       type = lib.types.enum [
         "tvdb"
@@ -339,8 +416,8 @@ in
         "tvdb"
         "tvmaze"
       ];
-      default = "tvdb";
-      description = "Episode metadata provider for the kinder lane — TVDb honors language=de; TvMaze cannot match German kids releases.";
+      default = "tvmaze";
+      description = "Episode metadata provider for the kinder lane — TvMaze (alias search, alive); TvDb search is dead upstream, German residue goes through review.";
     };
 
     language = lib.mkOption {
