@@ -10,6 +10,37 @@
 let
   cfg = config.features.impermanence;
   deviceUnit = "${utils.escapeSystemdPath cfg.device}.device";
+
+  # Mirror impermanence's own view of every persisted file (system roots,
+  # their `users` submodules, and home-manager users) so the heal snippet
+  # below covers exactly the files `persist-files` will try to mount.
+  impermanenceLib = pkgs.callPackage "${inputs.impermanence}/lib.nix" { };
+  persistedFiles =
+    let
+      nixosRoots = lib.filter (v: v.enable) (lib.attrValues config.environment.persistence);
+      nixosUsers = lib.flatten (map lib.attrValues (lib.catAttrs "users" nixosRoots));
+      homeManager = lib.flatten (
+        lib.mapAttrsToList (_: user: lib.attrValues (user.home.persistence or { })) (
+          config.home-manager.users or { }
+        )
+      );
+    in
+    lib.flatten (map (v: v.files or [ ]) (nixosRoots ++ nixosUsers ++ homeManager));
+
+  healLines = lib.unique (
+    map (
+      f:
+      let
+        mountPoint = f.filePath;
+        targetFile = impermanenceLib.concatPaths [
+          f.persistentStoragePath
+          f.filePath
+        ];
+        backup = "/persist/heal-backups/" + builtins.replaceStrings [ "/" ] [ "_" ] targetFile + ".bak";
+      in
+      "persist_heal_file ${lib.escapeShellArg mountPoint} ${lib.escapeShellArg targetFile} ${lib.escapeShellArg backup}"
+    ) persistedFiles
+  );
 in
 {
   imports = [ inputs.impermanence.nixosModules.impermanence ];
@@ -47,6 +78,37 @@ in
         message = "features.impermanence: device must be a /dev/mapper/* path, got: ${cfg.device}";
       }
     ];
+
+    # Heal stray plain files before impermanence's persist-files runs (both
+    # at boot-time and switch-time activation). Writers that save atomically
+    # (write temp file, rename over the final name: GTK recently-used.xbel,
+    # mutter monitors.xml, xdg-user-dirs) replace impermanence's boot-time
+    # symlink with a plain regular file whenever the /persist source does not
+    # exist yet, and the next persist-files run then aborts on
+    # "A file already exists at <path>!" (upstream issue #147). Migrate a
+    # first stray into /persist so a real bind mount forms, or back up and
+    # drop later ones — the automated form of the manual fix, so no switch
+    # or boot ever fails on this class again.
+    system.activationScripts.persist-files.text = lib.mkBefore ''
+      persist_heal_file() {
+        local mp="$1" tf="$2" bk="$3"
+        # Only stray plain files: skip the expected symlink and live mounts.
+        if [[ -f "$mp" && ! -L "$mp" ]] && ! findmnt "$mp" >/dev/null 2>&1; then
+          if [[ ! -e "$tf" ]]; then
+            echo "persist-heal: migrating $mp -> $tf"
+            mkdir -p "$(dirname "$tf")"
+            cp -p "$mp" "$tf"
+            rm -f "$mp"
+          else
+            echo "persist-heal: $tf already persisted; backing up stray $mp"
+            mkdir -p "$(dirname "$bk")"
+            cp -p "$mp" "$bk"
+            rm -f "$mp"
+          fi
+        fi
+      }
+      ${lib.concatStringsSep "\n" healLines}
+    '';
 
     boot.initrd.systemd = {
       enable = true;

@@ -175,12 +175,14 @@ in
           ".oxrc"
           ".config/user-dirs.locale"
           ".config/monitors.xml"
-          # GTK recent-files (nautilus + every GTK app writes it): the last
-          # impermanence gap — recents reset on every boot without this
-          # (audit 2026-11-18; caught misfiled under directories by the
-          # verification pass — a file path there gets a directory
-          # bind-mounted over it).
-          ".local/share/recently-used.xbel"
+          # NOT persisted: recently-used.xbel (audit 2026-11-18, removed
+          # 2026-11-25). GTK apps save it atomically (temp file + rename),
+          # which destroys both of impermanence's file methods — the boot
+          # symlink gets replaced by a plain file and bind mounts reject
+          # the rename — so the entry never actually persisted anything
+          # (recents reset on every boot either way; see impermanence
+          # issue #147). Stray files of this class are auto-migrated/backed
+          # up by the persist-heal hook in modules/features/impermanence.nix.
         ];
       };
     };
