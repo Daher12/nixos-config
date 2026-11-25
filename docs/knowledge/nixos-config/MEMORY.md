@@ -1,8 +1,10 @@
 # Memory Index
 
-> 2026-11-25: [ZCode battery + alternatives PLAN, NOT executed](zcode-battery-alternatives-plan-2026-11-25.md) — .deb/.rpm = same Electron build ZERO gain; AppImage ignores NIXOS_OZONE_WL → runs XWayland; plan = `--ozone-platform=wayland` on Exec line + A/B recipe; GLM-plan endpoints + full alternatives table in file.
+> 2026-11-25: [yoga perf/power research PLAN, NOT executed](yoga-perf-power-optimization-plan-2026-11-25.md) — ExitPlanMode denied; verdict "stack right, no replacements"; TLP 1.9.1 power-saver profile unused, STAPM inert on Rembrandt, system76-scheduler dead weight, Brave/OZONE bugs; user priorities + step plan in file.
 
-> 2026-11-25: [Pkg bump sweep EXECUTED+VERIFIED](update-sweep-2026-11-25.md) — b411f15+2d2b322: zcode 4.0.0, mikromcp 1.18.0, opencode v2.4.1; fetchurl=FLAT hash lore; noctalia v5.6.0 + greeter v1.7.1 bump open.
+> 2026-11-25: [ZCode battery flags EXECUTED+staged](zcode-battery-alternatives-plan-2026-11-25.md) — `--ozone-platform=wayland` on Exec, fast green, switch pending; A/B DONE: V3 compositing-off UNUSABLE, V2 final; app_id re-probe open; recipe in file; user: no migration.
+
+> 2026-11-25: [Pkg bump sweep EXECUTED+VERIFIED, UNPUSHED](update-sweep-2026-11-25.md) — b411f15+e98d1d7: zcode 4.0.0, mikromcp 1.18.0, opencode v2.4.1; fetchurl=FLAT hash lore; commit-msg fixup + noctalia v5.6.0 open.
 
 > 2026-11-21: [Silo age-groups EXECUTED, r3 11-23](silo-agegroups-declutter-exec-2026-11-21.md) — LIVE: "Kleinkinder (2–4)"=Pooh trio / "Größere (5–7)"=15 / Neu staging=18; ages double-sourced FLIMMO+CSM (divergence rule in file); parent nav-hide GUI step OPEN.
 
