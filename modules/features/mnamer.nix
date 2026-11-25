@@ -310,11 +310,11 @@ let
         moving variant.
 
         mnamer-tools import-test
-        mnamer-tools import-overview [--guess]  # table + proceed question
-        mnamer-tools kinder-import-overview [--guess]
+        mnamer-tools import-overview [--guess] [--ascii]  # boxed table + prompt
+        mnamer-tools kinder-import-overview [--guess] [--ascii]
         mnamer-tools import-guess-test
         mnamer-tools kinder-import-guess-test
-        mnamer-tools review [--no-suggest]   # table + suggestions + picks
+        mnamer-tools review [--no-suggest] [--ascii]  # table + suggestions + picks
         mnamer-tools movies-test
         mnamer-tools shows-test
         mnamer-tools import

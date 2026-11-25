@@ -21,6 +21,7 @@ import difflib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.parse
@@ -69,6 +70,174 @@ def http_json(url, params=None, headers=None, data=None, timeout=10):
         return json.loads(r.read().decode("utf-8", "replace"))
 
 
+# ----------------------------------------------------------- presentation
+# Boxed-tree renderer (style A, 2026-11-22): framed box, tree rows,
+# glyph section headers, ANSI colors on terminals. Colors auto-off when
+# piped (isatty) or NO_COLOR is set — harness output stays clean;
+# --ascii swaps the whole glyph set for a pure-ASCII fallback.
+
+
+GLYPHS = {
+    "unicode": {
+        "tl": "┌", "tr": "┐", "bl": "└", "br": "┘", "h": "─", "v": "│",
+        "ml": "├", "mr": "┤",
+        "confirmed": "●", "guessed": "◐", "collision": "⚠", "nomatch": "○",
+        "ok": "✓", "fail": "✗", "pick": "▌",
+        "branch": "├──", "last": "└──", "arrow": "└─▶", "ell": "…",
+    },
+    "ascii": {
+        "tl": "+", "tr": "+", "bl": "+", "br": "+", "h": "-", "v": "|",
+        "ml": "+", "mr": "+",
+        "confirmed": "*", "guessed": "~", "collision": "!", "nomatch": "o",
+        "ok": "+", "fail": "x", "pick": ">",
+        "branch": "|-", "last": "\\-", "arrow": "  \\->", "ell": "...",
+    },
+}
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def vlen(s):
+    """Visible length (ANSI codes don't count)."""
+    return len(_ANSI.sub("", s))
+
+
+class UI:
+    def __init__(self, ascii_mode=False):
+        self.ascii_mode = ascii_mode
+        self.g = GLYPHS["ascii" if ascii_mode else "unicode"]
+        self.color = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+
+    def _c(self, code, s):
+        return f"\x1b[{code}m{s}\x1b[0m" if self.color else s
+
+    def green(self, s):
+        return self._c("32", s)
+
+    def amber(self, s):
+        return self._c("33", s)
+
+    def red(self, s):
+        return self._c("31", s)
+
+    def dim(self, s):
+        return self._c("2", s)
+
+    def bold(self, s):
+        return self._c("1", s)
+
+    def width(self):
+        # Not always full-screen: honor the real terminal, clamp to a
+        # usable band (narrow terms get tighter truncation, oversized
+        # ones a readable cap).
+        w = shutil.get_terminal_size((100, 24)).columns
+        return max(40, min(w, 110))
+
+    def trunc(self, s, width):
+        ell = self.g["ell"]
+        if len(s) <= width:
+            return s
+        if width <= len(ell):
+            return ell[:width]
+        keep = width - len(ell)  # result is EXACTLY width chars
+        half = keep // 2
+        return s[:half] + ell + s[len(s) - (keep - half):]
+
+    def clean(self, s):
+        """ASCII mode: strip non-ASCII CHROME (data bytes pass through)."""
+        if not self.ascii_mode:
+            return s
+        return s.replace("·", "-").replace("—", "-")
+
+
+class Box:
+    """Framed overview box; collects items, renders on flush()."""
+
+    def __init__(self, ui, title, count=None):
+        self.ui = ui
+        self.items = []  # ("text"|"blank"|"sep", text, color_fn)
+        self.title = title
+        self.count = count
+
+    def blank(self):
+        self.items.append(("blank", "", None))
+
+    def sep(self):
+        self.items.append(("sep", "", None))
+
+    def section(self, glyph_key, color_fn, heading):
+        self.blank()
+        g = self.ui.g[glyph_key]
+        self.items.append(
+            ("text", f"{g} {heading}", lambda s: color_fn(self.ui.bold(s)))
+        )
+
+    def row(self, text, color_fn=None, last=False):
+        self.items.append(("text", self.ui.g["last" if last else "branch"] + " " + text, color_fn))
+
+    def sub(self, text, color_fn=None):
+        self.items.append(("text", "    " + self.ui.g["arrow"] + " " + text, color_fn))
+
+    def _top(self):
+        ui, g = self.ui, self.ui.g
+        inner = self.ui.width() - 2
+        left = " " + ui.clean(self.title) + " "
+        right = f" {self.count} files " if self.count is not None else " "
+        fill = inner - vlen(left) - vlen(right)
+        if fill < 1:
+            left = " " + ui.trunc(self.title, max(inner - 6, 3)) + " "
+            fill = inner - vlen(left) - vlen(right)
+        top = g["tl"] + g["h"] + ui.bold(left) + g["h"] * fill + right + g["tr"]
+        print(top)
+
+    def flush(self):
+        ui, g = self.ui, self.ui.g
+        w = self.ui.width()
+        inner = w - 2
+        self._top()
+        for kind, text, color in self.items:
+            if kind == "blank":
+                print(g["v"] + " " * inner + g["v"])
+                continue
+            if kind == "sep":
+                print(g["ml"] + g["h"] * inner + g["mr"])
+                continue
+            t = ui.clean(ui.trunc(text, inner - 3))
+            line = g["v"] + " " + (color(t) if color else t)
+            print(line + " " * max(w - 1 - vlen(line), 0) + g["v"])
+
+    def ask(self, question, short=None):
+        """Footer prompt band: ├──┤ + inline question + └──┘ after answer.
+
+        Narrow terminals: a compact `short` question is preferred when the
+        long one wouldn't fit; the [y/c/N] tail is NEVER truncated.
+        """
+        ui, g = self.ui, self.ui.g
+        inner = self.ui.width() - 2
+        print(g["ml"] + g["h"] * inner + g["mr"])
+        for cand in (question, short):
+            if cand is None:
+                continue
+            cand = ui.clean(cand)
+            m = re.match(r"^(.*?)(\[[^\]]*\])\s*$", cand)
+            opts = m.group(2) if m else ""
+            q = (m.group(1).strip() if m else cand)
+            if vlen(q) + len(opts) + 4 <= inner or cand is short:
+                if vlen(q) + len(opts) + 4 > inner:
+                    q = ui.trunc(q, max(inner - 4 - len(opts), 3)).rstrip()
+                sys.stdout.write(g["v"] + ui.bold(" " + q + " " + opts) + " ")
+                sys.stdout.flush()
+                break
+        try:
+            ans = input().strip().lower()
+        except EOFError:
+            ans = ""
+        if not sys.stdout.isatty():
+            print()  # piped: no echoed Enter — end the prompt line ourselves
+        print(g["bl"] + g["h"] * inner + g["br"])
+        return ans
+
+
 # ---------------------------------------------------------------- parsing
 
 
@@ -95,10 +264,11 @@ def parse_mnamer_output(text):
     cur = None
     for raw in text.splitlines():
         line = raw.rstrip()
-        m = re.match(r'^Processing .*?"(.+)" \(', line)
+        m = re.match(r'^Processing .*?"(.+)" \(([^)]*)\)$', line)
         if m:
             cur = {
                 "basename": m.group(1),
+                "size": m.group(2),
                 "source": None,
                 "media": line.split('"')[0].replace("Processing", "").strip(),
                 "status": None,
@@ -354,7 +524,7 @@ def count_mask(dirp):
 # ------------------------------------------------------- import overview
 
 
-def import_flow(lane, mnamer, guess):
+def import_flow(lane, mnamer, guess, ui):
     """Overview table + proceed question + ONE real mnamer run.
 
     No-guess mode: safe-config table (CONFIRMED / skipped), y imports the
@@ -366,12 +536,13 @@ def import_flow(lane, mnamer, guess):
     every case.
     """
     d = lane["dir"]
-    print(f"\n== {lane['name']} lane: {d}")
     if not os.path.isdir(d):
-        print("   (directory does not exist — nothing to import)")
+        print(ui.dim(f"\n== {lane['name']} lane: {d}"))
+        print(ui.dim(ui.clean("   (directory does not exist — nothing to import)")))
         return 0
     before = count_mask(d)
     if before == 0:
+        print(ui.dim(f"\n== {lane['name']} lane: {d}"))
         print("   no media files in lane")
         return 0
     safe_recs, _ = parse_mnamer_output(run_mnamer_test(mnamer, lane["config"], d))
@@ -392,53 +563,88 @@ def import_flow(lane, mnamer, guess):
             if r["status"] == "matched" and r["basename"] not in safe_matched:
                 guessed.append(r)
 
-    def row(r):
-        head = f"     {rel(d, r['source'])}"
-        if r["destination"]:
-            head += f"\n       -> {r['destination']}"
-        return head
+    # Destinations displayed relative to their common root (the library)
+    # — absolute store paths would eat the whole line.
+    dests = [r["destination"] for r in confirmed + guessed if r["destination"]]
+    root = None
+    if dests:
+        root = (
+            os.path.commonpath(dests)
+            if len(dests) > 1
+            else os.path.dirname(dests[0])
+        )
 
-    print(f"   lane holds {before} media file(s)")
-    if confirmed:
-        print(f"   CONFIRMED ({len(confirmed)} — provider match):")
-        for r in confirmed:
-            print(row(r))
-    if guessed:
-        print(
-            f"   GUESSED ({len(guessed)} — filename fallback, no provider"
-            " confirmation):"
-        )
-        for r in guessed:
-            print(row(r))
-    if collision:
-        print(
-            f"   COLLISION ({len(collision)} — destination exists,"
-            " no-overwrite keeps the existing copy):"
-        )
-        for r in collision:
-            print(f"     {rel(d, r['source'])} -> {r['destination']}")
-    if unmatched or skipped:
-        print(
-            f"   SKIPPED ({len(unmatched) + len(skipped)} — stay in the lane):"
-        )
-        for r in unmatched + skipped:
-            print(f"     {rel(d, r['source'])}  ({r['reason'] or 'no hit'})")
-    if not (confirmed or guessed):
-        print("   nothing would move — nothing to proceed on")
-        return 0
+    def disp(path):
+        if not root:
+            return path
+        try:
+            relp = os.path.relpath(path, root)
+        except ValueError:
+            return path
+        return path if relp.startswith("..") else relp
 
+    box = Box(ui, f"{lane['name'].upper()} · {d}", before)
     n_c, n_g = len(confirmed), len(guessed)
-    if guess and n_g:
-        prompt = (
-            f"   import {n_c} confirmed + {n_g} guessed files?"
-            " [y = all shown / c = confirmed only / N = abort] "
+    if confirmed:
+        box.section("confirmed", ui.green, f"CONFIRMED ({n_c}) — provider match")
+        for i, r in enumerate(confirmed):
+            box.row(
+                f"{os.path.basename(r['source'])}  ·  {r['size'] or '?'}",
+                ui.green, last=(i == n_c - 1),
+            )
+            box.sub(disp(r["destination"]), ui.green)
+    if guessed:
+        box.section(
+            "guessed", ui.amber,
+            f"GUESSED ({n_g}) — filename fallback, no provider hit",
         )
+        for i, r in enumerate(guessed):
+            box.row(
+                f"{os.path.basename(r['source'])}  ·  {r['size'] or '?'}",
+                ui.amber, last=(i == n_g - 1),
+            )
+            box.sub(disp(r["destination"]), ui.amber)
+    if collision:
+        box.section(
+            "collision", ui.red,
+            f"COLLISION ({len(collision)}) — destination exists, kept as-is",
+        )
+        for i, r in enumerate(collision):
+            box.row(
+                os.path.basename(r["source"]), ui.red,
+                last=(i == len(collision) - 1),
+            )
+    if unmatched or skipped:
+        # Files already shown under GUESSED are not repeated here.
+        guessed_names = {r["basename"] for r in guessed}
+        rest = [
+            r for r in unmatched + skipped if r["basename"] not in guessed_names
+        ]
+        if rest:
+            box.section(
+                "nomatch", ui.dim,
+                f"SKIPPED ({len(rest)}) — stay in the lane",
+            )
+            for i, r in enumerate(rest):
+                box.row(
+                    f"{os.path.basename(r['source'])}  ·  {r['reason'] or 'no hit'}",
+                    ui.dim, last=(i == len(rest) - 1),
+                )
+    box.flush()
+
+    if not (confirmed or guessed):
+        print(ui.dim("   nothing would move — nothing to proceed on"))
+        return 0
+    if guess and n_g:
+        question = (
+            f"import {n_c} confirmed + {n_g} guessed files?"
+            " [y = all shown / c = confirmed only / N = abort]"
+        )
+        short_q = f"import {n_c}+{n_g} files? [y=all / c=confirmed / N=abort]"
     else:
-        prompt = f"   import {n_c} confirmed files? [y/N] "
-    try:
-        ans = input(prompt).strip().lower()
-    except EOFError:
-        ans = ""
+        question = f"import {n_c} confirmed files? [y/N]"
+        short_q = None
+    ans = box.ask(question, short_q)
     if ans == "c" and guess and n_g:
         cfg, label = lane["config"], "confirmed only"
     elif ans == "y":
@@ -447,7 +653,7 @@ def import_flow(lane, mnamer, guess):
         else:
             cfg, label = lane["config"], "confirmed"
     else:
-        print("declined — nothing was changed")
+        print(ui.dim(ui.clean("declined — nothing was changed")))
         return 0
 
     proc = subprocess.run(
@@ -459,16 +665,18 @@ def import_flow(lane, mnamer, guess):
     if proc.returncode != 0:
         eprint(f"   mnamer exited {proc.returncode}: {proc.stderr.strip()[:300]}")
     after = count_mask(d)
-    print(f"   imported ({label}): {before - after} — left in lane: {after}")
+    mark = ui.g["ok"]
+    print(ui.green(f"  {mark} imported ({label}): {before - after}") +
+          ui.dim(ui.clean(f" — left in lane: {after}")))
     if after:
-        print("   leftovers: review them with the review verb")
+        print(ui.dim(ui.clean("   leftovers: review them with the review verb")))
     return 0 if proc.returncode == 0 else 1
 
 
-def review_lane(lane, mnamer, do_suggest):
+def review_lane(lane, mnamer, do_suggest, ui):
     d = lane["dir"]
-    print(f"\n== {lane['name']} lane: {d}")
     if not os.path.isdir(d):
+        print(ui.dim(f"\n== {lane['name']} lane: {d}"))
         print("   (directory does not exist — nothing to review)")
         return []
     records, total = parse_mnamer_output(run_mnamer_test(mnamer, lane["config"], d))
@@ -483,24 +691,29 @@ def review_lane(lane, mnamer, do_suggest):
     collision = [r for r in records if r["status"] == "collision"]
     skipped = [r for r in records if r["status"] == "skipped"]
 
+    box = Box(ui, f"{lane['name'].upper()} · {d}", len(records))
     if matched:
-        print(f"   MATCHED ({len(matched)} — a real import would move these):")
-        for r in matched:
-            print(f"     {rel(d, r['source'])}\n       -> {r['destination']}")
+        box.section("confirmed", ui.green, f"MATCHED ({len(matched)}) — would import")
+        for i, r in enumerate(matched):
+            box.row(os.path.basename(r["source"]), ui.green, last=(i == len(matched) - 1))
+            box.sub(r["destination"], ui.green)
     if collision:
-        print(f"   COLLISION ({len(collision)} — destination exists, no-overwrite):")
-        for r in collision:
-            print(f"     {rel(d, r['source'])} -> {r['destination']}")
+        box.section("collision", ui.red, f"COLLISION ({len(collision)}) — destination exists")
+        for i, r in enumerate(collision):
+            box.row(os.path.basename(r["source"]), ui.red, last=(i == len(collision) - 1))
     if skipped:
-        print(f"   SKIPPED ({len(skipped)}):")
-        for r in skipped:
-            print(f"     {rel(d, r['source'])}  ({r['reason']})")
+        box.section("nomatch", ui.dim, f"SKIPPED ({len(skipped)})")
+        for i, r in enumerate(skipped):
+            box.row(f"{os.path.basename(r['source'])}  ·  {r['reason']}", ui.dim,
+                    last=(i == len(skipped) - 1))
     if unmatched:
-        print(f"   UNMATCHED ({len(unmatched)} — stay in the lane):")
-        for r in unmatched:
-            print(f"     {rel(d, r['source'])}  ({r['reason'] or 'no hit'})")
+        box.section("nomatch", ui.dim, f"UNMATCHED ({len(unmatched)}) — stay in the lane")
+        for i, r in enumerate(unmatched):
+            box.row(f"{os.path.basename(r['source'])}  ·  {r['reason'] or 'no hit'}",
+                    ui.dim, last=(i == len(unmatched) - 1))
     if not records:
-        print("   no media files found")
+        box.section("nomatch", ui.dim, "no media files found")
+    box.flush()
     if not (do_suggest and unmatched):
         return []
 
@@ -524,18 +737,21 @@ def review_lane(lane, mnamer, do_suggest):
         q = query_variants(r["basename"])
         cands, failed = search_candidates(q, kind, lane["episode_api"])
         provider_note = provider_note or failed
-        print(f"\n   UNMATCHED: {rel(d, r['source'])}")
+        print(f"\n {ui.g['pick']} {ui.bold(rel(d, r['source']))}")
         if cands:
             for i, c in enumerate(cands, 1):
-                print(fmt_cand(i, c))
+                line = ui.clean(fmt_cand(i, c))
+                score = c["score"]
+                tone = ui.green if score >= 0.8 else ui.amber
+                print("  " + tone(line))
         else:
-            print("    (no research hits)")
+            print(ui.dim("    (no research hits)"))
         if r["basename"] in guess_dest:
-            print(f"    g) guess: {guess_dest[r['basename']]}  [unverified]")
+            print(ui.amber(f"    g) guess: {guess_dest[r['basename']]}  [unverified]"))
         try:
-            ans = input("   pick [1-3/g/s]: ").strip().lower()
+            ans = input(ui.bold(f"  {ui.g['pick']} pick") + " [1-3/g/s]: ").strip().lower()
         except EOFError:
-            print("   (input ended — remaining files skipped)")
+            print(ui.dim(ui.clean("   (input ended — remaining files skipped)")))
             break
         if ans == "g" and r["basename"] in guess_dest:
             picks.append({"rec": r, "guess": True, "label": "filename guess"})
@@ -550,7 +766,7 @@ def review_lane(lane, mnamer, do_suggest):
                 }
             )
         else:
-            print("    skipped")
+            print(ui.dim("    skipped"))
     if provider_note:
         eprint(
             "   note: a provider search failed (network?) —"
@@ -559,10 +775,10 @@ def review_lane(lane, mnamer, do_suggest):
     return picks
 
 
-def execute_picks(lane, mnamer, picks):
+def execute_picks(lane, mnamer, picks, ui):
     if not picks:
         return 0
-    print(f"\n== {lane['name']}: {len(picks)} rename(s) planned")
+    print(f"\n== {lane['name']}: " + ui.bold(f"{len(picks)} rename(s) planned"))
     for p in picks:
         print(f"   {rel(lane['dir'], p['rec']['source'])}  <-  {p['label']}")
     try:
@@ -570,7 +786,7 @@ def execute_picks(lane, mnamer, picks):
     except EOFError:
         ans = ""
     if ans != "y":
-        print("declined — nothing was changed")
+        print(ui.dim(ui.clean("declined — nothing was changed")))
         return 1
     ok = 0
     for p in picks:
@@ -591,7 +807,7 @@ def execute_picks(lane, mnamer, picks):
                 try:
                     flag, prov_id = resolve_series_ids(c, lane["episode_api"])
                 except Exception as exc:
-                    print(f"   [FAILED id-resolve] {p['rec']['basename']}: {exc}")
+                    print(ui.red(f"   [{ui.g['fail']} id-resolve] {p['rec']['basename']}: {exc}"))
                     continue
             argv = [
                 mnamer,
@@ -604,9 +820,11 @@ def execute_picks(lane, mnamer, picks):
                 p["rec"]["source"],
             ]
         proc = subprocess.run(argv, capture_output=True, text=True, timeout=900)
-        status = "ok" if proc.returncode == 0 else f"FAILED rc={proc.returncode}"
-        ok += proc.returncode == 0
-        print(f"   [{status}] {p['rec']['basename']} <- {p['label']}")
+        if proc.returncode == 0:
+            ok += 1
+            print(ui.green(f"   [{ui.g['ok']}] {p['rec']['basename']} <- {p['label']}"))
+        else:
+            print(ui.red(f"   [{ui.g['fail']} rc={proc.returncode}] {p['rec']['basename']} <- {p['label']}"))
     print(
         f"done: {ok}/{len(picks)} applied — leftovers stay in the lane;"
         " re-run media-import (or import-test) for the rest"
@@ -647,7 +865,13 @@ def main():
         action="store_true",
         help="table only — no provider searches, no prompts",
     )
+    ap.add_argument(
+        "--ascii",
+        action="store_true",
+        help="pure-ASCII glyphs (no unicode box drawing)",
+    )
     args = ap.parse_args()
+    ui = UI(ascii_mode=args.ascii)
 
     lanes = []
     for raw in args.lane:
@@ -662,12 +886,12 @@ def main():
     try:
         for lane in lanes:
             if args.mode == "import":
-                rc |= import_flow(lane, args.mnamer, args.guess)
+                rc |= import_flow(lane, args.mnamer, args.guess, ui)
             else:
                 if args.guess:
                     ap.error("--guess is only valid with --mode import")
-                picks = review_lane(lane, args.mnamer, not args.no_suggest)
-                rc |= execute_picks(lane, args.mnamer, picks)
+                picks = review_lane(lane, args.mnamer, not args.no_suggest, ui)
+                rc |= execute_picks(lane, args.mnamer, picks, ui)
     except KeyboardInterrupt:
         print("\ninterrupted — nothing else was changed")
         return 130
