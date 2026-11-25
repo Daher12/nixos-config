@@ -1,9 +1,11 @@
 ---
 name: mnamer-scripts-audit-fix-2026-11-21
-description: mnamer scripts audit EXECUTED — kinder matched nothing (TvMaze not
-  localized → kinder lane now TVDb), junk in libraries (guess fallback →
-  no_guess=true default), extraSettings // merge was a silent no-op, main config
-  now ignores /kinder/; all fast+build-probe green, STAGED
+description: mnamer scripts audit EXECUTED — kinder=no-match (provider fixes,
+  final: both lanes tvmaze + TMDb-tv suggestions), junk in libraries (guess
+  fallback → no_guess=true), extraSettings merge no-op, /kinder/ ignore,
+  confirm() read-q bug; review tool + import-overview wrappers LANDED and
+  LIVE on the box (user committed+pushed+switched; verified by them running
+  kinder-import-overview 2026-11-22); TVDb v3 search DEAD upstream
 metadata:
   node_type: memory
   type: project
@@ -71,3 +73,7 @@ LIVE verification: ALL FIVE real lane filenames research to the correct canonica
 **FULL SIM (all real: mnamer binary, TMDb/TvMaze live, tmp-destination configs):** normal run — Die Monster AG auto-imported via overview+y; `--guess`+c moved NOTHING; review picked Dornröschen → canonical `Dornröschen (1959)/…` in lib; lane empty. Kinder run — Winnie Puuh (2011) via kinder-import-overview+y; Feuerwehrmann.Sam.S01E01 via review → suggestion 100% → id-chain → `Fireman Sam/Season 01/Fireman Sam - S01E01 - Kite.mkv`. Movies keep German names (TMDb-de); series land English-canonical (documented trade-off). Final gate green; kinder config dump = tvmaze+tvmaze.
 
 Harness lore: fake-mnamer case patterns are ORDER-SENSITIVE — review passes `--config-path GUESSCFG` BEFORE `--test`, so pattern `*--test*GUESSCFG*` never matches (match `*GUESSCFG*` alone — B1 did, debug fake didn't and sent the whole QC round down a rabbit hole). Re-gated fast nix-media green post-fix; staged.
+
+**ROUND 6 STATUS 2026-11-22 (evening):** rounds 3–5 (guess verbs, -safe removal, review tool, import-overview wrappers, TVDb→TMDb-tv suggestions) are **LIVE ON THE BOX** — the user committed+pushed+switched nix-media themselves and RAN `mnamer-tools kinder-import-overview --guess` there (all prior "NOT on the box / needs commit+push+switch" notes in this file are OBSOLETE). Their verdict on first live use: the overview output is **"subpar… not how I pictured that"** — plain stacked lines, no visual separation. Follow-up: presented 4 ASCII mockup styles via AskUserQuestion previews (boxed tree / column grid / flat glyph list / dashboard+grid); user chose **A — Boxed tree**. Presentation-layer plan ready (NOT executed; ExitPlanMode denied → see [[mnamer-boxed-ui-plan-2026-11-22]]); see also [[cli-output-visual-polish]] for the general lesson.
+
+**ROUND 6 — BOXED-TREE RENDERER (2026-11-22 evening, user: "overview is subpar… eye candy", style A chosen from 4 rendered mockups via AskUserQuestion previews):** mnamer-review.py gained a presentation layer — `UI` (ANSI colors green/amber/red/dim/bold, auto-OFF when piped via isatty or NO_COLOR; `--ascii` flag swaps the whole glyph set: box chars→+|-, ●◐⚠○→*~!o, └─▶→\->, …→...) + `Box` (framed table: titled top border with right-aligned file count, glyph section headers, tree rows `├──`/`└──`, dest sub-lines `└─▶`, footer prompt band `├──┤ question └──┘` with inline input()). Width = get_terminal_size clamped 40–110, middle-ellipsis trunc; import_flow + review_lane + execute_picks all render through it (review candidates colored by score ≥80%); parser now captures the header size `(2.30 GB)`. Bugs caught by visual verification: ① trunc() result could exceed target by len(ellipsis) (ascii `...` overflowed the border) — result now EXACTLY width; ② prompt truncation ate the [y/c/N] tail on narrow terms — ask() truncates only the question and prefers a COMPACT question variant (`import 4+1 files? [y=all / c=confirmed / N=abort]`) on narrow; ③ piped input() has no echoed Enter → footer border printed on the prompt line — newline after input() when not a tty; ④ destinations displayed library-RELATIVE (commonpath of dests) instead of absolute; ⑤ guessed files no longer duplicated in the SKIPPED section; ⑥ ascii-mode chrome em-dashes/middle-dots cleaned via ui.clean (data umlauts from TMDb titles deliberately PASS THROUGH — documented contract). Verified: battery B1–B4 green post-rewrite (right config per answer), narrow-56 + ascii purity (chrome ASCII-only) + pty ANSI-present + piped-no-ANSI, final render from BUILT wrapper via `kinder-import-overview --guess --lane …` passthrough. Staged, gate green. NOT on box (commit+push+switch).
