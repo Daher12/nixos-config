@@ -1,0 +1,248 @@
+#!/usr/bin/env bash
+# power-probe — measurement kit for yoga's power/thermal tuning (2026-11-25 round).
+#
+# Produces the before/after numbers that drive the TDP / EPP / zram decisions:
+# package watts (PkgWatt), iGPU watts (GFXWatt), package temperature (PkgTmp),
+# average clock (Bzy_MHz), Busy%, battery watts, Tctl, fan RPM — plus
+# stress-ng throughput in load mode. Read-only except for `load --ryzenadj`,
+# which pauses the ryzen-tdp watchdog for the run and restores it afterwards.
+#
+# Usage (turbostat and ryzenadj need root — run the whole script under sudo):
+#   sudo scripts/power-probe idle [SECONDS]                                 # default 120
+#   sudo scripts/power-probe load [SECONDS] [--ryzenadj "<ryzenadj args>"]  # default 300
+#
+# Missing tools are reported with the exact shell line to get them:
+#   nix shell nixpkgs#linuxKernel.packages.linux_zen.turbostat nixpkgs#stress-ng \
+#     -c sudo scripts/power-probe idle 120
+# (ryzenadj is already in environment.systemPackages via ryzen-tdp.)
+#
+# Interpretation rules (plan 2026-11-25): deltas under ~0.3 W are noise on
+# battery; for load runs compare stress-ng bogo-ops/s and PkgTmp between
+# variants — same throughput at lower watts/temp wins.
+
+set -euo pipefail
+
+readonly INTERVAL=5
+
+usage() {
+  cat <<EOF
+Usage:
+  sudo scripts/power-probe idle [SECONDS]                                  # default 120
+  sudo scripts/power-probe load [SECONDS] [--ryzenadj "<ryzenadj args>"]   # default 300
+
+idle  — system idle: turbostat summary + battery watts + Tctl + fan.
+load  — all-core stress-ng (matrixprod) while sampling; --ryzenadj applies
+        custom limits for the run (watchdog timer paused, restored after).
+EOF
+}
+
+die() { echo "power-probe: $*" >&2; exit 1; }
+info() { echo "== $*"; }
+
+# --- sysfs readers (no dependencies beyond coreutils) -----------------------
+
+ac_online() {
+  local f v
+  for f in /sys/class/power_supply/A*/online; do
+    [ -r "$f" ] || continue
+    v=$(cat "$f" 2>/dev/null) || continue
+    [ "$v" = "1" ] && return 0
+  done
+  return 1
+}
+
+battery_uw() {
+  local f v total=0
+  for f in /sys/class/power_supply/BAT*/power_now; do
+    [ -r "$f" ] || continue
+    v=$(cat "$f" 2>/dev/null) || v=0
+    total=$((total + v))
+  done
+  echo "$total"
+}
+
+hwmon_field() { # hwmon_field <name> <glob> — first readable match under the named hwmon
+  local want=$1 glob=$2 d f v
+  for d in /sys/class/hwmon/hwmon*; do
+    [ -r "$d/name" ] || continue
+    v=$(cat "$d/name" 2>/dev/null) || continue
+    [ "$v" = "$want" ] || continue
+    for f in "$d"/$glob; do
+      [ -r "$f" ] || continue
+      cat "$f" 2>/dev/null && return 0
+    done
+  done
+  echo ""
+}
+
+tctl_c() {
+  local v
+  v=$(hwmon_field k10temp 'temp*_input')
+  awk -v m="${v:-0}" 'BEGIN { printf "%.1f", m / 1000 }'
+}
+
+fan_rpm() {
+  local v
+  v=$(hwmon_field yogafan 'fan*_input')
+  echo "${v:-0}"
+}
+
+uw_to_w() { awk -v u="$1" 'BEGIN { printf "%.2f", u / 1000000 }'; }
+
+# --- turbostat ---------------------------------------------------------------
+
+need_turbostat() {
+  command -v turbostat >/dev/null || die "turbostat not in PATH — run:
+  nix shell nixpkgs#linuxKernel.packages.linux_zen.turbostat -c sudo scripts/power-probe $*"
+}
+
+# Summarize a `turbostat --Summary` capture: first line names the columns,
+# every following line is one interval. Averages/max for the decision columns.
+summarize_turbostat() {
+  local log=$1
+  awk '
+    NR == 1 { for (i = 1; i <= NF; i++) col[$i] = i; next }
+    $1 ~ /^$/ { next }
+    {
+      n++
+      if ("PkgWatt" in col) { v = $col["PkgWatt"] + 0; sw += v; if (v > mxw) mxw = v }
+      if ("GFXWatt" in col) { sg += $col["GFXWatt"] + 0 }
+      if ("PkgTmp" in col)  { v = $col["PkgTmp"] + 0;  if (v > mxt) mxt = v }
+      if ("Bzy_MHz" in col) { sb += $col["Bzy_MHz"] + 0 }
+      if ("Busy%" in col)   { sbu += $col["Busy%"] + 0 }
+    }
+    END {
+      if (!n) { print "  (no data rows — see raw log)"; exit }
+      printf "  intervals=%d  PkgWatt avg %.2f / max %.2f W", n, sw / n, mxw
+      if ("GFXWatt" in col) printf "  GFXWatt avg %.2f W", sg / n
+      if ("PkgTmp" in col)  printf "  PkgTmp max %.0f C", mxt
+      if ("Bzy_MHz" in col) printf "  Bzy_MHz avg %.0f", sb / n
+      if ("Busy%" in col)   printf "  Busy%% avg %.1f", sbu / n
+      printf "\n"
+    }' "$log"
+}
+
+# --- modes -------------------------------------------------------------------
+
+cmd_idle() {
+  local secs=${1:-120}
+  local iters=$((secs / INTERVAL))
+  ((iters >= 2)) || iters=2
+
+  need_turbostat idle "$secs"
+  if ac_online; then
+    info "AC online — battery watts will read ~0; unplug for a battery baseline"
+  else
+    info "on battery"
+  fi
+
+  local log
+  log=$(mktemp /tmp/power-probe-idle-turbostat.XXXXXX)
+
+  info "keep the machine idle (screen state unchanged) for ≈${secs}s…"
+  turbostat --Summary --interval "$INTERVAL" --num_iterations "$iters" >"$log" 2>/dev/null || true
+
+  info "point readings: battery $(uw_to_w "$(battery_uw)") W | Tctl $(tctl_c) C | fan $(fan_rpm) rpm"
+  info "turbostat summary:"
+  summarize_turbostat "$log"
+  info "raw turbostat log: $log"
+}
+
+cmd_load() {
+  local ryzenadj_args=""
+  local pos=()
+  while (($#)); do
+    case $1 in
+      --ryzenadj)
+        shift
+        [ $# -gt 0 ] || die "--ryzenadj needs an argument string"
+        ryzenadj_args=$1
+        ;;
+      *) pos+=("$1") ;;
+    esac
+    shift
+  done
+
+  local secs=${pos[0]:-300}
+  local workers=${pos[1]:-$(nproc)}
+  local iters=$((secs / INTERVAL))
+  ((iters >= 2)) || iters=2
+
+  need_turbostat load "$secs"
+  command -v stress-ng >/dev/null || die "stress-ng not in PATH — run:
+  nix shell nixpkgs#linuxKernel.packages.linux_zen.turbostat nixpkgs#stress-ng -c sudo scripts/power-probe load $secs"
+
+  local restore=0
+  if [ -n "$ryzenadj_args" ]; then
+    command -v ryzenadj >/dev/null || die "ryzenadj not in PATH (it ships via ryzen-tdp — is hardware.ryzen-tdp.enable on?)"
+    restore=1
+    info "pausing ryzen-tdp-watchdog.timer; applying: ryzenadj $ryzenadj_args"
+    systemctl stop ryzen-tdp-watchdog.timer
+    # shellcheck disable=SC2086  # deliberate word splitting of the args string
+    ryzenadj $ryzenadj_args || {
+      systemctl start ryzen-tdp-watchdog.timer || true
+      die "ryzenadj failed — watchdog timer restarted, limits NOT restored (run: sudo systemctl start ryzen-tdp-control.service)"
+    }
+  fi
+
+  restore_now() {
+    if [ "$restore" = 1 ]; then
+      info "restoring: ryzen-tdp-control.service + watchdog timer"
+      systemctl start ryzen-tdp-control.service || true
+      systemctl start ryzen-tdp-watchdog.timer || true
+    fi
+  }
+  trap restore_now EXIT
+
+  local tlog slog
+  tlog=$(mktemp /tmp/power-probe-load-turbostat.XXXXXX)
+  slog=$(mktemp /tmp/power-probe-load-stress.XXXXXX)
+
+  info "load: stress-ng --cpu $workers (matrixprod) for ${secs}s, turbostat every ${INTERVAL}s"
+  turbostat --Summary --interval "$INTERVAL" --num_iterations "$iters" >"$tlog" 2>/dev/null &
+  local ts_pid=$!
+  stress-ng --cpu "$workers" --cpu-method matrixprod --timeout "${secs}s" --metrics-brief --quiet >"$slog" 2>&1 &
+  local stress_pid=$!
+
+  local elapsed=0
+  while ((elapsed < secs)) && kill -0 "$stress_pid" 2>/dev/null; do
+    sleep "$INTERVAL"
+    elapsed=$((elapsed + INTERVAL))
+    printf '  t=%3ds  bat %s W  Tctl %s C  fan %s rpm\n' \
+      "$elapsed" \
+      "$(uw_to_w "$(battery_uw)")" \
+      "$(tctl_c)" \
+      "$(fan_rpm)"
+  done
+
+  wait "$stress_pid" || true
+  wait "$ts_pid" || true
+
+  info "stress-ng metrics (throughput = bogo-ops/s, real column):"
+  grep -E "stress-ng|cpu " "$slog" | tail -n 5 || cat "$slog"
+  info "turbostat summary:"
+  summarize_turbostat "$tlog"
+  info "raw logs: $tlog / $slog"
+}
+
+case "${1:-}" in
+  idle)
+    shift
+    cmd_idle "$@"
+    ;;
+  load)
+    shift
+    cmd_load "$@"
+    ;;
+  -h | --help | help)
+    usage
+    ;;
+  "")
+    usage
+    exit 0
+    ;;
+  *)
+    usage >&2
+    die "unknown mode: $1"
+    ;;
+esac

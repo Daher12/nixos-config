@@ -88,14 +88,17 @@
   services = {
     openssh.openFirewall = lib.mkDefault false;
 
-    # useStockConfig = true: the stock config already enables cfsProfiles
-    # and the foreground/PipeWire process boosts — settings.* is documented
-    # as ignored while the stock config is on, so none are set here.
-    system76-scheduler = {
-      enable = lib.mkDefault true;
-      useStockConfig = lib.mkDefault true;
-    };
-
+    # system76-scheduler removed 2026-11-25 (perf round): its foreground-boost
+    # feature needs a desktop integration that reports the focused window
+    # (GNOME extension / COSMIC) — no shell in this fleet provides it, so the
+    # boost never engaged. What remained was cost: the execsnoop BCC watcher
+    # (~200 MB RSS peak), a renice pass on every process exec (user apps sat
+    # deprioritized at nice 9), and sched_autogroup_enabled forced to 0 over
+    # kernel.nix's value (kernel.nix now pins 0 explicitly to preserve the
+    # effective behavior). No D-Bus caller existed at removal (busctl: the
+    # daemon owned com.system76.Scheduler alone).
+    #
+    # logind lid policy: suspend on battery, clamshell awake on AC/docked.
     logind.settings.Login = {
       HandleLidSwitch = lib.mkDefault "suspend";
       HandleLidSwitchExternalPower = lib.mkDefault "ignore";

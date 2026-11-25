@@ -243,18 +243,32 @@
       };
     };
 
-    power-tlp.settings = {
-      TLP_DEFAULT_MODE = "BAT";
-      # amd_pstate=active on the kernel cmdline (and TLP's own default)
-      # already select the active cpufreq driver; CPU_SCALING_MIN_FREQ was
-      # dropped 2026-10-24 — it pinned the hardware floor (no-op).
-      CPU_SCALING_GOVERNOR_ON_AC = "powersave";
-      CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
-      CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
-      CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
-      PLATFORM_PROFILE_ON_AC = "performance";
-      PLATFORM_PROFILE_ON_BAT = "balanced";
-      PCIE_ASPM_ON_BAT = "powersupersave";
+    power-tlp = {
+      # tlp-pd D-Bus interface on (feature option, see modules/features/power-tlp.nix).
+      pd = true;
+
+      settings = {
+        # TLP_DEFAULT_MODE="BAT" dropped 2026-11-25: legacy key, only read when
+        # the power source is unknown or auto-switching is off — dead under the
+        # TLP_AUTO_SWITCH=2 default (verified against TLP 1.9.1's
+        # tlp-func-base; live AC/battery profile switching proves auto is on).
+        # amd_pstate=active on the kernel cmdline (and TLP's own default)
+        # already select the active cpufreq driver; CPU_SCALING_MIN_FREQ was
+        # dropped 2026-10-24 — it pinned the hardware floor (no-op).
+        CPU_SCALING_GOVERNOR_ON_AC = "powersave";
+        CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
+        CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
+        CPU_ENERGY_PERF_POLICY_ON_BAT = "balance_power";
+        PLATFORM_PROFILE_ON_AC = "performance";
+        PLATFORM_PROFILE_ON_BAT = "balanced";
+        PCIE_ASPM_ON_BAT = "powersupersave";
+        # Power-saver profile (`sudo tlp power-saver` / desktop switcher):
+        # TLP 1.9.1's SAV defaults already give EPP=power, platform=low-power,
+        # panel ABM level 3 — the one gap is turbo, whose SAV value falls back
+        # to the BAT value (left on). Cap it so the profile is a genuine
+        # max-runtime mode; performance/balanced keep boost.
+        CPU_BOOST_ON_SAV = 0;
+      };
     };
   };
 

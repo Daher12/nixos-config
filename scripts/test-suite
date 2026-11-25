@@ -223,8 +223,11 @@ case "${1:-}" in
     ;;
   full)
     shift
+    # Host arguments are meaningful only for the fast tier (dry-builds); the
+    # VM tier takes TEST names — forwarding hosts there fails with
+    # "Unknown VM test: <host>" after the fast pass (caught 2026-11-25).
     cmd_fast "$@"
-    cmd_vm "$@"
+    cmd_vm
     ;;
   suggest)
     cmd_suggest

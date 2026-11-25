@@ -13,11 +13,16 @@ in
   options.hardware.ryzen-tdp = {
     enable = lib.mkEnableOption "Ryzen TDP control via ryzenadj (AC/Battery profiles)";
 
+    # Rembrandt note (ryzenadj wiki support matrix, 2026-11): --stapm-limit is
+    # accepted but has NO effect on this SoC family — STT overwrites it. The
+    # effective sustained cap is the SLOW limit, the burst cap is FAST, and
+    # Tctl bounds temperature. The stapm options are kept for portability and
+    # are still written (harmless); the log lines name the effective caps.
     ac = {
       stapm = lib.mkOption {
         type = lib.types.int;
         default = 54;
-        description = "AC STAPM limit in watts (sustained power)";
+        description = "AC STAPM limit in watts (inert on Rembrandt; the slow limit is the real sustained cap)";
       };
       fast = lib.mkOption {
         type = lib.types.int;
@@ -40,7 +45,7 @@ in
       stapm = lib.mkOption {
         type = lib.types.int;
         default = 25;
-        description = "Battery STAPM limit in watts (sustained power)";
+        description = "Battery STAPM limit in watts (inert on Rembrandt; the slow limit is the real sustained cap)";
       };
       fast = lib.mkOption {
         type = lib.types.int;
@@ -90,20 +95,23 @@ in
 
           apply_limits() {
             if is-on-ac; then
-              echo "Power: AC – applying ${toString cfg.ac.stapm}W STAPM"
+              echo "Power: AC — caps fast ${toString cfg.ac.fast}W / slow ${toString cfg.ac.slow}W (sustained), Tctl ${toString cfg.ac.temp}C (stapm write inert on Rembrandt)"
               ryzenadj \
                 --stapm-limit=${toMW cfg.ac.stapm} \
                 --fast-limit=${toMW cfg.ac.fast} \
                 --slow-limit=${toMW cfg.ac.slow} \
                 --tctl-temp=${toString cfg.ac.temp}
             else
-              echo "Power: Battery – applying ${toString cfg.battery.stapm}W STAPM"
+              echo "Power: Battery — caps fast ${toString cfg.battery.fast}W / slow ${toString cfg.battery.slow}W (sustained), Tctl ${toString cfg.battery.temp}C (stapm write inert on Rembrandt)"
               ryzenadj \
                 --stapm-limit=${toMW cfg.battery.stapm} \
                 --fast-limit=${toMW cfg.battery.fast} \
                 --slow-limit=${toMW cfg.battery.slow} \
                 --tctl-temp=${toString cfg.battery.temp}
             fi
+            # Applied-limit ground truth into the journal (SMU fw version,
+            # power metrics) — makes watchdog runs auditable against drift.
+            ryzenadj --info || true
           }
 
           exec 9>"$LOCK_FILE"

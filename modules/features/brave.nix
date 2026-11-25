@@ -58,6 +58,11 @@ in
         # P3A "privacy-preserving analytics" + daily usage ping (Origin removes both)
         BraveP3AEnabled = false;
         BraveStatsPingEnabled = false;
+        # Memory Saver on by default (Chromium policy, Brave inherits it):
+        # discards background tabs under memory pressure — the single biggest
+        # lever on the browser's RSS (Brave peaked at 4.5 GB on yoga's 16 GB,
+        # 2026-11-25 perf round).
+        MemorySaverEnabled = true;
       }
       // cfg.extraPolicies
     );

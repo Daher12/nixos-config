@@ -50,7 +50,11 @@ in
       kernelParams = lib.mkBefore cfg.extraParams;
 
       kernel.sysctl = lib.mkIf (cfg.variant == "zen") {
-        "kernel.sched_autogroup_enabled" = 1;
+        # 0 = the long-running EFFECTIVE value: system76-scheduler forced
+        # autogroup off fleet-wide until its removal (2026-11-25 perf round).
+        # Pinning 0 keeps behavior identical after that removal; the kernel
+        # default would be 1.
+        "kernel.sched_autogroup_enabled" = 0;
       };
     };
   };

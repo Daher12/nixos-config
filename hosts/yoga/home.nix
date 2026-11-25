@@ -202,8 +202,16 @@ in
         # un-maximize wrapper (zcode-unmax only exists where desktop.niri is
         # on); GNOME keeps the plain exec. %u — the only type is the
         # x-scheme-handler URL, spec form is lowercase.
+        # --ozone-platform=wayland: the AppImage bundles stock Electron, which
+        # ignores NIXOS_OZONE_WL (an nixpkgs-only convention) — without the
+        # flag the app renders through XWayland (extra buffer copy per frame,
+        # no fractional scaling). The .deb/.rpm ship the same Electron build,
+        # so this flag is the only launch-time battery lever there is.
         exec =
-          if config.desktop.niri.enable then "zcode-unmax --no-sandbox %u" else "zcode --no-sandbox %u";
+          if config.desktop.niri.enable then
+            "zcode-unmax --no-sandbox --ozone-platform=wayland %u"
+          else
+            "zcode --no-sandbox --ozone-platform=wayland %u";
         terminal = false;
         icon = "zcode";
         settings.StartupWMClass = "ZCode";

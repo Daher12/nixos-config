@@ -22,12 +22,31 @@ in
       default = 80;
       description = "Percentage of RAM to use for ZRAM";
     };
+
+    algorithm = lib.mkOption {
+      type = lib.types.enum [
+        "lz4"
+        "lz4hc"
+        "lzo"
+        "lzo-rle"
+        "zstd"
+        "deflate"
+        "842"
+      ];
+      default = "lz4";
+      description = ''
+        zram compression algorithm. lz4 = lowest CPU cost per page (the fleet
+        default, chosen to keep the NVMe asleep); zstd = noticeably better
+        ratio but more CPU per page — A/B the stall/throughput numbers before
+        switching a host over.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
     zramSwap = {
       enable = true;
-      algorithm = "lz4";
+      inherit (cfg) algorithm;
       inherit (cfg) memoryPercent;
       priority = 10;
       swapDevices = 1;
@@ -38,6 +57,12 @@ in
       "vm.watermark_boost_factor" = lib.mkDefault 0;
       "vm.vfs_cache_pressure" = lib.mkDefault 100;
       "vm.page-cluster" = lib.mkDefault 0;
+      # Wake kswapd earlier (kernel default 10). On yoga (16 GB, zram,
+      # Electron-class apps) this boot showed direct reclaim
+      # (vmstat pgscan_direct) and a 7.9 GB user-slice swap.peak; earlier
+      # background reclaim trades a little page cache for fewer allocation
+      # stalls.
+      "vm.watermark_scale_factor" = lib.mkDefault 125;
     };
 
     # zram-generator cannot set up an already-initialized device (EBUSY on
