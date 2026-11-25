@@ -1,34 +1,51 @@
 ---
 name: yoga-perf-round-2026-11-25
-description: Yoga perf/power round EXECUTED+fast green STAGED (uncommitted) —
-  system76-scheduler removed, TLP 3-profile+tlp-pd, STAPM-inert-on-Rembrandt,
-  watermark 125, power-probe kit; OPEN = user checks (Brave VA-API, Obsidian
-  ozone), baseline, TDP/EPP/zstd A/Bs, scx+preempt experiments, VM battery ask
+description: Yoga perf/power round — EXECUTED, MEASURED, QC'd 2026-11-25; main
+  part committed in cb7b73e (not by me), QC follow-ups uncommitted in working
+  tree; QC found+fixed a live TLP key-name bug (boost leak) and a bogus Brave
+  policy — durable lessons on "rendered ≠ consumed"
 metadata:
   node_type: memory
   type: project
   originSessionId: sess_e4419bd0-2cc1-40d5-bfe8-c014b6c9e19f
 ---
 
-2026-11-25 yoga performance round (plan approved by user; priorities = sustained perf/thermals + memory headroom + battery runtime; all three experiments OK; user runs measurements). Everything STAGED-UNCOMMITTED, `test-suite fast` green (yoga+latitude+nix-media), spot-checked via `nix eval --impure --expr`.
+2026-11-25 yoga performance round (plan approved; priorities = sustained perf/thermals + memory headroom + battery runtime; user ran the measurements). **State:** main config landed in commit `cb7b73e feat(perf)` + `2b25eb2 docs(knowledge)` — committed by the user / a parallel session, NOT by me. The QC fixes below are uncommitted working-tree edits on top (fast tier green).
 
-**Executed (config):**
-- system76-scheduler REMOVED from profiles/laptop.nix (verified no D-Bus caller: busctl shows daemon owns `com.system76.Scheduler` alone; journal hits were nix-gc store paths). Rationale: foreground boost needs GNOME/COSMIC focus reporting — niri has none; cost was execsnoop (~200MB RSS peak) + renice-on-every-exec (user apps sat at nice 9). `modules/features/kernel.nix` now pins `sched_autogroup_enabled=0` = the long-effective value (system76 had forced it 0 over the old `=1`).
-- TLP (hosts/yoga/default.nix + modules/features/power-tlp.nix): `TLP_DEFAULT_MODE` deleted (dead under TLP_AUTO_SWITCH=2 — verified against 1.9.1 tlp-func-base); `CPU_BOOST_ON_SAV=0` (TLP 1.9.1 SAV defaults already EPP=power/platform=low-power/ABM=3; boost fell back to BAT); new `features.power-tlp.pd` option → `services.tlp.pd` (tlp-pd D-Bus switcher, `tlp-stat -m` queries, `sudo tlp power-saver`/`performance`/`balanced`/`start` CLI) — ON for yoga, off latitude. Module governor default schedutil→powersave (schedutil invalid under pstate active; bitten latitude only).
-- ryzen-tdp.nix: STAPM is INERT on Rembrandt (ryzenadj wiki matrix: ⚠ no effect; clock caps ⛔) — effective sustained cap = SLOW, burst = FAST, Tctl bounds temp. Log lines + option descriptions corrected; script now also logs `ryzenadj --info` after apply.
-- zram.nix: `algorithm` option (default lz4 everywhere, latitude unchanged) + `vm.watermark_scale_factor=125` (mkDefault; yoga showed pgscan_direct 6.3M + 7.9GB user-slice swap.peak).
-- brave.nix: `MemorySaverEnabled=true` managed policy (Brave RSS peak was 4.5GB).
-- scripts/test-suite: `full <host>` no longer forwards host names to the VM tier (died "Unknown VM test").
-- NEW `scripts/power-probe` (staged, +x): `sudo power-probe idle [secs]` / `load [secs] [--ryzenadj "args"]` — turbostat --Summary parse (PkgWatt/GFXWatt/PkgTmp/Bzy_MHz), battery W, Tctl (k10temp), fan (yogafan, monitoring-only), stress-ng metrics; --ryzenadj pauses ryzen-tdp-watchdog.timer + restores via trap.
+**Executed (config, corrected after QC):**
+- system76-scheduler REMOVED from `profiles/laptop.nix` (no D-Bus caller: daemon owned `com.system76.Scheduler` alone). Foreground boost needs GNOME/COSMIC focus reporting — niri has none. Verified live after reboot: units gone, desktop processes (niri/noctalia/foot/ZCode) now nice 0 (were nice 9). `modules/features/kernel.nix` pins `sched_autogroup_enabled=0` = the previously forced effective value (live: 0).
+- TLP (`hosts/yoga/default.nix`, `modules/features/power-tlp.nix`): `TLP_DEFAULT_MODE` deleted; new `features.power-tlp.pd.enable` (mkEnableOption) → `services.tlp.pd`, on for yoga, off latitude (tlp-pd live: `tlp-stat -s` → `tlp-pd = enabled, running`); module governor default schedutil→powersave (latitude runs intel_pstate active — only powersave/performance valid, so neutral there).
+- Boost per profile, **TLP 1.9.1 key names**: `CPU_BOOST_ON_AC=1 / CPU_BOOST_ON_BAT=1 / CPU_BOOST_ON_SAV=0` (power-saver = boost off, others explicitly on).
+- `modules/hardware/ryzen-tdp.nix`: STAPM write does not stick on Rembrandt — **on-device proof**: the `ryzenadj --info` table the service now logs shows `STAPM LIMIT 59.967` right after `Successfully set stapm_limit to 50000`, while fast/slow/Tctl read back as set. Effective knobs = SLOW (sustained), FAST (burst), Tctl.
+- `modules/features/zram.nix`: `algorithm` option (default lz4 everywhere) + `vm.watermark_scale_factor=125` (live: 125; standard zram tuning, small expected effect).
+- `modules/features/brave.nix`: **no Memory-Saver policy** — `MemorySaverEnabled` is not a Brave policy (see QC). User enables it in `brave://settings/performance`.
+- `hosts/yoga/home.nix`: ONE merged `--enable-features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoEncoder,WaylandWindowDecorations,VaapiVideoDecodeLinuxGL` (Chromium keeps only the last occurrence; the old single-feature flag silently dropped the wrapper's). Verified live: `brave://gpu` Video Encode went "Software only" → "Hardware accelerated".
+- `scripts/test-suite`: `full <host>` no longer forwards host names to the VM tier.
+- NEW `scripts/power-probe`: `idle [secs]` / `load [secs] [--ryzenadj "args"]`; three live-use fixes (EXIT-trap restore scope via global `PP_RESTORE`; no `stress-ng --quiet` because it eats the metrics; battery column prints its state).
 
-**Key research facts (don't re-derive):** TLP on box = 1.9.1 (NOT 1.11 — three profiles already exist; `tlpctl`/tlp-pd come from the SEPARATE nixpkgs pkg `tlp-pd`, wired by `services.tlp.pd`, asserted vs ppd which power-tlp.nix already forces off). EPP choices include `dynamic` (kernel follows platform profile). yogafan = RPM only, no pwm. ryzen_smu on this box: amkillam fork d298366 (nixpkgs pin for 7.2+ cpuid fix), Rembrandt codename 11, NO PM table. sched_ext compiled in (state=disabled) — nixpkgs enables ≥6.12; `services.scx` exists (default scx_rustland — must set explicitly), no conflict assertion vs system76. zen kernel = PREEMPT_DYNAMIC, nixpkgs default mode is lazy on ≥6.18 (PREEMPT=no/LAZY=yes) — `preempt=full` is the classic-low-latency experiment. Kernel thermal zone: only critical 110°C (firmware EC owns fan/skin). Battery: L21D4PE0 60Wh/70Wh (283 cycles), quiet desktop ≈7.5W, charge_types `[Fast] Standard Long_Life` exists (charge cap now technically reachable via charge_types/conservation_mode — declined twice, don't re-offer unprompted). Memory: ZCode ~4GB/19 procs (0.84GB MCP servers), Brave ~1GB (peak 4.5GB), noctalia.service cgroup holds the Brave tree + foot.service holds a 2nd ZCode instance (cgroup≠app attribution). user@1000 swap.peak 7.9GB. NVMe scheduler on zen = kyber (not none — boot.nix comment about kernel default is stale on zen; left alone deliberately).
+**Measurements & decisions (all closed):**
+- Idle on battery: 6.95 W (PkgWatt 0.68) balanced ≡ 6.93 W power-saver — idle is panel/platform-bound; power-saver matters under load.
+- TDP on AC: V0 (60/50/85) ≡ V1 (60/54/95) ≡ V2 (45/40/80): sustained PkgWatt ~26–29 W, ~3.1 GHz regardless of slow limit → firmware skin-temp policy governs sustained power; AC caps only shape the burst; battery 15 W cap does bind. **V0 kept.** V2 = hotter peak (78 °C) at the same 3900 rpm fan, ~1.5 % less throughput. All load runs were boost-off (leak below) — verdict unaffected (clamp is power-based).
+- Experiments: EPP `dynamic` skip; zram zstd pass (user: lz4 fits their usecase); `scx_lavd` declined (unknown battery drain); `preempt=full` declined — lazy stays.
+- VM battery skipped by user choice (suggest mapped zram-heal, yoga-s2h-logic, host-units-smoke; untouched code paths).
 
-**OPEN (user steps, in order):**
-1. Two 10s checks: brave://gpu "Video Decode" (if not "Hardware accelerated" → merge the duplicated `--enable-features` in hosts/yoga/home.nix:309 — nixpkgs wrapper already passes AcceleratedVideoDecodeLinuxGL etc. and Chromium keeps the LAST flag); `pgrep -af obsidian` for ozone flags (if XWayland → add `systemd.user.sessionVariables.NIXOS_OZONE_WL = "1"` in home/default.nix, same pattern as XCURSOR_*).
-2. Baseline + A/Bs with power-probe: idle on battery (balanced vs `sudo tlp power-saver`), `load 300 --ryzenadj` variants V0 60/50/85 (current) vs V1 60/54/95 (module defaults) vs V2 45/40/80 on AC; adopt per plan rules (≥5% throughput / cooler = V2; <0.3W = noise).
-3. EPP=dynamic A/B at runtime; zram zstd A/B (switch `features.zram.algorithm`, reboot); optional scx_lavd + `preempt=full` (expect revert; fold into the pending 7.3.5 reboot).
-4. ZCode MCP trim: `ps -eo rss,pid,args --sort=-rss | grep -E "zcode-mcp|mcp-nixos"` → disable unused servers in ZCode settings (~100–170MB each); quit the duplicate ZCode instance.
-5. VM battery NOT run (gate): `suggest` maps zram.nix→zram-heal+yoga-s2h-logic, modules/features+profiles+hardware→host-units-smoke; asked user full/partial/skip.
-6. After switch+reboot verify: `tlp-stat -m`, panel ABM per profile, `zramctl`, sysctls, `ryzenadj -i`, system76 units gone.
+**QC 2026-11-25 — defects found in my own work, all fixed:**
+1. **Boost "fix" used TLP 1.11 key names** (`CPU_BOOST_ON_PRF/_BAL`); TLP 1.9.1 reads `_ON_AC/_ON_BAT/_ON_SAV` (`func.d/10-tlp-func-cpu:408-410`) and ignores unknown keys WITHOUT warning. So the leak was still live on the booted system (boost=1 only because of the fresh reboot) after I had told the user it "can't recur". Fixed + verified against the TLP source; takes effect at the user's next `nixos-rebuild switch` (no reboot needed — `tlp.service` restarts on tlp.conf change). Post-switch proof: `sudo tlp power-saver; cat /sys/devices/system/cpu/cpufreq/boost; sudo tlp start; cat /sys/devices/system/cpu/cpufreq/boost` → 0 then 1.
+2. **`MemorySaverEnabled` was a guessed policy name** — not in Brave 1.100.58's binary (string-table check; `HighEfficiencyModeEnabled` / `MemorySaverModeSavings` exist with different semantics). It was a no-op; removed.
+3. **"Battery assist" explanation was wrong**: the falling `bat` watts during the AC load runs were CHARGE power tapering as the cell filled (82 % → Full), not battery assist and not the clamp. The clamp conclusion rests on turbostat PkgWatt.
+4. **Overstated evidence** for watermark 125: the cited 7.9 GB user-slice `memory.swap.peak` is inflated by hibernation-time reclaim, not proof of steady-state pressure. Comment + docs corrected; setting kept.
 
-REPO_OVERVIEW synced (power-tlp/zram/laptop profile/test-suite rows, scripts table + §Power tuning round-2 paragraph). Related: [[yoga-power-audit-2026-09-19]], [[battery-refresh-niri-backend-2026-11-07]], [[niri-vrr-edp1-2026-11-19]], [[yoga-ram-baseline-system76-execsnoop]], [[zcode-battery-alternatives-plan-2026-11-25]].
+**Lessons (durable):**
+- **Rendered ≠ consumed.** `nix eval` of a generated config file proves a key is WRITTEN, not that the program READS it. Before adding/renaming any daemon setting, grep the deployed package's source for the variable (`/nix/store/*-<pkg>-<ver>/share/...`). Docs sites show the newest version — the box may run an older one (TLP 1.9.1 vs 1.11 docs).
+- **Never add policy/flag names from memory** — check the binary's string table (`grep -a -o '<Name>' <ELF>`) or the app's policy page first.
+- **A bug fix needs its own end-to-end test** (exercise the consumer's code path or the live round trip), not just "it renders".
+- `BAT0 power_now` on AC = charge power (positive, tapers as the cell fills); only meaningful for system draw when discharging.
+- cgroup `memory.swap.peak` is not evidence of runtime memory pressure on a hibernating host.
+- `pgrep -f`/`grep` patterns match the calling shell's own command line (the pattern text appears in it) — use `ps | grep '[s]tring'` and keep the literal name out of the rest of the command.
+- Other sessions / the user commit in this repo mid-conversation: check `git log` + `git status` before stating "nothing is committed".
+
+**Still open (user side):** rebuild+switch to activate the QC fixes, then the boost round-trip check above; optional ZCode MCP trim (`ps -eo rss,pid,args --sort=-rss | grep -E "zcode-mcp|mcp-nixos"`, ~100–170 MB per server); commit the QC follow-ups on request.
+
+**Key research facts (don't re-derive):** TLP on box = 1.9.1; three profiles exist; `tlpctl`/tlp-pd come from the separate nixpkgs pkg `tlp-pd` (`services.tlp.pd`). Profile switching: `sudo tlp performance|balanced|power-saver`, `sudo tlp start` returns to auto; query `tlp-stat -m` (profile) / `tlp-stat -s` (daemon lines). EPP choices include `dynamic`. `yogafan` = RPM monitoring only. ryzen_smu: amkillam fork d298366, Rembrandt codename 11, no PM table. sched_ext compiled in, unused; `services.scx` default `scx_rustland`. zen = PREEMPT_DYNAMIC, boots lazy. Kernel thermal zone: only critical 110 °C. Battery L21D4PE0 60/70 Wh, 283 cycles; `charge_types [Fast] Standard Long_Life` (charge cap declined twice — don't re-offer). Sandbox trap: agent shells see an overlaid `/etc` — `tlp-stat` reports `tlp = disabled` from there; host truth = `/run/tlp/run.conf`, `/sys`, journal.
+
+Related: [[yoga-power-audit-2026-09-19]], [[battery-refresh-niri-backend-2026-11-07]], [[niri-vrr-edp1-2026-11-19]], [[yoga-ram-baseline-system76-execsnoop]], [[zcode-battery-alternatives-plan-2026-11-25]], [[zcode-shell-sandbox-etc]].

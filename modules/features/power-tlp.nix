@@ -14,10 +14,8 @@ in
     # `tlp-stat -m`. Classic AC/battery auto-switching keeps working on top.
     # Asserted against power-profiles-daemon by the upstream module — which
     # this module force-disables below.
-    pd = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "Enable TLP's tlp-pd D-Bus profile interface";
+    pd = {
+      enable = lib.mkEnableOption "TLP's tlp-pd D-Bus profile interface";
     };
 
     settings = lib.mkOption {
@@ -36,7 +34,7 @@ in
 
     services.tlp = {
       enable = true;
-      pd.enable = cfg.pd;
+      pd.enable = cfg.pd.enable;
       settings = lib.mkMerge [
         {
           # powersave (TLP's own default), NOT schedutil: under amd/intel_pstate

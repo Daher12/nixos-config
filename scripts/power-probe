@@ -89,6 +89,18 @@ fan_rpm() {
 
 uw_to_w() { awk -v u="$1" 'BEGIN { printf "%.2f", u / 1000000 }'; }
 
+# What the battery watts MEAN: on AC the battery reports charge power (which
+# tapers off as the cell fills), not system draw. Printed with every battery
+# figure so an on-AC run is not misread as "battery assist" (QC 2026-11-25).
+battery_status() {
+  local f
+  for f in /sys/class/power_supply/BAT*/status; do
+    [ -r "$f" ] || continue
+    tr '[:upper:]' '[:lower:]' <"$f" && return 0
+  done
+  echo "no battery"
+}
+
 # --- turbostat ---------------------------------------------------------------
 
 need_turbostat() {
@@ -131,7 +143,7 @@ cmd_idle() {
 
   need_turbostat idle "$secs"
   if ac_online; then
-    info "AC online — battery watts will read ~0; unplug for a battery baseline"
+    info "AC online — the battery figure below is CHARGE power, not system draw; unplug for a battery baseline"
   else
     info "on battery"
   fi
@@ -142,7 +154,7 @@ cmd_idle() {
   info "keep the machine idle (screen state unchanged) for ≈${secs}s…"
   turbostat --Summary --interval "$INTERVAL" --num_iterations "$iters" >"$log" 2>/dev/null || true
 
-  info "point readings: battery $(uw_to_w "$(battery_uw)") W | Tctl $(tctl_c) C | fan $(fan_rpm) rpm"
+  info "point readings: battery $(uw_to_w "$(battery_uw)") W ($(battery_status)) | Tctl $(tctl_c) C | fan $(fan_rpm) rpm"
   info "turbostat summary:"
   summarize_turbostat "$log"
   info "raw turbostat log: $log"
@@ -172,10 +184,15 @@ cmd_load() {
   command -v stress-ng >/dev/null || die "stress-ng not in PATH — run:
   nix shell nixpkgs#linuxKernel.packages.linux_zen.turbostat nixpkgs#stress-ng -c sudo scripts/power-probe load $secs"
 
-  local restore=0
+  # PP_RESTORE is GLOBAL on purpose: the EXIT trap fires AFTER cmd_load has
+  # returned, and with `set -u` a function-local `restore` is dead by then —
+  # the trap aborted on the unbound variable and left the custom limits
+  # applied plus the watchdog timer off (caught live 2026-11-25,
+  # "restore ist nicht gesetzt").
+  PP_RESTORE=0
   if [ -n "$ryzenadj_args" ]; then
     command -v ryzenadj >/dev/null || die "ryzenadj not in PATH (it ships via ryzen-tdp — is hardware.ryzen-tdp.enable on?)"
-    restore=1
+    PP_RESTORE=1
     info "pausing ryzen-tdp-watchdog.timer; applying: ryzenadj $ryzenadj_args"
     systemctl stop ryzen-tdp-watchdog.timer
     # shellcheck disable=SC2086  # deliberate word splitting of the args string
@@ -186,7 +203,7 @@ cmd_load() {
   fi
 
   restore_now() {
-    if [ "$restore" = 1 ]; then
+    if [ "${PP_RESTORE:-0}" = 1 ]; then
       info "restoring: ryzen-tdp-control.service + watchdog timer"
       systemctl start ryzen-tdp-control.service || true
       systemctl start ryzen-tdp-watchdog.timer || true
@@ -199,18 +216,25 @@ cmd_load() {
   slog=$(mktemp /tmp/power-probe-load-stress.XXXXXX)
 
   info "load: stress-ng --cpu $workers (matrixprod) for ${secs}s, turbostat every ${INTERVAL}s"
+  if ac_online; then
+    info "AC online: the 'batt' column is CHARGE power (tapers as the cell fills) — judge the run by the PkgWatt summary"
+  fi
   turbostat --Summary --interval "$INTERVAL" --num_iterations "$iters" >"$tlog" 2>/dev/null &
   local ts_pid=$!
-  stress-ng --cpu "$workers" --cpu-method matrixprod --timeout "${secs}s" --metrics-brief --quiet >"$slog" 2>&1 &
+  # No --quiet: it suppresses the metrics summary too, and the throughput
+  # numbers are the whole point of load mode (both 2026-11-25 runs logged
+  # zero lines because of it).
+  stress-ng --cpu "$workers" --cpu-method matrixprod --timeout "${secs}s" --metrics-brief >"$slog" 2>&1 &
   local stress_pid=$!
 
   local elapsed=0
   while ((elapsed < secs)) && kill -0 "$stress_pid" 2>/dev/null; do
     sleep "$INTERVAL"
     elapsed=$((elapsed + INTERVAL))
-    printf '  t=%3ds  bat %s W  Tctl %s C  fan %s rpm\n' \
+    printf '  t=%3ds  batt %s W (%s)  Tctl %s C  fan %s rpm\n' \
       "$elapsed" \
       "$(uw_to_w "$(battery_uw)")" \
+      "$(battery_status)" \
       "$(tctl_c)" \
       "$(fan_rpm)"
   done
@@ -218,8 +242,9 @@ cmd_load() {
   wait "$stress_pid" || true
   wait "$ts_pid" || true
 
-  info "stress-ng metrics (throughput = bogo-ops/s, real column):"
-  grep -E "stress-ng|cpu " "$slog" | tail -n 5 || cat "$slog"
+  info "stress-ng metrics (throughput = 'bogo ops/s' real-time column):"
+  grep -aE "cpu|bogo|pass" "$slog" | tail -n 6 || true
+  info "full stress-ng log: $slog"
   info "turbostat summary:"
   summarize_turbostat "$tlog"
   info "raw logs: $tlog / $slog"

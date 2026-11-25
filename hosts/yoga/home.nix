@@ -303,10 +303,18 @@ in
     browsers = {
       firefox.enable = true;
       brave.enable = true;
-      # Brave >= 1.85 enables VA-API video decode on Wayland by default
-      # (Chromium issue 40225939); the explicit flag is insurance against a
-      # default flip regressing it. Software decode costs 3-6 W on the 680M.
-      brave.extraCommandLineArgs = [ "--enable-features=VaapiVideoDecodeLinuxGL" ];
+      # ONE --enable-features on purpose: Chromium keeps only the LAST
+      # occurrence of a repeated switch, and the nixpkgs wrapper already
+      # passes its own list (AcceleratedVideoDecodeLinuxGL,
+      # AcceleratedVideoEncoder, WaylandWindowDecorations) BEFORE this one —
+      # brave://gpu showed encoder + decorations silently dropped that way
+      # (2026-11-25). This restates the wrapper's features plus ours, so the
+      # merged list is what actually reaches Chromium. Decode itself is
+      # default-on since Brave >= 1.85 (kept as insurance against a default
+      # flip; software decode costs 3-6 W on the 680M).
+      brave.extraCommandLineArgs = [
+        "--enable-features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoEncoder,WaylandWindowDecorations,VaapiVideoDecodeLinuxGL"
+      ];
     };
 
     # Monitor definitions for EVERY session attr: battery-refresh reads the

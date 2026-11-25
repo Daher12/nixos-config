@@ -13,11 +13,18 @@ in
   options.hardware.ryzen-tdp = {
     enable = lib.mkEnableOption "Ryzen TDP control via ryzenadj (AC/Battery profiles)";
 
-    # Rembrandt note (ryzenadj wiki support matrix, 2026-11): --stapm-limit is
-    # accepted but has NO effect on this SoC family — STT overwrites it. The
-    # effective sustained cap is the SLOW limit, the burst cap is FAST, and
-    # Tctl bounds temperature. The stapm options are kept for portability and
-    # are still written (harmless); the log lines name the effective caps.
+    # Rembrandt note (2026-11-25): --stapm-limit is accepted but does not
+    # stick on this SoC. Upstream's support matrix marks it "no effect", and
+    # the on-device check agrees — the `ryzenadj --info` table logged by the
+    # service still shows STAPM LIMIT 59.967 W right after a 50 W write, while
+    # fast/slow/Tctl read back exactly as set. The knobs that take effect are
+    # SLOW (sustained), FAST (burst) and Tctl. The stapm options are kept for
+    # portability and are still written (harmless); the log lines name the
+    # effective caps.
+    #
+    # On AC the firmware's skin-temperature policy governs sustained power
+    # anyway (measured ~26-29 W with slow limits of 40/50/54 W alike), so the
+    # configured slow limit only binds on battery, where it sits below that.
     ac = {
       stapm = lib.mkOption {
         type = lib.types.int;

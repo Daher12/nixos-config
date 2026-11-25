@@ -57,11 +57,11 @@ in
       "vm.watermark_boost_factor" = lib.mkDefault 0;
       "vm.vfs_cache_pressure" = lib.mkDefault 100;
       "vm.page-cluster" = lib.mkDefault 0;
-      # Wake kswapd earlier (kernel default 10). On yoga (16 GB, zram,
-      # Electron-class apps) this boot showed direct reclaim
-      # (vmstat pgscan_direct) and a 7.9 GB user-slice swap.peak; earlier
-      # background reclaim trades a little page cache for fewer allocation
-      # stalls.
+      # Wake kswapd earlier (kernel default 10): background reclaim starts
+      # sooner, so fewer allocations fall into direct reclaim (the stalling
+      # path). Standard zram tuning; the expected effect is small — yoga's
+      # measured memory-stall load was ~0.3 % of CPU time — and it costs a
+      # little page cache.
       "vm.watermark_scale_factor" = lib.mkDefault 125;
     };
 

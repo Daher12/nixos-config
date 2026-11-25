@@ -245,7 +245,7 @@
 
     power-tlp = {
       # tlp-pd D-Bus interface on (feature option, see modules/features/power-tlp.nix).
-      pd = true;
+      pd.enable = true;
 
       settings = {
         # TLP_DEFAULT_MODE="BAT" dropped 2026-11-25: legacy key, only read when
@@ -262,11 +262,22 @@
         PLATFORM_PROFILE_ON_AC = "performance";
         PLATFORM_PROFILE_ON_BAT = "balanced";
         PCIE_ASPM_ON_BAT = "powersupersave";
-        # Power-saver profile (`sudo tlp power-saver` / desktop switcher):
-        # TLP 1.9.1's SAV defaults already give EPP=power, platform=low-power,
-        # panel ABM level 3 — the one gap is turbo, whose SAV value falls back
-        # to the BAT value (left on). Cap it so the profile is a genuine
-        # max-runtime mode; performance/balanced keep boost.
+        # Boost per profile: OFF in power-saver (max-runtime mode), explicitly
+        # ON in performance/balanced. The explicit 1s are load-bearing: with
+        # only CPU_BOOST_ON_SAV configured, TLP leaves boost untouched in every
+        # other profile — a visit to power-saver left boost=0 for the rest of
+        # the session (stress-ng "boost is disabled", found live 2026-11-25).
+        # Boost-on in BAL is a standing decision (REPO_OVERVIEW §power tuning,
+        # deliberately-not-done: boost-off trades exactly the responsiveness
+        # this balance is built around).
+        #
+        # Key names are TLP 1.9.1's: set_cpu_boost_all (func.d/10-tlp-func-cpu)
+        # reads CPU_BOOST_ON_AC for performance, CPU_BOOST_ON_BAT for balanced
+        # and CPU_BOOST_ON_SAV for power-saver. The _PRF/_BAL spelling only
+        # exists from TLP 1.11 — 1.9.1 ignores unknown keys without a warning,
+        # which silently re-opened the leak (caught in QC 2026-11-25).
+        CPU_BOOST_ON_AC = 1;
+        CPU_BOOST_ON_BAT = 1;
         CPU_BOOST_ON_SAV = 0;
       };
     };

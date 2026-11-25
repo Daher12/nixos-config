@@ -58,11 +58,13 @@ in
         # P3A "privacy-preserving analytics" + daily usage ping (Origin removes both)
         BraveP3AEnabled = false;
         BraveStatsPingEnabled = false;
-        # Memory Saver on by default (Chromium policy, Brave inherits it):
-        # discards background tabs under memory pressure — the single biggest
-        # lever on the browser's RSS (Brave peaked at 4.5 GB on yoga's 16 GB,
-        # 2026-11-25 perf round).
-        MemorySaverEnabled = true;
+        # No Memory-Saver policy on purpose: "MemorySaverEnabled" is NOT a
+        # Brave policy — Brave 1.100.58's binary carries no such key
+        # (HighEfficiencyModeEnabled / MemorySaverModeSavings exist, with
+        # different semantics), so a key by that name is silently ignored
+        # (QC 2026-11-25). Turn Memory Saver on in
+        # brave://settings/performance until a policy name is verified
+        # against brave://policy.
       }
       // cfg.extraPolicies
     );
