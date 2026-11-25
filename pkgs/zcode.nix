@@ -6,11 +6,11 @@
 
 let
   pname = "zcode";
-  version = "3.18.1";
+  version = "4.0.0";
 
   src = fetchurl {
     url = "https://cdn-zcode.z.ai/zcode/electron/releases/${version}/linux-x64/ZCode-${version}-linux-x64.AppImage";
-    hash = "sha256-QzJfMeg8hIJkvHKk/qkvj1BjQAO1afqkBX/iLLrWWFA=";
+    hash = "sha256-LO3F/O7h/8x0sAzKKSv6hlIs9yAbqLyT0MVQC2/vzEc=";
   };
 
   appimageContents = appimageTools.extractType2 {

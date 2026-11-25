@@ -50,7 +50,7 @@
     # to the CLI build", 2026-10-19, first shipped in the v2.1 line) — the
     # pin resumed moving at v2.1.4 (2026-10-24 sweep), reached v2.2.0 in the
     # 2026-10-28 sweep and v2.2.4 in the 2026-10-31 sweep (gate:
-    # `nix build github:anomalyco/opencode/v2.2.N` clean before touching this
+    # `nix build github:anomalyco/opencode/v2.N.N` clean before touching this
     # tag — keep that gate per bump; v2.2.5 is SKIPPED: its vendored
     # node_modules.nix hash mismatches the lockfile it ships — upstream
     # packaging bug, caught by this gate 2026-10-31; v2.2.6 AND v2.2.7
@@ -59,10 +59,13 @@
     # v2.3.2 SKIPPED the same way 2026-11-18 — all three gate-fail with the
     # same stale node_modules hash (specified sha256-UOVs48Z4… matches none
     # of the three shipped lockfiles; got zOej…/At90…/At90… respectively) —
-    # upstream's vendored hash hasn't been regenerated since 2.2.4. Six
-    # consecutive broken releases; pin held at v2.2.4.
+    # upstream's vendored hash hadn't been regenerated since 2.2.4 (six
+    # consecutive broken releases). RESUMED at v2.4.1 in the 2026-11-25
+    # sweep: upstream regenerated the vendored hash; gate
+    # `nix build github:anomalyco/opencode/v2.4.1` clean, versionCheckPhase
+    # green (2.4.1+6f05140). v2.4.0 was not gate-tested.
     # Deliberately NO `nixpkgs.follows` here: upstream requires its pinned
-    # nixpkgs-unstable (packageManager bun@1.4.2; nixos-26.05 only ships
+    # nixpkgs-unstable (packageManager bun@1.4.4; nixos-26.05 only ships
     # bun 1.3.13, whose `bun install` fails extracting the big native
     # tarballs and hangs the build). Cost: its own nixpkgs eval (nixpkgs_4
     # in the lock) — the lock carries four in total (base, noctalia's,
@@ -70,7 +73,7 @@
     # The libstdc++ LD_LIBRARY_PATH wrap in home/opencode.nix covers the
     # resulting stdenv mismatch.
     opencode = {
-      url = "github:anomalyco/opencode/v2.2.4";
+      url = "github:anomalyco/opencode/v2.4.1";
     };
 
     # Spotify desktop client patched with SpotX (ad blocking) at build
