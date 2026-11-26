@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
@@ -37,10 +38,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          nix flake check --all-systems --impure --keep-going
-          # yoga-gnome is covered by the weekly bump.yml run
-          for host in $(nix eval --json '.#nixosConfigurations' --apply 'builtins.attrNames' | jq -r '.[] | select(. != "yoga-gnome")'); do
-            echo "::group::Verifying $host"
-            nix build ".#nixosConfigurations.${host}.config.system.build.toplevel" --dry-run --impure
-            echo "::endgroup::"
-          done
+          # Same runner the agents use locally (scripts/test-suite): flake
+          # check plus per-host dry-builds, which share one flake eval there.
+          # yoga-gnome is covered by the weekly bump.yml run.
+          scripts/test-suite fast \
+            $(nix eval --json '.#nixosConfigurations' --apply 'builtins.attrNames' \
+              | jq -r '.[] | select(. != "yoga-gnome")')

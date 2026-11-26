@@ -135,6 +135,11 @@
           ;
       };
 
+      # The overlay on this pkgs set is load-bearing for the VM-test
+      # outputs: host-units-smoke (tests/host-units-smoke.nix) resolves
+      # pkgs.is-on-ac through the pkgs that callPackage injects, and only
+      # colloidFluentOverlays defines it. Hosts apply the same overlay via
+      # nixpkgs.overlays in lib/mkHost.nix.
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;

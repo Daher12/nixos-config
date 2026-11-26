@@ -85,12 +85,24 @@ cmd_fast() {
   nix flake check --impure --keep-going
 
   local rc=0
+  # Same evidence as `nixos-rebuild dry-build`, but works in agent
+  # sandboxes/CI: evaluates the toplevel and reports what would build/fetch.
+  # One invocation for all hosts shares a single flake load instead of one
+  # per host (2026-11-26: ~44s measured for three hosts in one go; the
+  # separate per-host invocations it replaced were not timed to completion
+  # — ~75s is an ESTIMATE from the per-host eval timings, not a baseline).
+  local dry=()
   for h in "${hosts[@]}"; do
-    echo "==> Dry-build: $h"
-    # Same evidence as `nixos-rebuild dry-build`, but works in agent
-    # sandboxes/CI: evaluates the toplevel and reports what would build/fetch.
-    nix build ".#nixosConfigurations.${h}.config.system.build.toplevel" --dry-run --impure || rc=1
+    dry+=(".#nixosConfigurations.${h}.config.system.build.toplevel")
   done
+  echo "==> Dry-build: ${hosts[*]}"
+  if ! nix build "${dry[@]}" --dry-run --impure; then
+    echo "==> Batch dry-run failed — re-running per host to attribute it" >&2
+    for h in "${hosts[@]}"; do
+      echo "==> Dry-build: $h"
+      nix build ".#nixosConfigurations.${h}.config.system.build.toplevel" --dry-run --impure || rc=1
+    done
+  fi
 
   if ((rc)); then
     echo "fast tier: FAILED (see dry-build output above)" >&2
@@ -163,9 +175,11 @@ cmd_suggest() {
       modules/roles/media.nix | hosts/nix-media/maintenance.nix | hosts/nix-media/ntfy.nix | hosts/nix-media/docker.nix)
         run[nix-media-upgrade-pipeline]=1
         ;;
-      # Broad smoke: the shared module trees, latitude's host module and the
-      # profiles all flow through host-units-smoke's full-repo eval.
-      modules/core/* | modules/features/* | modules/roles/* | modules/hardware/* | hosts/latitude/* | profiles/*)
+      # Broad smoke: the shared module trees and latitude's host module flow
+      # through host-units-smoke's full-repo eval. NOT profiles/*: that test
+      # imports no profile (its own header says so), so a profile-only edit
+      # cannot be exercised by it — the fast tier's dry-builds cover those.
+      modules/core/* | modules/features/* | modules/roles/* | modules/hardware/* | hosts/latitude/*)
         run[host-units-smoke]=1
         ;;
       # A changed test file (or its helper) is itself a reason to run it.

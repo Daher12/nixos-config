@@ -60,6 +60,13 @@ if [[ ${#positional[@]} -lt 1 || ${#positional[@]} -gt 2 ]]; then
   exit 1
 fi
 
+case "${positional[0]}" in
+  -h | --help | help)
+    usage
+    exit 0
+    ;;
+esac
+
 host="${positional[0]}"
 action="${positional[1]:-build-only}"
 

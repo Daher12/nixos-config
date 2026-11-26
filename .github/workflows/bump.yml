@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
@@ -58,19 +59,20 @@ jobs:
             --accept-flake-config
           echo "nixpkgs_rev=$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev[0:7]')" >> "$GITHUB_OUTPUT"
 
+      # Format BEFORE verifying: the tree that gets checked (and committed)
+      # is the formatted one, not a variant that was never evaluated.
+      - name: Format Nix code
+        run: nix fmt -- $(find . -name '*.nix' -type f)
+
       - name: Verify configurations
         shell: bash
         run: |
           set -euo pipefail
-          nix flake check --all-systems --impure --keep-going
-          for host in $(nix eval --json '.#nixosConfigurations' --apply 'builtins.attrNames' | jq -r '.[]'); do
-            echo "::group::Verifying $host"
-            nix build ".#nixosConfigurations.${host}.config.system.build.toplevel" --dry-run --impure
-            echo "::endgroup::"
-          done
-
-      - name: Format Nix code
-        run: nix fmt -- $(find . -name '*.nix' -type f)
+          # Same runner the agents use locally (scripts/test-suite): flake
+          # check plus per-host dry-builds in one shared eval. All hosts incl.
+          # yoga-gnome (ci.yml skips it — same machine as yoga).
+          scripts/test-suite fast \
+            $(nix eval --json '.#nixosConfigurations' --apply 'builtins.attrNames' | jq -r '.[]')
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@d0b01107b5db882071f96de5dd4b54961ea93f4c # v7.2.1
