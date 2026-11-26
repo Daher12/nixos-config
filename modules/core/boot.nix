@@ -44,7 +44,9 @@ in
       initrd = {
         verbose = !cfg.silent;
         systemd = {
-          enable = true;
+          # initrd.systemd.enable is not set: true is the nixpkgs 26.05
+          # default (system/boot/systemd/initrd.nix), and impermanence sets
+          # it again where it matters.
           services."systemd-cryptsetup@".after = lib.mkIf cfg.silent [ "plymouth-start.service" ];
           # Exclude label-freetype.so / label-pango.so from the initrd.
           # These were added upstream (Fedora 42 / NixOS 26.05) to render a
@@ -81,7 +83,8 @@ in
             );
           };
         };
-        compressor = "zstd";
+        # compressor zstd is not set: it is the 26.05 default (stage-1.nix);
+        # the args below are the non-default part.
         compressorArgs = [
           "-3"
           "-T0"
@@ -111,10 +114,10 @@ in
           # profile generations; store growth is bounded by the nix.gc
           # window instead (see modules/core/nix.nix).
           configurationLimit = lib.mkDefault 10;
-          consoleMode = lib.mkDefault "keep";
+          # consoleMode "keep" is not set: it is the upstream default.
         };
         efi.canTouchEfiVariables = lib.mkDefault true;
-        efi.efiSysMountPoint = lib.mkDefault "/boot";
+        # efiSysMountPoint /boot is not set: it is the upstream default.
       };
       tmp = lib.mkIf cfg.tmpfs.enable {
         useTmpfs = true;

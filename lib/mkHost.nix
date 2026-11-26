@@ -13,7 +13,6 @@
   lix ? true, # true → Lix from nixpkgs (cached), false → CppNix
   extraModules ? [ ],
   hmModules ? [ ],
-  extraSpecialArgs ? { },
 }:
 let
   flakeRoot = self.outPath;
@@ -34,18 +33,14 @@ let
   commonArgs = {
     inherit
       inputs
-      self
       flakeRoot
       mainUser
       ;
     # Fleet SSH public keys (lib/keys.nix) — single source for the
     # authorizedKeys literals hosts declare.
     fleetKeys = import (flakeRoot + "/lib/keys.nix");
-    # Rationale: Utilize flake evaluation caching to avoid O(N) nixpkgs re-imports.
-    # allowUnfree is enabled unconditionally for every host in the modules block below.
     homeDirectory = "/home/${mainUser}";
-  }
-  // extraSpecialArgs;
+  };
 in
 nixpkgs.lib.nixosSystem {
   inherit system;
@@ -56,11 +51,20 @@ nixpkgs.lib.nixosSystem {
     inputs.home-manager.nixosModules.home-manager
     inputs.disko.nixosModules.disko
     {
+      # Overlays go through nixpkgs.overlays (never nixpkgs.pkgs or a second
+      # `import nixpkgs`), so each host has exactly one nixpkgs
+      # instantiation. allowUnfree matches the flake-level pkgs in flake.nix.
       nixpkgs = {
         config.allowUnfree = true;
         overlays = colloidFluentOverlays;
       };
       networking.hostName = hostname;
+      # Flake-only fleet: no channels. The flake registry and the NIX_PATH
+      # nixpkgs pin come from nixpkgs' own wiring on every flake-built
+      # system (nixos/modules/misc/nixpkgs-flake.nix); leftover /root
+      # channel dirs after a switch only produce a non-fatal activation
+      # warning (audit 2026-11-26).
+      nix.channel.enable = false;
       # Traceability: `nixos-version --configuration-revision` answers "which
       # commit is running". dirtyRev covers uncommitted working trees.
       system.configurationRevision = self.rev or self.dirtyRev or null;

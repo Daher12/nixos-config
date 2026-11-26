@@ -116,7 +116,7 @@ in
       fish.enable = lib.mkDefault (cfg.defaultShell == "fish");
       zsh = lib.mkIf (cfg.defaultShell == "zsh") {
         enable = true;
-        enableCompletion = true;
+        # enableCompletion not set: true is the upstream zsh module default.
         autosuggestions.enable = true;
         syntaxHighlighting.enable = true;
         histSize = 10000;

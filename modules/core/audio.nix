@@ -1,7 +1,10 @@
-{ lib, ... }:
+{ config, lib, ... }:
 
 {
-  security.rtkit.enable = lib.mkDefault true;
+  # rtkit is only meaningful for the pipewire/wireplumber clients; tying the
+  # default to pipewire.enable keeps headless hosts (nix-media) from pulling
+  # the rtkit setuid wrapper for nothing (audit 2026-11-26).
+  security.rtkit.enable = lib.mkDefault config.services.pipewire.enable;
 
   services.pipewire = {
     enable = lib.mkDefault true;

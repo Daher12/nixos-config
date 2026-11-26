@@ -1,8 +1,6 @@
 {
   config,
   lib,
-  inputs,
-  self,
   mainUser,
   ...
 }:
@@ -14,11 +12,8 @@ in
   options.core.nix = {
     trustedUsers = lib.mkOption {
       type = lib.types.listOf lib.types.str;
-      default = [
-        "root"
-        mainUser
-      ];
-      description = "Users with root-equivalent nix access (trust settings, substituters). Headless hosts may narrow to root only.";
+      default = [ mainUser ];
+      description = "Users with root-equivalent nix access (trust settings, substituters). root is appended by NixOS itself; headless hosts may narrow this to [ ].";
     };
 
     gc = {
@@ -59,19 +54,23 @@ in
           "flakes"
         ];
 
-        auto-optimise-store = false;
-        max-jobs = lib.mkDefault "auto";
-        cores = lib.mkDefault 0;
+        # max-jobs/cores/sandbox/auto-optimise-store are not set: their values
+        # here equaled the nixpkgs defaults (config/nix.nix, verified
+        # 2026-11-26 audit). builders-use-substitutes is likewise gone — no
+        # buildMachines are configured anywhere in the fleet.
 
         trusted-users = cfg.trustedUsers;
 
-        sandbox = lib.mkDefault true;
         sandbox-fallback = false;
 
         min-free = 5368709120;
         max-free = 21474836480;
 
-        substituters = [
+        # cache.nixos.org and its key are appended by NixOS itself
+        # (nixos/modules/config/nix.nix: substituters via mkAfter) — the old
+        # plain definitions here made the generated nix.conf carry both twice.
+        # mkForce keeps our order (official cache first) without the dupes.
+        substituters = lib.mkForce [
           "https://cache.nixos.org"
           "https://nix-community.cachix.org"
           # Noctalia shell + greeter (flake inputs noctalia/noctalia-greeter,
@@ -79,7 +78,7 @@ in
           "https://noctalia.cachix.org"
         ];
 
-        trusted-public-keys = [
+        trusted-public-keys = lib.mkForce [
           "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
           "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
           "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
@@ -93,18 +92,16 @@ in
         keep-derivations = false;
         keep-outputs = false;
 
-        builders-use-substitutes = true;
         log-lines = lib.mkDefault 25;
         accept-flake-config = false;
         flake-registry = "";
       };
 
-      registry = lib.mkDefault {
-        nixpkgs.flake = inputs.nixpkgs;
-        self.flake = self;
-      };
-
-      nixPath = [ "nixpkgs=${inputs.nixpkgs.outPath}" ];
+      # The flake registry + NIX_PATH nixpkgs pin are not set here: NixOS
+      # wires both itself on flake-built systems
+      # (nixos/modules/misc/nixpkgs-flake.nix — registry.nixpkgs.to +
+      # nixpkgs=flake:nixpkgs). The old registry/nixPath definitions only
+      # re-declared that (the self entry never even survived the merge).
 
       gc = lib.mkIf cfg.gc.automatic {
         automatic = true;
