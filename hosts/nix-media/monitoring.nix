@@ -128,6 +128,23 @@ in
       "ntfy_url" = {
         restartUnits = [ "alertmanager-ntfy-bridge.service" ];
       };
+      # Replaces the old in-file secret_key literal (audit 2026-11-26) —
+      # AGENTS.md: secrets never go into plain files. Side file, NOT the
+      # default nix-media.yaml (still encrypted to the retired operator
+      # key, so it can't be edited until the SOPS_RUNBOOK §3 re-encryption).
+      # owner=grafana: the service itself expands the secret via
+      # $__file{} below, so IT must be able to read the rendered file.
+      # ORDER MATTERS: add the key with
+      #   sops secrets/hosts/nix-media-silo.yaml   (add: grafana_secret_key)
+      # BEFORE the first switch/deploy that carries this change. Rotation is
+      # REQUIRED (the old literal — the Grafana docs sample value — is in
+      # git history); it invalidates sessions and re-encrypts datasource
+      # secrets, so datasource passwords must be re-entered afterwards.
+      "grafana_secret_key" = {
+        sopsFile = ../../secrets/hosts/nix-media-silo.yaml;
+        owner = "grafana";
+        restartUnits = [ "grafana.service" ];
+      };
     };
 
     templates."grafana-env" = {
@@ -140,6 +157,8 @@ in
   services = {
     prometheus = {
       enable = true;
+      # Pinned explicitly (equals the upstream default): the ntfy bridge
+      # and alertmanager target literal "127.0.0.1:9090".
       port = 9090;
       listenAddress = "127.0.0.1";
       retentionTime = "30d";
@@ -213,6 +232,8 @@ in
 
       alertmanager = {
         enable = true;
+        # Pinned explicitly (equals the upstream default): prometheus's
+        # alertmanager target literal below is "127.0.0.1:9093".
         port = 9093;
         listenAddress = "127.0.0.1";
         configuration = {
@@ -266,9 +287,10 @@ in
         };
         security = {
           admin_user = "admin";
-          # Intentionally hardcoded: Grafana is behind Tailscale, not exposed to WAN.
-          # Rotate if Tailscale ACLs change or host is decommissioned.
-          secret_key = "SW2YcwTIb9zpOOhoPsMm";
+          # The 26.05 grafana module asserts a non-null secret_key; the VALUE
+          # is sops-managed via Grafana's file-provider ($__file{} expands
+          # at startup — the module's own recommendation for this).
+          secret_key = "$__file{${config.sops.secrets."grafana_secret_key".path}}";
           allow_embedding = false;
           cookie_secure = true;
           cookie_samesite = "lax";
