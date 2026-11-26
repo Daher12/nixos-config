@@ -8,7 +8,7 @@ hand-held state that exists only on this machine.
 ## Already ported (2026-11-01, staged)
 
 - **Knowledge base**: `docs/knowledge/` mirrors the ZCode auto-memory archive
-  (155 md files, 4 project dirs + curated `MEMORY.md` indexes); re-sync with
+  (~250 md files, 4 allowlisted project dirs + curated `MEMORY.md` indexes); re-sync with
   `scripts/export-zcode-memory` (`--check` for drift + secret scan). Pointers
   live in `AGENTS.md` and `AGENTS-global.md` — both tools read those. The
   first scan caught a live LiteLLM master key inside

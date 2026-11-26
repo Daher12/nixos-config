@@ -27,11 +27,10 @@ import sys
 import urllib.parse
 import urllib.request
 
-# mnamer 2.6.0's bundled public API keys (providers.py — they ship with
-# every mnamer install). Read-only search use only; NOT user secrets.
+# mnamer 2.6.0's bundled public API key (providers.py — ships with every
+# mnamer install). Read-only search use only; NOT a user secret.
 # House rule: never place real user keys in repo files.
 TMDB_KEY = "db972a607f2760bb19ff8bb34074b4c7"
-TVDB_KEY = "E69C7A2CEF2F3152"
 
 # Extension mask, same as features.mnamer's `mask` option (keep in sync).
 MASK = {"mkv", "mp4", "m4v", "avi", "ts", "wmv", "srt", "ass", "ssa", "sub", "idx"}

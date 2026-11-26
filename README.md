@@ -175,14 +175,17 @@ options, so per-host configuration reads as a short, self-documenting block.
 <details>
 <summary><strong>🔐 Secrets handling (click to expand)</strong></summary>
 
-sops-nix with **one encrypted file per host** (`secrets/hosts/<host>.yaml`)
-and per-host identities:
+sops-nix with **one encrypted file per host plus side files for secrets that
+need the current operator key** (`secrets/hosts/*.yaml` — yoga, latitude,
+nix-media, nix-media-litellm, nix-media-silo) and per-host identities:
 
 - **yoga** derives its identity from the persisted SSH host key
   (`method = "ssh"`) — nothing to provision, survives impermanence wipes.
 - **latitude / nix-media** use a classic age `key.txt` on the device.
-- Every file is also encrypted to the operator key so it can be edited from
-  the workstation.
+- Every file is *meant* to be encrypted to the operator key so it can be
+  edited from the workstation — two files (`latitude.yaml`, `nix-media.yaml`)
+  still carry the retired admin key until the SOPS_RUNBOOK §3
+  re-encryption, which is why newer nix-media secrets live in side files.
 - `dk_password_hash` is load-bearing on every host (declares the login
   password; `mutableUsers = false` everywhere).
 
@@ -194,8 +197,9 @@ Full architecture, re-encryption and rotation procedures: **`SOPS_RUNBOOK.md`**.
 <summary><strong>🧪 Quality & testing (click to expand)</strong></summary>
 
 - `nix flake check` runs **statix** (idiom), **deadnix** (dead code) and
-  **nixfmt** (formatting) over the whole repo, plus evaluation of all three
-  hosts.
+  **nixfmt** (formatting) over the whole repo, plus the flake's schema and
+  derivation checks (the hosts' full toplevel eval happens in the per-host
+  dry-builds that follow).
 - **NixOS VM tests** in `tests/` (7 of them — litellm gateway, SSH firewall,
   virbr0 firewall, zram heal, yoga s2h logic, nix-media upgrade pipeline,
   host units smoke), kept out of CI for speed and run explicitly through the

@@ -23,7 +23,7 @@ Personal, machine-wide rules applied in every opencode session. Project-level
 
 ## Environment
 
-- OS: NixOS (flakes). Interactive shell: fish. Terminal: Ghostty.
+- OS: NixOS (flakes). Interactive shell: fish. Terminal: foot (niri attr) / kitty (GNOME attrs).
 - The opencode bash tool executes in `bash`, not fish — run tool commands in POSIX/bash.
 - Prefer Nix-idiomatic solutions when relevant; write fish only when editing fish config or giving the user paste-able shell commands.
 

@@ -4,7 +4,7 @@
 # both tools are in use, and once more on migration day before retiring ZCode
 # (docs/opencode-migration.md).
 #
-#   scripts/export-zcode-memory            # mirror all projects
+#   scripts/export-zcode-memory            # mirror the allowlisted projects
 #   scripts/export-zcode-memory --check    # only report drift + secret scan
 #
 # Layout: ~/.zcode/cli/memories/projects/<name>-<hash>/memory/<files>.md
@@ -23,6 +23,18 @@ mode="${1:---sync}"
 CHECK=0
 [ "$mode" = "--check" ] && CHECK=1
 
+# Allowlist (audit 2026-11-26): a blanket glob used to mirror EVERY project
+# on the box, dragging unrelated personal notes (a family film checklist, an
+# iOS patch review, a VPS install journal) into the repo under UUID-named
+# dirs. AGENTS.md documents exactly these four; new projects are added here
+# deliberately, not by accident of existing in $SRC.
+PROJECTS=(
+  nixos-config
+  optimized_network
+  default
+  cleanyourtv
+)
+
 if [ ! -d "$SRC" ]; then
   echo "error: $SRC not found (ZCode not installed here?) — set ZCODE_MEM_DIR" >&2
   exit 1
@@ -32,9 +44,9 @@ stage="$(mktemp -d)"
 trap 'rm -rf "$stage"' EXIT
 
 drift=0
-for proj in "$SRC"/*/; do
-  name="$(basename "$proj")"
-  name="${name%-*}" # strip the per-install hash suffix
+for name in "${PROJECTS[@]}"; do
+  match=("$SRC/${name}"-*) # glob in array context expands against $SRC
+  proj="${match[0]}"
   if [ ! -d "$proj/memory" ]; then
     echo "skip $name (no memory dir)"
     continue

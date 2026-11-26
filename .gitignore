@@ -23,14 +23,12 @@ __pycache__/
 *.age
 *.secret
 *.local
-winapps.conf
-winapps.conf.local
 secrets.conf
 .env
 .env.*
 !.env.example
 
-# Keys
+# Keys (*covers .key files incl. age.key/api.key)
 /keys/
 id_rsa
 id_ed25519
@@ -42,10 +40,3 @@ id_ed25519
 keys.txt
 key.txt
 key_*.txt
-age.key
-api.key
-
-#Trash
-.Trash-1000
-/core
-core.*

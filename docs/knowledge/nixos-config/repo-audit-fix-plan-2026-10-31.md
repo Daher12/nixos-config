@@ -11,7 +11,7 @@ Audit 2026-10-31 via two Explore agents + spot-verified top claims (opencode.yml
 
 **User decisions (binding):** backups SKIPPED (backlog); image tags KEEP `:latest` (digest-compare refresh instead — consistent with [[jellyfin-pin-nix-media]]); LiteLLM KEEP direct 0.0.0.0:4001 tailnet-only; scope = EVERYTHING incl. P3 polish; **Batch D SKIPPED on request**.
 
-**Batch D = open defects on record (verified, deliberately untouched):** `modules/roles/media.nix:42` NFS export `*(rw,async,…)` wildcard (firewall-only ACL; async = crash-corruption window); `hosts/nix-media/monitoring.nix:243` Grafana `secret_key = "SW2YcwTIb9zpOOhoPsMm"` = Grafana DOCS SAMPLE value. Fix recipes were fully drafted (sops side file `nix-media-monitoring.yaml`, 100.64.0.0/10 export) — revive from this note.
+**Batch D = open defects on record (verified, deliberately untouched):** `modules/roles/media.nix:42` NFS export `*(rw,async,…)` wildcard (firewall-only ACL; async = crash-corruption window); `hosts/nix-media/monitoring.nix` Grafana `secret_key` literal (Grafana DOCS SAMPLE value) — REDACTED from this note 2026-11-26 (house rule: no key-shaped strings in memory; it was also removed from the repo and moved to sops, see [[lean-mean-audit-exec-2026-11-26]]). Fix recipes were fully drafted (sops side file, 100.64.0.0/10 export) — revive from this note.
 
 **Other verified findings feeding the handoff:**
 - P1: `.github/workflows/opencode.yml` — ANY GitHub user triggers `/oc` agent on PUBLIC repo (body-only check, no author_association gate); `anomalyco/opencode/github@latest` mutable + OPENCODE_API_KEY + id-token:write. Fix: OWNER gate + SHA pin (`git ls-remote --tags --refs` gives peeled SHAs).

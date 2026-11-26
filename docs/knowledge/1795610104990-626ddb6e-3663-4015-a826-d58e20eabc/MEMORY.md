@@ -1,1 +1,0 @@
-- [HR+ iOS 27 patch review](hrplus-ios27-patch-review.md) — document-level findings done; binary verification pending, not approved; user's earbud profile unknown

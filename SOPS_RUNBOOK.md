@@ -30,6 +30,7 @@ Current files:
 | `yoga.yaml` | `dk_password_hash`, `root_password_hash` | ✅ fixed 2026-09-13: re-encrypted to the ssh-derived identity + current admin key |
 | `nix-media.yaml` | `grafana_admin_password`, `ntfy_url`, `ntfy_topic`, `dk_password_hash` | ⚠️ still encrypted to the RETIRED admin key → §3 (all keys stay; nothing dead inside except nothing — keep all) |
 | `nix-media-litellm.yaml` | `litellm_config` (gateway model list + keys) | ✅ side file created 2026-10-04 to the CURRENT keys — the pattern for new nix-media secrets until §3 re-encrypts `nix-media.yaml` (creation rule in `.sops.yaml`) |
+| `nix-media-silo.yaml` | `silo_secret_key`, `grafana_secret_key` (since 2026-11-26 — the Grafana `secret_key` moved here out of `monitoring.nix`) | ✅ side file to the CURRENT keys, same creation rule |
 | `latitude.yaml` | `dk_password_hash` (live) + `wifi_home_psk`, `wifi_work_psk` (dead, 0 config refs) | ⚠️ still encrypted to the RETIRED admin key → §3 (drops the two wifi PSKs) |
 
 Why this design: yoga's on-device decryption needs no manual key provisioning
@@ -67,18 +68,24 @@ nix shell nixpkgs#yq-go -c yq '.sops.age[].recipient' secrets/hosts/<host>.yaml
 
 ---
 
-## 3. OPERATOR PLAN — re-encrypt latitude + nix-media (required, ~10 min each)
+## 3. OPERATOR PLAN — re-encrypt nix-media (~10 min; latitude SUPERSEDED 2026-11-26)
 
-Goal: both files encrypted to `[admin_david (current), <host>]`; on latitude
-additionally drop the two dead wifi PSKs. Each device can decrypt its own old
-file (its key.txt is a recipient); yoga cannot — so this runs ON the device.
+Latitude is no longer re-encrypted: that machine will be installed FRESH via
+the disko blueprint, and the new install provisions a new device key + a
+fresh `latitude.yaml` under the current creation rules — the old file (and
+its two dead wifi PSKs) simply get replaced. Do §3 for **nix-media only**:
 
-**Step 0 — from yoga:** push the `testing` branch (or merge it to main if you
-already switched yoga onto it), then on the target device pull it into the
+Goal: `nix-media.yaml` encrypted to `[admin_david (current), host_nix-media]`.
+The device can decrypt its own old file (its key.txt is a recipient); yoga
+cannot — so this runs ON the device.
+
+**Step 0 — from yoga:** push your working branch (or merge it to main if
+it is already deployed there), then on the target device pull it into the
 checkout your config builds from (e.g. `cd /etc/nixos && sudo git pull`).
 All commands below run on the device as root.
 
-**Step 1 — decrypt to tmpfs, drop dead keys (latitude only), re-encrypt:**
+**Step 1 — decrypt to tmpfs, re-encrypt** (nix-media; the latitude-only
+wifi-PSK deletion died with the fresh-install plan):
 
 ```bash
 cd /etc/nixos
@@ -109,7 +116,7 @@ nix shell nixpkgs#yq-go -c yq '.sops.age[].recipient' secrets/hosts/<host>.yaml
 - Variant A (git on device): `sudo git add secrets/hosts/<host>.yaml &&
   sudo git commit -m "sops: re-encrypt <host>.yaml to current keys" && sudo git push`
 - Variant B (copy to yoga): from yoga
-  `scp <user>@<device>:/etc/nixos/secrets/hosts/<host>.yaml /home/dk/nixos-config/secrets/hosts/`
+  `scp <user>@<device>:/etc/nixos/secrets/hosts/<host>.yaml ~/nixos-config/secrets/hosts/`
   then commit + push from yoga.
 
 **Step 4 — rebuild the device** with your usual flow (`./scripts/update-safe`).
@@ -175,7 +182,8 @@ hashes live there) and that a service using the secrets still runs.
 - `no identity matched any of the recipients` → the file is encrypted to keys
   you don't hold; compare §1's recipient-inspect command against `.sops.yaml`.
 - Boot/activation failure after a sops change → boot the previous generation
-  from the GRUB menu, `git revert`, rebuild. sops failures occur at
+  from the bootloader menu (systemd-boot via lanzaboote), `git revert`,
+  rebuild. sops failures occur at
   activation, not in the initrd — the system still boots.
 - `nixos-rebuild dry-build` does NOT validate secret-file contents (it never
   reads the encrypted files) — a missing key inside a file only surfaces at

@@ -2,7 +2,7 @@
 
 This is the single-stop reference for understanding this NixOS configuration repository.
 
-**Last updated:** 2026-11-15 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
+**Last updated:** 2026-11-26 | **NixOS version:** 26.05 "Yarara" | **Flake-based:** Yes
 
 ---
 
@@ -49,7 +49,7 @@ A personal NixOS flake managing **3 hosts** (yoga, latitude, nix-media) with a m
 ├── REPO_OVERVIEW.md           # This file
 ├── SOPS_RUNBOOK.md            # Secrets architecture, re-encryption/rotation procedures, troubleshooting
 ├── AGENTS.md                  # Rules for AI coding agents (conventions, QC workflow)
-├── scripts/                   # install.sh (installer), update-safe (safe updater), test-suite (shared agent QC)
+├── scripts/                   # install.sh (installer), update-safe (safe updater), test-suite (shared agent QC), power-probe, export-zcode-memory
 └── .github/workflows/         # CI: weekly flake updates + lint checks
 ```
 
@@ -146,9 +146,9 @@ nixosConfigurations.yoga = mkHost {
 4. Hardware modules (if `withHardware = true`)
 5. Profile modules
 6. Infrastructure: sops-nix, home-manager, disko
-7. nixpkgs config with overlays (colloid, fluent, zcode, mikromcp, is-on-ac; a second overlay disables `python313Packages.fastmcp`'s test suite — dep of `mcp-nixos`; its concurrency tests broke on the 2026-10-31 nixpkgs bump. The former quickshell/dms-greeter overlay stage died with the Hyprland stack 2026-11-14)
+7. nixpkgs config with overlays (colloid, fluent, zcode, mikromcp, is-on-ac — single overlay stage; an old second overlay that disabled `python313Packages.fastmcp`'s test suite is GONE, as is the quickshell/dms-greeter stage that died with the Hyprland stack 2026-11-14)
 8. Traceability: `system.configurationRevision = self.rev or self.dirtyRev or null` (added 2026-10-19 — `nixos-version --configuration-revision` then answers which commit a running system was built from)
-9. specialArgs (NixOS + HM): `inputs`, `self`, `flakeRoot`, `mainUser`, `homeDirectory`, `fleetKeys` (`lib/keys.nix` — SSH public-key constants)
+9. specialArgs (NixOS + HM): `inputs`, `flakeRoot`, `mainUser`, `homeDirectory`, `fleetKeys` (`lib/keys.nix` — SSH public-key constants)
 
 ---
 
@@ -174,8 +174,8 @@ Host-specific home additions go in `hosts/<name>/home.nix`.
 
 ## Secrets (SOPS)
 
-- **Config:** `.sops.yaml` — every file encrypted to the operator key + the host's own identity
-- **Secrets:** `secrets/hosts/{yoga,latitude,nix-media,nix-media-litellm}.yaml` (`dk_password_hash` is load-bearing on every host — modules/core/users.nix; the litellm sidecar exists because `nix-media.yaml` is still encrypted to the retired admin key — new nix-media secrets go into side files until the SOPS_RUNBOOK.md §3 re-encryption)
+- **Config:** `.sops.yaml` — every file encrypted to the operator key + the host's own identity (two exceptions pending §3 re-encryption: `latitude.yaml`, `nix-media.yaml`)
+- **Secrets:** `secrets/hosts/{yoga,latitude,nix-media,nix-media-litellm,nix-media-silo}.yaml` (`dk_password_hash` is load-bearing on every host — modules/core/users.nix; the litellm + silo sidecars exist because `nix-media.yaml` is still encrypted to the retired admin key — new nix-media secrets go into side files until the SOPS_RUNBOOK.md §3 re-encryption)
 - **Usage:** Imported via `modules/features/sops.nix`, accessed as `config.sops.secrets.<name>.path`
 - **Operator key:** `age1ff0ly0tej0yk39ycfq0dz0skmvqhe3tzuhdyaq2hkl52enu68sqqrr90s2` (private on yoga, `~/.config/sops/age/keys.txt`)
 - **Host identities:** yoga = ssh-derived (`method = "ssh"`, no key.txt — identity is the persisted SSH host key); latitude + nix-media = classic `key.txt` on-device
@@ -185,8 +185,8 @@ Host-specific home additions go in `hosts/<name>/home.nix`.
 
 ## CI/CD (`.github/workflows/`)
 
-- **`ci.yml` — push/PR gate (since 2026-10-19):** `nix flake check` (statix, deadnix, nixfmt) + dry-run build of every host. Hand edits are verified before they reach the fleet; the weekly cron alone validated nothing between bumps.
-- **`bump.yml` — weekly input bump:** Trigger: weekly cron (Saturday 02:00 UTC — ahead of the Sunday nix-media reboot, so the fleet burns in a bumped closure on the daily drivers first) + manual dispatch. Actions: Update safe flake inputs → format with `nixfmt` → `nix flake check` → dry-run build every host → auto-commit (message carries `[skip ci]` so the push gate doesn't re-run the identical verification; `cancel-in-progress` off — the cron must never kill a long manual `include_lanzaboote` run). Checks: `statix`, `deadnix`, `nixfmt` (in `flake.nix`)
+- **`ci.yml` — push/PR gate (since 2026-10-19):** `nix flake check` (statix, deadnix, nixfmt) + dry-run build of every host except `yoga-gnome` (same machine; covered weekly by bump.yml). Both steps run via `scripts/test-suite fast`, the same runner agents use locally (since 2026-11-26).
+- **`bump.yml` — weekly input bump:** Trigger: weekly cron (Saturday 02:00 UTC — ahead of the Sunday nix-media reboot, so the fleet burns in a bumped closure on the daily drivers first) + manual dispatch. Actions: Update safe flake inputs → format with `nixfmt` → verify via `scripts/test-suite fast` (flake check + dry-run build of every host incl. `yoga-gnome`) → auto-commit (message carries `[skip ci]` so the push gate doesn't re-run the identical verification; `cancel-in-progress` off — the cron must never kill a long manual `include_lanzaboote` run). Checks: `statix`, `deadnix`, `nixfmt` (in `flake.nix`)
 
 ---
 
@@ -434,7 +434,7 @@ Correct spelling: the top-level NixOS service options `startLimitBurst` / `start
 | `services.resolved.extraConfig` removed | `modules/core/networking.nix` | Migrate to `services.resolved.settings` attrset |
 | `gdm.wayland` removed (Wayland mandatory) | `modules/features/desktop-gnome.nix` | Delete `wayland = true` line |
 | `programs.adb` removed | `modules/core/users.nix` | Use `pkgs.android-tools` in systemPackages |
-| Grafana `secret_key` required | `hosts/nix-media/monitoring.nix` | Set `secret_key = "SW2YcwTIb9zpOOhoPsMm"` |
+| Grafana `secret_key` required | `hosts/nix-media/monitoring.nix` | ~~Set `secret_key = "<literal>"`~~ — sops-managed since 2026-11-26: ini carries `$__file{}` pointing at the sops-rendered `grafana_secret_key` (in `secrets/hosts/nix-media-silo.yaml`); the literal that used to be printed here is in git history, so rotate |
 | `fastfetchMinimal` renamed | `hosts/nix-media/default.nix`, `home/terminal.nix` | Change to `fastfetch.minimal` |
 | `nixfmt-rfc-style` renamed | `flake.nix` | Change to `nixfmt` |
 | WinApps removed | `flake.nix`, `home/`, `hosts/yoga/` | Replaced by virt-manager/libvirt |

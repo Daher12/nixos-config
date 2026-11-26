@@ -26,7 +26,6 @@
     nodes.machine =
       { ... }:
       {
-        _module.args.mainUser = "root";
         imports = [ zramModule ];
 
         # Small zram: swapoff during the heal scenarios is instant.
