@@ -68,12 +68,13 @@ in
       flags = "--delete-older-than 30d";
     };
 
-    # One root-equivalent nix path is enough on this host: dk is already in
+    # No extra trusted user on this host: dk is already root-equivalent via
     # the docker group (root-equivalent #2), and autoUpgrade builds as root.
-    # dk's interactive nix over SSH keeps working, just untrusted
-    # (per-flake nixConfig substituters ignored — accept-flake-config is
-    # false fleet-wide anyway).
-    nix.trustedUsers = [ "root" ];
+    # NixOS itself appends "root" to trusted-users — an empty list here keeps
+    # the merged value at exactly that (dk's interactive nix over SSH keeps
+    # working, just untrusted; per-flake nixConfig substituters ignored —
+    # accept-flake-config is false fleet-wide anyway).
+    nix.trustedUsers = [ ];
 
     users.defaultShell = "zsh";
     sysctl.optimizeForServer = true;
@@ -215,8 +216,8 @@ in
     interfaces.${lanIf}.useDHCP = false;
 
     firewall = {
-      allowedTCPPorts = [ ];
-      # Default-deny input. Deliberate exceptions:
+      # allowedTCPPorts not set: [ ] is the upstream default. Deliberate
+      # exceptions below:
       # - SSH port 26 LAN-wide (services.openssh.openFirewall below) — the
       #   management path on the home network; key-only auth via core.openssh
       #   (PasswordAuthentication and KbdInteractiveAuthentication off).
@@ -249,7 +250,6 @@ in
       };
     };
     wait-online = {
-      enable = true;
       timeout = 30;
       extraArgs = [ "--interface=${lanIf}:routable" ];
     };
@@ -302,6 +302,8 @@ in
     # openFirewall here is the LAN-management path.
     openssh = {
       ports = [ sshPort ];
+      # Pinned explicitly (equals the upstream default): this is the one
+      # deliberately LAN-open port — the management path.
       openFirewall = true;
     };
     # fstrim weekly is derived by features.filesystem for the ext4 root —
@@ -312,6 +314,6 @@ in
     # (pulseaudio.enable = false is the upstream default once pipewire is off.)
     pipewire.enable = false;
   };
-
-  security.rtkit.enable = false;
+  # security.rtkit.enable not set: audio.nix ties the rtkit default to
+  # pipewire.enable, so this host lands at false with the stack disabled.
 }

@@ -18,13 +18,12 @@
     oomd.enable = lib.mkDefault true;
     secureboot.enable = lib.mkDefault true;
 
-    vpn.tailscale = {
-      enable = lib.mkDefault true;
-      routingFeatures = lib.mkDefault "client";
-      trustInterface = lib.mkDefault true;
-    };
+    vpn.tailscale.enable = lib.mkDefault true;
+    # routingFeatures "client" and trustInterface true are not set: both are
+    # the option defaults (nix-media overrides them for the server role).
 
-    sops.enable = lib.mkDefault false;
+    # sops.enable not set: false is the mkEnableOption default — hosts opt
+    # in explicitly (all three currently do).
 
     # Common to both laptops.
     # serverIp uses the features.nas option default (Tailscale IP of nix-media).

@@ -49,7 +49,7 @@ in
       inherit (cfg) algorithm;
       inherit (cfg) memoryPercent;
       priority = 10;
-      swapDevices = 1;
+      # swapDevices not set: 1 is the upstream default.
     };
 
     boot.kernel.sysctl = {

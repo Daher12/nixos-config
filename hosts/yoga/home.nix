@@ -119,11 +119,22 @@ in
             directory = ".local/share/onlyoffice";
             mode = "0700";
           }
+          # Desktop-split entries (audit 2026-11-26): papers + monitors.xml
+          # have writers only under GNOME (desktop-gnome module / mutter),
+          # the zcode launcher log only under niri (home/niri.nix).
+        ]
+        ++ lib.optionals (!config.desktop.niri.enable) [
           {
             directory = ".local/share/papers-signing";
             mode = "0700";
           }
-
+        ]
+        ++ lib.optionals config.desktop.niri.enable [
+          # ZCode launcher log (home/niri.nix writes launcher.log here with
+          # in-script rotation at 1 MiB) — post-mortem survives root reset.
+          ".local/state/zcode"
+        ]
+        ++ [
           ".local/share/keyrings"
           ".config/mozilla/firefox"
           ".config/BraveSoftware/Brave-Browser"
@@ -145,9 +156,6 @@ in
           ".config/ZCode"
           # ZCode auth/history lives here, not in ~/.config/ZCode
           ".zcode"
-          # ZCode launcher log (home/niri.nix writes launcher.log here with
-          # in-script rotation at 1 MiB) — post-mortem survives root reset.
-          ".local/state/zcode"
           # Obsidian (Electron): vault registry + window state. The vault
           # itself lives in ~/Dokumente/Notes, persisted via the system-level
           # Dokumente entry in hosts/yoga/default.nix.
@@ -174,16 +182,20 @@ in
         files = [
           ".oxrc"
           ".config/user-dirs.locale"
+        ]
+        # mutter's per-monitor layout (GNOME attrs only — on niri the
+        # compositor config is an HM store symlink).
+        ++ lib.optionals (!config.desktop.niri.enable) [
           ".config/monitors.xml"
-          # NOT persisted: recently-used.xbel (audit 2026-11-18, removed
-          # 2026-11-25). GTK apps save it atomically (temp file + rename),
-          # which destroys both of impermanence's file methods — the boot
-          # symlink gets replaced by a plain file and bind mounts reject
-          # the rename — so the entry never actually persisted anything
-          # (recents reset on every boot either way; see impermanence
-          # issue #147). Stray files of this class are auto-migrated/backed
-          # up by the persist-heal hook in modules/features/impermanence.nix.
         ];
+        # NOT persisted: recently-used.xbel (audit 2026-11-18, removed
+        # 2026-11-25). GTK apps save it atomically (temp file + rename),
+        # which destroys both of impermanence's file methods — the boot
+        # symlink gets replaced by a plain file and bind mounts reject
+        # the rename — so the entry never actually persisted anything
+        # (recents reset on every boot either way; see impermanence
+        # issue #147). Stray files of this class are auto-migrated/backed
+        # up by the persist-heal hook in modules/features/impermanence.nix.
       };
     };
 

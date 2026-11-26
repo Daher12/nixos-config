@@ -149,7 +149,8 @@ in
           # NOTE: the dock has NO launch feedback animation in v5.4.1
           # (source: no pending-launch visual state, only hover
           # magnification); the window is focused as soon as it maps
-          # (tryFulfillPendingLaunchFocus).
+          # (tryFulfillPendingLaunchFocus). Verified against v5.4.1 — the
+          # pin is now v5.5.0, re-verify before relying on this.
           launch_apps_as_systemd_services = false;
           # Flat cards/popup borders off, panels anchored to the main bar
           # (user-tuned in Settings 2026-11-06, harvested). Type-to-launch
@@ -539,7 +540,8 @@ in
         # with pill input; round 4 on 2026-11-15 grew the clock to ~110px
         # and added the weather line). No per-widget scale or text widget
         # exists for lockscreen
-        # widgets in v5.4.1 (validator warns `scale: unknown setting`;
+        # widgets in v5.4.1 — pin now v5.5.0, re-verify before relying
+        # (validator warns `scale: unknown setting`;
         # clock font stays hard-fixed at 4x body, so a small date line is
         # not expressible — size only via the entry's box-fit) — geometry
         # and style only. The geometry keys are editor-owned: the

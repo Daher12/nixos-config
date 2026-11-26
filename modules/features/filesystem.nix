@@ -82,14 +82,14 @@ in
             lib.attrValues (lib.filterAttrs (_: fs: (fs.fsType or null) == "btrfs") config.fileSystems)
           );
 
-      services.fstrim.interval = lib.mkIf config.services.fstrim.enable "weekly";
+      # fstrim.interval not set: "weekly" is the upstream default.
     }
 
     (lib.mkIf (cfg.type == "btrfs" && cfg.btrfs.autoScrub) {
       services.btrfs.autoScrub = {
         enable = true;
         fileSystems = cfg.btrfs.scrubFilesystems;
-        interval = "monthly";
+        # interval not set: "monthly" is the upstream default.
       };
     })
 

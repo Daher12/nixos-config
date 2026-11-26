@@ -156,18 +156,21 @@ in
 
     home = {
       packages = [
-        colloid
         iconPkg
-        # cursorPkg deliberately NOT listed here: gtk.cursorTheme.package
-        # (below) already installs it into the profile — the extra entry
-        # was a double install (audit 2026-11-18).
+        # Colloid + the switch scripts are GNOME-attr-only: on the noctalia
+        # attrs darkman is off (Noctalia owns day/night) and gtk.theme is
+        # adw-gtk3, so nothing calls them (audit 2026-11-26). The `colloid`
+        # binding above stays — the !noctalia branch of gtk.theme uses it.
+      ]
+      ++ lib.optionals (!config.desktop.noctalia.enable) [
+        colloid
         switchTheme
         switchDark
         switchLight
       ];
 
       # Required for GNOME Shell theme discovery by User Themes: expose in ~/.themes
-      file = {
+      file = lib.mkIf (!config.desktop.noctalia.enable) {
         ".themes/${gtkDark}".source = "${colloid}/share/themes/${gtkDark}";
         ".themes/${gtkLight}".source = "${colloid}/share/themes/${gtkLight}";
       };

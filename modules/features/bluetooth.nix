@@ -16,7 +16,7 @@ in
   config = lib.mkIf cfg.enable {
     hardware.bluetooth = {
       enable = true;
-      powerOnBoot = true;
+      # powerOnBoot not set: true is the upstream default.
       settings = {
         General = {
           Experimental = true;

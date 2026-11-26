@@ -91,7 +91,6 @@ in
       backend = "docker";
       containers = {
         jellyfin = {
-          autoStart = true;
           image = images.jellyfin;
           environment = {
             # 2026-09-19: DOCKER_MODS (intro-skipper docker-mod) removed.
@@ -146,7 +145,6 @@ in
         };
 
         audiobookshelf = {
-          autoStart = true;
           image = images.audiobookshelf;
           environment = {
             AUDIOBOOKSHELF_UID = uid;
@@ -179,7 +177,6 @@ in
         # start-period absorbs DB migrations) — adding --health-cmd here
         # would silently replace it, so none is set.
         silo = {
-          autoStart = true;
           image = images.silo;
           environment = {
             PGID = gid;
@@ -232,7 +229,6 @@ in
         };
 
         cadvisor = {
-          autoStart = true;
           image = images.cadvisor;
           volumes = [
             "/:/rootfs:ro"

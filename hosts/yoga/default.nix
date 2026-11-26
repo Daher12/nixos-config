@@ -431,6 +431,11 @@
 
     persistence."/persist/system" = {
       hideMounts = true;
+      # Per-desktop entries are gated: gdm/colord have writers only under
+      # GNOME (upstream gnome module), noctalia-greeter only under niri —
+      # each attr persists exactly what it runs (audit 2026-11-26).
+      # AccountsService stays shared: the greeter module enables it on niri
+      # too. upower stays shared: GNOME enables it with powerManagement.
       directories = [
         "/etc/NetworkManager/system-connections"
         "/var/log"
@@ -440,21 +445,25 @@
         "/var/lib/systemd"
         "/var/lib/tailscale"
         "/var/lib/upower"
-        "/var/lib/colord"
         "/var/db/sudo/lectured"
         "/var/lib/libvirt"
-        "/var/lib/gdm"
         "/var/lib/AccountsService"
         "/var/lib/fwupd"
+        {
+          directory = "/var/lib/swap";
+          mode = "0700";
+        }
+      ]
+      ++ lib.optionals config.features.desktop-gnome.enable [
+        "/var/lib/gdm"
+        "/var/lib/colord"
+      ]
+      ++ lib.optionals config.features.desktop-niri.enable [
         # noctalia-greeter: the mutable sync.toml lives here (the shell
         # syncs wallpaper/palette/font/outputs into /var/lib/noctalia-greeter;
         # unmanaged by the greeter module). Without this the greeter loses
         # its synced look on every reboot (impermanence wipe).
         "/var/lib/noctalia-greeter"
-        {
-          directory = "/var/lib/swap";
-          mode = "0700";
-        }
       ];
       files = [
         "/etc/machine-id"

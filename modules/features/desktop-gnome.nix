@@ -81,9 +81,12 @@ in
             evolution-data-server.enable = lib.mkForce false;
             gnome-online-accounts.enable = false;
             gnome-browser-connector.enable = false;
-            gnome-keyring.enable = true;
+            # gnome-keyring.enable not set: true is the upstream GNOME default.
           };
 
+          # NOT redundant: the upstream GNOME module does NOT add g-s-d's
+          # udev rules on this nixpkgs rev — the snapshot proof caught the
+          # removal (udevPkgs lost gnome-settings-daemon, 2026-11-26).
           udev.packages = [ pkgs.gnome-settings-daemon ];
         };
 
@@ -123,7 +126,7 @@ in
           ];
         };
 
-        programs.dconf.enable = lib.mkDefault true;
+        # programs.dconf.enable not set: true is the upstream GNOME default.
       }
 
       {

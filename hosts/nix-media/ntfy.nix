@@ -168,7 +168,8 @@ in
   services.smartd = {
     enable = true;
     notifications = {
-      x11.enable = false;
+      # x11.enable not set: the default (services.xserver.enable) is false on
+      # this headless host. wall/mail stay pinned (non-default).
       wall.enable = false;
       mail.enable = false;
     };

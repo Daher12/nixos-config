@@ -286,8 +286,8 @@ in
     # ~150-300MB), `--server` daemon = instant window open (Mod+T spawns
     # footclient, home/niri.nix), best-in-class fractional-scale and damage
     # handling at 120Hz. Trade-offs: no ligatures, plain foot.ini.
-    # Theming: Rosé Pine main palette (verbatim upstream hexes, same as the
-    # kitty block above uses on the GNOME hosts), same font; foot
+    # Theming: Rosé Pine main palette (verbatim upstream hexes — foot-only;
+    # the kitty block on the GNOME attrs uses Nord), same font; foot
     # draws FULLY OPAQUE and sits under the compositor rule in
     # home/niri.nix (opacity 0.75 + xray blur) — user picked full frost
     # after trialing plain client-side translucency. Known trade-off:
@@ -314,7 +314,7 @@ in
         enable = true;
 
         # One daemon, instant client windows (`footclient`, wired as the
-        # Mod+Shift+T spawn target).
+        # Mod+T spawn target — home/niri.nix).
         server.enable = true;
 
         settings = {
@@ -332,8 +332,8 @@ in
 
           scrollback.lines = 10000;
 
-          # Rosé Pine main — github.com/rose-pine (same palette as the
-          # kitty block above). Foot draws FULLY OPAQUE: the frost +
+          # Rosé Pine main — github.com/rose-pine (foot's own palette; the
+          # kitty block above uses Nord on the GNOME attrs). Foot draws FULLY OPAQUE: the frost +
           # transparency are compositor-owned, identical to kitty (the
           # kitty/foot window rule in home/niri.nix sets `opacity 0.75` +
           # xray blur) — one render stack for both terminals. User picked
