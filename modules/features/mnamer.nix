@@ -282,6 +282,11 @@ let
                 run "$@"
                 ;;
 
+              kinder-raw)
+                shift
+                runKinder "$@"
+                ;;
+
               source)
                 printf '%s\n' "$downloads"
                 ;;
@@ -322,11 +327,22 @@ let
         mnamer-tools kinder-import
         mnamer-tools kinder-source
         mnamer-tools raw ...
+        mnamer-tools kinder-raw ...   # kinder lane: same, kinder config
         mnamer-tools source
         mnamer-tools path
         mnamer-tools dump
         mnamer-tools kinder-path
         mnamer-tools kinder-dump
+
+        Wrong-match handling (import-overview): matched rows are screened
+        for suspicious assignments (numeric-only titles, low title
+        similarity, year mismatch). Flagged rows drop into an amber
+        SUSPICIOUS section, are excluded from y, and are handled at the
+        prompt: <row>:<provider>-<id> (tmdb|tvdb|tvmaze; bare id = lane
+        provider for series) previews through mnamer --test plus the id
+        directive and moves the file on accept; <row>:ok accepts a
+        flagged row as matched. Outside the prompt: raw / kinder-raw
+        with --id-* directives, ONE file per invocation.
       EOF
                 exit 1
                 ;;

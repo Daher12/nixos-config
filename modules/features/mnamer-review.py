@@ -14,7 +14,11 @@
 #
 # Output-format coupling: the parser targets mnamer 2.6.0's test-mode
 # output (Processing "<file>" ... / moving to <dest> / skipping (...)).
-# Re-verify on nixpkgs mnamer bumps (lore 2026-11-22).
+# Re-verify on nixpkgs mnamer bumps (lore 2026-11-22). The suspicion
+# screen (import mode) additionally slices the matched title/year out of
+# the formatted destination via the lane config's library roots — that
+# assumes the module's default movie/episode format templates; nix-media
+# keeps the defaults, custom formats just yield no verdict (rows ride).
 
 import argparse
 import difflib
@@ -182,10 +186,14 @@ class Box:
         inner = self.ui.width() - 2
         left = " " + ui.clean(self.title) + " "
         right = f" {self.count} files " if self.count is not None else " "
-        fill = inner - vlen(left) - vlen(right)
+        # -1: the decorative h glyph after the corner is part of the
+        # border — without it the top line renders 1 char wider than the
+        # frame (pre-existing off-by-one, exposed at narrow widths).
+        fill = inner - 1 - vlen(left) - vlen(right)
         if fill < 1:
-            left = " " + ui.trunc(self.title, max(inner - 6, 3)) + " "
-            fill = inner - vlen(left) - vlen(right)
+            left = " " + ui.trunc(self.title, max(inner - 7, 3)) + " "
+            fill = inner - 1 - vlen(left) - vlen(right)
+            fill = max(fill, 0)
         top = g["tl"] + g["h"] + ui.bold(left) + g["h"] * fill + right + g["tr"]
         print(top)
 
@@ -315,11 +323,16 @@ def fill_sources(records, lane_dir):
                 rec["source"] = os.path.join(lane_dir, rec["basename"])
 
 
-def run_mnamer_test(mnamer, config, target, verbose=True):
+def run_mnamer_test(mnamer, config, target, verbose=True, extra=None):
+    # extra: additional value flags appended before the target (used by
+    # the import override preview, e.g. ["--id-tvmaze", "84261"]).
     argv = [mnamer, "--config-path", config, "--test", "--batch"]
     if verbose:
         argv.append("--verbose")
-    argv += ["--no-style", target]
+    argv += ["--no-style"]
+    if extra:
+        argv += extra
+    argv += [target]
     proc = subprocess.run(argv, capture_output=True, text=True, timeout=900)
     if proc.returncode != 0 and not proc.stdout.strip():
         eprint(f"  mnamer exited {proc.returncode}: {proc.stderr.strip()[:300]}")
@@ -329,13 +342,15 @@ def run_mnamer_test(mnamer, config, target, verbose=True):
 # ------------------------------------------------------------ suggestions
 
 
-def query_variants(name):
-    """Return (title, year, [query variants]) with scene normalization.
+def parse_title_tokens(name):
+    """Scene-name normalization core: returns (keep_tokens, year, stem).
 
-    The year is stripped from the title (TMDb's search is literal —
-    "Dornröschen 1959" returns nothing while "Dornröschen" + year=1959
-    hits) and travels separately. Titles that ARE a year ("1917") fall
-    back to the unstripped name.
+    Shared by query_variants (provider search) and flag_suspicious
+    (wrong-match heuristic). keep_tokens is the residual title BEFORE the
+    "or raw stem" fallback — empty means nothing parseable survived
+    (numeric titles like "12 12 12": their digit tokens die in the
+    1-3-digit/episode/tag strips). stem is the extension- and
+    hash-prefix-stripped name, the fallback query_variants searches with.
     """
     name = os.path.splitext(name)[0]
     name = _HASHY.sub("", name)
@@ -356,7 +371,19 @@ def query_variants(name):
     keep = [t for t in tokens if not _TAG.match(t)]
     if year and year in keep:
         keep = [t for t in keep if t != year] or keep  # "1917" keeps its title
-    title = " ".join(keep).strip() or name
+    return keep, year, name
+
+
+def query_variants(name):
+    """Return (title, year, [query variants]) with scene normalization.
+
+    The year is stripped from the title (TMDb's search is literal —
+    "Dornröschen 1959" returns nothing while "Dornröschen" + year=1959
+    hits) and travels separately. Titles that ARE a year ("1917") fall
+    back to the unstripped name.
+    """
+    keep, year, stem = parse_title_tokens(name)
+    title = " ".join(keep).strip() or stem
     variants = [title]
     ascii_from_umlaut = title
     for um, asc in _UMLAUTS:
@@ -387,6 +414,99 @@ def score(query_title, query_year, cand):
     if query_year and cand["year"] and query_year == cand["year"]:
         r = min(1.0, r + 0.15)
     return r
+
+
+# Similarity floor for flagging a matched row: the wrong-match class
+# measures ~0.0-0.1 ("12 12 12" -> "Becoming"), legitimate provider
+# alias matches ride >= ~0.4 ("Bob der Baumeister" -> "Bob the Builder").
+_SUSPECT_RATIO = 0.35
+
+# Providers accepted by the <row>:<id> override answer (mnamer --id-*).
+PROVIDERS = ("tmdb", "tvdb", "tvmaze")
+
+
+def library_roots(config_path):
+    """(movie_root, episode_root) from the lane's generated mnamer config.
+
+    Used to slice the matched title out of the formatted destination (the
+    only match metadata mnamer's test output carries). Reading the roots
+    from the lane's own config keeps the slice per-lane correct (kinder
+    has its own roots) without threading format templates through --lane.
+    """
+    try:
+        with open(config_path, encoding="utf-8") as fh:
+            cfg = json.load(fh)
+        return cfg.get("movie_directory"), cfg.get("episode_directory")
+    except Exception:
+        return None, None
+
+
+def matched_title(rec, roots):
+    """(title, year|None) sliced from the destination, or (None, None).
+
+    Destination layout under the module's default formats: movies
+    "<root>/<Title> (<year>)/…", series "<root>/<Series>/Season …/…".
+    Anything else (custom format, destination outside both roots) yields
+    no verdict — heuristics skip that row instead of guessing.
+    """
+    dest = rec.get("destination")
+    if not dest or not roots:
+        return None, None
+    series = "movie" not in (rec.get("media") or "").lower()
+    preferred, other = (roots[1], roots[0]) if series else (roots[0], roots[1])
+    base = None
+    for root in (preferred, other):
+        if root:
+            root = root.rstrip("/")
+            if dest.startswith(root + "/"):
+                base = dest[len(root) + 1:].split("/")[0]
+                break
+    if not base or base in (".", ".."):
+        return None, None
+    m = re.search(r"\s*\((\d{4})\)$", base)
+    if m:
+        return base[: m.start()].strip(), m.group(1)
+    return base, None
+
+
+def flag_suspicious(rec, roots):
+    """Reasons to distrust an already-matched record; empty list = trust.
+
+    no_guess only guards ZERO-hit files — a wrong metadata hit sails
+    through as "matched" and re-derails identically every run ("12 12 12"
+    -> "Becoming"). Hold flags, all cheap (no provider traffic):
+    - numeric/unparsable title: no alphabetic token survived scene
+      normalization (or none at all) AND the match is alphabetic or
+      unverifiable — a numeric match ("1917" -> "1917", "12 12 12" ->
+      "12 12 12") is a perfect hit and rides;
+    - low similarity: parsed title vs matched title (year-bonus score),
+      best of the cleaned title and the separator-normalized stem, below
+      _SUSPECT_RATIO — the cleaned title collapses for numeric filenames,
+      the raw stem rescues them;
+    - year mismatch: filename year vs destination year (movies).
+    """
+    reasons = []
+    keep, fyear, stem = parse_title_tokens(rec["basename"])
+    title = " ".join(keep).strip() or stem
+    mtitle, myear = matched_title(rec, roots)
+    numeric_parsed = (not keep) or (
+        not any(re.search(r"[^\d\s]", t) for t in keep)
+    )
+    if numeric_parsed and (mtitle is None or re.search(r"[A-Za-z]", mtitle)):
+        reasons.append(
+            "numeric/unparsable title" if not keep else "numeric-only title"
+        )
+    if mtitle is not None:
+        norm_stem = re.sub(r"[.\s_\-\[\]()]+", " ", stem).strip().lower()
+        r = max(
+            score(title, fyear, {"title": mtitle, "year": myear}),
+            score(norm_stem, fyear, {"title": mtitle, "year": myear}),
+        )
+        if r < _SUSPECT_RATIO:
+            reasons.append(f"parsed '{title}' vs matched '{mtitle}' ({r:.0%})")
+        if fyear and myear and fyear != myear:
+            reasons.append(f"year {fyear} vs matched {myear}")
+    return reasons
 
 
 def _tmdb_tv(q):
@@ -524,15 +644,22 @@ def count_mask(dirp):
 
 
 def import_flow(lane, mnamer, guess, ui):
-    """Overview table + proceed question + ONE real mnamer run.
+    """Overview table + proceed question + bulk/forced mnamer runs.
 
-    No-guess mode: safe-config table (CONFIRMED / skipped), y imports the
-    confirmed files. --guess: adds a GUESSED section (moves that happen
-    only under the guess config — set-difference by basename), and the
-    prompt accepts y = confirmed + guessed (exactly what the table shows,
-    executed with the guess config) or c = confirmed only (safe config —
-    guesses can't move under no_guess). no-overwrite guards collisions in
-    every case.
+    No-guess mode: safe-config table (CONFIRMED / SUSPICIOUS / skipped),
+    y imports the unflagged bulk. Suspicious rows (flag_suspicious —
+    no_guess guards only zero-hit files, so matched rows are screened)
+    are excluded from y and handled at the prompt: <row>:<provider>-<id>
+    previews through mnamer --test + the id directive and, on accept,
+    immediately moves that ONE file via mnamer --id-*; <row>:ok accepts a
+    flagged row as matched (alias-match escape). --guess: adds a GUESSED
+    section (moves that happen only under the guess config —
+    set-difference by basename) and y = confirmed + guessed (guess
+    config) / c = confirmed only (safe config). The bulk run targets the
+    accepted sources explicitly, never the lane dir: flagged rows must
+    not be swept back in, and a target-less mnamer run would scan the
+    CWD — an empty source list skips the run entirely. no-overwrite
+    guards collisions in every case.
     """
     d = lane["dir"]
     if not os.path.isdir(d):
@@ -546,10 +673,15 @@ def import_flow(lane, mnamer, guess, ui):
         return 0
     safe_recs, _ = parse_mnamer_output(run_mnamer_test(mnamer, lane["config"], d))
     fill_sources(safe_recs, d)
+    roots = library_roots(lane["config"])
     confirmed = [r for r in safe_recs if r["status"] == "matched"]
     collision = [r for r in safe_recs if r["status"] == "collision"]
     unmatched = [r for r in safe_recs if r["status"] == "unmatched"]
     skipped = [r for r in safe_recs if r["status"] == "skipped"]
+    for r in confirmed:
+        r["suspect"] = flag_suspicious(r, roots)
+    bulk = [r for r in confirmed if not r["suspect"]]
+    suspicious = [r for r in confirmed if r["suspect"]]
 
     guessed = []
     if guess:
@@ -583,15 +715,33 @@ def import_flow(lane, mnamer, guess, ui):
         return path if relp.startswith("..") else relp
 
     box = Box(ui, f"{lane['name'].upper()} · {d}", before)
-    n_c, n_g = len(confirmed), len(guessed)
-    if confirmed:
-        box.section("confirmed", ui.green, f"CONFIRMED ({n_c}) — provider match")
-        for i, r in enumerate(confirmed):
+    n_g = len(guessed)
+    num_map = {}  # printed row number -> rec (stable across overrides)
+    next_row = 0
+    if bulk:
+        box.section("confirmed", ui.green, f"CONFIRMED ({len(bulk)}) — provider match")
+        for i, r in enumerate(bulk):
+            next_row += 1
+            num_map[next_row] = r
             box.row(
-                f"{os.path.basename(r['source'])}  ·  {r['size'] or '?'}",
-                ui.green, last=(i == n_c - 1),
+                f"{next_row}  {os.path.basename(r['source'])}  ·  {r['size'] or '?'}",
+                ui.green, last=(i == len(bulk) - 1),
             )
             box.sub(disp(r["destination"]), ui.green)
+    if suspicious:
+        box.section(
+            "collision", ui.amber,
+            f"SUSPICIOUS ({len(suspicious)}) — check before importing",
+        )
+        for i, r in enumerate(suspicious):
+            next_row += 1
+            num_map[next_row] = r
+            box.row(
+                f"{next_row}  {os.path.basename(r['source'])}  ·  {r['size'] or '?'}",
+                ui.amber, last=(i == len(suspicious) - 1),
+            )
+            box.sub(disp(r["destination"]), ui.amber)
+            box.sub(" · ".join(r["suspect"]), ui.dim)
     if guessed:
         box.section(
             "guessed", ui.amber,
@@ -631,19 +781,120 @@ def import_flow(lane, mnamer, guess, ui):
                 )
     box.flush()
 
-    if not (confirmed or guessed):
+    if not (bulk or suspicious or guessed):
         print(ui.dim("   nothing would move — nothing to proceed on"))
         return 0
-    if guess and n_g:
-        question = (
-            f"import {n_c} confirmed + {n_g} guessed files?"
-            " [y = all shown / c = confirmed only / N = abort]"
+
+    # Override / accept loop: <row>:<provider>-<id> force-fixes a row via
+    # mnamer --id-* (preview + explicit accept, executed immediately —
+    # each forced move carries its own confirm), <row>:ok accepts a
+    # flagged row as matched. Any other answer settles the bulk.
+    rc_forced = 0
+    while True:
+        n_b, n_s = len(bulk), len(suspicious)
+        if guess and n_g:
+            question = (
+                f"import {n_b} confirmed + {n_g} guessed files"
+                f" ({n_s} suspicious)?"
+                " [y = all shown / c = confirmed only / row:id = force / N = abort]"
+            )
+            short_q = f"import {n_b}+{n_g}, {n_s} susp? [y=all / c=conf / row:id / N=abort]"
+        elif n_b:
+            question = (
+                f"import {n_b} confirmed files ({n_s} suspicious)?"
+                " [y = bulk / row:id = force / row:ok = accept / N = abort]"
+            )
+            short_q = f"import {n_b}, {n_s} susp? [y / row:id / row:ok / N=abort]"
+        else:
+            question = (
+                f"{n_s} suspicious — force or accept a row?"
+                " [row:id = force / row:ok = accept / N = abort]"
+            )
+            short_q = f"{n_s} susp? [row:id / row:ok / N=abort]"
+        ans = box.ask(question, short_q)
+        m = re.match(r"^(\d+)\s*:\s*(.+)$", ans)
+        if not m:
+            break
+        rec = num_map.get(int(m.group(1)))
+        rest = m.group(2).strip().lower()
+        if rec is None:
+            print(ui.dim("    no such row — use the printed row numbers"))
+            continue
+        if rest == "ok":
+            if rec in suspicious:
+                suspicious.remove(rec)
+                bulk.append(rec)
+                print(ui.green(f"    {ui.g['ok']} accepted as matched — rides y"))
+            else:
+                print(ui.dim("    already confirmed — nothing to accept"))
+            continue
+        kind = "movie" if "movie" in (rec["media"] or "").lower() else "episode"
+        prov, ident = None, rest
+        if "-" in rest:
+            p, i2 = rest.split("-", 1)
+            if p in PROVIDERS:
+                prov, ident = p, i2
+        if prov is None:
+            if kind == "movie":
+                print(ui.dim("    movies need the provider: <row>:tmdb-<id>"))
+                continue
+            prov = lane["episode_api"]  # series: bare id = lane provider
+        flag = "--id-" + prov
+        # Preview: --test + the directive on this ONE file (--id-* binds
+        # to every file of an invocation, so it stays per-file here too).
+        prev_recs, _ = parse_mnamer_output(
+            run_mnamer_test(
+                mnamer, lane["config"], rec["source"], extra=[flag, ident]
+            )
         )
-        short_q = f"import {n_c}+{n_g} files? [y=all / c=confirmed / N=abort]"
-    else:
-        question = f"import {n_c} confirmed files? [y/N]"
-        short_q = None
-    ans = box.ask(question, short_q)
+        dest = next(
+            (p["destination"] for p in prev_recs if p["destination"]), None
+        )
+        if not dest:
+            print(ui.red(
+                f"    [{ui.g['fail']} override] {flag}={ident} matched nothing"
+                " — row unchanged"
+            ))
+            continue
+        print(f"    {ui.g['arrow']} {disp(dest)}  [{flag}={ident}]")
+        try:
+            ok_ans = input(ui.bold("    accept? [y/N] ")).strip().lower()
+        except EOFError:
+            ok_ans = ""
+        if ok_ans != "y":
+            print(ui.dim("    skipped — row unchanged"))
+            continue
+        proc = subprocess.run(
+            [
+                mnamer,
+                "--config-path",
+                lane["config"],
+                "--no-style",
+                flag,
+                ident,
+                "--",
+                rec["source"],
+            ],
+            capture_output=True,
+            text=True,
+            timeout=900,
+        )
+        if proc.returncode == 0:
+            print(ui.green(
+                f"    [{ui.g['ok']}] {os.path.basename(rec['source'])}"
+                f" <- {flag}={ident}"
+            ))
+            if rec in bulk:
+                bulk.remove(rec)
+            if rec in suspicious:
+                suspicious.remove(rec)
+        else:
+            rc_forced = 1
+            print(ui.red(
+                f"    [{ui.g['fail']} rc={proc.returncode}]"
+                f" {os.path.basename(rec['source'])} <- {flag}={ident}"
+            ))
+
     if ans == "c" and guess and n_g:
         cfg, label = lane["config"], "confirmed only"
     elif ans == "y":
@@ -652,24 +903,34 @@ def import_flow(lane, mnamer, guess, ui):
         else:
             cfg, label = lane["config"], "confirmed"
     else:
-        print(ui.dim(ui.clean("declined — nothing was changed")))
-        return 0
+        print(ui.dim(ui.clean("declined — nothing else was changed")))
+        return 1 if rc_forced else 0
 
-    proc = subprocess.run(
-        [mnamer, "--config-path", cfg, "--no-style", d],
-        capture_output=True,
-        text=True,
-        timeout=1800,
-    )
-    if proc.returncode != 0:
-        eprint(f"   mnamer exited {proc.returncode}: {proc.stderr.strip()[:300]}")
+    # Bulk run over EXPLICIT sources only — never the lane dir, which
+    # would sweep the still-flagged suspicious rows back in.
+    sources = [r["source"] for r in bulk]
+    if ans == "y" and guess and n_g:
+        sources += [r["source"] for r in guessed]
+    rc_bulk = 0
+    if sources:
+        proc = subprocess.run(
+            [mnamer, "--config-path", cfg, "--no-style", *sources],
+            capture_output=True,
+            text=True,
+            timeout=1800,
+        )
+        if proc.returncode != 0:
+            eprint(f"   mnamer exited {proc.returncode}: {proc.stderr.strip()[:300]}")
+        rc_bulk = proc.returncode
+    else:
+        print(ui.dim("   no bulk files left — only the forced moves ran"))
     after = count_mask(d)
     mark = ui.g["ok"]
     print(ui.green(f"  {mark} imported ({label}): {before - after}") +
           ui.dim(ui.clean(f" — left in lane: {after}")))
     if after:
         print(ui.dim(ui.clean("   leftovers: review them with the review verb")))
-    return 0 if proc.returncode == 0 else 1
+    return 1 if (rc_bulk or rc_forced) else 0
 
 
 def review_lane(lane, mnamer, do_suggest, ui):
@@ -689,13 +950,25 @@ def review_lane(lane, mnamer, do_suggest, ui):
     unmatched = [r for r in records if r["status"] == "unmatched"]
     collision = [r for r in records if r["status"] == "collision"]
     skipped = [r for r in records if r["status"] == "skipped"]
+    roots = library_roots(lane["config"])
 
     box = Box(ui, f"{lane['name'].upper()} · {d}", len(records))
     if matched:
         box.section("confirmed", ui.green, f"MATCHED ({len(matched)}) — would import")
         for i, r in enumerate(matched):
-            box.row(os.path.basename(r["source"]), ui.green, last=(i == len(matched) - 1))
-            box.sub(r["destination"], ui.green)
+            reasons = flag_suspicious(r, roots)
+            if reasons:
+                # Informational only: review never touches matched files —
+                # fix them at the import-overview prompt (row:id / row:ok).
+                box.row(
+                    ui.g["collision"] + " " + os.path.basename(r["source"]),
+                    ui.amber, last=(i == len(matched) - 1),
+                )
+                box.sub(r["destination"], ui.amber)
+                box.sub(" · ".join(reasons), ui.dim)
+            else:
+                box.row(os.path.basename(r["source"]), ui.green, last=(i == len(matched) - 1))
+                box.sub(r["destination"], ui.green)
     if collision:
         box.section("collision", ui.red, f"COLLISION ({len(collision)}) — destination exists")
         for i, r in enumerate(collision):
