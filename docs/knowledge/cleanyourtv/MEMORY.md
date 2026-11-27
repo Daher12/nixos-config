@@ -1,1 +1,1 @@
-- [waipu G2 stick session](waipu-g2-stick-session.md) — disable refused→suspend+appops, ProjEngMenu back as Home per owner, docs PR on Daher12 fork (docs/waipu-stick-g2), nix-shell JDK17 + adb-binary push path, no gh/no upstream push rights
+- [waipu G2 stick session](waipu-g2-stick-session.md) — disable refused→suspend+appops; ProjEngMenu Home; Bilderrahmen+YouTube re-enabled 2026-11-27; PR branch exists but fork deleted & PR never opened; nix-shell JDK17/python3 venv + adb-binary push path

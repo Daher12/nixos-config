@@ -1,13 +1,13 @@
 # Memory Index
 
-- [mnamer wrong-match + raw fix 2026-11-26](mnamer-wrong-match-raw-fix-2026-11-26.md) — "12 12 12"→"Becoming": no_guess guards only zero-hit; fix = `raw --media episode --id-tvmaze=84261 --test <one path>`; NO kinder-raw verb; structural fix offered, open
-- [Lean-and-Mean audit EXECUTED 2026-11-26](lean-mean-audit-exec-2026-11-26.md) — A–E committed 386071a..31634ed, fast green + yoga-gnome/7 VM-test dry-runs; eval: no measurable Lix eval-cache gain, flake check 41s, batched dry-run 44s; proofs caught 2 wrong claims; QC fixed 5; OPEN: sops key+rotate, switch
+- [mnamer wrong-match fix EXECUTED 2026-11-27](mnamer-wrong-match-raw-fix-2026-11-26.md) — "12 12 12"→"Becoming" class: import-overview flags suspicious matched rows (numeric/low-sim/year) → excluded from y; `<row>:<provider>-<id>` override (live --test preview + immediate --id-* move) + `<row>:ok`; kinder-raw verb; Box._top off-by-one fixed; battery 38/38 + real E2E (--id+--test verified); committed 49868b7, fast green, switch pending
+- [Lean-and-Mean audit EXECUTED 2026-11-26](lean-mean-audit-exec-2026-11-26.md) — A–E committed 386071a..31634ed, fast green; eval: no measurable Lix eval-cache gain, flake check 41s, batched dry-run 44s; proofs caught 2 wrong claims; QC fixed 5; OPEN: sops key+rotate, switch
 - [Lean-and-Mean audit PLAN 2026-11-26](lean-mean-audit-plan-2026-11-26.md) — SUPERSEDED (executed same day, see lean-mean-audit-exec-2026-11-26)
 - [Sops hygiene verified 2026-11-25](sops-hygiene-verified-2026-11-25.md) — .sops.yaml public keys in GitHub = safe; latitude/nix-media.yaml re-encryption (retired admin key) still open
 - [Impermanence xbel fix EXECUTED 2026-11-25](impermanence-xbel-heal-fix-2026-11-25.md) — GTK atomic rename destroys persist symlink; xbel dropped, generic persist-heal hook in impermanence.nix; switch pending
 - [Yoga perf round EXECUTED+QC'd 2026-11-25](yoga-perf-round-2026-11-25.md) — cb7b73e + QC fixes; TLP 1.9.1 key-name bug + bogus Brave policy caught; OPEN: switch + boost round-trip
 - [yoga perf/power research PLAN 2026-11-25](yoga-perf-power-optimization-plan-2026-11-25.md) — SUPERSEDED (executed: yoga-perf-round); verdict "stack right, no replacements"; TLP 1.9.1 power-saver unused, STAPM inert
-- [ZCode battery flags EXECUTED 2026-11-25](zcode-battery-alternatives-plan-2026-11-25.md) — `--ozone-platform=wayland` on Exec (cb7b73e); A/B: V3 compositing-off UNUSABLE, V2 final; app_id re-probe open
+- [ZCode battery flags EXECUTED 2026-11-25](zcode-battery-alternatives-plan-2026-11-25.md) — `--ozone-platform=wayland` on Exec (cb7b73e); A/B: V3 compositing-off UNUSABLE, V2 final
 - [Pkg bump sweep EXECUTED 2026-11-25](update-sweep-2026-11-25.md) — zcode 4.0.0, mikromcp 1.18.0, opencode v2.4.1; fetchurl=FLAT hash lore; noctalia v5.6.0 bump open
 - [Silo age-groups EXECUTED r3 11-23](silo-agegroups-declutter-exec-2026-11-21.md) — LIVE: Kleinkinder=Pooh trio / Größere=15 / Neu=18; ages double-sourced FLIMMO+CSM; parent nav-hide GUI step open
 - yoga on gen 207+ since Nov 15 (niri+Noctalia v5.5.0) — "gen 202 pending" notes STALE; lockscreen r4 + M3 theme + focus-follows-mouse LIVE
